@@ -1,0 +1,88 @@
+/* Health Flow Background - Blue/Green variant */
+.wrap {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Base gradient - sophisticated blue to teal/green */
+.base {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    145deg,
+    #f0f9ff 0%,      /* Very soft sky blue */
+    #e8f5fd 15%,     /* Pale cyan */
+    #e0f2f7 30%,     /* Soft aqua */
+    #daf0f2 45%,     /* Very light teal */
+    #d5f0ee 60%,     /* Pale cyan-teal */
+    #d8f3f0 75%,     /* Very light mint */
+    #e0f5f3 90%,     /* Pale mint */
+    #e8f8f6 100%     /* Nearly white mint */
+  );
+  opacity: 0.85;
+}
+
+/* Fog overlay for depth and premium feel */
+.fog {
+  position: absolute;
+  inset: 0;
+  background: 
+    radial-gradient(
+      ellipse 100% 80% at 20% 10%,
+      rgba(255, 255, 255, 0.8) 0%,
+      rgba(255, 255, 255, 0.4) 40%,
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 80% 60% at 80% 90%,
+      rgba(255, 255, 255, 0.6) 0%,
+      rgba(255, 255, 255, 0.3) 35%,
+      transparent 65%
+    );
+}
+
+/* SVG flow lines */
+.flow {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.5;
+  mix-blend-mode: overlay;
+}
+
+/* Grain/noise texture */
+.noise {
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 300 300' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.018;
+  mix-blend-mode: overlay;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .base {
+    background: linear-gradient(
+      160deg,
+      #e0f4ff 0%,
+      #b4e4f8 35%,
+      #9de8e8 65%,
+      #d0faf5 100%
+    );
+  }
+  
+  .flow {
+    opacity: 0.4;
+  }
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .flow {
+    opacity: 0.25;
+  }
+}
