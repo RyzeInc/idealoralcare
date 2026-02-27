@@ -1,0 +1,240 @@
+/* STEP PROGRESS BAR STYLES */
+
+.progressContainer {
+  padding: 32px 0 48px;
+  background: transparent;
+}
+
+.stepsWrapper {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0;
+  position: relative;
+}
+
+@media (max-width: 768px) {
+  .progressContainer {
+    padding: 24px 0 32px;
+  }
+
+  .stepsWrapper {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+}
+
+.stepWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 20px;
+  height: 2px;
+  background: #e0e0e0;
+  z-index: 0;
+  transform: translateX(50%);
+  width: 100%;
+}
+
+.lineCompleted {
+  background: #0066cc;
+}
+
+.stepContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.step {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid #e0e0e0;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 600;
+  font-size: 14px;
+  color: #666;
+  flex-shrink: 0;
+}
+
+.step:hover:not(:disabled) {
+  border-color: #0066cc;
+  background: #f0f7ff;
+}
+
+.step:disabled {
+  cursor: not-allowed;
+}
+
+.stepNumber {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+}
+
+/* Completed step */
+.stepCompleted {
+  border-color: #0066cc;
+  background: #0066cc;
+}
+
+.stepCompleted .stepNumber,
+.stepCompleted .icon {
+  color: white;
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Current step */
+.stepCurrent {
+  border-color: #0066cc;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+}
+
+.stepCurrent .stepNumber {
+  color: #0066cc;
+  font-weight: 700;
+}
+
+.label {
+  text-align: center;
+  min-width: 100px;
+}
+
+.labelText {
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+  line-height: 1.4;
+}
+
+.labelCurrent {
+  color: #0066cc;
+  font-weight: 600;
+}
+
+.labelSubtext {
+  font-size: 10px;
+  color: #0066cc;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .step {
+    width: 36px;
+    height: 36px;
+    font-size: 12px;
+  }
+
+  .labelText {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 768px) {
+  .line {
+    display: none;
+  }
+
+  .step {
+    width: 36px;
+    height: 36px;
+    font-size: 12px;
+  }
+
+  .labelText {
+    font-size: 11px;
+  }
+
+  .stepWrapper:nth-child(n + 4) {
+    display: none;
+  }
+}
+
+/* COMPACT VARIANT (VERTICAL/MOBILE) */
+
+.compactContainer {
+  padding: 12px 0;
+  background: transparent;
+}
+
+.compactWrapper {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.compactStep {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #e0e0e0;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 600;
+  font-size: 12px;
+  color: #666;
+  flex-shrink: 0;
+}
+
+.compactStep:hover:not(:disabled) {
+  border-color: #0066cc;
+  background: #f0f7ff;
+}
+
+.compactStep:disabled {
+  cursor: not-allowed;
+}
+
+.compactNumber {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.compactStepCompleted {
+  border-color: #0066cc;
+  background: #0066cc;
+  color: white;
+}
+
+.compactStepCurrent {
+  border-color: #0066cc;
+  background: white;
+  box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2);
+}
+
+.compactStepCurrent {
+  color: #0066cc;
+}

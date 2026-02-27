@@ -1,0 +1,382 @@
+/* CONFIRMATION PAGE STYLES */
+
+.container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f0f7ff 0%, rgba(0, 102, 204, 0.05) 100%);
+  padding: 40px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.successCard {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 10px 20px rgba(0, 0, 0, 0.05);
+  max-width: 600px;
+  width: 100%;
+  padding: 40px 32px;
+}
+
+/* Header Section */
+.headerSection {
+  text-align: center;
+  margin-bottom: 40px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.checkmark {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 20px;
+  background: linear-gradient(135deg, #0066cc, #0052a3);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.title {
+  margin: 0 0 8px;
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 16px;
+  color: #666;
+  line-height: 1.5;
+}
+
+/* Section Styles */
+.sectionTitle {
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.memberSection {
+  margin-bottom: 32px;
+}
+
+.memberCard {
+  background: rgba(0, 102, 204, 0.02);
+  border: 1px solid rgba(0, 102, 204, 0.1);
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.memberField {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.memberField:last-child {
+  border-bottom: none;
+}
+
+.label {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.value {
+  font-size: 16px;
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+/* Barcode */
+.barcodeContainer {
+  padding: 16px 0;
+  border-top: 1px solid rgba(0, 102, 204, 0.2);
+  text-align: center;
+}
+
+.barcodeLabel {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: #999;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.barcode {
+  font-family: 'Courier New', monospace;
+  font-size: 24px;
+  letter-spacing: 2px;
+  padding: 16px;
+  background: white;
+  border: 2px solid #1a1a1a;
+  border-radius: 4px;
+  margin: 12px 0;
+  word-break: break-all;
+  font-weight: bold;
+}
+
+.barcodeHint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #999;
+}
+
+/* Plans Section */
+.plansSection {
+  margin-bottom: 32px;
+}
+
+.plansList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.planItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(0, 102, 204, 0.02);
+  border: 1px solid rgba(0, 102, 204, 0.1);
+  border-radius: 6px;
+}
+
+.planCheck {
+  width: 24px;
+  height: 24px;
+  background: #0066cc;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.planName {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.planPrice {
+  margin: 0;
+  font-size: 14px;
+  color: #0066cc;
+  font-weight: 600;
+}
+
+/* Pricing Section */
+.pricingSection {
+  margin-bottom: 32px;
+}
+
+.pricingBox {
+  background: linear-gradient(135deg, rgba(0, 102, 204, 0.05), rgba(0, 102, 204, 0.02));
+  border: 1px solid rgba(0, 102, 204, 0.2);
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pricingRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 16px;
+  padding: 8px 0;
+}
+
+.pricingRow span:first-child {
+  color: #666;
+  font-weight: 500;
+}
+
+.price {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0066cc;
+}
+
+.capitalize {
+  text-transform: capitalize;
+}
+
+.billingNote {
+  margin: 12px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 102, 204, 0.2);
+  font-size: 12px;
+  color: #666;
+  line-height: 1.5;
+}
+
+/* Next Steps Section */
+.nextStepsSection {
+  margin-bottom: 32px;
+}
+
+.stepsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stepsList li {
+  display: flex;
+  gap: 16px;
+  padding: 12px;
+  background: rgba(0, 102, 204, 0.02);
+  border-left: 4px solid #0066cc;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #1a1a1a;
+  line-height: 1.5;
+}
+
+.stepNumber {
+  width: 24px;
+  height: 24px;
+  background: #0066cc;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 12px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Actions Section */
+.actionsSection {
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.primaryButton,
+.secondaryButton {
+  width: 100%;
+  padding: 14px 20px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-decoration: none;
+  border: none;
+}
+
+.primaryButton {
+  background: #0066cc;
+  color: white;
+}
+
+.primaryButton:hover {
+  background: #0052a3;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+}
+
+.secondaryButton {
+  background: white;
+  color: #0066cc;
+  border: 2px solid #0066cc;
+}
+
+.secondaryButton:hover {
+  background: #f0f7ff;
+  transform: translateY(-2px);
+}
+
+/* Support Section */
+.supportSection {
+  text-align: center;
+  padding: 20px;
+  background: rgba(0, 102, 204, 0.02);
+  border: 1px solid rgba(0, 102, 204, 0.1);
+  border-radius: 6px;
+  font-size: 14px;
+  color: #666;
+  line-height: 1.6;
+}
+
+.supportSection a {
+  color: #0066cc;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.supportSection a:hover {
+  text-decoration: underline;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .successCard {
+    padding: 24px 16px;
+  }
+
+  .container {
+    padding: 20px 12px;
+  }
+
+  .title {
+    font-size: 24px;
+  }
+
+  .checkmark {
+    width: 64px;
+    height: 64px;
+  }
+
+  .memberField {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .barcode {
+    font-size: 18px;
+    letter-spacing: 1px;
+  }
+
+  .actionsSection {
+    gap: 10px;
+  }
+
+  .primaryButton,
+  .secondaryButton {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+}

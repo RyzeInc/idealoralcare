@@ -1,0 +1,116 @@
+/* REVIEW STEP STYLES */
+
+.reviewForm {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 700px;
+}
+
+.section {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  background: white;
+  overflow: hidden;
+}
+
+.sectionHeader {
+  width: 100%;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(0, 102, 204, 0.02);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.sectionHeader:hover {
+  background: rgba(0, 102, 204, 0.05);
+}
+
+.sectionHeader h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+  transition: transform 0.2s ease;
+}
+
+.sectionContent {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  font-size: 14px;
+}
+
+.itemLabel {
+  color: #666;
+  font-weight: 500;
+}
+
+.itemValue {
+  color: #1a1a1a;
+  font-weight: 500;
+  text-align: right;
+}
+
+.addressBlock {
+  font-size: 14px;
+  color: #1a1a1a;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  font-family: inherit;
+}
+
+/* Pricing Summary */
+.pricingSummary {
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(0, 102, 204, 0.05), rgba(0, 102, 204, 0.02));
+  border: 1px solid rgba(0, 102, 204, 0.2);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pricingRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 16px;
+}
+
+.pricingRow span {
+  color: #666;
+  font-weight: 500;
+}
+
+.price {
+  font-size: 24px;
+  color: #0066cc;
+}
+
+.pricingNote {
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 102, 204, 0.2);
+}

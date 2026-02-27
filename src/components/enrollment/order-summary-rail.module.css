@@ -1,0 +1,190 @@
+/* ORDER SUMMARY RAIL STYLES */
+
+.desktopRail {
+  display: none;
+  position: sticky;
+  top: 120px;
+  width: 320px;
+  height: fit-content;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+/* Desktop: Show rail */
+@media (min-width: 1200px) {
+  .desktopRail {
+    display: block;
+  }
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.header {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  padding-bottom: 16px;
+}
+
+.header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.empty {
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+  padding: 20px 0;
+  margin: 0;
+}
+
+.plansList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.planItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.planName {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.planPrice {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0066cc;
+}
+
+.breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.breakdownRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  color: #666;
+}
+
+.breakdownRow .highlight {
+  color: #0066cc;
+  font-weight: 500;
+}
+
+.total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  border-top: 2px solid rgba(0, 0, 0, 0.1);
+  border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+  font-weight: 600;
+  font-size: 16px;
+  color: #1a1a1a;
+}
+
+/* Mobile Bottom Sheet */
+.mobileContainer {
+  display: block;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+@media (min-width: 1200px) {
+  .mobileContainer {
+    display: none;
+  }
+}
+
+.mobileToggle {
+  width: 100%;
+  padding: 16px 24px;
+  background: none;
+  border: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.mobileToggleLabel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.badge {
+  background: #0066cc;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.chevronExpanded {
+  transform: rotate(180deg);
+}
+
+.mobileContent {
+  padding: 16px 24px 24px;
+  max-height: 60vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Tablet */
+@media (max-width: 1199px) and (min-width: 768px) {
+  .desktopRail {
+    position: static;
+    width: 100%;
+    margin-top: 24px;
+  }
+
+  .mobileContainer {
+    position: static;
+    border: none;
+  }
+
+  .mobileToggle {
+    display: none;
+  }
+
+  .mobileContent {
+    padding: 0;
+    max-height: none;
+  }
+}

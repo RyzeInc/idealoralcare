@@ -1,0 +1,101 @@
+/* ACCOUNT PAYMENT STEP STYLES */
+
+.authContainer {
+  max-width: 500px;
+}
+
+.signUpSection {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.signUpSection h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.clerkCard {
+  background: white;
+  border-radius: 8px;
+}
+
+/* Section Styling */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0;
+  border: none;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 8px 0;
+}
+
+.addressRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+@media (max-width: 768px) {
+  .addressRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Waivers List */
+.waiversList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.waiverItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.waiverItem input {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.waiverLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.waiverLabel span {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.link {
+  color: #0066cc;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.link:hover {
+  text-decoration: underline;
+}

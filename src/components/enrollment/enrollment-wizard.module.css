@@ -1,0 +1,123 @@
+/* ENROLLMENT WIZARD LAYOUT */
+
+.wizardContainer {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f0f7ff 0%, rgba(0, 102, 204, 0.03) 100%);
+  padding: 20px;
+}
+
+/* Desktop Layout */
+.desktopLayout {
+  display: none;
+  gap: 40px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.stepColumn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.railColumn {
+  width: 320px;
+  height: fit-content;
+  position: sticky;
+  top: 120px;
+}
+
+.stepContent {
+  background: white;
+  border-radius: 12px;
+  padding: 40px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Mobile Layout */
+.mobileLayout {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.mobileProgressBar {
+  background: white;
+  border-radius: 12px;
+  padding: 24px 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.mobileContent {
+  background: white;
+  border-radius: 12px;
+  padding: 24px 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.mobileRail {
+  /* Handled by OrderSummaryRail component with its own mobile styles */
+  margin-bottom: 20px;
+}
+
+/* Desktop Breakpoint (1200px) */
+@media (min-width: 1200px) {
+  .wizardContainer {
+    padding: 40px 20px;
+  }
+
+  .desktopLayout {
+    display: flex;
+  }
+
+  .mobileLayout {
+    display: none;
+  }
+
+  .stepColumn {
+    gap: 32px;
+  }
+
+  .stepContent {
+    padding: 48px;
+  }
+}
+
+/* Tablet Breakpoint (768px - 1199px) */
+@media (max-width: 1199px) {
+  .wizardContainer {
+    padding: 24px 16px;
+  }
+
+  .desktopLayout {
+    display: none;
+  }
+
+  .mobileLayout {
+    display: flex;
+  }
+
+  .stepContent {
+    padding: 24px;
+  }
+}
+
+/* Mobile Breakpoint (max 767px) */
+@media (max-width: 767px) {
+  .wizardContainer {
+    padding: 16px 12px;
+  }
+
+  .mobileProgressBar {
+    padding: 16px 12px;
+  }
+
+  .mobileContent {
+    padding: 16px 12px;
+  }
+
+  .stepContent {
+    padding: 16px;
+  }
+}
