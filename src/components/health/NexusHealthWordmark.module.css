@@ -1,0 +1,88 @@
+/* Nexus Health Wordmark - Logo + Text Lockup */
+.wordmark {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-decoration: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wordmark:hover {
+  opacity: 0.85;
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.icon img {
+  display: block;
+  width: 44px;
+  height: 44px;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1;
+}
+
+/* Primary: "Nexus" - Strong, grounded anchor */
+.primary {
+  font-family: 'Helvetica Neue', 'Helvetica', Arial, sans-serif;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+  text-transform: capitalize;
+}
+
+/* Secondary: "Health Plans" - Light, expanded, secondary */
+.secondary {
+  font-family: 'Helvetica Neue', 'Helvetica', Arial, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  text-transform: capitalize;
+}
+
+/* Hover state - slight color shift */
+.wordmark:hover .primary {
+  color: #0066cc;
+}
+
+.wordmark:hover .secondary {
+  color: #475569;
+}
+
+/* Responsive - Stack on mobile if needed */
+@media (max-width: 640px) {
+  .wordmark {
+    gap: 12px;
+  }
+
+  .primary {
+    font-size: 0.9375rem;
+  }
+
+  .secondary {
+    font-size: 0.6875rem;
+  }
+
+  .icon img {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .wordmark {
+    transition: none;
+  }
+}

@@ -1,0 +1,164 @@
+/* Health Header Responsive Styles */
+
+.headerContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 48px;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 1rem 1.5rem;
+  width: 100%;
+  position: relative;
+  flex-wrap: wrap;
+}
+
+.desktopNav {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.mobileMenuButton {
+  display: none;
+  position: absolute;
+  right: 1.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  color: #0066CC;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.mobileMenu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 0 0 1rem 1rem;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  width: 100%;
+}
+
+.mobileMenuContent {
+  padding: 1rem;
+}
+
+.mobileMenuSection {
+  margin-bottom: 1rem;
+}
+
+.mobileMenuToggle {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  font-weight: 600;
+  color: #0f172a;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.mobileMenuToggle:hover {
+  background: #f8fafc;
+}
+
+.mobileMenuDropdown {
+  display: grid;
+  grid-template-rows: 0fr;
+  padding-left: 1rem;
+  overflow: hidden;
+  transition: grid-template-rows 0.3s ease, margin-top 0.3s ease;
+}
+
+.mobileMenuDropdown.open {
+  grid-template-rows: 1fr;
+  margin-top: 0.5rem;
+}
+
+.mobileMenuDropdown > div {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.mobileMenuLink {
+  display: block;
+  padding: 0.5rem 0;
+  color: #0066CC;
+  text-decoration: none;
+  font-size: 0.9375rem;
+  transition: color 0.2s;
+}
+
+.mobileMenuLink:hover {
+  color: #0052a3;
+}
+
+.mobileMenuDivider {
+  border-top: 1px solid #e2e8f0;
+  margin: 1rem 0;
+  padding-top: 1rem;
+}
+
+/* Responsive Breakpoint: 768px and below */
+@media (max-width: 768px) {
+  .headerContainer {
+    gap: 1rem;
+    padding: 1rem;
+    justify-content: space-between;
+  }
+
+  .desktopNav {
+    display: none;
+  }
+
+  .mobileMenuButton {
+    display: flex;
+  }
+
+  .mobileMenu.open {
+    display: block;
+  }
+}
+
+/* Very small screens: 640px and below */
+@media (max-width: 640px) {
+  .headerContainer {
+    padding: 0.75rem;
+  }
+
+  .mobileMenuButton {
+    right: 0.75rem;
+  }
+
+  .mobileMenuContent {
+    padding: 0.75rem;
+  }
+
+  .mobileMenuSection {
+    margin-bottom: 0.75rem;
+  }
+
+  .mobileMenuToggle {
+    padding: 0.625rem 0.75rem;
+    font-size: 0.9375rem;
+  }
+
+  .mobileMenuLink {
+    padding: 0.375rem 0;
+    font-size: 0.875rem;
+  }
+}
