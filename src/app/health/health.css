@@ -1,0 +1,1067 @@
+/* Nexus Health Landing Page - 2026 Premium Glassmorphism Design
+   Modern health-focused aesthetic with blue-green gradients and frosted glass
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Merriweather:wght@400;700&display=swap');
+
+:root {
+  /* Modern Health-Oriented Color Palette */
+  --primary-blue: #0066CC;
+  --primary-light: #3b82f6;
+  --accent-teal: #14b8a6;
+  --accent-cyan: #06b6d4;
+  --accent-emerald: #10b981;
+  
+  /* Text Colors */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-on-glass: #1e293b;
+  --text-white: #ffffff;
+  
+  /* Glass Colors */
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-bg-strong: rgba(255, 255, 255, 0.88);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  --glass-shadow-lg: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  
+  /* Typography */
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-serif: 'Merriweather', Georgia, serif;
+  
+  /* Spacing & Radius */
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  
+  /* Transitions */
+  --transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* { box-sizing: border-box; }
+
+/* Main Container - Transparent to show background */
+.health-landing {
+  font-family: var(--font-body);
+  color: var(--text-primary);
+  line-height: 1.7;
+  background: transparent;
+  font-size: 1rem;
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Typography Hierarchy */
+h1, h2, h3, h4, h5, h6 { 
+  font-family: var(--font-ui);
+  font-weight: 700; 
+  line-height: 1.2; 
+  margin: 0;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+h1 { 
+  font-size: clamp(2.5rem, 5vw, 4rem); 
+  font-weight: 800; 
+  margin-bottom: 1.5rem;
+}
+
+h2 { 
+  font-size: clamp(1.75rem, 3vw, 2.5rem); 
+  margin-bottom: 1.5rem; 
+  font-weight: 700;
+}
+
+h3 { font-size: 1.5rem; margin-bottom: 1rem; font-weight: 600; }
+h4 { font-size: 1.125rem; margin-bottom: 0.75rem; font-weight: 600; }
+
+p { 
+  margin: 0 0 1.25rem 0; 
+  font-size: 1.0625rem; 
+  color: var(--text-secondary); 
+  line-height: 1.75;
+}
+
+li {
+  line-height: 1.75;
+  margin-bottom: 0.5rem;
+}
+
+a { 
+  color: var(--primary-blue); 
+  text-decoration: none; 
+  transition: var(--transition);
+}
+
+a:hover { 
+  color: var(--accent-teal);
+}
+
+/* Layout Helpers */
+.container { 
+  max-width: 1280px; 
+  margin: 0 auto; 
+  padding: 0 24px; 
+}
+
+.container--wide {
+  max-width: 1440px;
+}
+
+.row { display: flex; flex-wrap: wrap; gap: 32px; }
+.col-12 { flex: 0 0 100%; }
+.col-8 { flex: 0 0 calc(66.666% - 16px); }
+.col-6 { flex: 0 0 calc(50% - 16px); }
+.col-5 { flex: 0 0 calc(41.666% - 16px); }
+.col-7 { flex: 0 0 calc(58.333% - 16px); }
+
+/* ========================================
+   GLASSMORPHISM SECTIONS
+   ======================================== */
+
+.section { 
+  padding: 100px 0; 
+  position: relative;
+}
+
+/* Glass Card Base */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+}
+
+/* Section backgrounds with glass effect */
+.section.bg--blue {
+  background: transparent;
+}
+
+.section.bg--blue > .container {
+  background: var(--glass-bg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  padding: 64px 48px;
+  box-shadow: var(--glass-shadow-lg);
+}
+
+.section.bg--white {
+  background: transparent;
+}
+
+.section.bg--white > .container {
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  padding: 64px 48px;
+  box-shadow: var(--glass-shadow);
+}
+
+/* ========================================
+   HEADER - Frosted Glass Navigation
+   ======================================== */
+
+.site-header {
+  padding: 12px 24px;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+}
+
+.site-header_container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 48px;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+/* Logo/Wordmark - Direct Component */
+.site-header_container > a,
+.site-header_container > div[class*="wordmark"] {
+  flex-shrink: 0;
+}
+
+/* Original logo styles removed - using NexusHealthWordmark component now */
+
+/* Navigation */
+.site-header__nav {
+  flex-shrink: 0;
+}
+
+.nav-list {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 8px;
+  align-items: center;
+}
+
+.nav-item {
+  position: relative;
+}
+
+.nav-link {
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 0.9375rem;
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+  letter-spacing: -0.01em;
+}
+
+.nav-link:hover {
+  color: var(--primary-blue);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.nav-link--dropdown::after {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  margin-left: 6px;
+  transition: var(--transition);
+}
+
+.nav-item--dropdown:hover .nav-link--dropdown::after {
+  transform: rotate(-135deg);
+}
+
+/* Dropdown Menu - Glass Effect */
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-8px);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  padding: 0;
+  min-width: 320px;
+  opacity: 0;
+  visibility: hidden;
+  transition: var(--transition);
+  z-index: 1000;
+  pointer-events: auto;
+  overflow: hidden;
+}
+
+.nav-item--dropdown:hover .dropdown-menu,
+.dropdown-menu:hover {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+.dropdown-description {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.06) 0%, rgba(20, 184, 166, 0.04) 100%);
+  padding: 16px 20px;
+  margin: 0;
+  line-height: 1.5;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.dropdown-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+}
+
+.dropdown-list li a {
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 0.9375rem;
+  display: block;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+
+.dropdown-list li a:hover {
+  color: var(--primary-blue);
+  background: rgba(59, 130, 246, 0.08);
+  transform: translateX(4px);
+}
+
+/* ========================================
+   BUTTONS - Modern Glass Buttons
+   ======================================== */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 28px;
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: var(--transition);
+  text-decoration: none;
+  letter-spacing: -0.01em;
+  position: relative;
+  overflow: hidden;
+}
+
+.button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 50%);
+  opacity: 0;
+  transition: var(--transition);
+}
+
+.button:hover::before {
+  opacity: 1;
+}
+
+.button--primary {
+  background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-light) 100%);
+  color: white;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+}
+
+.button--primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+  color: white;
+}
+
+.button--accent {
+  background: linear-gradient(135deg, var(--accent-teal) 0%, var(--accent-emerald) 100%);
+  color: white;
+  box-shadow: 0 4px 14px rgba(20, 184, 166, 0.35);
+}
+
+.button--accent:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(20, 184, 166, 0.4);
+  color: white;
+}
+
+/* Glass Button Variant */
+.button--glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--text-primary);
+  border: 1px solid var(--glass-border);
+}
+
+.button--glass:hover {
+  background: var(--glass-bg-strong);
+  transform: translateY(-2px);
+}
+
+/* ========================================
+   HERO SECTION - Integrated Slideshow + Glass Text
+   ======================================== */
+
+.hero-home {
+  padding: 60px 0 80px;
+  background: transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Hero Glass Card - Combined Layout */
+.hero-home > .container {
+  position: relative;
+}
+
+.hero-home .row {
+  position: relative;
+}
+
+/* First row with slideshow - full width */
+.hero-home .row:first-of-type {
+  margin-bottom: -120px; /* Overlap with the text card */
+  z-index: 1;
+}
+
+/* Text card overlaps the slideshow */
+.hero-home .row:last-of-type {
+  z-index: 10;
+  position: relative;
+}
+
+/* Text card styling */
+.hero-home__heading {
+  position: relative;
+  z-index: 10;
+  max-width: 560px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: var(--radius-xl);
+  padding: 40px 44px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+  margin-left: 48px;
+}
+
+.hero-home__subtitle {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  color: var(--accent-teal);
+  display: inline-block;
+  padding: 6px 14px;
+  background: rgba(20, 184, 166, 0.12);
+  border-radius: 100px;
+}
+
+.hero-home__heading h1 {
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--primary-blue) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 16px;
+  font-size: clamp(2rem, 3.5vw, 2.75rem);
+  line-height: 1.15;
+}
+
+.hero-home__descr {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  margin-bottom: 28px;
+  line-height: 1.7;
+}
+
+/* Legacy support for old image wrapper (if still needed elsewhere) */
+.hero-home__img_w {
+  display: block;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--glass-shadow-lg);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  position: relative;
+}
+
+.hero-home__img { 
+  width: 100%; 
+  height: auto; 
+  display: block;
+  min-height: 400px;
+  object-fit: cover;
+}
+
+/* ========================================
+   CARD GRID - Glass Cards
+   ======================================== */
+
+.related-posts { 
+  background: transparent;
+  padding: 80px 0;
+}
+
+.related-posts__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+  margin-bottom: 48px;
+}
+
+.related-posts__card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--glass-shadow);
+  transition: var(--transition);
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+}
+
+.related-posts__card:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--glass-shadow-lg);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.related-posts__card img {
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+  display: block;
+}
+
+.related-posts__card h4 {
+  padding: 20px 24px 8px;
+  font-size: 1.125rem;
+  color: var(--text-primary);
+}
+
+.related-posts__card .link-arrow {
+  padding: 0 24px 20px;
+  color: var(--accent-teal);
+  font-weight: 600;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.related-posts__card .link-arrow::after {
+  content: '→';
+  transition: var(--transition);
+}
+
+.related-posts__card:hover .link-arrow::after {
+  transform: translateX(4px);
+}
+
+.related-posts__btn_w {
+  text-align: center;
+}
+
+/* ========================================
+   HEADING BLOCK
+   ======================================== */
+
+.heading-block {
+  text-align: center;
+  margin-bottom: 56px;
+}
+
+.heading-block h2 {
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--primary-blue) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: inline-block;
+}
+
+.heading-block__descr {
+  max-width: 600px;
+  margin: 0 auto;
+  font-size: 1.0625rem;
+  color: var(--text-secondary);
+}
+
+/* ========================================
+   USE CASE / FEATURE SECTIONS
+   ======================================== */
+
+.our-use-case__content {
+  display: flex;
+  gap: 56px;
+  align-items: center;
+}
+
+.our-use-case__image {
+  flex: 0 0 40%;
+}
+
+.our-use-case__image img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow-lg);
+  border: 1px solid var(--glass-border);
+}
+
+.our-use-case__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  flex: 1;
+}
+
+.our-use-case__list li {
+  padding: 18px 22px;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  font-size: 0.9375rem;
+  color: var(--text-primary);
+  transition: var(--transition);
+  border-left: 3px solid var(--accent-teal);
+}
+
+.our-use-case__list li:hover {
+  background: rgba(255, 255, 255, 0.8);
+  transform: translateX(4px);
+}
+
+.our-use-case__btn_w {
+  margin-top: 32px;
+}
+
+/* ========================================
+   SERVICES SECTION
+   ======================================== */
+
+.our-service__row {
+  display: flex;
+  gap: 56px;
+  align-items: flex-start;
+}
+
+.our-service__list {
+  flex: 1;
+}
+
+.service {
+  margin-bottom: 28px;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: var(--radius-md);
+  transition: var(--transition);
+}
+
+.service:hover {
+  background: rgba(255, 255, 255, 0.7);
+  transform: translateX(4px);
+}
+
+.service:last-child {
+  margin-bottom: 0;
+}
+
+.service h4 {
+  color: var(--primary-blue);
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.service p {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+.our-service__img {
+  flex: 0 0 42%;
+}
+
+.our-service__img img {
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow-lg);
+  border: 1px solid var(--glass-border);
+}
+
+.our-service__btn_w {
+  margin-top: 32px;
+}
+
+/* ========================================
+   BENEFITS SECTION - Glass Cards
+   ======================================== */
+
+.benefits h2 {
+  text-align: center;
+  margin-bottom: 48px;
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--primary-blue) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.benefits__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.benefits__list li {
+  padding: 28px;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.benefits__list li::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--accent-teal) 0%, var(--accent-cyan) 100%);
+}
+
+.benefits__list li:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--glass-shadow-lg);
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.benefits__list strong {
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 10px;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+/* ========================================
+   FOR ORGANIZATION SECTION
+   ======================================== */
+
+.for-organization__row {
+  display: flex;
+  gap: 56px;
+  align-items: center;
+}
+
+.for-organization__col {
+  flex: 0 0 55%;
+}
+
+.for-organization__col h2 {
+  background: linear-gradient(135deg, var(--primary-blue) 0%, var(--accent-teal) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.for-organization__col p {
+  margin-bottom: 28px;
+  font-size: 1.0625rem;
+}
+
+.for-organization__btn_w {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.for-organization__img {
+  flex: 0 0 40%;
+}
+
+.for-organization__img img {
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow-lg);
+  border: 1px solid var(--glass-border);
+}
+
+/* ========================================
+   FAQ SECTION - Glass Accordion
+   ======================================== */
+
+.faq { 
+  background: transparent;
+  padding: 100px 0;
+}
+
+.faq > .container {
+  background: var(--glass-bg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  padding: 64px 48px;
+  box-shadow: var(--glass-shadow);
+}
+
+.faq h2 {
+  text-align: center;
+  margin-bottom: 48px;
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--primary-blue) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.faq__list {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.accordion {
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+  overflow: hidden;
+  transition: var(--transition);
+}
+
+.accordion:hover {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.accordion h4 {
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--primary-blue);
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 20px 24px;
+  margin: 0;
+}
+
+.accordion div {
+  padding: 0 24px 20px;
+  color: var(--text-secondary);
+  line-height: 1.75;
+  font-size: 0.9375rem;
+}
+
+/* ========================================
+   FOOTER - Glass Footer
+   ======================================== */
+
+.site-footer {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 48px 0 32px;
+  border-top: 1px solid rgba(255, 255, 255, 0.5);
+  margin-top: 60px;
+}
+
+.site-footer__row_top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 32px;
+  margin-bottom: 32px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.site-footer__logo_w {
+  display: inline-flex;
+  transition: var(--transition);
+}
+
+.site-footer__logo_w:hover {
+  transform: scale(1.05);
+}
+
+/* ========================================
+   RESPONSIVE DESIGN
+   ======================================== */
+
+@media (max-width: 1024px) {
+  .section.bg--blue > .container,
+  .section.bg--white > .container,
+  .faq > .container {
+    padding: 48px 32px;
+    border-radius: var(--radius-lg);
+  }
+  
+  .hero-home__heading {
+    padding: 36px;
+    margin-left: 32px;
+  }
+}
+
+@media (max-width: 768px) {
+  h1 { font-size: 2rem; }
+  h2 { font-size: 1.5rem; }
+  h3 { font-size: 1.25rem; }
+  
+  .section { padding: 60px 0; }
+  
+  .section.bg--blue > .container,
+  .section.bg--white > .container,
+  .faq > .container {
+    padding: 32px 24px;
+    margin: 0 16px;
+    border-radius: var(--radius-md);
+  }
+  
+  .col-12, .col-8, .col-6, .col-5, .col-7 { flex: 0 0 100% !important; }
+  
+  .row { gap: 24px; }
+  
+  .hero-home { padding: 32px 0 48px; }
+  
+  .hero-home .row:first-of-type {
+    margin-bottom: -80px;
+  }
+  
+  .hero-home__heading {
+    padding: 24px;
+    margin-left: 16px;
+    margin-right: 16px;
+    max-width: none;
+    border-radius: var(--radius-lg);
+  }
+  
+  .hero-home__heading h1 { font-size: 1.5rem; }
+  .hero-home__descr { font-size: 0.9375rem; }
+  
+  /* Legacy image wrapper support */
+  .hero-home__img_w {
+    margin-bottom: -80px;
+    border-radius: var(--radius-lg);
+  }
+  
+  .hero-home__img {
+    min-height: 280px;
+  }
+  
+  .our-use-case__content,
+  .our-service__row,
+  .for-organization__row { 
+    flex-direction: column; 
+    gap: 32px; 
+  }
+  
+  .our-use-case__image,
+  .our-service__img,
+  .for-organization__img,
+  .for-organization__col { 
+    flex: 0 0 100%; 
+  }
+  
+  .our-use-case__list {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Mobile Navigation */
+  .site-header {
+    padding: 12px 16px;
+  }
+  
+  .site-header_container { 
+    flex-direction: row; 
+    gap: 1rem;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .nav-list { 
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    align-items: flex-start;
+  }
+  
+  .nav-link {
+    width: 100%;
+    padding: 12px 16px;
+  }
+  
+  .dropdown-menu {
+    position: static;
+    opacity: 0;
+    visibility: hidden;
+    transform: none;
+    box-shadow: none;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: var(--radius-sm);
+    min-width: auto;
+    width: 100%;
+    margin-top: 8px;
+  }
+  
+  .nav-item--dropdown:hover .dropdown-menu {
+    opacity: 0;
+    visibility: hidden;
+  }
+  
+  .related-posts__grid { 
+    grid-template-columns: 1fr; 
+  }
+  
+  .benefits__list { 
+    grid-template-columns: 1fr; 
+  }
+  
+  .for-organization__btn_w {
+    flex-direction: column;
+  }
+  
+  .for-organization__btn_w .button {
+    width: 100%;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* High Contrast Support */
+@media (prefers-contrast: high) {
+  .glass-card,
+  .section.bg--blue > .container,
+  .section.bg--white > .container,
+  .faq > .container {
+    border: 2px solid var(--text-primary);
+  }
+  
+  .button--primary,
+  .button--accent {
+    border: 2px solid currentColor;
+  }
+}

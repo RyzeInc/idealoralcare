@@ -1,0 +1,625 @@
+/* Checkout Page Styles - Glassmorphism */
+
+.checkoutContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 48px 24px;
+  min-height: calc(100vh - 100px);
+}
+
+.checkoutHeader {
+  margin-bottom: 40px;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #64748b;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  text-decoration: none;
+  margin-bottom: 20px;
+  transition: color 0.2s;
+}
+
+.backLink:hover {
+  color: #0066CC;
+}
+
+.checkoutTitle {
+  font-size: clamp(2rem, 4vw, 2.5rem);
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+}
+
+.checkoutSubtitle {
+  font-size: 1.125rem;
+  color: #64748b;
+}
+
+.checkoutGrid {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 32px;
+}
+
+@media (max-width: 1000px) {
+  .checkoutGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Main Column */
+.checkoutMain {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.checkoutCard {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 20px;
+  padding: 28px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stepNumber {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #0066CC 0%, #0052a3 100%);
+  color: white;
+  font-weight: 700;
+  font-size: 0.875rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cardTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+/* Order Items */
+.orderItems {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.orderItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  border-radius: 12px;
+}
+
+.orderItemInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.orderItemCategory {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #0066CC;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.orderItemName {
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 1rem;
+}
+
+.orderItemPrice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.orderItemRemove {
+  width: 28px;
+  height: 28px;
+  background: rgba(239, 68, 68, 0.08);
+  border: none;
+  border-radius: 6px;
+  color: #ef4444;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.orderItemRemove:hover {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.billingInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 20px;
+  background: rgba(0, 102, 204, 0.04);
+  border-radius: 12px;
+}
+
+.billingRow {
+  display: flex;
+  justify-content: space-between;
+}
+
+.billingLabel {
+  color: #64748b;
+  font-size: 0.9375rem;
+}
+
+.billingValue {
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 0.9375rem;
+}
+
+/* Payment Options */
+.paymentOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.paymentOption {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 2px solid transparent;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  text-align: left;
+}
+
+.paymentOption:hover {
+  background: white;
+  border-color: rgba(0, 102, 204, 0.2);
+}
+
+.paymentOptionActive {
+  border-color: #0066CC;
+  background: rgba(0, 102, 204, 0.06);
+}
+
+.paymentOptionIcon {
+  width: 24px;
+  height: 24px;
+  color: #64748b;
+}
+
+.paymentOptionContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.paymentOptionTitle {
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 1rem;
+}
+
+.paymentOptionDesc {
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.paymentOptionSavings {
+  font-size: 0.8125rem;
+  color: #10b981;
+  font-weight: 600;
+}
+
+.paymentOptionCheck {
+  width: 24px;
+  height: 24px;
+  color: #0066CC;
+}
+
+/* Account Section */
+.accountLoading {
+  text-align: center;
+  padding: 24px;
+  color: #64748b;
+}
+
+.accountInfo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: rgba(16, 185, 129, 0.06);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 14px;
+}
+
+.accountAvatar {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #0066CC 0%, #0052a3 100%);
+  color: white;
+  font-weight: 700;
+  font-size: 1.25rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+}
+
+.accountDetails {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.accountName {
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 1rem;
+}
+
+.accountEmail {
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.accountCheck {
+  width: 24px;
+  height: 24px;
+  color: #10b981;
+}
+
+.accountSignup {
+  text-align: center;
+  padding: 24px;
+}
+
+.accountSignupText {
+  font-size: 0.9375rem;
+  color: #64748b;
+  margin-bottom: 20px;
+}
+
+.accountSignupButtons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.signupBtn {
+  padding: 12px 28px;
+  background: linear-gradient(135deg, #0066CC 0%, #0052a3 100%);
+  color: white;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.signupBtn:hover {
+  background: linear-gradient(135deg, #0052a3 0%, #003d7a 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 102, 204, 0.35);
+}
+
+.signinBtn {
+  padding: 12px 28px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #475569;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.signinBtn:hover {
+  background: white;
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+/* Agreements */
+.agreements {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.agreement {
+  display: flex;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.agreementCheckbox {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  cursor: pointer;
+  accent-color: #0066CC;
+}
+
+.agreementText {
+  font-size: 0.9375rem;
+  color: #475569;
+  line-height: 1.6;
+}
+
+/* Payment Form Placeholder */
+.paymentFormPlaceholder {
+  margin-top: 24px;
+  padding: 24px;
+  background: rgba(0, 102, 204, 0.04);
+  border: 1px dashed rgba(0, 102, 204, 0.2);
+  border-radius: 12px;
+  text-align: center;
+  color: #0066CC;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+/* Sidebar */
+.checkoutSidebar {
+  position: sticky;
+  top: 100px;
+  height: fit-content;
+}
+
+.summaryCard {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 24px;
+  padding: 28px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
+}
+
+.summaryTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 20px;
+}
+
+.summaryItems {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.summaryItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.summaryItemName {
+  font-size: 0.9375rem;
+  color: #475569;
+}
+
+.summaryItemPrice {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.savingsBanner {
+  padding: 12px 16px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 10px;
+  color: #059669;
+  font-weight: 600;
+  font-size: 0.875rem;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.summaryTotals {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9375rem;
+  color: #64748b;
+}
+
+.summaryRow span:last-child {
+  color: #0f172a;
+}
+
+.summaryRowTotal {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.renewalInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: rgba(0, 102, 204, 0.06);
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.renewalInfo svg {
+  color: #0066CC;
+}
+
+.renewalInfo div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.renewalLabel {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.renewalDate {
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 0.9375rem;
+}
+
+.completeBtn {
+  width: 100%;
+  padding: 18px 24px;
+  background: linear-gradient(135deg, #0066CC 0%, #0052a3 100%);
+  color: white;
+  font-weight: 700;
+  font-size: 1rem;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.completeBtn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0052a3 0%, #003d7a 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 102, 204, 0.35);
+}
+
+.completeBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pricingNote {
+  font-size: 0.8125rem;
+  color: #64748b;
+  text-align: center;
+  margin: 0 0 12px 0;
+  line-height: 1.4;
+}
+
+.securityNote {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-bottom: 16px;
+}
+
+.cancellationPolicy {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  text-align: center;
+  line-height: 1.6;
+}
+
+/* Empty Cart */
+.emptyCart {
+  text-align: center;
+  padding: 80px 24px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 24px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.emptyCartIcon {
+  width: 64px;
+  height: 64px;
+  color: #cbd5e1;
+  margin: 0 auto 24px;
+}
+
+.emptyCartTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+
+.emptyCartText {
+  font-size: 1rem;
+  color: #64748b;
+  margin-bottom: 24px;
+}
+
+.emptyCartCta {
+  display: inline-block;
+  padding: 14px 28px;
+  background: linear-gradient(135deg, #0066CC 0%, #0052a3 100%);
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+  border: none;
+  border-radius: 12px;
+  text-decoration: none;
+  transition: all 0.25s ease;
+}
+
+.emptyCartCta:hover {
+  background: linear-gradient(135deg, #0052a3 0%, #003d7a 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 102, 204, 0.35);
+}
