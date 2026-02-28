@@ -24,19 +24,9 @@
 /* Logo */
 .logo {
   display: flex;
-  align-items: baseline;
-  gap: 4px;
+  align-items: center;
   text-decoration: none;
-  font-size: 1.5rem;
-  font-weight: 700;
-}
-
-.logoText {
-  color: #0f172a;
-}
-
-.logoAccent {
-  color: #2563eb;
+  flex-shrink: 0;
 }
 
 /* Navigation */

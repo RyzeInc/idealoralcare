@@ -3,12 +3,12 @@
 /**
  * HOW IT WORKS PAGE
  * 
- * Explains the Nexus Health enrollment process
+ * Explains the Ideal Health enrollment process
  * Uses health.css design system for consistent styling
  */
 
 import Link from "next/link";
-import { ArrowRight, Check, ShoppingCart, CreditCard, Sparkles, Settings, Shield, Zap } from "lucide-react";
+import { ArrowRight, Check, ShoppingCart, CreditCard, Settings, Shield, Unlock, Scale, DollarSign, RotateCcw, Clock, Lock } from "lucide-react";
 import HealthHeader from "@/components/health/HealthHeader";
 import { CartProvider, useCart } from "@/lib/health-plans";
 
@@ -16,7 +16,7 @@ const STEPS = [
   {
     number: 1,
     title: "Browse Plans",
-    description: "Explore our curated health plans. No account needed — just browse and compare at your own pace.",
+    description: "Explore our curated health plans. No account required — browse and compare at your own pace.",
     icon: <ShoppingCart size={28} />,
   },
   {
@@ -34,8 +34,8 @@ const STEPS = [
   {
     number: 4,
     title: "Instant Access",
-    description: "Get immediate access to your plans. Start using your benefits right away — no waiting periods.",
-    icon: <Sparkles size={28} />,
+    description: "Get immediate access to your plans. Benefits are available immediately with no waiting periods.",
+    icon: <Check size={28} />,
   },
   {
     number: 5,
@@ -46,18 +46,18 @@ const STEPS = [
 ];
 
 const BENEFITS = [
-  { icon: "🔓", text: "No sign-up required to browse" },
-  { icon: "⚖️", text: "Compare plans side-by-side" },
-  { icon: "💰", text: "Transparent pricing, no hidden fees" },
-  { icon: "🔄", text: "Cancel anytime" },
-  { icon: "⏰", text: "24/7 access to your benefits" },
-  { icon: "🔒", text: "Secure Stripe payment processing" },
+  { icon: Unlock, text: "No sign-up required to browse" },
+  { icon: Scale, text: "Compare plans side-by-side" },
+  { icon: DollarSign, text: "Transparent pricing, no hidden fees" },
+  { icon: RotateCcw, text: "Cancel anytime" },
+  { icon: Clock, text: "24/7 access to your benefits" },
+  { icon: Lock, text: "Secure Stripe payment processing" },
 ];
 
 const WHAT_IS = [
   { title: "Discount Programs", desc: "Save 20-60% on oral health, vision, and other health services at participating providers." },
   { title: "Wellness Services", desc: "Access to telehealth, coaching, and clinical support for your health goals." },
-  { title: "Immediate Access", desc: "Start using your benefits as soon as you enroll — no waiting periods." },
+  { title: "Immediate Access", desc: "Benefits are active immediately upon enrollment with no waiting periods." },
   { title: "Flexible Plans", desc: "Mix and match plans based on your needs. Cancel individual plans anytime." },
 ];
 
@@ -77,7 +77,7 @@ function HowItWorksContent() {
       <section className="section" style={{ paddingBottom: '60px' }}>
         <div className="container">
           <div className="heading-block">
-            <h1 style={{ marginBottom: '16px' }}>How Nexus Health Works</h1>
+            <h1 style={{ marginBottom: '16px' }}>How Ideal Health Works</h1>
             <p className="heading-block__descr" style={{ fontSize: '1.125rem', maxWidth: '700px' }}>
               Simple, transparent, and straightforward. Browse, choose, and enroll in health plans that fit your lifestyle.
             </p>
@@ -294,16 +294,19 @@ function HowItWorksContent() {
       <section className="section">
         <div className="container">
           <div className="heading-block">
-            <h2>Why Choose Nexus Health</h2>
+            <h2>Why Choose Ideal Health</h2>
           </div>
           
           <ul className="benefits__list">
-            {BENEFITS.map((benefit, i) => (
+            {BENEFITS.map((benefit, i) => {
+              const Icon = benefit.icon;
+              return (
               <li key={i}>
-                <span style={{ fontSize: '1.5rem', marginRight: '12px' }}>{benefit.icon}</span>
+                <Icon size={24} style={{ color: 'var(--accent-teal)', marginRight: '12px', display: 'inline-block' }} />
                 {benefit.text}
               </li>
-            ))}
+            );
+            })}
           </ul>
         </div>
       </section>
@@ -324,7 +327,7 @@ function HowItWorksContent() {
             {[
               {
                 q: "When can I start using my benefits?",
-                a: "Immediately after checkout! Your plans are active as soon as payment clears. You can access all benefits and features right away."
+                a: "Your plans are active immediately upon payment. All benefits and features are accessible immediately."
               },
               {
                 q: "Can I cancel anytime?",

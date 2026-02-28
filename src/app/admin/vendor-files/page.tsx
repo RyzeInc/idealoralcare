@@ -1,42 +1,22 @@
 'use client';
 
 import { useState } from 'react';
+import { useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 import { Download, Send, BarChart3, AlertCircle } from 'lucide-react';
 
 /**
  * VENDOR FILE MANAGEMENT PAGE
  * 
- * Generate and deliver vendor eligibility files (Careington, Dial Care)
+ * Generate and deliver vendor eligibility files (Dental Discount Network, Dial Care)
  */
 
-interface VendorFile {
-  vendor: string;
-  lastGenerated?: string;
-  lastDelivered?: string;
-  memberCount?: number;
-  status: 'ready' | 'generating' | 'error';
-}
-
-const VENDORS: VendorFile[] = [
-  {
-    vendor: 'Careington',
-    lastGenerated: '2026-02-20 10:30 AM',
-    lastDelivered: '2026-02-20 11:00 AM',
-    memberCount: 150,
-    status: 'ready',
-  },
-  {
-    vendor: 'Dial Care',
-    lastGenerated: '2026-02-20 10:35 AM',
-    lastDelivered: 'Pending',
-    memberCount: 150,
-    status: 'ready',
-  },
-];
-
 export default function VendorFilesPage() {
-  const [vendors, setVendors] = useState(VENDORS);
   const [generatingVendor, setGeneratingVendor] = useState<string | null>(null);
+
+  // Query real data from Convex
+  const vendorConfigs = useQuery(api.admin.vendorFiles.getVendorConfigurations) || [];
+  const vendors = vendorConfigs;
 
   const handleGenerate = (vendorName: string) => {
     setGeneratingVendor(vendorName);
@@ -66,32 +46,33 @@ export default function VendorFilesPage() {
 
       {/* Vendor Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {vendors.map((vendor) => (
+        {vendors.map((vendor: any) => (
           <div key={vendor.vendor} className="bg-white rounded-lg shadow p-6">
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h3 className="text-lg font-semibold text-slate-900">{vendor.vendor}</h3>
-                <p className="text-sm text-slate-600">{vendor.memberCount || 0} active members</p>
               </div>
               <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
                 vendor.status === 'ready'
                   ? 'bg-green-100 text-green-800'
-                  : vendor.status === 'generating'
-                  ? 'bg-blue-100 text-blue-800 animate-pulse'
                   : 'bg-red-100 text-red-800'
               }`}>
-                {vendor.status === 'generating' ? 'Generating...' : vendor.status}
+                {vendor.status}
               </div>
             </div>
 
             <div className="space-y-2 text-sm mb-6">
               <div className="flex justify-between">
                 <span className="text-slate-600">Last Generated:</span>
-                <span className="font-medium">{vendor.lastGenerated || '—'}</span>
+                <span className="font-medium">
+                  {vendor.lastGenerated ? new Date(vendor.lastGenerated).toLocaleString() : '—'}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-600">Last Delivered:</span>
-                <span className="font-medium text-slate-900">{vendor.lastDelivered || '—'}</span>
+                <span className="font-medium text-slate-900">
+                  {vendor.lastDelivered ? new Date(vendor.lastDelivered).toLocaleString() : '—'}
+                </span>
               </div>
             </div>
 
@@ -121,7 +102,7 @@ export default function VendorFilesPage() {
         <div>
           <p className="text-sm font-semibold text-amber-900">Manual Delivery Available</p>
           <p className="text-sm text-amber-800 mt-1">
-            SFTP delivery is configured for Careington. For other vendors or manual uploads, download the file and send via your secure channel.
+            SFTP delivery is configured for Dental Discount Network. For other vendors or manual uploads, download the file and send via your secure channel.
           </p>
         </div>
       </div>
@@ -143,7 +124,7 @@ export default function VendorFilesPage() {
           </thead>
           <tbody className="divide-y divide-slate-200">
             <tr className="hover:bg-slate-50">
-              <td className="px-6 py-4 font-medium">Careington</td>
+              <td className="px-6 py-4 font-medium">Dental Discount Network</td>
               <td className="px-6 py-4 text-slate-600">2026-02-20 11:00 AM</td>
               <td className="px-6 py-4">
                 <span className="inline-block px-2 py-1 rounded text-xs font-semibold bg-green-100 text-green-800">Success</span>

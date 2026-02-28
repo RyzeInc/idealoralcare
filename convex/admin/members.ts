@@ -9,6 +9,15 @@ import { v } from "convex/values";
  */
 
 /**
+ * Get all members across all groups
+ */
+export const getAllMembers = query({
+  handler: async (ctx) => {
+    return await ctx.db.query("memberProfiles").order("asc").collect();
+  },
+});
+
+/**
  * Get member roster for a group (paginated)
  */
 export const getMemberRoster = query({

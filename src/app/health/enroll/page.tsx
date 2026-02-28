@@ -1,33 +1,51 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { EnrollmentProvider } from "@/components/enrollment/EnrollmentProvider";
 import { EnrollmentWizard } from "@/components/enrollment/EnrollmentWizard";
+import { FlowSelector, EnrollmentFlow } from "@/components/enrollment/FlowSelector";
 import HealthHeader from "@/components/health/HealthHeader";
 import HealthFlowBackground from "@/components/background/HealthFlowBackground";
 
-/**
- * ENROLLMENT PAGE
- *
- * Supports query parameters for different enrollment types:
- * - ?broker=CODE или ?agent=CODE - Broker-assisted enrollment with agent code
- * - ?group=CODE - Group enrollment with group code
- * - No params - DTC individual enrollment
- */
+const VALID_FLOWS: EnrollmentFlow[] = ["dtc", "broker-individual", "broker-group-member", "broker-group-employer"];
 
-export default function EnrollmentPage() {
+function EnrollmentContent() {
   const searchParams = useSearchParams();
-  const brokerCode = searchParams.get("broker") || searchParams.get("agent");
-  const groupCode = searchParams.get("group");
+  const flowParam = searchParams.get("flow");
+  const brokerCode = searchParams.get("broker") || searchParams.get("agent") || undefined;
+  const groupCode = searchParams.get("group") || undefined;
+
+  const flowType = VALID_FLOWS.includes(flowParam as EnrollmentFlow)
+    ? (flowParam as EnrollmentFlow)
+    : null;
 
   return (
-    <div>
-      <HealthFlowBackground />
-      <HealthHeader />
-      <main className="enrollment-main">
-        <EnrollmentProvider brokerCode={brokerCode || undefined} groupCode={groupCode || undefined}>
+    <>
+      {!flowType ? (
+        <FlowSelector />
+      ) : (
+        <EnrollmentProvider
+          flowType={flowType}
+          brokerCode={brokerCode}
+          groupCode={groupCode}
+        >
           <EnrollmentWizard />
         </EnrollmentProvider>
+      )}
+    </>
+  );
+}
+
+export default function EnrollmentPage() {
+  return (
+    <div className="enrollment-page">
+      <HealthFlowBackground />
+      <HealthHeader />
+      <main>
+        <Suspense fallback={<div>Loading enrollment...</div>}>
+          <EnrollmentContent />
+        </Suspense>
       </main>
     </div>
   );

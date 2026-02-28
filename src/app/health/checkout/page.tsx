@@ -10,9 +10,9 @@
  * 4. Confirm and complete purchase
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useUser, SignInButton, SignUpButton } from "@clerk/nextjs";
+import { useAuth, useUser, useSignIn, useSignUp } from "@clerk/nextjs";
 import { 
   ArrowLeft, 
   CreditCard, 
@@ -23,13 +23,304 @@ import {
   ShoppingCart,
   ChevronRight,
   Shield,
-  X
+  X,
+  Mail,
+  Eye,
+  EyeOff,
+  Loader,
+  AlertCircle,
+  UserPlus
 } from "lucide-react";
 import HealthHeader from "@/components/health/HealthHeader";
 import { CartProvider, useCart } from "@/lib/health-plans";
 import { formatPrice, getPrice } from "@/lib/health-plans/types";
 import { CadenceModal } from "@/components/health/catalog";
 import "@/app/health/health.css";
+
+/* ─── Inline auth (sign-in / sign-up) used in checkout Step 3 ─────────────── */
+function AppleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+      <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.7 9.05 7.4c1.39.07 2.35.75 3.16.8 1.2-.24 2.35-.93 3.63-.84 1.54.13 2.7.75 3.44 1.9-3.15 1.88-2.4 5.98.72 7.14-.57 1.46-1.3 2.91-2.95 3.88zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
+    </svg>
+  );
+}
+function GoogleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18">
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" />
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+    </svg>
+  );
+}
+function FacebookIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="#1877F2">
+      <path d="M24 12.073c0-6.627-5.373-12-12-12S0 5.446 0 12.073c0 5.989 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+    </svg>
+  );
+}
+
+type AuthTab = "signin" | "signup";
+type AuthStep = "form" | "verify";
+
+function InlineAuth() {
+  const { signIn, isLoaded: siLoaded, setActive: siSetActive } = useSignIn();
+  const { signUp, isLoaded: suLoaded, setActive: suSetActive } = useSignUp();
+
+  const [tab, setTab]                       = useState<AuthTab>("signup");
+  const [step, setStep]                     = useState<AuthStep>("form");
+  const [firstName, setFirstName]           = useState("");
+  const [email, setEmail]                   = useState("");
+  const [password, setPassword]             = useState("");
+  const [confirmPwd, setConfirmPwd]         = useState("");
+  const [showPwd, setShowPwd]               = useState(false);
+  const [verifyCode, setVerifyCode]         = useState("");
+  const [error, setError]                   = useState("");
+  const [isLoading, setIsLoading]           = useState(false);
+  const [oauthLoading, setOauthLoading]     = useState<string | null>(null);
+
+  useEffect(() => { setError(""); setStep("form"); }, [tab]);
+
+  const busy = isLoading || !!oauthLoading;
+  const isLoaded = tab === "signin" ? siLoaded : suLoaded;
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", border: "1px solid #e2e8f0", borderRadius: "10px",
+    fontFamily: "inherit", fontSize: "0.9375rem", transition: "all 0.2s",
+    backgroundColor: "#f8fafc", padding: "0.7rem 1rem 0.7rem 2.625rem",
+  };
+  const onFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.currentTarget.style.borderColor = "#0066CC";
+    e.currentTarget.style.backgroundColor = "#fff";
+  };
+  const onBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.currentTarget.style.borderColor = "#e2e8f0";
+    e.currentTarget.style.backgroundColor = "#f8fafc";
+  };
+
+  const handleOAuth = async (strategy: "oauth_apple" | "oauth_google" | "oauth_facebook") => {
+    if (!isLoaded) return;
+    setOauthLoading(strategy);
+    try {
+      const fn = tab === "signin"
+        ? signIn!.authenticateWithRedirect
+        : signUp!.authenticateWithRedirect;
+      await fn({
+        strategy,
+        redirectUrl: "/health/sso-callback",
+        redirectUrlComplete: "/health/checkout",
+      });
+    } catch (err: any) {
+      setError(err?.errors?.[0]?.message || "OAuth failed.");
+      setOauthLoading(null);
+    }
+  };
+
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    if (!siLoaded) return;
+    setIsLoading(true);
+    try {
+      const result = await signIn!.create({ identifier: email, password });
+      if (result.status === "complete") {
+        await siSetActive!({ session: result.createdSessionId });
+      } else {
+        setError("Sign-in requires additional steps. Please try again.");
+      }
+    } catch (err: any) {
+      setError(err?.errors?.[0]?.message || "Sign-in failed.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    if (password !== confirmPwd) { setError("Passwords do not match."); return; }
+    if (password.length < 8)    { setError("Password must be at least 8 characters."); return; }
+    if (!suLoaded) return;
+    setIsLoading(true);
+    try {
+      const params: Record<string, string> = { emailAddress: email, password };
+      if (firstName) params.firstName = firstName;
+      const result = await signUp!.create(params);
+      if (result.status === "complete") {
+        await suSetActive!({ session: result.createdSessionId });
+      } else if (result.unverifiedFields?.includes("email_address")) {
+        await signUp!.prepareEmailAddressVerification({ strategy: "email_code" });
+        setStep("verify");
+      } else {
+        setError("Account creation requires additional steps.");
+      }
+    } catch (err: any) {
+      setError(err?.errors?.[0]?.message || "Sign-up failed.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
+    try {
+      const result = await signUp!.attemptEmailAddressVerification({ code: verifyCode });
+      if (result.status === "complete") {
+        await suSetActive!({ session: result.createdSessionId });
+      } else {
+        setError("Verification failed. Check your code.");
+      }
+    } catch (err: any) {
+      setError(err?.errors?.[0]?.message || "Invalid code.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const oauthButtons = [
+    { strategy: "oauth_apple"    as const, icon: <AppleIcon />,    bg: "#000",    color: "#fff",    border: "none",                title: "Apple"    },
+    { strategy: "oauth_facebook" as const, icon: <FacebookIcon />, bg: "#1877F2", color: "#fff",    border: "none",                title: "Facebook" },
+    { strategy: "oauth_google"   as const, icon: <GoogleIcon />,   bg: "#fff",    color: "#374151", border: "1px solid #d1d5db", title: "Google"   },
+  ] as const;
+
+  return (
+    <div>
+      {/* tabs */}
+      <div style={{ display: "flex", borderRadius: "10px", background: "#f1f5f9", padding: "4px", marginBottom: "1.25rem" }}>
+        {(["signup", "signin"] as AuthTab[]).map((t) => (
+          <button key={t} type="button" onClick={() => setTab(t)}
+            style={{ flex: 1, padding: "0.5rem", borderRadius: "7px", border: "none", fontWeight: 600, fontSize: "0.875rem", cursor: "pointer", transition: "all 0.2s",
+              background: tab === t ? "#fff" : "transparent",
+              color: tab === t ? "#0066CC" : "#64748b",
+              boxShadow: tab === t ? "0 1px 3px rgba(0,0,0,0.12)" : "none" }}>
+            {t === "signup" ? "Create Account" : "Sign In"}
+          </button>
+        ))}
+      </div>
+
+      {error && (
+        <div style={{ background: "#fee2e2", border: "1px solid #fecaca", borderRadius: "8px", padding: "0.75rem 1rem", marginBottom: "1rem", display: "flex", gap: "0.625rem", alignItems: "flex-start" }}>
+          <AlertCircle size={16} color="#991b1b" style={{ marginTop: "2px", flexShrink: 0 }} />
+          <p style={{ color: "#7f1d1d", margin: 0, fontSize: "0.875rem" }}>{error}</p>
+        </div>
+      )}
+
+      {step === "verify" ? (
+        /* ── Email verification ── */
+        <form onSubmit={handleVerify} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <p style={{ color: "#475569", fontSize: "0.9rem", margin: 0 }}>Enter the 6-digit code sent to <strong>{email}</strong>.</p>
+          <input type="text" value={verifyCode}
+            onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            placeholder="123456" maxLength={6} disabled={isLoading} required
+            style={{ border: "1px solid #e2e8f0", borderRadius: "10px", padding: "0.7rem", fontFamily: "monospace", fontSize: "1.375rem", letterSpacing: "0.4em", textAlign: "center", backgroundColor: "#f8fafc", width: "100%" }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = "#0066CC"; e.currentTarget.style.backgroundColor = "#fff"; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.backgroundColor = "#f8fafc"; }}
+          />
+          <button type="submit" disabled={isLoading || verifyCode.length < 6}
+            style={{ padding: "0.75rem", background: isLoading || verifyCode.length < 6 ? "#cbd5e1" : "#0066CC", color: "#fff", border: "none", borderRadius: "10px", fontWeight: 600, cursor: isLoading ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
+            {isLoading ? <><Loader size={16} style={{ animation: "spin 1s linear infinite" }} /> Verifying...</> : "Verify & Continue"}
+          </button>
+          <button type="button" onClick={() => { setStep("form"); setError(""); setVerifyCode(""); }}
+            style={{ background: "none", border: "none", color: "#64748b", fontSize: "0.8125rem", cursor: "pointer", textDecoration: "underline" }}>
+            ← Back
+          </button>
+        </form>
+      ) : (
+        <>
+          {/* ── OAuth row ── */}
+          <div style={{ display: "flex", gap: "0.625rem", marginBottom: "1rem" }}>
+            {oauthButtons.map(({ strategy, icon, bg, color, border, title }) => (
+              <button key={strategy} type="button" title={`Continue with ${title}`}
+                onClick={() => handleOAuth(strategy)} disabled={busy}
+                style={{ flex: 1, padding: "0.5rem", borderRadius: "8px", background: bg, color, border, cursor: busy ? "wait" : "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  opacity: oauthLoading && oauthLoading !== strategy ? 0.4 : 1,
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.12)", transition: "opacity 0.2s, transform 0.1s" }}
+                onMouseEnter={(e) => { if (!busy) e.currentTarget.style.transform = "translateY(-1px)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}>
+                {oauthLoading === strategy
+                  ? <Loader size={16} style={{ animation: "spin 1s linear infinite" }} />
+                  : icon}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
+            <div style={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
+            <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>or continue with email</span>
+            <div style={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
+          </div>
+
+          {/* ── Form ── */}
+          <form onSubmit={tab === "signin" ? handleSignIn : handleSignUp}
+            style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+
+            {tab === "signup" && (
+              <div style={{ position: "relative" }}>
+                <UserPlus size={16} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none" }} />
+                <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="First name (optional)" disabled={busy} style={inputStyle} onFocus={onFocus} onBlur={onBlur} />
+              </div>
+            )}
+
+            <div style={{ position: "relative" }}>
+              <Mail size={16} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none" }} />
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email address" disabled={busy} required autoComplete="email"
+                style={inputStyle} onFocus={onFocus} onBlur={onBlur} />
+            </div>
+
+            <div style={{ position: "relative" }}>
+              <Lock size={16} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none" }} />
+              <input type={showPwd ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)}
+                placeholder={tab === "signup" ? "Create password (min. 8 chars)" : "Password"}
+                disabled={busy} required autoComplete={tab === "signup" ? "new-password" : "current-password"}
+                style={{ ...inputStyle, paddingRight: "2.625rem" }} onFocus={onFocus} onBlur={onBlur} />
+              <button type="button" onClick={() => setShowPwd(s => !s)}
+                style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: "2px", display: "flex" }}>
+                {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+
+            {tab === "signup" && (
+              <div style={{ position: "relative" }}>
+                <Lock size={16} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none" }} />
+                <input type={showPwd ? "text" : "password"} value={confirmPwd} onChange={(e) => setConfirmPwd(e.target.value)}
+                  placeholder="Confirm password" disabled={busy} required autoComplete="new-password"
+                  style={{ ...inputStyle, borderColor: confirmPwd && password === confirmPwd ? "#22c55e" : "#e2e8f0" }}
+                  onFocus={onFocus}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = confirmPwd && password === confirmPwd ? "#22c55e" : "#e2e8f0"; e.currentTarget.style.backgroundColor = "#f8fafc"; }} />
+              </div>
+            )}
+
+            {tab === "signin" && (
+              <div style={{ textAlign: "right", marginTop: "-0.375rem" }}>
+                <Link href="/health/forgot-password" style={{ color: "#0066CC", fontSize: "0.8125rem", textDecoration: "none" }}>
+                  Forgot password?
+                </Link>
+              </div>
+            )}
+
+            <button type="submit" disabled={busy || !email || !password || (tab === "signup" && !confirmPwd)}
+              style={{ padding: "0.75rem", background: busy || !email || !password ? "#cbd5e1" : "#0066CC", color: "#fff", border: "none", borderRadius: "10px", fontWeight: 600, fontSize: "0.9375rem", cursor: busy ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", transition: "background 0.2s" }}
+              onMouseEnter={(e) => { if (!busy && email && password) e.currentTarget.style.background = "#0052a3"; }}
+              onMouseLeave={(e) => { if (!busy && email && password) e.currentTarget.style.background = "#0066CC"; }}>
+              {isLoading
+                ? <><Loader size={16} style={{ animation: "spin 1s linear infinite" }} /> {tab === "signin" ? "Signing In..." : "Creating Account..."}</>
+                : tab === "signin" ? "Sign In" : "Create Account & Continue"}
+            </button>
+          </form>
+        </>
+      )}
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
 
 function CheckoutContent() {
   const { user, isLoaded, isSignedIn } = useUser();
@@ -38,6 +329,7 @@ function CheckoutContent() {
     itemCount, 
     subtotalCents, 
     setPaymentMethod,
+    setCadence,
     removeItem 
   } = useCart();
   
@@ -167,7 +459,7 @@ function CheckoutContent() {
               display: "inline-flex", 
               alignItems: "center", 
               gap: "0.5rem",
-              color: "rgba(255,255,255,0.8)",
+              color: "#0f172a",
               textDecoration: "none",
               marginBottom: "1rem",
               fontSize: "0.9375rem"
@@ -176,10 +468,10 @@ function CheckoutContent() {
             <ArrowLeft size={18} />
             Back to Plans
           </Link>
-          <h1 style={{ fontSize: "clamp(2rem, 5vw, 2.75rem)", fontWeight: 700, color: "#fff", marginBottom: "0.5rem" }}>
+          <h1 style={{ fontSize: "clamp(2rem, 5vw, 2.75rem)", fontWeight: 700, color: "#0f172a", marginBottom: "0.5rem" }}>
             Checkout
           </h1>
-          <p style={{ color: "rgba(255,255,255,0.85)", fontSize: "1.125rem" }}>
+          <p style={{ color: "#475569", fontSize: "1.125rem" }}>
             Review your order and complete your purchase
           </p>
         </div>
@@ -277,17 +569,78 @@ function CheckoutContent() {
                   marginTop: "1.5rem", 
                   paddingTop: "1.5rem", 
                   borderTop: "1px solid #e2e8f0",
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "1rem"
                 }}>
-                  <div>
-                    <span style={{ fontSize: "0.875rem", color: "#64748b", display: "block" }}>Billing Cycle</span>
-                    <span style={{ fontWeight: 600, color: "#0f172a" }}>{periodLabel}</span>
+                  <div style={{ marginBottom: "1rem" }}>
+                    <span style={{ fontSize: "0.875rem", color: "#64748b", display: "block", marginBottom: "0.5rem" }}>Billing Cycle</span>
+                    <div style={{
+                      display: "inline-flex",
+                      background: "var(--glass-bg)",
+                      backdropFilter: "blur(12px)",
+                      border: "1px solid var(--glass-border)",
+                      borderRadius: "var(--radius-md)",
+                      padding: "4px"
+                    }}>
+                      <button
+                        onClick={() => setCadence("monthly")}
+                        style={{
+                          padding: "10px 20px",
+                          borderRadius: "calc(var(--radius-md) - 4px)",
+                          border: "none",
+                          background: cart.cadence === "monthly" 
+                            ? "linear-gradient(135deg, var(--primary-blue), var(--primary-light))" 
+                            : "transparent",
+                          color: cart.cadence === "monthly" ? "white" : "var(--text-secondary)",
+                          fontWeight: "600",
+                          fontSize: "0.875rem",
+                          cursor: "pointer",
+                          transition: "var(--transition)"
+                        }}
+                      >
+                        Monthly
+                      </button>
+                      <button
+                        onClick={() => setCadence("annual")}
+                        style={{
+                          padding: "10px 20px",
+                          borderRadius: "calc(var(--radius-md) - 4px)",
+                          border: "none",
+                          background: cart.cadence === "annual" 
+                            ? "linear-gradient(135deg, var(--accent-teal), var(--accent-emerald))" 
+                            : "transparent",
+                          color: cart.cadence === "annual" ? "white" : "var(--text-secondary)",
+                          fontWeight: "600",
+                          fontSize: "0.875rem",
+                          cursor: "pointer",
+                          transition: "var(--transition)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px"
+                        }}
+                      >
+                        Annual
+                        <span style={{
+                          background: cart.cadence === "annual" ? "rgba(255,255,255,0.2)" : "rgba(20, 184, 166, 0.15)",
+                          color: cart.cadence === "annual" ? "white" : "var(--accent-teal)",
+                          padding: "2px 8px",
+                          borderRadius: "100px",
+                          fontSize: "0.6875rem",
+                          fontWeight: "700"
+                        }}>
+                          Save 17%
+                        </span>
+                      </button>
+                    </div>
                   </div>
-                  <div>
-                    <span style={{ fontSize: "0.875rem", color: "#64748b", display: "block" }}>Renews On</span>
-                    <span style={{ fontWeight: 600, color: "#0f172a" }}>{formattedRenewal}</span>
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "1rem",
+                    marginTop: "1rem"
+                  }}>
+                    <div>
+                      <span style={{ fontSize: "0.875rem", color: "#64748b", display: "block" }}>Renews On</span>
+                      <span style={{ fontWeight: 600, color: "#0f172a" }}>{formattedRenewal}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -489,57 +842,7 @@ function CheckoutContent() {
                     </div>
                   </div>
                 ) : (
-                  <div style={{ textAlign: "center", padding: "1.5rem" }}>
-                    <p style={{ color: "#64748b", marginBottom: "1.5rem" }}>
-                      Create an account or sign in to complete your purchase
-                    </p>
-                    <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
-                      <SignUpButton 
-                        mode="modal"
-                        appearance={{
-                          elements: {
-                            modalContent: "rounded-2xl",
-                            card: "shadow-2xl rounded-2xl",
-                            headerTitle: "text-xl font-bold text-slate-900",
-                            headerSubtitle: "text-slate-600",
-                            formButtonPrimary: 
-                              "bg-gradient-to-r from-[#0066CC] to-[#0052a3] hover:from-[#0052a3] hover:to-[#003d7a] text-white font-semibold py-3 rounded-xl transition-all duration-200",
-                            formFieldInput: 
-                              "rounded-xl border-slate-200 focus:border-[#0066CC] focus:ring-[#0066CC]/20",
-                            footerActionLink: "text-[#0066CC] hover:text-[#0052a3] font-semibold",
-                            socialButtonsBlockButton: 
-                              "border-slate-200 hover:bg-slate-50 rounded-xl transition-all",
-                          },
-                        }}
-                      >
-                        <button className="button button--primary">
-                          Create Account
-                        </button>
-                      </SignUpButton>
-                      <SignInButton 
-                        mode="modal"
-                        appearance={{
-                          elements: {
-                            modalContent: "rounded-2xl",
-                            card: "shadow-2xl rounded-2xl",
-                            headerTitle: "text-xl font-bold text-slate-900",
-                            headerSubtitle: "text-slate-600",
-                            formButtonPrimary: 
-                              "bg-gradient-to-r from-[#0066CC] to-[#0052a3] hover:from-[#0052a3] hover:to-[#003d7a] text-white font-semibold py-3 rounded-xl transition-all duration-200",
-                            formFieldInput: 
-                              "rounded-xl border-slate-200 focus:border-[#0066CC] focus:ring-[#0066CC]/20",
-                            footerActionLink: "text-[#0066CC] hover:text-[#0052a3] font-semibold",
-                            socialButtonsBlockButton: 
-                              "border-slate-200 hover:bg-slate-50 rounded-xl transition-all",
-                          },
-                        }}
-                      >
-                        <button className="button button--glass">
-                          Sign In
-                        </button>
-                      </SignInButton>
-                    </div>
-                  </div>
+                  <InlineAuth />
                 )}
               </div>
               
@@ -700,7 +1003,7 @@ function CheckoutContent() {
                     color: "#0d9488",
                     fontWeight: 600
                   }}>
-                    💰 ACH discount: You're saving {formatPrice(achSavings)}{periodShort}!
+                    ACH discount: You're saving {formatPrice(achSavings)}{periodShort}!
                   </div>
                 )}
                 
@@ -815,7 +1118,7 @@ function CheckoutContent() {
                   <span>256-bit SSL encrypted. Your information is secure.</span>
                 </div>
                 
-                {/* Cancellation Policy */}
+                {/* Disclaimer */}
                 <p style={{
                   marginTop: "1rem",
                   textAlign: "center",
@@ -823,8 +1126,7 @@ function CheckoutContent() {
                   color: "#64748b",
                   lineHeight: 1.6
                 }}>
-                  Cancel anytime. You'll keep access until the end of your billing period.
-                  <strong style={{ color: "#d97706" }}> This is not insurance.</strong>
+                  <strong style={{ color: "#d97706" }}>This is not insurance.</strong>
                 </p>
               </div>
             </div>

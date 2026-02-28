@@ -15,6 +15,7 @@ import {
   GroupContext,
   EnrollmentConfig,
 } from "@/lib/enrollment/types";
+import type { EnrollmentFlow } from "@/components/enrollment/FlowSelector";
 
 // Create context
 const EnrollmentContext = createContext<
@@ -83,7 +84,7 @@ function enrollmentReducer(state: EnrollmentWizardState, action: EnrollmentActio
         ...state,
         selectedPlans: {
           ...state.selectedPlans,
-          [productId]: { name, price, cadence, paymentMethod },
+          [productId]: { productId, name, price, cadence, paymentMethod },
         },
       };
     }
@@ -152,6 +153,9 @@ function enrollmentReducer(state: EnrollmentWizardState, action: EnrollmentActio
     case "SET_BROKER_CODE":
       return { ...state, brokerCode: action.payload };
 
+    case "SET_FLOW_TYPE":
+      return { ...state, flowType: action.payload };
+
     case "UPDATE_PRICING":
       return {
         ...state,
@@ -181,23 +185,28 @@ function enrollmentReducer(state: EnrollmentWizardState, action: EnrollmentActio
 // Provider component
 export function EnrollmentProvider({
   children,
+  flowType,
   brokerCode,
   groupCode,
 }: {
   children: ReactNode;
+  flowType?: EnrollmentFlow;
   brokerCode?: string;
   groupCode?: string;
 }) {
   const [state, dispatch] = useReducer(enrollmentReducer, INITIAL_STATE);
 
-  // Initialize with broker/group codes if provided
+  // Initialize with flow type, broker/group codes if provided
   useEffect(() => {
+    if (flowType) {
+      dispatch({ type: "SET_FLOW_TYPE", payload: flowType });
+    }
     if (brokerCode) {
       dispatch({ type: "SET_BROKER_CODE", payload: brokerCode });
     }
     // TODO: On group code, call Convex to resolve hierarchy and set group context
     // This will be done in EligibilityStep or in a separate initialization step
-  }, [brokerCode, groupCode]);
+  }, [flowType, brokerCode, groupCode]);
 
   const steps: EnrollmentWizardState["currentStep"][] = [
     "eligibility",

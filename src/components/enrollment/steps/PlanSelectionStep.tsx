@@ -42,8 +42,44 @@ export function PlanSelectionStep() {
   const [cadence, setCadence] = useState<"monthly" | "annual">("monthly");
   const [paymentMethod, setPaymentMethod] = useState<"card" | "ach">("card");
   
-  // Query real products from Convex
-  const catalogProducts = useQuery(api.catalog.queries.list, {}) || [];
+  // TODO (Agent 2): Wire up Convex catalog.queries.list query
+  // const catalogProducts = useQuery(api.catalog.queries.list, {}) || [];
+  
+  // Stub implementation with sample products for development
+  const catalogProducts = [
+    {
+      _id: "product_ideal_health_oral",
+      slug: "ideal-health-oral",
+      name: "Ideal Health Oral Plan",
+      description: "Comprehensive dental coverage including preventive, basic, and major services",
+      category: "oral_health",
+      pricing: {
+        monthlyCardCents: 1499,  // $14.99
+        monthlyACHCents: 1299,   // $12.99
+        annualCardCents: 14999,  // $149.99
+        annualACHCents: 12999,   // $129.99
+      },
+      inclusions: [
+        "Preventive care (cleanings, exams)",
+        "Basic care (fillings, extractions)",
+        "Major care (crowns, bridges)",
+        "Teledentistry consultations",
+        "Dental discount network",
+      ],
+      metadata: {
+        icon: "tooth",
+        bestFor: ["Individual", "Family"],
+      },
+      isFeatured: true,
+      order: 1,
+      eligibilityRules: {
+        disclosureText: "This is a discount dental plan, not insurance.",
+        requiresAgeVerification: false,
+        minimumAge: 0,
+        maximumAge: 150,
+      },
+    },
+  ];
   
   // Transform catalog products to Product interface
   const products: Product[] = (catalogProducts || []).map((p: any) => ({

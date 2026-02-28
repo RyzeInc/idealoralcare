@@ -216,7 +216,7 @@ async function seedTeamData(ctx: MutationCtx) {
       {
         name: "Kyle",
         role: "Co-Founder & Partner" as const,
-        bio: "Kyle brings 8 years of business ownership experience to Ryze Inc. As co-owner of a successful playground installation company, he has built a reputation as a reliable partner to one of the industry's major distributors. His hands-on approach to business and proven track record in partnerships makes him an invaluable asset to our venture-building mission.",
+        bio: "Kyle brings 8 years of business ownership experience to Ideal. As co-owner of a successful playground installation company, he has built a reputation as a reliable partner to one of the industry's major distributors. His hands-on approach to business and proven track record in partnerships makes him an invaluable asset to our venture-building mission.",
         experience: [
           {
             title: "Co-Owner, Playground Installation Company",
@@ -244,7 +244,7 @@ async function seedTeamData(ctx: MutationCtx) {
       {
         name: "Julian Lago",
         role: "Advisor" as const,
-        bio: "Julian brings strategic insight and industry connections to Ryze Inc. His experience in technology and business development helps guide our venture portfolio toward sustainable growth and meaningful impact.",
+        bio: "Julian brings strategic insight and industry connections to Ideal. His experience in technology and business development helps guide our venture portfolio toward sustainable growth and meaningful impact.",
         experience: [
           {
             title: "Strategic Advisory",

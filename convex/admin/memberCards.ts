@@ -7,7 +7,7 @@ import { api } from "../_generated/api";
  *
  * Generate PDF member ID cards with:
  * - Member name, 9-digit ID, plan name, effective date
- * - Network provider info (Careington, Dial Care)
+ * - Network provider info (Dental Discount Network, Dial Care)
  * - Smart check link (Toothlens)
  * - QR code / barcode
  */
@@ -21,8 +21,9 @@ export const generateMemberIdCardPdf: any = action({
     memberId: v.id("memberProfiles"),
   },
   handler: async (ctx, args) => {
-    const member = await ctx.runQuery(api.admin.members.getMemberDetail, { memberId: args.memberId });
-    if (!member) throw new Error("Member not found");
+    const memberDetail = await ctx.runQuery(api.admin.members.getMemberDetail, { memberId: args.memberId });
+    if (!memberDetail) throw new Error("Member not found");
+    const member = memberDetail.member;
 
     // Card data
     const cardData = {
@@ -31,7 +32,7 @@ export const generateMemberIdCardPdf: any = action({
       planName: "Oral Health Plan",
       effectiveDate: member.createdAt ? new Date(member.createdAt).toLocaleDateString() : new Date().toLocaleDateString(),
       networks: [
-        "Careington Dental Network",
+        "Dental Discount Network Dental Network",
         "Dial Care Teledentistry",
         "Toothlens Smart Checks",
       ],
@@ -42,7 +43,7 @@ export const generateMemberIdCardPdf: any = action({
     // For now, return card data as JSON for frontend rendering
 
     const pdfContent = {
-      filename: `${member.memberId}_${member.firstName}_${member.lastName}_IdCard.pdf`,
+      filename: `${cardData.memberId}_IdCard.pdf`,
       cardData,
       htmlContent: `
         <html>
@@ -84,7 +85,7 @@ export const generateMemberIdCardPdf: any = action({
                 <div class="card-value">${cardData.effectiveDate}</div>
               </div>
               <div style="margin-top: 6px; font-size: 8px; border-top: 1px solid rgba(255,255,255,0.5); padding-top: 4px;">
-                Careington • Dial Care • Toothlens Smart Check
+                Dental Discount Network • Dial Care • Toothlens Smart Check
               </div>
             </div>
           </body>
@@ -104,8 +105,9 @@ export const getMemberCardData: any = action({
     memberId: v.id("memberProfiles"),
   },
   handler: async (ctx, args) => {
-    const member = await ctx.runQuery(api.admin.members.getMemberDetail, { memberId: args.memberId });
-    if (!member) throw new Error("Member not found");
+    const memberDetail = await ctx.runQuery(api.admin.members.getMemberDetail, { memberId: args.memberId });
+    if (!memberDetail) throw new Error("Member not found");
+    const member = memberDetail.member;
 
     return {
       memberName: `${member.firstName} ${member.lastName}`,
@@ -116,7 +118,7 @@ export const getMemberCardData: any = action({
       barcode: member.barcode,
       networks: {
         careington: {
-          name: "Careington Dental Network",
+          name: "Dental Discount Network Dental Network",
           memberUrl: "https://www.careington.com/members",
         },
         dialCare: {
@@ -142,7 +144,18 @@ export const generateMemberCardWithQr: any = action({
     memberId: v.id("memberProfiles"),
   },
   handler: async (ctx, args) => {
-    const cardData = await ctx.runAction(api.admin.memberCards.getMemberCardData, { memberId: args.memberId });
+    const memberDetail = await ctx.runQuery(api.admin.members.getMemberDetail, { memberId: args.memberId });
+    if (!memberDetail) throw new Error("Member not found");
+    const member = memberDetail.member;
+
+    const cardData = {
+      memberName: `${member.firstName} ${member.lastName}`,
+      memberId: member.memberId || "MBR-2026-00001",
+      email: member.email,
+      planName: "Oral Health Plan",
+      effectiveDate: member.createdAt ? new Date(member.createdAt).toLocaleDateString() : new Date().toLocaleDateString(),
+      barcode: member.barcode,
+    };
 
     // In production: use 'qrcode' library to generate QR code data URL
     // const QRCode = require('qrcode');

@@ -1,21 +1,25 @@
 import Image from 'next/image';
-import styles from './NexusHealthWordmark.module.css';
 
-export default function NexusHealthWordmark() {
+export default function IdealHealthWordmark() {
   return (
-    <a href="/health" className={styles.wordmark}>
-      <div className={styles.icon}>
-        <Image 
-          src="/nexus-health-logo.png" 
-          alt="Nexus Health" 
-          width={44} 
-          height={44} 
-        />
-      </div>
-      <div className={styles.text}>
-        <div className={styles.primary}>Nexus</div>
-        <div className={styles.secondary}>Health Plans</div>
-      </div>
+    <a
+      href="/health"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        textDecoration: 'none',
+        transition: 'opacity 0.2s ease',
+        flexShrink: 0,
+      }}
+    >
+      <Image
+        src="/ideal-health-logo.png"
+        alt="Ideal Health"
+        width={130}
+        height={44}
+        style={{ objectFit: 'contain' }}
+        priority
+      />
     </a>
   );
 }

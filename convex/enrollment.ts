@@ -182,3 +182,8 @@ export const completeEnrollment = mutation({
     };
   },
 });
+
+/**
+ * Re-export enrollment/sessions module as enrollment_sessions for convenience
+ */
+export * as enrollment_sessions from "./enrollment/sessions";

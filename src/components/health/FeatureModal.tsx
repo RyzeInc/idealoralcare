@@ -28,19 +28,19 @@ export default function FeatureModal({ isOpen, onClose, feature }: FeatureModalP
               number: '1',
               title: 'Take 5 Photos',
               description: 'Following the step-by-step instructions, use your phone to take five photos of your mouth.',
-              icon: '📸'
+              icon: 'Camera'
             },
             {
               number: '2',
               title: 'Instant AI Analysis',
               description: 'Our AI analyzes your photos to create a SmileScan Report, giving you an overall oral health score and highlighting any areas of concern with clear explanations',
-              icon: '🤖'
+              icon: 'Zap'
             },
             {
               number: '3',
               title: 'Review Your Results With a Dentist',
               description: 'Have questions or concerns about your results? Schedule a virtual consultation with one of our dentists directly from your SmileScan Report.',
-              icon: '👨‍⚕️'
+              icon: 'User'
             }
           ]
         };
@@ -58,19 +58,19 @@ export default function FeatureModal({ isOpen, onClose, feature }: FeatureModalP
               number: '1',
               title: 'Book Your Appointment',
               description: 'Choose a time that works for you. Available 24/7 for urgent concerns or scheduled appointments.',
-              icon: '📅'
+              icon: 'Calendar'
             },
             {
               number: '2',
               title: 'Connect with a Dentist',
               description: 'Join a secure video call with an experienced, licensed dentist who will review your concerns.',
-              icon: '💬'
+              icon: 'MessageCircle'
             },
             {
               number: '3',
               title: 'Get Your Treatment Plan',
               description: 'Receive professional recommendations, prescriptions if needed, and referrals to in-person care.',
-              icon: '📋'
+              icon: 'FileText'
             }
           ]
         };
@@ -88,13 +88,13 @@ export default function FeatureModal({ isOpen, onClose, feature }: FeatureModalP
               number: '1',
               title: 'Search Our Network',
               description: 'Browse thousands of qualified dentists in your area with verified credentials and patient reviews.',
-              icon: '🔍'
+              icon: 'Search'
             },
             {
               number: '2',
               title: 'Compare Prices',
               description: 'See upfront pricing for procedures with member discount rates clearly displayed.',
-              icon: '💰'
+              icon: 'DollarSign'
             },
             {
               number: '3',

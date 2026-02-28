@@ -751,4 +751,4 @@ You **ARE** creating:
 5. **Scalable foundation**: Can handle 8 plans today, 80 tomorrow
 
 
-**Am I correct?** This is Nexus Health or a similar digital-first health benefits platform that makes supplemental health services as easy to buy as Netflix.
+**Am I correct?** This is Ideal Health or a similar digital-first health benefits platform that makes supplemental health services as easy to buy as Netflix.

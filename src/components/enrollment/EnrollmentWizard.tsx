@@ -9,58 +9,76 @@ import { PersonalInfoStep } from './steps/PersonalInfoStep';
 import { AccountPaymentStep } from './steps/AccountPaymentStep';
 import { ReviewStep } from './steps/ReviewStep';
 import { ConfirmationPage } from './ConfirmationPage';
-import styles from './enrollment-wizard.module.css';
 
-const STEPS = [
-  { key: 'eligibility', component: EligibilityStep, label: 'Eligibility' },
-  { key: 'plans', component: PlanSelectionStep, label: 'Plans' },
-  { key: 'personal-info', component: PersonalInfoStep, label: 'Personal' },
-  { key: 'payment', component: AccountPaymentStep, label: 'Payment' },
-  { key: 'review', component: ReviewStep, label: 'Review' },
-];
+interface FlowStep {
+  key: string;
+  label: string;
+  sublabel?: string;
+  component: React.ComponentType;
+}
+
+const FLOW_STEPS: Record<string, FlowStep[]> = {
+  'dtc': [
+    { key: 'eligibility', label: 'Eligibility', sublabel: 'ZIP code', component: EligibilityStep },
+    { key: 'plans', label: 'Choose Plan', sublabel: 'Coverage', component: PlanSelectionStep },
+    { key: 'personal-info', label: 'Your Info', sublabel: 'Details', component: PersonalInfoStep },
+    { key: 'payment', label: 'Payment', sublabel: 'Billing', component: AccountPaymentStep },
+    { key: 'review', label: 'Review', sublabel: 'Confirm', component: ReviewStep },
+  ],
+  'broker-individual': [
+    { key: 'eligibility', label: 'Verify', sublabel: 'Agent code', component: EligibilityStep },
+    { key: 'plans', label: 'Choose Plan', sublabel: 'Coverage', component: PlanSelectionStep },
+    { key: 'personal-info', label: 'Your Info', sublabel: 'Details', component: PersonalInfoStep },
+    { key: 'payment', label: 'Payment', sublabel: 'Billing', component: AccountPaymentStep },
+    { key: 'review', label: 'Review', sublabel: 'Confirm', component: ReviewStep },
+  ],
+  'broker-group-member': [
+    { key: 'eligibility', label: 'Group Code', sublabel: 'Verify', component: EligibilityStep },
+    { key: 'plans', label: 'Choose Plan', sublabel: 'Coverage', component: PlanSelectionStep },
+    { key: 'personal-info', label: 'Your Info', sublabel: 'Details', component: PersonalInfoStep },
+    { key: 'payment', label: 'Payment', sublabel: 'Your share', component: AccountPaymentStep },
+    { key: 'review', label: 'Review', sublabel: 'Confirm', component: ReviewStep },
+  ],
+  'broker-group-employer': [
+    { key: 'eligibility', label: 'Group Code', sublabel: 'Verify', component: EligibilityStep },
+    { key: 'plans', label: 'Choose Plan', sublabel: 'Coverage', component: PlanSelectionStep },
+    { key: 'personal-info', label: 'Your Info', sublabel: 'Details', component: PersonalInfoStep },
+    { key: 'payment', label: 'Billing', sublabel: 'Employer pays', component: AccountPaymentStep },
+    { key: 'review', label: 'Review', sublabel: 'Confirm', component: ReviewStep },
+  ],
+};
 
 export function EnrollmentWizard() {
   const { state } = useEnrollment();
   const currentStep = state.currentStep;
+  const flowType = (state.flowType as string | undefined) || 'dtc';
 
-  // Show confirmation page after enrollment is complete
   if (currentStep === 'confirmation') {
     return <ConfirmationPage />;
   }
 
-  const stepIndex = STEPS.findIndex((step) => step.key === currentStep);
-  const step = STEPS[stepIndex];
-  const StepComponent = step?.component || EligibilityStep;
+  const flowSteps = FLOW_STEPS[flowType] ?? FLOW_STEPS['dtc'];
+  const stepIndex = flowSteps.findIndex((s) => s.key === currentStep);
+  const step = flowSteps[stepIndex] ?? flowSteps[0];
+  const StepComponent = step.component;
 
   return (
-    <div className={styles.wizardContainer}>
-      {/* Desktop Layout */}
-      <div className={styles.desktopLayout}>
-        {/* Left Column: Progress Bar + Step */}
-        <div className={styles.stepColumn}>
-          <StepProgressBar />
-          <div className={styles.stepContent}>
-            <StepComponent />
-          </div>
-        </div>
-
-        {/* Right Column: Order Summary (Desktop Only) */}
-        <aside className={styles.railColumn}>
-          <OrderSummaryRail />
-        </aside>
+    <div className="enrollment-shell">
+      {/* Sticky horizontal stepper bar */}
+      <div className="enrollment-shell__stepper-bar">
+        <StepProgressBar flowSteps={flowSteps} />
       </div>
 
-      {/* Mobile Layout */}
-      <div className={styles.mobileLayout}>
-        <div className={styles.mobileProgressBar}>
-          <StepProgressBar />
-        </div>
-        <div className={styles.mobileContent}>
+      {/* Two-column body */}
+      <div className="enrollment-shell__body">
+        <div className="enrollment-step-card">
           <StepComponent />
         </div>
-        <div className={styles.mobileRail}>
-          <OrderSummaryRail />
-        </div>
+        <aside>
+          <div className="enroll-rail">
+            <OrderSummaryRail />
+          </div>
+        </aside>
       </div>
     </div>
   );

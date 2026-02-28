@@ -1,5 +1,7 @@
 'use client';
 
+import { useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 import { Download, FileDown } from 'lucide-react';
 
 /**
@@ -8,41 +10,12 @@ import { Download, FileDown } from 'lucide-react';
  * Monthly member counts and amounts for E123 import
  */
 
-interface BillingGroup {
-  groupCode: string;
-  groupName: string;
-  memberCount: number;
-  ratePerMember: number;
-  totalAmount: number;
-}
-
-const MOCK_BILLING: BillingGroup[] = [
-  {
-    groupCode: 'DTC-DEFAULT-2026',
-    groupName: 'DTC Individual',
-    memberCount: 150,
-    ratePerMember: 15.0,
-    totalAmount: 2250.0,
-  },
-  {
-    groupCode: 'ACME-EMP-2026',
-    groupName: 'Acme Corporation',
-    memberCount: 45,
-    ratePerMember: 15.0,
-    totalAmount: 675.0,
-  },
-  {
-    groupCode: 'EMPLOYER-BEN-2026',
-    groupName: 'Employer Benefit',
-    memberCount: 32,
-    ratePerMember: 15.0,
-    totalAmount: 480.0,
-  },
-];
-
 export default function BillingPage() {
-  const totalMembers = MOCK_BILLING.reduce((sum, g) => sum + g.memberCount, 0);
-  const totalAmount = MOCK_BILLING.reduce((sum, g) => sum + g.totalAmount, 0);
+  // Query real data from Convex
+  const billingGroups = useQuery(api.admin.billing.getAllGroupBillingSummaries) || [];
+
+  const totalMembers = billingGroups.reduce((sum: number, g: any) => sum + g.memberCount, 0);
+  const totalAmount = billingGroups.reduce((sum: number, g: any) => sum + g.totalAmount, 0);
 
   const currentDate = new Date();
   const billingPeriodStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -110,7 +83,7 @@ export default function BillingPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
-            {MOCK_BILLING.map((group) => (
+            {billingGroups.map((group: any) => (
               <tr key={group.groupCode} className="hover:bg-slate-50">
                 <td className="px-6 py-4 font-medium font-mono text-sm">{group.groupCode}</td>
                 <td className="px-6 py-4 text-slate-900">{group.groupName}</td>

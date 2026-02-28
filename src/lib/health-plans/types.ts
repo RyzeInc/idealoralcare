@@ -1,5 +1,5 @@
 /**
- * NEXUS HEALTH PLANS - Type Definitions
+ * IDEAL HEALTH PLANS - Type Definitions
  * 
  * Defines the core data structures for:
  * - Catalog products

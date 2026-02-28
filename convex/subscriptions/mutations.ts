@@ -45,8 +45,8 @@ export const createBundle = mutation({
         capturedAt: now,
       },
       createdAt: now,
-      activatedAt: now,
       updatedAt: now,
+      activatedAt: now,
     });
 
     return bundleId;
@@ -102,11 +102,9 @@ export const extendEntitlementPeriod = mutation({
     newExpiresAt: v.number(),
   },
   handler: async (ctx, args) => {
-    const now = Date.now();
     await ctx.db.patch(args.entitlementId, {
       periodEnd: args.newPeriodEnd,
       expiresAt: args.newExpiresAt,
-      updatedAt: now,
     });
     return args.entitlementId;
   },
@@ -125,7 +123,6 @@ export const cancelEntitlement = mutation({
     await ctx.db.patch(args.entitlementId, {
       status: "expired",
       revokedAt: now,
-      updatedAt: now,
     });
     return args.entitlementId;
   },
@@ -146,7 +143,6 @@ export const cancelBundle = mutation({
     await ctx.db.patch(args.bundleId, {
       status: "cancelled",
       cancelledAt: now,
-      updatedAt: now,
     });
 
     // Cancel all active entitlements in this bundle
@@ -160,7 +156,6 @@ export const cancelBundle = mutation({
         await ctx.db.patch(ent._id, {
           status: "expired",
           revokedAt: now,
-          updatedAt: now,
         });
       }
     }

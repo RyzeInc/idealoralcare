@@ -221,7 +221,7 @@
 }
 
 .inclusions li::before {
-  content: "✓";
+  content: "•";
   color: #0066cc;
   font-weight: 700;
   font-size: 14px;

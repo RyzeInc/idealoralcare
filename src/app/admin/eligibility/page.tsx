@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 import { Upload, FileUp, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 
 /**
@@ -9,47 +11,13 @@ import { Upload, FileUp, AlertCircle, CheckCircle, Clock } from 'lucide-react';
  * CSV upload with validation, progress tracking, and error reporting
  */
 
-interface UploadedFile {
-  id: string;
-  name: string;
-  uploadedAt: string;
-  status: 'processing' | 'completed' | 'error';
-  totalRecords: number;
-  processedRecords: number;
-  errorRecords: number;
-  errors?: string[];
-}
-
-// Mock data for demonstration
-const MOCK_FILES: UploadedFile[] = [
-  {
-    id: '1',
-    name: 'members_2026_02.csv',
-    uploadedAt: '2026-02-20 10:30 AM',
-    status: 'completed',
-    totalRecords: 150,
-    processedRecords: 150,
-    errorRecords: 0,
-  },
-  {
-    id: '2',
-    name: 'members_2026_01.csv',
-    uploadedAt: '2026-01-20 2:15 PM',
-    status: 'completed',
-    totalRecords: 140,
-    processedRecords: 138,
-    errorRecords: 2,
-    errors: [
-      'Row 25: Missing email address',
-      'Row 87: Invalid date format',
-    ],
-  },
-];
-
 export default function EligibilityUploadPage() {
-  const [files, setFiles] = useState<UploadedFile[]>(MOCK_FILES);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadingFile, setUploadingFile] = useState<string | null>(null);
+
+  // Query real data from Convex
+  const eligibilityFiles = useQuery(api.admin.eligibility.getAllEligibilityFiles) || [];
+  const files = eligibilityFiles;
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -63,24 +31,15 @@ export default function EligibilityUploadPage() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    // Handle file upload
+    // File upload would be handled here via Convex mutation
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Simulate upload
-      const newFile: UploadedFile = {
-        id: `${Date.now()}`,
-        name: file.name,
-        uploadedAt: new Date().toLocaleString(),
-        status: 'processing',
-        totalRecords: 100,
-        processedRecords: 0,
-        errorRecords: 0,
-      };
-      setFiles([newFile, ...files]);
-      setUploadingFile(newFile.id);
+      // File upload would be handled here via Convex mutation
+      setUploadingFile(`${Date.now()}`);
+      // TODO: Call uploadEligibilityFile mutation when form is submitted
     }
   };
 
@@ -196,15 +155,17 @@ export default function EligibilityUploadPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {files.map((file) => (
-                <tr key={file.id} className="hover:bg-slate-50">
+              {files.map((file: any) => (
+                <tr key={file._id} className="hover:bg-slate-50">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <FileUp size={18} className="text-slate-400" />
-                      <span className="font-medium text-slate-900">{file.name}</span>
+                      <span className="font-medium text-slate-900">{file.fileName}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-slate-600 text-sm">{file.uploadedAt}</td>
+                  <td className="px-6 py-4 text-slate-600 text-sm">
+                    {file.uploadedAt ? new Date(file.uploadedAt).toLocaleString() : 'N/A'}
+                  </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       {getStatusIcon(file.status)}

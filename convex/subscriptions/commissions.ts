@@ -51,7 +51,7 @@ export const setCommissionRate = mutation({
       status: args.status,
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      createdBy: ctx.auth.getUserIdentity()?.tokenIdentifier || "system",
+      createdBy: (await ctx.auth.getUserIdentity())?.tokenIdentifier || "system",
     });
 
     return await ctx.db.get(rateId);

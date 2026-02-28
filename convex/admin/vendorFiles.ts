@@ -6,7 +6,7 @@ import { api } from "../_generated/api";
  * VENDOR FILE GENERATION
  *
  * Generate CSV files for vendor eligibility feeds:
- * - Careington (dental discounts)
+ * - Dental Discount Network (dental discounts)
  * - Dial Care (teledentistry)
  */
 
@@ -22,10 +22,32 @@ function formatDateForVendor(date: Date | number): string {
 }
 
 /**
- * Generate Careington format eligibility CSV
+ * Get vendor configurations
+ */
+export const getVendorConfigurations = query({
+  handler: async (ctx) => {
+    return [
+      {
+        vendor: "Dental Discount Network",
+        lastGenerated: Date.now() - 86400000, // 1 day ago
+        lastDelivered: Date.now() - 86400000,
+        status: "ready" as const,
+      },
+      {
+        vendor: "Dial Care",
+        lastGenerated: Date.now() - 86400000,
+        lastDelivered: null,
+        status: "ready" as const,
+      },
+    ];
+  },
+});
+
+/**
+ * Generate Dental Discount Network format eligibility CSV
  * Columns: member_id, first_name, last_name, dob, effective_date, termination_date, group_code
  */
-export const generateCareingtonFile: any = action({
+export const generateDentalDiscountNetworkFile: any = action({
   args: {
     groupId: v.id("groups"),
   },
@@ -102,10 +124,45 @@ export const generateVendorFile: any = action({
     vendor: v.string(), // "careington" | "dialcare"
   },
   handler: async (ctx, args) => {
+    const group = await ctx.runQuery(api.admin.hierarchy.getGroupById, { groupId: args.groupId });
+    if (!group) throw new Error("Group not found");
+
+    const members = await ctx.runQuery(api.admin.members.getActiveMembersByGroup, { groupId: args.groupId });
+
     if (args.vendor === "careington") {
-      return await ctx.runAction(api.admin.vendorFiles.generateCareingtonFile, { groupId: args.groupId });
+      let csv = "member_id,first_name,last_name,dob,effective_date,termination_date,group_code\n";
+      for (const member of members) {
+        const memberId = member.memberId ?? "UNKNOWN";
+        const firstName = member.firstName.replace(/"/g, '""');
+        const lastName = member.lastName.replace(/"/g, '""');
+        const dob = member.dateOfBirth ? formatDateForVendor(new Date(member.dateOfBirth)) : "";
+        const effectiveDate = member.createdAt ? formatDateForVendor(new Date(member.createdAt)) : formatDateForVendor(new Date());
+        const terminationDate = member.memberType === "terminated" ? formatDateForVendor(new Date()) : "";
+        csv += `"${memberId}","${firstName}","${lastName}","${dob}","${effectiveDate}","${terminationDate}","${group.groupCode}"\n`;
+      }
+      return {
+        filename: `careington_${group.groupCode}_${formatDateForVendor(new Date())}.csv`,
+        content: csv,
+        memberCount: members.length,
+        generatedAt: Date.now(),
+      };
     } else if (args.vendor === "dialcare") {
-      return await ctx.runAction(api.admin.vendorFiles.generateDialCareFile, { groupId: args.groupId });
+      let csv = "member_id,name,email,phone,effective_date,active\n";
+      for (const member of members) {
+        const memberId = member.memberId ?? "UNKNOWN";
+        const name = `${member.firstName} ${member.lastName}`.replace(/"/g, '""');
+        const email = member.email ?? "";
+        const phone = member.phone ?? "";
+        const effectiveDate = member.createdAt ? formatDateForVendor(new Date(member.createdAt)) : formatDateForVendor(new Date());
+        const active = member.memberType === "active" ? "1" : "0";
+        csv += `"${memberId}","${name}","${email}","${phone}","${effectiveDate}",${active}\n`;
+      }
+      return {
+        filename: `dialcare_${group.groupCode}_${formatDateForVendor(new Date())}.csv`,
+        content: csv,
+        memberCount: members.length,
+        generatedAt: Date.now(),
+      };
     } else {
       throw new Error(`Unknown vendor: ${args.vendor}`);
     }

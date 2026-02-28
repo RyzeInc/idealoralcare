@@ -11,10 +11,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ShoppingCart, User, Menu, X } from "lucide-react";
+import { ShoppingCart, Menu, X } from "lucide-react";
 import { useState } from "react";
-import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
-import NexusHealthWordmark from "./NexusHealthWordmark";
+import IdealHealthWordmark from "./NexusHealthWordmark";
+import MemberPortalButton from "@/components/auth/MemberPortalButton";
 import styles from "./health-header.module.css";
 
 interface HealthHeaderProps {
@@ -31,10 +31,6 @@ export default function HealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
   const isPlansActive = pathname.startsWith("/health/plans") || 
                         pathname === "/health/compare" || 
                         pathname === "/health/checkout";
-  
-  // Only show account/sign-in on checkout and dashboard pages
-  const showAccountSection = pathname === "/health/checkout" || 
-                             pathname === "/health/dashboard";
 
   const toggleDropdown = (name: string) => {
     setOpenDropdown(openDropdown === name ? null : name);
@@ -48,7 +44,7 @@ export default function HealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
   return (
     <header className="site-header">
       <div className={styles.headerContainer}>
-        <NexusHealthWordmark />
+        <IdealHealthWordmark />
         
         {/* Desktop Navigation */}
         <nav className={styles.desktopNav}>
@@ -84,7 +80,7 @@ export default function HealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
             <li className="nav-item nav-item--dropdown">
               <a href="#" className="nav-link nav-link--dropdown">About Us</a>
               <div className="dropdown-menu">
-                <p className="dropdown-description">Learn more about Nexus Health by Ryze.</p>
+                <p className="dropdown-description">Learn more about Ideal Health by Ideal.</p>
                 <ul className="dropdown-list">
                   <li><Link href="/about/mission">Our Mission & Vision</Link></li>
                   <li><Link href="/about/team">Our Team</Link></li>
@@ -153,39 +149,10 @@ export default function HealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
               </li>
             )}
             
-            {/* Account / Sign In - Only on checkout and dashboard */}
-            {showAccountSection && (
-              <li className="nav-item" style={{ marginLeft: '8px' }}>
-                <SignedOut>
-                  <Link 
-                    href="/health/sign-in"
-                    className="button button--glass"
-                    style={{ 
-                      padding: '8px 16px', 
-                      fontSize: '0.875rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      textDecoration: 'none'
-                    }}
-                  >
-                    <User size={16} />
-                    Sign In
-                  </Link>
-                </SignedOut>
-                <SignedIn>
-                  <UserButton 
-                    afterSignOutUrl="/health"
-                    appearance={{
-                      elements: {
-                        avatarBox: "h-9 w-9",
-                        userButtonPopoverCard: "shadow-xl",
-                      },
-                    }}
-                  />
-                </SignedIn>
-              </li>
-            )}
+            {/* Member Portal - Always visible on all pages */}
+            <li className="nav-item" style={{ marginLeft: '8px' }}>
+              <MemberPortalButton />
+            </li>
           </ul>
         </nav>
 
@@ -313,27 +280,10 @@ export default function HealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
                 </Link>
               </div>
 
-              {/* Sign In Button (Mobile Checkout/Dashboard) */}
-              {showAccountSection && (
-                <div>
-                  <SignedOut>
-                    <Link 
-                      href="/health/sign-in"
-                      onClick={closeMenu}
-                      className="button button--glass"
-                      style={{
-                        display: "block",
-                        textAlign: "center",
-                        width: "100%",
-                        padding: "0.75rem 1rem",
-                        textDecoration: "none"
-                      }}
-                    >
-                      Sign In
-                    </Link>
-                  </SignedOut>
-                </div>
-              )}
+              {/* Member Portal (Mobile) - Always visible */}
+              <div className={styles.mobileMenuSection} style={{ borderTop: "1px solid #e2e8f0", paddingTop: "1rem" }}>
+                <MemberPortalButton />
+              </div>
             </div>
           </div>
         )}

@@ -26,13 +26,13 @@ export const seedInitialData = mutation({
         name: "Ideal Health Oral Health Plan",
         category: "dental",
         description:
-          "Comprehensive oral health coverage with Toothlens AI oral scanning, Dial Care teledentistry consultations, and access to the Careington POS dental discount network.",
+          "Comprehensive oral health coverage with Toothlens AI oral scanning, Dial Care teledentistry consultations, and access to the Dental Discount Network Dental Discount Network dental discount network.",
         longDescription:
-          "Our Oral Health Plan provides comprehensive access to dental care through innovative technology and a nationwide network of providers. Features include AI-powered oral scanning (Toothlens Smart Check), 24/7 teledentistry consultations via Dial Care, and significant discounts on procedures through the Careington dental provider network.",
+          "Our Oral Health Plan provides comprehensive access to dental care through innovative technology and a nationwide network of providers. Features include AI-powered oral scanning (Toothlens Smart Check), 24/7 teledentistry consultations via Dial Care, and significant discounts on procedures through the Dental Discount Network dental provider network.",
         inclusions: [
           "Toothlens AI Oral Scanning",
           "Dial Care 24/7 Teledentistry",
-          "Careington POS Network Access",
+          "Dental Discount Network Dental Discount Network Network Access",
           "Preventive Discounts",
           "Member ID Card",
           "Emergency Access",
@@ -46,13 +46,19 @@ export const seedInitialData = mutation({
         },
         activationBehavior: "immediate",
         pricing: {
-          monthlyCardCents: 1500,
-          monthlyACHCents: 1300,
-          annualCardCents: 15000,
-          annualACHCents: 13000,
+          monthlyCardCents: 1499,
+          monthlyACHCents: 1299,
+          annualCardCents: 14999,
+          annualACHCents: 12999,
+        },
+        stripeProducts: {
+          monthlyCardId: "prod_U3no15TNX9iTj1",
+          monthlyACHId: "prod_U3nrt0liKgXRmq",
+          annualCardId: "prod_U3nsR7DN8AVcL9",
+          annualACHId: "prod_U3ns1IYNVgNwGM",
         },
         metadata: {
-          icon: "🦷",
+          icon: "Heart",
           bestFor: ["Individuals", "Families"],
         },
         isVisible: true,
@@ -99,13 +105,13 @@ export const reseedData = mutation({
         name: "Ideal Health Oral Health Plan",
         category: "dental",
         description:
-          "Comprehensive oral health coverage with Toothlens AI oral scanning, Dial Care teledentistry consultations, and access to the Careington POS dental discount network.",
+          "Comprehensive oral health coverage with Toothlens AI oral scanning, Dial Care teledentistry consultations, and access to the Dental Discount Network Dental Discount Network dental discount network.",
         longDescription:
-          "Our Oral Health Plan provides comprehensive access to dental care through innovative technology and a nationwide network of providers. Features include AI-powered oral scanning (Toothlens Smart Check), 24/7 teledentistry consultations via Dial Care, and significant discounts on procedures through the Careington dental provider network.",
+          "Our Oral Health Plan provides comprehensive access to dental care through innovative technology and a nationwide network of providers. Features include AI-powered oral scanning (Toothlens Smart Check), 24/7 teledentistry consultations via Dial Care, and significant discounts on procedures through the Dental Discount Network dental provider network.",
         inclusions: [
           "Toothlens AI Oral Scanning",
           "Dial Care 24/7 Teledentistry",
-          "Careington POS Network Access",
+          "Dental Discount Network Dental Discount Network Network Access",
           "Preventive Discounts",
           "Member ID Card",
           "Emergency Access",
@@ -119,13 +125,19 @@ export const reseedData = mutation({
         },
         activationBehavior: "immediate",
         pricing: {
-          monthlyCardCents: 1500,
-          monthlyACHCents: 1300,
-          annualCardCents: 15000,
-          annualACHCents: 13000,
+          monthlyCardCents: 1499,
+          monthlyACHCents: 1299,
+          annualCardCents: 14999,
+          annualACHCents: 12999,
+        },
+        stripeProducts: {
+          monthlyCardId: "prod_U3no15TNX9iTj1",
+          monthlyACHId: "prod_U3nrt0liKgXRmq",
+          annualCardId: "prod_U3nsR7DN8AVcL9",
+          annualACHId: "prod_U3ns1IYNVgNwGM",
         },
         metadata: {
-          icon: "🦷",
+          icon: "Heart",
           bestFor: ["Individuals", "Families"],
         },
         isVisible: true,

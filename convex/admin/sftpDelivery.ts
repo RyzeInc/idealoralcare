@@ -135,7 +135,7 @@ export const getFileForDownload = action({
     let fileData;
 
     if (args.vendor === "careington") {
-      // Would call generateCareingtonFile
+      // Would call generateDental Discount NetworkFile
       fileData = {
         filename: `careington_export_${Date.now()}.csv`,
         content: "member_id,first_name,last_name,dob,effective_date,termination_date,group_code\n",

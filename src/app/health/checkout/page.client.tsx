@@ -18,7 +18,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useUser, SignInButton, SignUpButton } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import { 
   ArrowLeft, 
   CreditCard, 
@@ -244,12 +244,20 @@ function CheckoutContent() {
                   Create an account or sign in to complete your purchase
                 </p>
                 <div className={styles.accountSignupButtons}>
-                  <SignUpButton mode="modal">
-                    <button className={styles.signupBtn}>Create Account</button>
-                  </SignUpButton>
-                  <SignInButton mode="modal">
-                    <button className={styles.signinBtn}>Sign In</button>
-                  </SignInButton>
+                  <Link
+                    href="/health/sign-up"
+                    className={styles.signupBtn}
+                    style={{ textDecoration: "none", display: "inline-block" }}
+                  >
+                    Create Account
+                  </Link>
+                  <Link
+                    href="/health/sign-in"
+                    className={styles.signinBtn}
+                    style={{ textDecoration: "none", display: "inline-block" }}
+                  >
+                    Sign In
+                  </Link>
                 </div>
               </div>
             )}
@@ -328,7 +336,7 @@ function CheckoutContent() {
             {/* ACH Savings Banner */}
             {cart.paymentMethod === "ach" && achSavings > 0 && (
               <div className={styles.savingsBanner}>
-                💰 ACH discount: You&apos;re saving {formatPrice(achSavings)}{periodShort}!
+                ACH discount: You&apos;re saving {formatPrice(achSavings)}{periodShort}!
               </div>
             )}
             

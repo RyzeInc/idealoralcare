@@ -44,7 +44,7 @@ export const seedData = mutation({
       { category: "financial", name: "Financial Organizer + AI Coach", provider: "TallyUp", slug: "financial-organizer-tallyup", icon: "BarChart3", order: 3, isFeatured: true },
 
       // Health
-      { category: "health", name: "Dental", provider: "Careington POS", slug: "dental-careington", shortDescription: "Discount Network", icon: "Tooth", order: 0 },
+      { category: "health", name: "Dental", provider: "Dental Discount Network POS", slug: "dental-careington", shortDescription: "Discount Network", icon: "Tooth", order: 0 },
       { category: "health", name: "Vision", provider: "", slug: "vision", shortDescription: "Discount Network", icon: "Eye", order: 1 },
       { category: "health", name: "Teledentistry", provider: "", slug: "teledentistry", shortDescription: "On-Demand Care", icon: "Video", order: 2 },
       { category: "health", name: "Hearing", provider: "", slug: "hearing", shortDescription: "Discount Network", icon: "Ear", order: 3 },
@@ -74,7 +74,7 @@ export const seedData = mutation({
       { category: "lifestyle", name: "Roadside Assistance", provider: "RSPA", slug: "roadside-rspa", shortDescription: "RSPA", icon: "Wrench", order: 3 },
       { category: "lifestyle", name: "Travel Assistance & Savings", provider: "Lifeguard", slug: "travel-lifeguard", icon: "Plane", order: 4, isFeatured: true },
       { category: "lifestyle", name: "Shopping & Dining", provider: "BenefitsHub", slug: "shopping-benefitshub", icon: "UtensilsCrossed", order: 5 },
-      { category: "lifestyle", name: "Shopping & Dining", provider: "Careington Mall", slug: "shopping-careington", icon: "Store", order: 6 },
+      { category: "lifestyle", name: "Shopping & Dining", provider: "Dental Discount Network Mall", slug: "shopping-careington", icon: "Store", order: 6 },
       { category: "lifestyle", name: "Shopping & Dining", provider: "Access Development", slug: "shopping-access", icon: "Utensils", order: 7 },
       { category: "lifestyle", name: "Health Club Network", provider: "ChooseHealthy + Fitness", slug: "health-club-network", icon: "Dumbbell", order: 8 },
       { category: "lifestyle", name: "Roadside Assistance", provider: "RSPD", slug: "roadside-rspd", shortDescription: "RSPD", icon: "Car", order: 9 },
@@ -194,7 +194,7 @@ export const reseedData = mutation({
       { category: "financial", name: "Financial Organizer + AI Coach", provider: "TallyUp", slug: "financial-organizer-tallyup", icon: "BarChart3", order: 3, isFeatured: true },
 
       // Health
-      { category: "health", name: "Dental", provider: "Careington POS", slug: "dental-careington", shortDescription: "Discount Network", icon: "Tooth", order: 0 },
+      { category: "health", name: "Dental", provider: "Dental Discount Network POS", slug: "dental-careington", shortDescription: "Discount Network", icon: "Tooth", order: 0 },
       { category: "health", name: "Vision", provider: "", slug: "vision", shortDescription: "Discount Network", icon: "Eye", order: 1 },
       { category: "health", name: "Teledentistry", provider: "", slug: "teledentistry", shortDescription: "On-Demand Care", icon: "Video", order: 2 },
       { category: "health", name: "Hearing", provider: "", slug: "hearing", shortDescription: "Discount Network", icon: "Ear", order: 3 },
@@ -224,7 +224,7 @@ export const reseedData = mutation({
       { category: "lifestyle", name: "Roadside Assistance", provider: "RSPA", slug: "roadside-rspa", shortDescription: "RSPA", icon: "Wrench", order: 3 },
       { category: "lifestyle", name: "Travel Assistance & Savings", provider: "Lifeguard", slug: "travel-lifeguard", icon: "Plane", order: 4, isFeatured: true },
       { category: "lifestyle", name: "Shopping & Dining", provider: "BenefitsHub", slug: "shopping-benefitshub", icon: "UtensilsCrossed", order: 5 },
-      { category: "lifestyle", name: "Shopping & Dining", provider: "Careington Mall", slug: "shopping-careington", icon: "Store", order: 6 },
+      { category: "lifestyle", name: "Shopping & Dining", provider: "Dental Discount Network Mall", slug: "shopping-careington", icon: "Store", order: 6 },
       { category: "lifestyle", name: "Shopping & Dining", provider: "Access Development", slug: "shopping-access", icon: "Utensils", order: 7 },
       { category: "lifestyle", name: "Health Club Network", provider: "ChooseHealthy + Fitness", slug: "health-club-network", icon: "Dumbbell", order: 8 },
       { category: "lifestyle", name: "Roadside Assistance", provider: "RSPD", slug: "roadside-rspd", shortDescription: "RSPD", icon: "Car", order: 9 },

@@ -10,6 +10,7 @@
 
 import type * as admin_adminUsers from "../admin/adminUsers.js";
 import type * as admin_billing from "../admin/billing.js";
+import type * as admin_commissions from "../admin/commissions.js";
 import type * as admin_coreValues from "../admin/coreValues.js";
 import type * as admin_eligibility from "../admin/eligibility.js";
 import type * as admin_hierarchy from "../admin/hierarchy.js";
@@ -35,6 +36,8 @@ import type * as enrollment_index from "../enrollment/index.js";
 import type * as enrollment_members from "../enrollment/members.js";
 import type * as enrollment_seed from "../enrollment/seed.js";
 import type * as enrollment_sessions from "../enrollment/sessions.js";
+import type * as healthplans_index from "../healthplans/index.js";
+import type * as healthplans_oral from "../healthplans/oral.js";
 import type * as hierarchy from "../hierarchy.js";
 import type * as hierarchy_site_resolver from "../hierarchy/site_resolver.js";
 import type * as inquiries from "../inquiries.js";
@@ -62,6 +65,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   "admin/adminUsers": typeof admin_adminUsers;
   "admin/billing": typeof admin_billing;
+  "admin/commissions": typeof admin_commissions;
   "admin/coreValues": typeof admin_coreValues;
   "admin/eligibility": typeof admin_eligibility;
   "admin/hierarchy": typeof admin_hierarchy;
@@ -87,6 +91,8 @@ declare const fullApi: ApiFromModules<{
   "enrollment/members": typeof enrollment_members;
   "enrollment/seed": typeof enrollment_seed;
   "enrollment/sessions": typeof enrollment_sessions;
+  "healthplans/index": typeof healthplans_index;
+  "healthplans/oral": typeof healthplans_oral;
   hierarchy: typeof hierarchy;
   "hierarchy/site_resolver": typeof hierarchy_site_resolver;
   inquiries: typeof inquiries;

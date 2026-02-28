@@ -41,7 +41,9 @@ export function ReviewStep() {
         throw new Error("No plans selected");
       }
 
-      const [planId] = planEntries[0];
+      const [planId, planData] = planEntries[0];
+      const cadence = planData.cadence || "monthly";
+      const paymentMethod = planData.paymentMethod || "card";
 
       // Call Stripe checkout API
       const response = await fetch("/api/stripe/checkout", {
@@ -49,9 +51,9 @@ export function ReviewStep() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           planId,
-          cadence: "monthly", // TODO: Get from state
-          paymentMethod: "card", // TODO: Get from state
-          enrollmentSessionId: state?.sessionId || "" + Date.now(),
+          cadence,
+          paymentMethod,
+          enrollmentSessionId: state?.sessionId,
           brokerCode: state?.brokerCode,
           groupId: state?.group?._id,
         }),
@@ -178,7 +180,7 @@ export function ReviewStep() {
                   {state.address.line1}
                   {state.address.line2 && <>, {state.address.line2}</> }
                   <br />
-                  {state.address.city}, {state.address.state} {state.address.zipCode}
+                  {state.address.city}, {state.address.state} {state.address.postalCode}
                 </div>
               </div>
             )}

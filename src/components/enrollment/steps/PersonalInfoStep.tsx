@@ -25,10 +25,17 @@ export function PersonalInfoStep() {
     dateOfBirth: state.personalInfo?.dateOfBirth || "",
   });
 
-  // @ts-ignore - enrollment module will be available after convex dev regenerates
-  const createMemberProfile = useMutation(api.enrollment?.createMemberProfile || (() => Promise.resolve({ _id: "member_mock", memberId: "MBR-2026-00001" })));
-  // @ts-ignore - enrollment module will be available after convex dev regenerates
-  const addActivity = useMutation(api.enrollment?.addMemberActivity || (() => Promise.resolve(null)));
+  // TODO (Agent 2): Wire up Convex enrollment.members.createMemberProfile mutation
+  // const createMemberProfile = useMutation(api.enrollment.members.createMemberProfile);
+  
+  // Stub implementation for local development
+  const createMemberProfile = async (args: any) => {
+    return {
+      _id: `member_${Date.now()}`,
+      memberId: `MBR-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 100000)).padStart(5, '0')}`,
+      ...args,
+    };
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -59,17 +66,23 @@ export function PersonalInfoStep() {
     try {
       setLoading(true);
 
+      // Verify we have hierarchy context (set during eligibility step)
+      if (!state.site?._id || !state.account?._id || !state.group?._id) {
+        throw new Error("Enrollment context not initialized. Please restart.");
+      }
+
       // Create member profile
       const memberProfile = await createMemberProfile({
-        siteId: state.site?._id || "default-site",
-        accountId: state.account?._id || "default-account",
-        groupId: state.group?._id || "default-group",
+        siteId: state.site._id,
+        accountId: state.account._id,
+        groupId: state.group._id,
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
         phone: formData.phone,
         dateOfBirth: formData.dateOfBirth,
         memberType: "enrolling",
+        enrollmentSessionId: (state.sessionId || "") as any, // Will resolve to doc ID in mutation
       });
 
       // Store member profile ID

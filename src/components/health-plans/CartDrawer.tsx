@@ -120,7 +120,7 @@ export function CartDrawer({ isOpen, onClose, onCheckout }: CartDrawerProps) {
                         : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
                     }`}
                   >
-                    {method === "card" ? "💳 Card" : "🏦 Bank (ACH)"}
+                    {method === "card" ? "Card" : "Bank (ACH)"}
                   </button>
                 ))}
               </div>
@@ -179,8 +179,7 @@ export function CartDrawer({ isOpen, onClose, onCheckout }: CartDrawerProps) {
 
           {/* Policies */}
           <div className="text-xs text-gray-600 space-y-1">
-            <p>✓ Cancel anytime. Keep access through period end.</p>
-            <p>✓ Not insurance. See full disclosures.</p>
+            <p>Not insurance. See full disclosures.</p>
           </div>
         </div>
 

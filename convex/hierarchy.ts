@@ -10,15 +10,15 @@ import { v } from "convex/values";
  * Resolve site by slug
  * Used in DTC enrollment to get site context from ZIP code
  */
-export const resolveSiteBySlug = mutation({
+export const resolveSiteBySlug = query({
   args: { slug: v.string() },
   handler: async (ctx, { slug }) => {
-    // For Phase 1 DTC: always resolve to default "ryze-health" site
-    if (slug === "ryze-health" || slug === "") {
+    // For Phase 1 DTC: always resolve to default site
+    if (slug === "ryze-health" || slug === "ideal-health" || slug === "") {
       return {
         _id: "site_dtc_001",
-        name: "Ryze Health DTC",
-        slug: "ryze-health",
+        name: slug === "ideal-health" ? "Ideal Health" : "Ideal Health DTC",
+        slug: slug || "ideal-health",
         type: "primary",
         status: "active",
         logoUrl: "/assets/logo.png",
@@ -54,14 +54,14 @@ export const resolveSiteBySlug = mutation({
 /**
  * Resolve account by site and slug
  */
-export const resolveAccountBySite = mutation({
+export const resolveAccountBySite = query({
   args: { siteId: v.string(), slug: v.string() },
   handler: async (ctx, { siteId, slug }) => {
     // For Phase 1 DTC: default account
     return {
       _id: "account_dtc_001",
       siteId,
-      name: "Ryze Health Direct",
+      name: "Ideal Health Direct",
       slug: "ryze-health-direct",
       type: "internal",
       status: "active",
@@ -79,7 +79,7 @@ export const resolveAccountBySite = mutation({
 /**
  * Resolve group by site and account
  */
-export const resolveGroupBySiteAndAccount = mutation({
+export const resolveGroupBySiteAndAccount = query({
   args: { siteId: v.string(), accountId: v.string(), slug: v.optional(v.string()) },
   handler: async (ctx, { siteId, accountId, slug }) => {
     // For Phase 1 DTC: default group
@@ -108,7 +108,7 @@ export const getSite = query({
     if (siteId === "site_dtc_001" || siteId === "") {
       return {
         _id: "site_dtc_001",
-        name: "Ryze Health DTC",
+        name: "Ideal Health DTC",
         slug: "ryze-health",
         type: "primary",
         status: "active",
@@ -150,7 +150,7 @@ export const getAccount = query({
       return {
         _id: "account_dtc_001",
         siteId: "site_dtc_001",
-        name: "Ryze Health Direct",
+        name: "Ideal Health Direct",
         slug: "ryze-health-direct",
         type: "internal",
         status: "active",

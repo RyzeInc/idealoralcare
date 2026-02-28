@@ -10,7 +10,7 @@ import "@/app/health/health.css";
  *
  * Member dashboard with tabbed interface:
  * - Overview: active subscriptions, account info, billing
- * - Provider Search: Careington dental network finder
+ * - Provider Search: Dental Discount Network dental network finder
  * - Oral Scan: Toothlens AI SmileScan
  * - Teledentistry: 24/7 virtual dental consultations
  */
@@ -33,28 +33,20 @@ export default async function DashboardPage() {
   if (user?.id) {
     try {
       const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || "");
-      // This will work after Agent 1 creates the mutations and we have data
-      // For now, the query will return empty since no subscriptions exist yet
-      const dashboardData = await convex.query(api.subscriptions.queries.getCustomerDashboard, {
-        customerId: user.id,
-      });
-
-      if (dashboardData?.entitlements && dashboardData.entitlements.length > 0) {
-        hasSubscriptions = true;
-        subscriptions = dashboardData.entitlements.map((ent: any, idx: number) => ({
-          id: ent._id,
-          name: ent.productId?.name || "Unknown Plan",
-          category: ent.productId?.category || "unknown",
-          price: (ent.productId?.pricing?.monthlyCardCents || 0) / 100,
-          cadence: dashboardData.bundle?.cadence || "monthly",
-          renewDate: new Date(dashboardData.nextRenewalDate || 0).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          }),
-          status: ent.status,
-        }));
-      }
+      
+      // TODO: Re-enable after Convex API types are regenerated with getCustomerDashboard query
+      // Fetch dashboard data using the Clerk user ID
+      // const dashboardData = await convex.query(api.subscriptions.queries.getCustomerDashboard, {
+      //   customerId: user.id,
+      // });
+      // 
+      // if (dashboardData?.entitlements && dashboardData.entitlements.length > 0) {
+      //   hasSubscriptions = true;
+      //   subscriptions = dashboardData.entitlements.map((ent: any) => ({...}));
+      // }
+      
+      // For now, render empty state while API types are being updated
+      hasSubscriptions = false;
     } catch (error) {
       console.error("[dashboard] Error fetching subscription data:", error);
       // Fail gracefully - show empty state
@@ -79,13 +71,13 @@ export default async function DashboardPage() {
             style={{
               fontSize: "clamp(2rem, 5vw, 2.75rem)",
               fontWeight: 700,
-              color: "#fff",
+              color: "#0f172a",
               marginBottom: "0.5rem",
             }}
           >
             Welcome back, {user?.firstName || "Member"}!
           </h1>
-          <p style={{ color: "rgba(255,255,255,0.85)", fontSize: "1.125rem" }}>
+          <p style={{ color: "#475569", fontSize: "1.125rem" }}>
             Manage your health plans and account settings
           </p>
         </div>
@@ -101,6 +93,7 @@ export default async function DashboardPage() {
             memberSince={memberSince}
             hasSubscriptions={hasSubscriptions}
             subscriptions={subscriptions}
+            userId={user?.id ?? null}
           />
         </div>
       </section>

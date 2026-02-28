@@ -269,7 +269,7 @@ export function SmartInquiryForm({ preselectedType }: SmartInquiryFormProps) {
           Thank You!
         </h3>
         <p className="text-[#64748B] max-w-md mx-auto mb-2">
-          We&apos;ve received your inquiry and appreciate your interest in Ryze Inc.
+          We&apos;ve received your inquiry and appreciate your interest in Ideal.
         </p>
         <p className="text-sm text-[#64748B]">
           <span className="font-medium text-[#0F1320]">
@@ -546,7 +546,7 @@ export function SmartInquiryForm({ preselectedType }: SmartInquiryFormProps) {
                   id="careerIntro"
                   value={formData.careerIntro}
                   onChange={(e) => updateField("careerIntro", e.target.value)}
-                  placeholder="Tell us about yourself, your experience, and what excites you about Ryze..."
+                  placeholder="Tell us about yourself, your experience, and what excites you about Ideal..."
                   error={!!errors.careerIntro}
                 />
                 {errors.careerIntro && (

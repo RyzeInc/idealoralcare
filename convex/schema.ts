@@ -291,6 +291,14 @@ export default defineSchema({
       annualACHCents: v.number(), // Price for annual cadence, ACH (with discount)
     }),
     
+    // STRIPE PRODUCT MAPPING (narrow: only for price lookups)
+    stripeProducts: v.optional(v.object({
+      monthlyCardId: v.optional(v.string()), // Stripe Product ID for monthly card billing
+      monthlyACHId: v.optional(v.string()), // Stripe Product ID for monthly ACH billing
+      annualCardId: v.optional(v.string()), // Stripe Product ID for annual card billing
+      annualACHId: v.optional(v.string()), // Stripe Product ID for annual ACH billing
+    })),
+    
     // METADATA
     metadata: v.optional(v.object({
       icon: v.optional(v.string()), // Lucide icon name
@@ -423,60 +431,10 @@ export default defineSchema({
   // EVENT LOG (immutable record of all state transitions)
   events: defineTable({
     // EVENT IDENTITY
-    eventType: v.union(
-      // Checkout flow
-      v.literal("checkout.initiated"),
-      v.literal("checkout.completed"),
-      v.literal("checkout.abandoned"),
-      
-      // Enrollment wizard flow
-      v.literal("enrollment.started"),
-      v.literal("enrollment.step_completed"),
-      v.literal("enrollment.completed"),
-      v.literal("enrollment.abandoned"),
-      
-      // Payment events (from Stripe webhooks)
-      v.literal("payment.succeeded"),
-      v.literal("payment.failed"),
-      v.literal("payment.requires_action"),
-      
-      // Subscription events
-      v.literal("subscription.created"),
-      v.literal("subscription.updated"),
-      v.literal("subscription.scheduled_cancellation"),
-      v.literal("subscription.cancelled"),
-      
-      // Entitlement events
-      v.literal("entitlement.activated"),
-      v.literal("entitlement.extended"),
-      v.literal("entitlement.expired"),
-      v.literal("entitlement.suspended"),
-      v.literal("entitlement.revoked"),
-      
-      // Plan management
-      v.literal("plan.added_to_cart"),
-      v.literal("plan.removed_from_cart"),
-      v.literal("plan.added_to_bundle"),
-      v.literal("plan.removed_from_bundle"),
-      v.literal("plan.cancel_scheduled"),
-      
-      // Admin actions
-      v.literal("admin.manual_adjustment"),
-      v.literal("admin.suspension"),
-      v.literal("admin.resumption"),
-      
-      // System
-      v.literal("system.migration"),
-      v.literal("system.error")
-    ),
+    eventType: v.string(),
     
     // ACTOR (who triggered this)
-    actor: v.union(
-      v.literal("system"), // Cron job, scheduled event
-      v.literal("stripe"), // Webhook from Stripe
-      v.literal("user"), // Customer action
-      v.literal("admin") // Staff action
-    ),
+    actor: v.string(),
     
     // SUBJECT (what this is about)
     customerId: v.optional(v.string()), // If customer-related
@@ -575,7 +533,7 @@ export default defineSchema({
   // SITES (Brand/Domain level - white-label container)
   sites: defineTable({
     slug: v.string(), // URL-safe identifier: "ryze-health", "acme-dental"
-    name: v.string(), // Display name: "Ryze Oral Health"
+    name: v.string(), // Display name: "Ideal Oral Health"
     type: v.union(
       v.literal("primary"), // Our main brand
       v.literal("whitelabel"), // Client-owned white-label

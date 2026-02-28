@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 import Link from 'next/link';
 import { ChevronRight, Plus, Edit, Trash2 } from 'lucide-react';
 
@@ -8,27 +10,16 @@ import { ChevronRight, Plus, Edit, Trash2 } from 'lucide-react';
  * HIERARCHY ADMIN PAGE (Sites, Accounts, Groups)
  * 
  * CRUD interface for managing the organizational hierarchy
- * 
- * NOTE: Uses mock data; wire to Convex queries (api.admin.hierarchy.*) 
- * once schema is synced via `npx convex dev`
  */
 
 type TabType = 'sites' | 'accounts' | 'groups';
-type Site = { _id: string; name: string; type: string; domain?: string; status: string };
-
-// Mock data - replace with Convex queries
-const MOCK_SITES: Site[] = [
-  { _id: '1', name: 'Ideal Health Dental', type: 'dental', domain: 'idealdental.com', status: 'active' },
-  { _id: '2', name: 'Crunchy Wellness', type: 'wellness', domain: 'crunchy.com', status: 'active' },
-  { _id: '3', name: 'Partner Org', type: 'partner', status: 'pending' },
-];
 
 export default function HierarchyAdmin() {
   const [activeTab, setActiveTab] = useState<TabType>('sites');
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // TODO: Replace with useQuery(api.admin.hierarchy.getSites)
-  const sites = MOCK_SITES;
+  // Query real data from Convex
+  const sites = useQuery(api.admin.hierarchy.getSites) || [];
 
   return (
     <div className="space-y-6">

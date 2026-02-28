@@ -7,6 +7,7 @@
  * Links: Home, How It Works, Plans, Dashboard (if logged in)
  */
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
@@ -37,8 +38,14 @@ export function CatalogHeader() {
       <div className={styles.headerInner}>
         {/* Logo */}
         <Link href="/health" className={styles.logo}>
-          <span className={styles.logoText}>Nexus</span>
-          <span className={styles.logoAccent}>Health</span>
+          <Image
+            src="/ideal-health-logo.png"
+            alt="Ideal Health"
+            width={120}
+            height={40}
+            style={{ objectFit: "contain" }}
+            priority
+          />
         </Link>
 
         {/* Desktop Nav */}
@@ -71,7 +78,7 @@ export function CatalogHeader() {
               <span className={styles.accountText}>Dashboard</span>
             </Link>
           ) : (
-            <Link href="/sign-in" className={styles.signInButton}>
+            <Link href="/health/sign-in" className={styles.signInButton}>
               Sign In
             </Link>
           )}

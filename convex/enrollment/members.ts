@@ -304,6 +304,19 @@ export const getMembersByStatus = query({
 });
 
 /**
+ * Get member profile by Clerk user ID
+ */
+export const getMemberByClerkId = query({
+  args: { clerkUserId: v.string() },
+  handler: async (ctx: QueryCtx, args: any) => {
+    return await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_customer", (q: any) => q.eq("customerId", args.clerkUserId))
+      .first();
+  },
+});
+
+/**
  * Add member activity entry
  */
 export const addMemberActivity = mutation({

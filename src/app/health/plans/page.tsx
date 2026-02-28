@@ -1,17 +1,17 @@
 "use client";
 
 /**
- * NEXUS HEALTH PLANS - CATALOG PAGE
+ * IDEAL HEALTH PLANS - DTC SELF-SERVE CATALOG
  * 
- * Rebuilt to match existing /health design system
+ * Single product focused page for direct-to-consumer enrollment
+ * Simplified to show only the Ideal Health Oral Plan
  * Uses health.css classes for consistent glassmorphism
- * Fetches products from Convex catalog
  */
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ShoppingCart, Check, ArrowRight, Sparkles, Loader } from "lucide-react";
+import { ShoppingCart, Check, Loader, Heart, ArrowRight, Lock, Zap, RotateCcw, MessageCircle } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import HealthHeader from "@/components/health/HealthHeader";
@@ -53,16 +53,6 @@ interface CatalogProduct {
   order: number;
 }
 
-// Products are now fetched from Convex: api.catalog.queries.list
-
-const CATEGORIES = [
-  { slug: "all", name: "All Plans" },
-  { slug: "dental", name: "Oral Health" },
-  { slug: "wellness", name: "Wellness" },
-  { slug: "vision", name: "Vision" },
-  { slug: "telehealth", name: "Telehealth" },
-];
-
 function PlanCard({ product }: { product: CatalogProduct }) {
   const { cart, addItem, removeItem, isInCart } = useCart();
   const inCart = isInCart(product._id);
@@ -70,132 +60,224 @@ function PlanCard({ product }: { product: CatalogProduct }) {
   const periodLabel = cart.cadence === "monthly" ? "/mo" : "/yr";
 
   return (
-    <div className="related-posts__card" style={{ cursor: 'default' }}>
-      {product.metadata?.image && (
-        <Image 
-          src={product.metadata.image} 
-          alt={product.name} 
-          width={400} 
-          height={220}
-          style={{ objectFit: 'cover' }}
-        />
-      )}
-      <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {/* Category Tag */}
-        <div style={{ 
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '6px',
-          fontSize: '0.75rem',
-          fontWeight: '600',
-          color: 'var(--accent-teal)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-          marginBottom: '8px'
-        }}>
-          <span>{product.metadata?.icon}</span>
-          {product.category}
-          {product.isFeatured && (
-            <span style={{
-              background: 'linear-gradient(135deg, var(--accent-teal), var(--accent-emerald))',
-              color: 'white',
-              padding: '2px 8px',
-              borderRadius: '100px',
-              fontSize: '0.625rem',
-              marginLeft: '8px'
-            }}>
-              <Sparkles size={10} style={{ display: 'inline', marginRight: '3px' }} />
-              FEATURED
-            </span>
-          )}
+    <div className="glass-card" style={{
+      padding: '32px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '24px',
+    }}>
+      {/* Header with Icon */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontSize: '0.8125rem',
+            fontWeight: '700',
+            color: 'var(--accent-teal)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            marginBottom: '12px',
+            background: 'rgba(20, 184, 166, 0.1)',
+            padding: '6px 12px',
+            borderRadius: '100px'
+          }}>
+            <Heart size={14} style={{ color: 'var(--accent-teal)' }} />
+            Oral Health
+          </div>
+          <h2 style={{
+            fontSize: '1.875rem',
+            fontWeight: '700',
+            color: '#0f172a',
+            margin: '0 0 8px 0',
+            lineHeight: 1.2
+          }}>
+            {product.name}
+          </h2>
         </div>
-        
-        {/* Plan Name */}
-        <h4 style={{ marginBottom: '8px', fontSize: '1.25rem' }}>{product.name}</h4>
-        
-        {/* Description */}
-        <p style={{ 
-          fontSize: '0.9375rem', 
-          marginBottom: '16px',
-          color: 'var(--text-secondary)',
-          lineHeight: '1.6',
-          flex: 1
+      </div>
+
+      {/* Description */}
+      <p style={{
+        fontSize: '1rem',
+        lineHeight: '1.6',
+        color: 'var(--text-secondary)',
+        margin: 0
+      }}>
+        {product.description}
+      </p>
+
+      {/* Key Benefits */}
+      <div>
+        <h3 style={{
+          fontSize: '0.875rem',
+          fontWeight: '600',
+          color: '#0f172a',
+          margin: '0 0 12px 0',
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em'
         }}>
-          {product.description}
-        </p>
-        
-        {/* Key Inclusions */}
-        <ul style={{ 
-          listStyle: 'none', 
-          padding: 0, 
-          margin: '0 0 20px 0',
+          What's Included
+        </h3>
+        <ul style={{
+          listStyle: 'none',
+          padding: 0,
+          margin: 0,
           display: 'grid',
-          gap: '6px'
+          gap: '8px'
         }}>
-          {product.inclusions.slice(0, 3).map((item, i) => (
-            <li key={i} style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '8px',
-              fontSize: '0.875rem',
-              color: 'var(--text-secondary)'
+          {product.inclusions.slice(0, 5).map((item, i) => (
+            <li key={i} style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '10px',
+              fontSize: '0.9375rem',
+              color: 'var(--text-secondary)',
+              lineHeight: '1.5'
             }}>
-              <Check size={14} style={{ color: 'var(--accent-teal)', flexShrink: 0 }} />
-              {item}
+              <Check size={16} style={{
+                color: 'var(--accent-teal)',
+                flexShrink: 0,
+                marginTop: '2px'
+              }} />
+              <span>{item}</span>
             </li>
           ))}
         </ul>
-        
-        {/* Price & Actions */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between',
-          paddingTop: '16px',
-          borderTop: '1px solid rgba(0,0,0,0.06)'
+      </div>
+
+      {/* Pricing Section */}
+      <div style={{
+        borderTop: '1px solid rgba(0,0,0,0.08)',
+        paddingTop: '20px'
+      }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '16px',
+          marginBottom: '20px'
         }}>
+          {/* Monthly Pricing */}
           <div>
-            <span style={{ 
-              fontSize: '1.5rem', 
-              fontWeight: '700',
-              color: 'var(--primary-blue)'
-            }}>
-              {formatPrice(price)}
-            </span>
-            <span style={{ 
-              fontSize: '0.875rem', 
+            <div style={{
+              fontSize: '0.75rem',
+              fontWeight: '600',
               color: 'var(--text-muted)',
-              marginLeft: '2px'
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              marginBottom: '6px'
             }}>
-              {periodLabel}
-            </span>
+              Monthly
+            </div>
+            <div style={{
+              fontSize: '1.5rem',
+              fontWeight: '700',
+              color: 'var(--primary-blue)',
+              lineHeight: 1
+            }}>
+              ${(product.pricing.monthlyCardCents / 100).toFixed(2)}
+            </div>
+            <div style={{
+              fontSize: '0.75rem',
+              color: 'var(--text-muted)',
+              marginTop: '4px'
+            }}>
+              or ${(product.pricing.monthlyACHCents / 100).toFixed(2)} via ACH
+            </div>
           </div>
-          
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <Link 
-              href={`/health/plans/${product.slug}`}
-              className="button button--glass"
-              style={{ padding: '10px 16px', fontSize: '0.875rem' }}
-            >
-              Details
-            </Link>
-            <button
-              onClick={() => inCart ? removeItem(product._id) : addItem(product)}
-              className={inCart ? "button button--accent" : "button button--primary"}
-              style={{ padding: '10px 16px', fontSize: '0.875rem' }}
-            >
-              {inCart ? (
-                <>
-                  <Check size={16} style={{ marginRight: '4px' }} />
-                  Added
-                </>
-              ) : (
-                "Add"
-              )}
-            </button>
+
+          {/* Annual Pricing */}
+          <div>
+            <div style={{
+              fontSize: '0.75rem',
+              fontWeight: '600',
+              color: 'var(--text-muted)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              marginBottom: '6px'
+            }}>
+              Annual
+            </div>
+            <div style={{
+              fontSize: '1.5rem',
+              fontWeight: '700',
+              color: 'var(--primary-blue)',
+              lineHeight: 1
+            }}>
+              ${(product.pricing.annualCardCents / 100).toFixed(2)}
+            </div>
+            <div style={{
+              fontSize: '0.75rem',
+              color: 'var(--accent-teal)',
+              marginTop: '4px',
+              fontWeight: '600'
+            }}>
+              Save ~17%
+            </div>
           </div>
         </div>
+
+        {/* CTA Button */}
+        <button
+          onClick={() => addItem(product)}
+          disabled={inCart}
+          style={{
+            width: '100%',
+            padding: '12px 20px',
+            background: inCart
+              ? 'linear-gradient(135deg, var(--accent-teal), var(--accent-emerald))'
+              : 'linear-gradient(135deg, var(--primary-blue), var(--primary-light))',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 'var(--radius-md)',
+            fontWeight: '600',
+            fontSize: '1rem',
+            cursor: inCart ? 'default' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            transition: 'all 0.2s',
+            opacity: inCart ? 1 : undefined
+          }}
+          onMouseEnter={(e) => {
+            if (!inCart) {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 102, 204, 0.3)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!inCart) {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = 'none';
+            }
+          }}
+        >
+          {inCart ? (
+            <>
+              <Check size={20} />
+              Added to Cart
+            </>
+          ) : (
+            <>
+              <ShoppingCart size={20} />
+              Choose Plan
+            </>
+          )}
+        </button>
       </div>
+
+      {/* Disclosure */}
+      <p style={{
+        fontSize: '0.75rem',
+        color: 'var(--text-muted)',
+        margin: 0,
+        lineHeight: '1.5',
+        fontStyle: 'italic'
+      }}>
+        {product.eligibilityRules.disclosureText}
+      </p>
     </div>
   );
 }
@@ -395,18 +477,21 @@ function CadenceToggle() {
 }
 
 function PlansContent() {
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const { itemCount } = useCart();
   
   // Fetch products from Convex catalog
   const products = useQuery(api.catalog.queries.list, {});
   const isLoading = products === undefined;
   
-  const filteredProducts = useMemo(() => {
-    if (!products) return [];
-    if (selectedCategory === "all") return products;
-    return products.filter((p: any) => p.category === selectedCategory);
-  }, [products, selectedCategory]);
+  // Filter to show only dental/oral health plan
+  // Target: monthly $15.00/$13.00, annual $150.00/$130.00
+  const oralHealthPlan = useMemo(() => {
+    if (!products) return null;
+    return products.find((p: any) =>
+      p.category === "dental" &&
+      p.pricing.monthlyCardCents === 1500  // $15.00
+    ) || products[0]; // Fallback to first product
+  }, [products]);
 
   return (
     <div className="health-landing">
@@ -415,153 +500,162 @@ function PlansContent() {
       {/* Cadence Modal */}
       <CadenceModal />
       
-      {/* Hero Section */}
-      <section className="section" style={{ paddingBottom: '40px' }}>
+      {/* Plan Section */}
+      <section className="section bg--blue" style={{ paddingTop: '7rem', paddingBottom: '4rem' }}>
         <div className="container">
-          <div className="heading-block">
-            <h2>Find Your Plan</h2>
-            <p className="heading-block__descr">
-              Browse our health plans and add what you need. Cancel anytime — keep access until period end.
+          {/* Header + Cadence Toggle */}
+          <div style={{ marginBottom: '3rem' }}>
+            <h1 style={{
+              fontSize: 'clamp(1.75rem, 4vw, 2.5rem)',
+              fontWeight: '700',
+              color: '#0f172a',
+              margin: '0 0 0.75rem 0',
+              lineHeight: '1.2'
+            }}>
+              Affordable Oral Health Coverage
+            </h1>
+            <p style={{
+              fontSize: '1rem',
+              color: '#475569',
+              margin: '0 0 2rem 0',
+              lineHeight: '1.6',
+              maxWidth: '500px'
+            }}>
+              Instant access to dental savings, teledentistry, and AI oral scanning. Cancel anytime.
             </p>
-          </div>
-          
-          {/* Controls Row */}
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '16px',
-            marginBottom: '32px'
-          }}>
-            {/* Category Filters */}
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {CATEGORIES.map((cat) => (
-                <button
-                  key={cat.slug}
-                  onClick={() => setSelectedCategory(cat.slug)}
-                  style={{
-                    padding: '10px 18px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid',
-                    borderColor: selectedCategory === cat.slug 
-                      ? 'var(--primary-blue)' 
-                      : 'var(--glass-border)',
-                    background: selectedCategory === cat.slug 
-                      ? 'rgba(59, 130, 246, 0.1)' 
-                      : 'var(--glass-bg)',
-                    color: selectedCategory === cat.slug 
-                      ? 'var(--primary-blue)' 
-                      : 'var(--text-secondary)',
-                    fontWeight: '500',
-                    fontSize: '0.875rem',
-                    cursor: 'pointer',
-                    transition: 'var(--transition)'
-                  }}
-                >
-                  {cat.name}
-                </button>
-              ))}
-            </div>
-            
-            {/* Cadence Toggle */}
             <CadenceToggle />
           </div>
+          
+          {/* Plan Card */}
+          {isLoading ? (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: '400px',
+              color: 'var(--text-muted)'
+            }}>
+              <Loader size={24} style={{ marginRight: '12px', animation: 'spin 1s linear infinite' }} />
+              Loading plan...
+            </div>
+          ) : oralHealthPlan ? (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 400px',
+              gap: '3rem',
+              alignItems: 'start'
+            }}>
+              <PlanCard product={oralHealthPlan} />
+              
+              {/* Sidebar */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                <StickyCart />
+                
+                <div className="glass-card" style={{ padding: '24px' }}>
+                  <h3 style={{
+                    fontSize: '0.875rem',
+                    fontWeight: '700',
+                    color: '#0f172a',
+                    margin: '0 0 1rem 0',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em'
+                  }}>
+                    Why Ideal Health?
+                  </h3>
+                  <ul style={{
+                    listStyle: 'none',
+                    padding: 0,
+                    margin: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '1rem'
+                  }}>
+                    {[
+                      'Instant activation',
+                      'No enrollment fees',
+                      'Cancel anytime',
+                      '24/7 support'
+                    ].map((item, i) => (
+                      <li key={i} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        fontSize: '0.9375rem',
+                        color: 'var(--text-secondary)'
+                      }}>
+                        <Check size={16} style={{ color: 'var(--accent-teal)', flexShrink: 0 }} />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: '200px',
+              color: 'var(--text-muted)'
+            }}>
+              Plan not available at the moment.
+            </div>
+          )}
         </div>
       </section>
       
-      {/* Catalog Grid with Sticky Cart */}
-      <section className="related-posts" style={{ paddingTop: 0 }}>
-        <div className="container" style={{ maxWidth: '1440px' }}>
+      {/* Trust Indicators */}
+      <section className="section bg--light">
+        <div className="container">
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 380px',
-            gap: '32px',
-            alignItems: 'start'
-          }}>
-            {/* Plan Cards Grid */}
-            <div className="related-posts__grid" style={{ marginBottom: 0 }}>
-              {isLoading ? (
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minHeight: '400px',
-                  color: 'var(--text-muted)'
-                }}>
-                  <Loader size={24} style={{ marginRight: '12px', animation: 'spin 1s linear infinite' }} />
-                  Loading plans...
-                </div>
-              ) : filteredProducts.length === 0 ? (
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minHeight: '200px',
-                  color: 'var(--text-muted)'
-                }}>
-                  No plans available in this category.
-                </div>
-              ) : (
-                filteredProducts.map((product: CatalogProduct) => (
-                  <PlanCard key={product._id} product={product} />
-                ))
-              )}
-            </div>
-            
-            {/* Sticky Cart */}
-            <StickyCart />
-          </div>
-        </div>
-      </section>
-      
-      {/* Trust Strip */}
-      <section className="section" style={{ paddingTop: '40px' }}>
-        <div className="container">
-          <div className="glass-card" style={{ 
-            padding: '32px 48px',
-            display: 'flex',
-            justifyContent: 'space-around',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '24px'
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+            gap: '2rem'
           }}>
             {[
-              { icon: '🔒', text: 'Secure Payments' },
-              { icon: '✨', text: 'Instant Access' },
-              { icon: '🔄', text: 'Cancel Anytime' },
-              { icon: '💬', text: '24/7 Support' },
-            ].map((item, i) => (
-              <div key={i} style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '10px',
-                fontSize: '0.9375rem',
-                fontWeight: '500',
-                color: 'var(--text-secondary)'
+              { icon: Lock, title: 'Secure Payments', desc: 'Your payment info is encrypted and protected' },
+              { icon: Zap, title: 'Instant Access', desc: 'Start using your plan immediately after purchase' },
+              { icon: RotateCcw, title: 'Flexible Billing', desc: 'Monthly or annual — switch anytime' },
+              { icon: MessageCircle, title: '24/7 Support', desc: 'We\'re here to help whenever you need us' },
+            ].map((item, i) => {
+              const Icon = item.icon;
+              return (
+              <div key={i} style={{
+                padding: '24px',
+                textAlign: 'center'
               }}>
-                <span style={{ fontSize: '1.25rem' }}>{item.icon}</span>
-                {item.text}
+                <Icon size={32} style={{ color: 'var(--primary-blue)', marginBottom: '1rem' }} />
+                <h3 style={{
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  color: '#0f172a',
+                  margin: '0 0 0.5rem 0'
+                }}>
+                  {item.title}
+                </h3>
+                <p style={{
+                  fontSize: '0.875rem',
+                  color: 'var(--text-secondary)',
+                  margin: 0,
+                  lineHeight: '1.5'
+                }}>
+                  {item.desc}
+                </p>
               </div>
-            ))}
+            );
+            })}
           </div>
         </div>
       </section>
       
       {/* Footer Note */}
-      <section className="section" style={{ paddingTop: '24px', paddingBottom: '64px' }}>
-        <div className="container">
-          <p style={{ 
-            textAlign: 'center', 
-            fontSize: '0.8125rem', 
-            color: 'var(--text-muted)',
-            maxWidth: '600px',
-            margin: '0 auto'
-          }}>
-            These plans provide discounts and access to health services. Cancel anytime — your access continues through the end of your billing period.
-          </p>
-        </div>
-      </section>
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

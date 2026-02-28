@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * NEXUS HEALTH PLANS - Shopping Cart Context
+ * IDEAL HEALTH PLANS - Shopping Cart Context
  * 
  * Manages:
  * - Cart items (add/remove plans)

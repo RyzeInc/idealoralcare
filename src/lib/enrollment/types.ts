@@ -156,6 +156,7 @@ export interface EnrollmentWizardState {
   
   // Step data: Eligibility
   eligibilityData?: {
+    zipCode?: string;
     groupCode?: string;
     employeeId?: string;
     dateOfBirth?: string;
@@ -188,6 +189,9 @@ export interface EnrollmentWizardState {
   tax: number; // cents
   total: number; // cents
   
+  // Flow type
+  flowType?: string;
+
   // UI state
   isLoading: boolean;
   error?: string;
@@ -201,7 +205,7 @@ export type EnrollmentAction =
   | { type: "SET_SESSION_ID"; payload: string }
   | { type: "SET_CURRENT_STEP"; payload: EnrollmentStep }
   | { type: "MARK_STEP_COMPLETED"; payload: EnrollmentStep }
-  | { type: "SET_ELIGIBILITY_DATA"; payload: { groupCode?: string; employeeId?: string; dateOfBirth?: string } }
+  | { type: "SET_ELIGIBILITY_DATA"; payload: { zipCode?: string; groupCode?: string; employeeId?: string; dateOfBirth?: string } }
   | { type: "SET_SITE_CONTEXT"; payload: SiteContext }
   | { type: "SET_ACCOUNT_CONTEXT"; payload: AccountContext }
   | { type: "SET_GROUP_CONTEXT"; payload: GroupContext }
@@ -216,6 +220,7 @@ export type EnrollmentAction =
   | { type: "ADD_SIGNED_WAIVER"; payload: string } // Document ID
   | { type: "SET_MEMBER_PROFILE_ID"; payload: string }
   | { type: "SET_BROKER_CODE"; payload: string }
+  | { type: "SET_FLOW_TYPE"; payload: string }
   | { type: "UPDATE_PRICING"; payload: { subtotal: number; discount: number; tax: number; total: number } }
   | { type: "SET_ERROR"; payload: string }
   | { type: "CLEAR_ERROR" }

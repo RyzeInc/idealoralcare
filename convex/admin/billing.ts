@@ -10,6 +10,43 @@ import { api } from "../_generated/api";
  */
 
 /**
+ * Get billing summaries for all groups
+ */
+export const getAllGroupBillingSummaries = query({
+  handler: async (ctx) => {
+    const groups = await ctx.db.query("groups").collect();
+    const summaries = [];
+
+    for (const group of groups) {
+      const members = await ctx.db
+        .query("memberProfiles")
+        .filter(
+          (q) =>
+            q.and(
+              q.eq(q.field("groupId"), group._id),
+              q.eq(q.field("memberType"), "active")
+            )
+        )
+        .collect();
+
+      const memberPrice = 15.0;
+      const totalAmount = members.length * memberPrice;
+
+      summaries.push({
+        groupId: group._id,
+        groupName: group.slug,
+        groupCode: group.groupCode,
+        memberCount: members.length,
+        ratePerMember: memberPrice,
+        totalAmount,
+      });
+    }
+
+    return summaries;
+  },
+});
+
+/**
  * Get billing summary for a single group
  */
 export const getGroupBillingSummary = query({

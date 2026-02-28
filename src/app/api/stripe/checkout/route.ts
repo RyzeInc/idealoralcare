@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
       ],
       metadata: {
         clerkUserId: userId,
-        enrollmentSessionId,
+        enrollmentSessionId,  // This is the Convex session ID string - get the doc ID from webhook
         brokerCode: brokerCode || "",
         groupId: groupId || "",
       },

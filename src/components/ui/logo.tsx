@@ -28,7 +28,7 @@ export function LogoMark({ size = "md", className, animate = false }: LogoMarkPr
     <div className={cn(sizes[size], "relative", className)}>
       <Image
         src="/logo.png"
-        alt="Ryze Inc logo"
+        alt="Ideal logo"
         width={sizePx}
         height={sizePx}
         className={cn("w-full h-full object-contain", animate && "animate-slow-spin")}
@@ -67,7 +67,7 @@ export function Logo({ size = "md", showText = true, className, textClassName }:
           textSizes[size],
           textClassName
         )}>
-          Ryze Inc
+          Ideal
         </span>
       )}
     </div>

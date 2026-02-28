@@ -1,12 +1,12 @@
 import './health.css';
 import HealthFlowBackground from '@/components/background/HealthFlowBackground';
-import { NexusHealthFooter } from '@/components/health/NexusHealthFooter';
+import { IdealHealthFooter } from '@/components/health/NexusHealthFooter';
 import { SiteThemeProvider } from '@/components/providers/SiteThemeProvider';
 import { CartProvider } from '@/lib/health-plans/cart-context';
 
 export const metadata = {
   title: 'Ideal Health | Modern Health Plans Made Simple',
-  description: 'Ideal Health - Comprehensive oral health plan with Toothlens AI scanning, Dial Care teledentistry, and Careington POS dental network access.',
+  description: 'Ideal Health - Comprehensive oral health plan with Toothlens AI scanning, Dial Care teledentistry, and Dental Discount Network Dental Discount Network dental network access.',
   icons: {
     icon: '/ideal-health-logo.png',
     shortcut: '/ideal-health-logo.png',
@@ -38,7 +38,7 @@ export default function HealthLayout({ children }: { children: React.ReactNode }
             <div className="flex-grow">
               {children}
             </div>
-            <NexusHealthFooter />
+            <IdealHealthFooter />
           </div>
         </>
       </CartProvider>

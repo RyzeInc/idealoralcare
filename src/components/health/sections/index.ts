@@ -1,0 +1,9 @@
+export { default as OralHero } from "./OralHero";
+export { default as PersonalizationBand } from "./PersonalizationBand";
+export { default as PrincipleSection } from "./PrincipleSection";
+export { default as BenefitGrid } from "./BenefitGrid";
+export { default as PlanCard } from "./PlanCard";
+export { default as HowItWorks } from "./HowItWorks";
+export { default as TrustAnchors } from "./TrustAnchors";
+export { default as FAQSection } from "./FAQSection";
+export { default as CTABand } from "./CTABand";

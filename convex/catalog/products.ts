@@ -46,6 +46,14 @@ export const catalogProductsTable = defineTable({
     annualACHCents: v.number(), // Price for annual cadence, ACH (with discount)
   }),
   
+  // STRIPE PRODUCT MAPPING (narrow: only for price lookups)
+  stripeProducts: v.optional(v.object({
+    monthlyCardId: v.optional(v.string()), // Stripe Product ID for monthly card billing
+    monthlyACHId: v.optional(v.string()), // Stripe Product ID for monthly ACH billing
+    annualCardId: v.optional(v.string()), // Stripe Product ID for annual card billing
+    annualACHId: v.optional(v.string()), // Stripe Product ID for annual ACH billing
+  })),
+  
   // METADATA
   metadata: v.optional(v.object({
     icon: v.optional(v.string()), // Lucide icon name

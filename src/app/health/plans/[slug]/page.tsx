@@ -11,7 +11,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Check, X, ChevronDown, ChevronUp, ShoppingCart, Sparkles } from "lucide-react";
+import { ArrowLeft, Check, X, ChevronDown, ChevronUp, ShoppingCart } from "lucide-react";
 import HealthHeader from "@/components/health/HealthHeader";
 import { CartProvider, useCart } from "@/lib/health-plans";
 import { formatPrice, getPrice } from "@/lib/health-plans/types";
@@ -88,10 +88,10 @@ const MOCK_PRODUCTS: Record<string, DetailProduct> = {
     eligibilityRules: { requiresVerification: false, disclosureText: "Discount program." },
     activationBehavior: "immediate",
     pricing: { monthlyCardCents: 2999, monthlyACHCents: 2799, annualCardCents: 29999, annualACHCents: 27999 },
-    metadata: { icon: "🦷", bestFor: ["Individuals", "Families"], image: "/health-assets/smilescan_1086x1024.jpg" },
+    metadata: { icon: "Smile", bestFor: ["Individuals", "Families"], image: "/health-assets/smilescan_1086x1024.jpg" },
     faqs: [
       { q: "How much can I save?", a: "Members typically save 20-60% on procedures including cleanings, fillings, crowns, and more." },
-      { q: "Are there waiting periods?", a: "No! Your benefits are active immediately after enrollment. Start using them right away." },
+      { q: "Are there waiting periods?", a: "Your benefits are active immediately upon enrollment. Benefits are immediately available for use." },
     ],
     relatedSlugs: ["vision-care", "telehealth-unlimited"],
     isVisible: true,
@@ -131,7 +131,7 @@ const MOCK_PRODUCTS: Record<string, DetailProduct> = {
     eligibilityRules: { requiresVerification: true, disclosureText: "Requires health assessment. Medication eligibility determined by licensed provider." },
     activationBehavior: "verified_then_immediate",
     pricing: { monthlyCardCents: 9999, monthlyACHCents: 9799, annualCardCents: 99999, annualACHCents: 97999 },
-    metadata: { icon: "💊", bestFor: ["Weight Management", "Wellness"], image: "/health-assets/oral-health_1086x1024.jpg" },
+    metadata: { icon: "Pill", bestFor: ["Weight Management", "Wellness"], image: "/health-assets/oral-health_1086x1024.jpg" },
     faqs: [
       { q: "How do I get started?", a: "After enrollment, you'll complete a health assessment. Our clinical team will review and create your personalized plan." },
       { q: "Is medication included?", a: "The plan includes clinical support and treatment planning. Medication costs are billed separately based on your prescription." },
@@ -171,7 +171,7 @@ const MOCK_PRODUCTS: Record<string, DetailProduct> = {
     eligibilityRules: { requiresVerification: false, disclosureText: "Discount program." },
     activationBehavior: "immediate",
     pricing: { monthlyCardCents: 1499, monthlyACHCents: 1299, annualCardCents: 14999, annualACHCents: 12999 },
-    metadata: { icon: "👁️", bestFor: ["Individuals", "Families"], image: "/health-assets/talk-live_1086x1024.jpg" },
+    metadata: { icon: "Eye", bestFor: ["Individuals", "Families"], image: "/health-assets/talk-live_1086x1024.jpg" },
     faqs: [
       { q: "Which brands are included?", a: "Most major frame and lens brands are available through participating providers." },
       { q: "Can I use online retailers?", a: "Yes! Many online eyewear retailers participate in our discount network." },
@@ -211,7 +211,7 @@ const MOCK_PRODUCTS: Record<string, DetailProduct> = {
     eligibilityRules: { requiresVerification: false, disclosureText: "Virtual care only. Call 911 for emergencies." },
     activationBehavior: "immediate",
     pricing: { monthlyCardCents: 1999, monthlyACHCents: 1799, annualCardCents: 19999, annualACHCents: 17999 },
-    metadata: { icon: "📱", bestFor: ["Individuals", "Families"], image: "/health-assets/talk-live_1086x1024.jpg" },
+    metadata: { icon: "Smartphone", bestFor: ["Individuals", "Families"], image: "/health-assets/talk-live_1086x1024.jpg" },
     faqs: [
       { q: "What conditions can be treated?", a: "Common conditions like cold/flu, allergies, skin issues, UTIs, and more. Our doctors will refer you if needed." },
       { q: "How fast can I see a doctor?", a: "Most visits connect within minutes, 24/7/365." },
@@ -319,7 +319,7 @@ function PlanDetailContent({ slug }: { slug: string }) {
                     fontSize: '0.75rem',
                     fontWeight: '600'
                   }}>
-                    <Sparkles size={12} />
+                    <span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '2px', backgroundColor: '#0066CC', flexShrink: 0, marginRight: '6px' }} />
                     Featured
                   </span>
                 )}
@@ -640,7 +640,7 @@ function PlanDetailContent({ slug }: { slug: string }) {
               className={inCart ? "button button--accent" : "button button--primary"}
               style={{ padding: '16px 32px' }}
             >
-              {inCart ? "Added to Cart ✓" : "Add to Cart"}
+              {inCart ? "Added to Cart" : "Add to Cart"}
             </button>
           </div>
         </div>

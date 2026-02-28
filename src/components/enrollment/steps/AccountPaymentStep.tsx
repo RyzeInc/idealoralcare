@@ -7,8 +7,9 @@
 
 import { useState } from "react";
 import { useEnrollmentStep, useEnrollment } from "@/components/enrollment/EnrollmentProvider";
-import { ArrowRight, AlertCircle, Loader, CheckCircle } from "lucide-react";
-import { SignIn, SignUp, useAuth } from "@clerk/nextjs";
+import { ArrowRight, AlertCircle, Loader } from "lucide-react";
+import { useAuth } from "@clerk/nextjs";
+import Link from "next/link";
 import styles from "./steps.module.css";
 import paymentStyles from "./account-payment-step.module.css";
 
@@ -27,7 +28,8 @@ export function AccountPaymentStep() {
     line2: state.address?.line2 || "",
     city: state.address?.city || "",
     state: state.address?.state || "",
-    zipCode: state.address?.zipCode || "",
+    postalCode: state.address?.postalCode || "",
+    country: state.address?.country || "US",
   });
 
   const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -69,8 +71,8 @@ export function AccountPaymentStep() {
           line2: address.line2,
           city: address.city,
           state: address.state,
-          zipCode: address.zipCode,
-          country: "US",
+          postalCode: address.postalCode,
+          country: address.country,
         },
       });
 
@@ -101,15 +103,23 @@ export function AccountPaymentStep() {
         <div className={paymentStyles.authContainer}>
           <div className={paymentStyles.signUpSection}>
             <h3>Create Your Account</h3>
-            <SignUp
-              routing="hash"
-              signInUrl="/health/sign-in"
-              appearance={{
-                elements: {
-                  card: paymentStyles.clerkCard,
-                },
-              }}
-            />
+            <p style={{ marginBottom: "1.5rem", color: "#666", fontSize: "0.95rem" }}>
+              You'll need to create an account to complete your enrollment and manage your membership.
+            </p>
+            <Link 
+              href={`/health/sign-up?redirect_url=${encodeURIComponent(`${typeof window !== 'undefined' ? window.location.href : ''}`)}`}
+              className={styles.primaryButton}
+              style={{ display: "block", textAlign: "center", marginBottom: "1rem" }}
+            >
+              Create Account
+              <ArrowRight size={18} style={{ marginLeft: "0.5rem" }} />
+            </Link>
+            <p style={{ fontSize: "0.85rem", color: "#999", textAlign: "center" }}>
+              Already have an account?{" "}
+              <Link href="/health/sign-in" style={{ color: "#0066CC", textDecoration: "none" }}>
+                Sign in here
+              </Link>
+            </p>
           </div>
         </div>
       ) : (
@@ -188,15 +198,15 @@ export function AccountPaymentStep() {
               </div>
 
               <div className={styles.formGroup}>
-                <label htmlFor="zipCode" className={styles.label}>
+                <label htmlFor="postalCode" className={styles.label}>
                   ZIP Code *
                 </label>
                 <input
-                  id="zipCode"
+                  id="postalCode"
                   type="text"
-                  name="zipCode"
+                  name="postalCode"
                   placeholder="10001"
-                  value={address.zipCode}
+                  value={address.postalCode}
                   onChange={handleAddressChange}
                   disabled={isLoading}
                   className={styles.input}

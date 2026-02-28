@@ -12,6 +12,15 @@ import { api } from "../_generated/api";
  */
 
 /**
+ * Get all eligibility files across all groups
+ */
+export const getAllEligibilityFiles = query({
+  handler: async (ctx) => {
+    return await ctx.db.query("eligibilityFiles").order("desc").collect();
+  },
+});
+
+/**
  * Create eligibility file record on upload
  */
 export const uploadEligibilityFile = mutation({
@@ -196,11 +205,11 @@ export const processEligibilityFile = action({
       // }
 
       // For this implementation, we'll create a helper mutation to process chunked records
-      console.log("Processing eligibility file:", file.fileId);
+      console.log("Processing eligibility file:", file.file._id);
 
       // Simulate processing (in production: parse actual CSV from _storage)
       await ctx.runMutation(api.admin.eligibility.completeFileProcessing, {
-        fileId: args.fileId,
+        fileId: file.file._id,
         status: "completed",
         processedRecords: 0,
         errorRecords: 0,

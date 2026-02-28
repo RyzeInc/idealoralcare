@@ -49,12 +49,12 @@ export const update = mutation({
       // Create with defaults if doesn't exist
       return await ctx.db.insert("siteSettings", {
         key: "main",
-        siteName: args.siteName ?? "Ryze Inc",
+        siteName: args.siteName ?? "Ideal",
         tagline: args.tagline ?? "We launch and scale products people can trust.",
         description:
           args.description ??
-          "Ryze Inc is a venture studio that builds, launches, and scales trustworthy products.",
-        contactEmail: args.contactEmail ?? "hello@ryzeinc.com",
+          "Ideal is a venture studio that builds, launches, and scales trustworthy products.",
+        contactEmail: args.contactEmail ?? "hello@idealhealth.com",
         supportEmail: args.supportEmail,
         socialTwitter: args.socialTwitter,
         socialLinkedin: args.socialLinkedin,
@@ -77,15 +77,15 @@ export const initializeDefaults = mutation({
     if (!existing) {
       await ctx.db.insert("siteSettings", {
         key: "main",
-        siteName: "Ryze Inc",
+        siteName: "Ideal",
         tagline: "We launch and scale products people can trust.",
         description:
-          "Ryze Inc is a venture studio that builds, launches, and scales trustworthy products.",
-        contactEmail: "hello@ryzeinc.com",
-        supportEmail: "support@ryzeinc.com",
-        socialTwitter: "https://twitter.com/ryzeinc",
-        socialLinkedin: "https://linkedin.com/company/ryzeinc",
-        socialGithub: "https://github.com/ryzeinc",
+          "Ideal is a venture studio that builds, launches, and scales trustworthy products.",
+        contactEmail: "hello@idealhealth.com",
+        supportEmail: "support@idealhealth.com",
+        socialTwitter: "https://twitter.com/idealhealth",
+        socialLinkedin: "https://linkedin.com/company/idealhealth",
+        socialGithub: "https://github.com/idealhealth",
         updatedAt: Date.now(),
       });
     }

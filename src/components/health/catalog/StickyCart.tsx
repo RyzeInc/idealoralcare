@@ -177,8 +177,6 @@ export function StickyCart() {
       
       {/* Disclosure */}
       <p className={styles.stickyCartDisclosure}>
-        Cancel a plan anytime — keeps access through period end.
-        <br />
         <strong>Not insurance.</strong>
       </p>
     </div>

@@ -105,7 +105,6 @@ export function PlanCard({ product }: PlanCardProps) {
       {/* ACH Savings Note */}
       {cart.paymentMethod === "card" && achSavings > 0 && (
         <div className={styles.planCardACHNote}>
-          <span>💰</span>
           Pay by bank to save {formatPrice(achSavings)}{periodLabel}
         </div>
       )}

@@ -4,11 +4,11 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-  title: "Terms of Use | Nexus Health",
-  description: "Terms of use for Nexus Health discount program by Ryze Inc.",
+  title: "Terms of Use | Ideal Health",
+  description: "Terms of use for Ideal Health discount program by Ideal.",
 };
 
-export default function NexusHealthTermsPage() {
+export default function IdealHealthTermsPage() {
   return (
     <main className="min-h-screen">
       {/* Header */}
@@ -17,14 +17,14 @@ export default function NexusHealthTermsPage() {
           <Button asChild variant="ghost" size="sm" className="mb-6 bg-white/50 hover:bg-white/70">
             <Link href="/health">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Nexus Health
+              Back to Ideal Health
             </Link>
           </Button>
           <h1 className="font-[family-name:var(--font-playfair)] text-4xl font-medium tracking-tight text-[#0F1320] md:text-5xl">
             Terms of Use
           </h1>
           <p className="mt-4 text-[#64748B]">
-            Nexus Health Discount Program
+            Ideal Health Discount Program
           </p>
         </div>
       </section>
@@ -41,7 +41,7 @@ export default function NexusHealthTermsPage() {
                 THIS DISCOUNT PROGRAM IS NOT INSURANCE
               </p>
               <p className="mt-4">
-                The Nexus Health discount program is not intended to replace health insurance. 
+                The Ideal Health discount program is not intended to replace health insurance. 
                 It does not meet the minimum creditable coverage requirements under the Affordable 
                 Care Act or Massachusetts M.G.L. c. 111M and 956 CMR 5.00, and it is not a 
                 Qualified Health Plan under the Affordable Care Act.
@@ -53,7 +53,7 @@ export default function NexusHealthTermsPage() {
                 Program Overview
               </h2>
               <p>
-                Nexus Health is a discount program offered by Ryze LLC that provides access to 
+                Ideal Health is a discount program offered by Ideal LLC that provides access to 
                 discounted health services through a network of participating providers.
               </p>
             </div>
@@ -98,7 +98,7 @@ export default function NexusHealthTermsPage() {
                 Limitation of Liability
               </h2>
               <p>
-                Ryze LLC and the Nexus Health program are not responsible for the quality, 
+                Ideal LLC and the Ideal Health program are not responsible for the quality, 
                 timeliness, or appropriateness of services provided by participating healthcare 
                 providers. Members should verify provider credentials and quality independently.
               </p>
@@ -120,7 +120,7 @@ export default function NexusHealthTermsPage() {
                 Changes to Terms
               </h2>
               <p>
-                Ryze LLC reserves the right to modify these terms at any time. Continued membership 
+                Ideal LLC reserves the right to modify these terms at any time. Continued membership 
                 in the program constitutes acceptance of any modifications.
               </p>
             </div>
@@ -130,13 +130,13 @@ export default function NexusHealthTermsPage() {
                 Contact Information
               </h2>
               <p>
-                For questions about these terms or the Nexus Health program, please contact:
+                For questions about these terms or the Ideal Health program, please contact:
               </p>
               <p className="mt-4">
-                <strong>Ryze Nexus (Ryze LLC)</strong><br />
+                <strong>Ideal (Ideal LLC)</strong><br />
                 1846 Fernando Ln<br />
                 Tallahassee, FL 32303<br />
-                Email: hello@ryzeinc.com
+                Email: hello@idealhealth.com
               </p>
             </div>
 

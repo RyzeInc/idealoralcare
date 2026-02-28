@@ -1,9 +1,9 @@
 export const SITE_CONFIG = {
-  name: "Ryze Inc",
+  name: "Ideal",
   tagline: "We launch and scale products people can trust.",
   description:
-    "Ryze Inc is a venture studio that builds, launches, and scales trustworthy products.",
-  url: "https://ryzeinc.com",
+    "Ideal is a venture studio that builds, launches, and scales trustworthy products.",
+  url: "https://idealhealth.com",
 } as const
 
 export const CORE_VALUES = [
@@ -38,12 +38,12 @@ export const NAVIGATION_ITEMS = [
 ] as const
 
 export const SOCIAL_LINKS = {
-  twitter: "https://twitter.com/ryzeinc",
-  linkedin: "https://linkedin.com/company/ryzeinc",
-  github: "https://github.com/ryzeinc",
+  twitter: "https://twitter.com/idealhealth",
+  linkedin: "https://linkedin.com/company/idealhealth",
+  github: "https://github.com/idealhealth",
 } as const
 
 export const CONTACT_INFO = {
-  email: "hello@ryzeinc.com",
-  supportEmail: "support@ryzeinc.com",
+  email: "hello@idealhealth.com",
+  supportEmail: "support@idealhealth.com",
 } as const

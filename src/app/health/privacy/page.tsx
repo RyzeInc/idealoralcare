@@ -4,11 +4,11 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | Nexus Health",
-  description: "Privacy policy for Nexus Health discount program by Ryze Inc.",
+  title: "Privacy Policy | Ideal Health",
+  description: "Privacy policy for Ideal Health discount program by Ideal.",
 };
 
-export default function NexusHealthPrivacyPage() {
+export default function IdealHealthPrivacyPage() {
   return (
     <main className="min-h-screen">
       {/* Header */}
@@ -17,14 +17,14 @@ export default function NexusHealthPrivacyPage() {
           <Button asChild variant="ghost" size="sm" className="mb-6 bg-white/50 hover:bg-white/70">
             <Link href="/health">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Nexus Health
+              Back to Ideal Health
             </Link>
           </Button>
           <h1 className="font-[family-name:var(--font-playfair)] text-4xl font-medium tracking-tight text-[#0F1320] md:text-5xl">
             Privacy Policy
           </h1>
           <p className="mt-4 text-[#64748B]">
-            Nexus Health Discount Program
+            Ideal Health Discount Program
           </p>
         </div>
       </section>
@@ -38,9 +38,9 @@ export default function NexusHealthPrivacyPage() {
                 Introduction
               </h2>
               <p>
-                This Privacy Policy explains how Ryze Inc ("we," "us," "our," or "Company") 
+                This Privacy Policy explains how Ideal ("we," "us," "our," or "Company") 
                 collects, uses, discloses, and otherwise processes personal information in 
-                connection with the Nexus Health discount program.
+                connection with the Ideal Health discount program.
               </p>
             </div>
 
@@ -67,7 +67,7 @@ export default function NexusHealthPrivacyPage() {
                 We use the information we collect to:
               </p>
               <ul className="list-disc list-inside space-y-2 ml-2">
-                <li>Operate and maintain the Nexus Health program</li>
+                <li>Operate and maintain the Ideal Health program</li>
                 <li>Process your enrollment and manage your membership</li>
                 <li>Communicate with you about the program and updates</li>
                 <li>Comply with legal obligations</li>
@@ -115,10 +115,10 @@ export default function NexusHealthPrivacyPage() {
                 contact us at:
               </p>
               <p className="mt-4">
-                <strong>Ryze Nexus (Ryze LLC)</strong><br />
+                <strong>Ideal (Ideal LLC)</strong><br />
                 1846 Fernando Ln<br />
                 Tallahassee, FL 32303<br />
-                Email: hello@ryzeinc.com
+                Email: hello@idealhealth.com
               </p>
             </div>
 

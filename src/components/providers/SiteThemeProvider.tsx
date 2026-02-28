@@ -87,6 +87,9 @@ export function SiteThemeProvider({
   // Resolve site by slug
   const site = useQuery(api.hierarchy.resolveSiteBySlug, { slug: siteSlug });
 
+  // Cast to SiteTheme since generated types may be stale relative to schema
+  const siteTheme = site as unknown as SiteTheme | null | undefined;
+
   // Load site from URL or defaults on mount
   useEffect(() => {
     // Try to resolve from URL path or domain
@@ -100,39 +103,39 @@ export function SiteThemeProvider({
 
   // Inject CSS custom properties when site loads
   useEffect(() => {
-    if (site) {
+    if (siteTheme) {
       const root = document.documentElement;
 
       // Brand colors
       root.style.setProperty(
         "--brand-primary",
-        site.branding?.primaryColor || "#1e3a5f"
+        siteTheme.branding?.primaryColor || "#1e3a5f"
       );
       root.style.setProperty(
         "--brand-secondary",
-        site.branding?.secondaryColor || "#14b8a6"
+        siteTheme.branding?.secondaryColor || "#14b8a6"
       );
       root.style.setProperty(
         "--brand-accent",
-        site.branding?.accentColor || "#0ea5e9"
+        siteTheme.branding?.accentColor || "#0ea5e9"
       );
 
       // Logo URL (for img elements)
       root.style.setProperty(
         "--brand-logo-url",
-        `url('${site.branding?.logoUrl || "/ideal-health-logo.png"}')`
+        `url('${siteTheme.branding?.logoUrl || "/ideal-health-logo.png"}')`
       );
 
       // Favicon
-      if (site.branding?.faviconUrl) {
+      if (siteTheme.branding?.faviconUrl) {
         const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
         if (link) {
-          link.href = site.branding.faviconUrl;
+          link.href = siteTheme.branding.faviconUrl;
         }
       }
 
       // Custom CSS injections (if site has custom styles)
-      if (site.branding?.customCSS) {
+      if (siteTheme.branding?.customCSS) {
         const styleId = "site-custom-styles";
         let style = document.getElementById(styleId) as HTMLStyleElement;
         if (!style) {
@@ -140,22 +143,22 @@ export function SiteThemeProvider({
           style.id = styleId;
           document.head.appendChild(style);
         }
-        style.textContent = site.branding.customCSS;
+        style.textContent = siteTheme.branding.customCSS;
       }
 
       // Update document title
-      if (site.name) {
-        document.title = `${site.name} | Modern Health Plans Made Simple`;
+      if (siteTheme.name) {
+        document.title = `${siteTheme.name} | Modern Health Plans Made Simple`;
       }
     }
-  }, [site]);
+  }, [siteTheme]);
 
   return (
     <SiteThemeContext.Provider
       value={{
-        site: site || null,
-        isLoading: isLoading && !site,
-        error: site === undefined && !isLoading ? "Site not found" : undefined,
+        site: siteTheme || null,
+        isLoading: isLoading && !siteTheme,
+        error: siteTheme === undefined && !isLoading ? "Site not found" : undefined,
       }}
     >
       {children}

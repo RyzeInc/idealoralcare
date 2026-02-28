@@ -58,10 +58,20 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ received: true });
         }
 
-        const { clerkUserId, enrollmentSessionId, brokerCode, groupId } = metadata;
+        const { clerkUserId, enrollmentSessionId, brokerCode } = metadata;
 
         try {
-          // Fetch subscription to get pricing details
+          // Fetch enrollment session to get site/account/group context
+          const enrollmentSession = await convex.query(
+            api.enrollment.sessions.getEnrollmentSession,
+            { sessionId: enrollmentSessionId }
+          );
+
+          if (!enrollmentSession) {
+            throw new Error(`Enrollment session not found: ${enrollmentSessionId}`);
+          }
+
+          // Get Stripe subscription to extract pricing/billingdetails
           const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId) as any;
           const items = subscription.items?.data || [];
           const currentPeriodStart = subscription.current_period_start || Math.floor(Date.now() / 1000);
@@ -74,18 +84,21 @@ export async function POST(req: NextRequest) {
           const cadence = (interval === "year" ? "annual" : "monthly") as "monthly" | "annual";
           const totalCents = (items[0]?.plan as any)?.amount || 1500;
 
-          // 1. Create member profile
-          const memberProfileId = await convex.mutation(api.enrollment.members.createMemberProfile, {
-            siteId: "ideal-health",
-            accountId: "individual",
-            groupId: groupId || "",
-            firstName: session.customer_details?.name?.split(" ")[0] || "Member",
-            lastName: session.customer_details?.name?.split(" ")?.[1] || "",
-            email: session.customer_email || "",
-            memberType: "active",
-            signupSource: "stripe_checkout",
-            enrollmentSessionId,
-          });
+          // 1. Create member profile (linked to enrollment session)
+          const memberProfileId = await convex.mutation(
+            api.enrollment.members.createMemberProfile,
+            {
+              siteId: enrollmentSession.siteId,
+              accountId: enrollmentSession.accountId,
+              groupId: enrollmentSession.groupId,
+              firstName: session.customer_details?.name?.split(" ")[0] || "Member",
+              lastName: session.customer_details?.name?.split(" ")?.[1] || "",
+              email: session.customer_email || "",
+              memberType: "active",
+              signupSource: `stripe:${enrollmentSessionId}`,
+              enrollmentSessionId: enrollmentSession._id,
+            }
+          );
 
           // 2. Create subscription bundle
           const bundleId = await convex.mutation(api.subscriptions.mutations.createBundle, {
@@ -125,7 +138,24 @@ export async function POST(req: NextRequest) {
             customerId: clerkUserId,
           });
 
-          // 5. Log event
+          // 5. Create commission record if broker attribution
+          if (brokerCode) {
+            try {
+              await convex.mutation(api.subscriptions.commissions.createCommissionPayable, {
+                brokerId: brokerCode,
+                enrollmentSessionId: enrollmentSession._id,
+                memberId: memberProfileId,
+                rateApplied: 0.15, // Default 15% - will be overridden by commissionRates
+                amount: Math.round(totalCents * 0.15), // Auto-calculated
+                period: new Date().toISOString().slice(0, 7), // YYYY-MM
+              });
+            } catch (commissionError) {
+              console.warn("[webhook] Failed to create commission record:", commissionError);
+              // Don't fail the whole webhook for commission tracking issues
+            }
+          }
+
+          // 6. Log event
           await convex.mutation(api.subscriptions.mutations.logEvent, {
             eventType: "checkout.session.completed",
             actor: "stripe",
@@ -143,6 +173,7 @@ export async function POST(req: NextRequest) {
             enrollmentSessionId,
             bundleId,
             memberProfileId,
+            brokerCode,
           });
         } catch (error) {
           console.error("[webhook] Error processing checkout.session.completed:", error);
@@ -150,7 +181,7 @@ export async function POST(req: NextRequest) {
             await convex.mutation(api.subscriptions.mutations.logEvent, {
               eventType: "checkout.session.completed",
               actor: "stripe",
-              customerId: metadata.clerkUserId || "",
+              customerId: clerkUserId || "",
               stripeEventId: event.id,
               stripeObjectId: session.id,
               payload: {},

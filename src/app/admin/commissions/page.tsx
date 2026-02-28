@@ -1,5 +1,7 @@
 'use client';
 
+import { useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 import { AlertCircle, Download } from 'lucide-react';
 
 /**
@@ -9,47 +11,13 @@ import { AlertCircle, Download } from 'lucide-react';
  * NOTE: Depends on Agent 1 creating commissionRates/commissionPayables tables
  */
 
-interface CommissionRecord {
-  brokerId: string;
-  brokerName: string;
-  activeEnrollments: number;
-  commissionRate: number;
-  calculatedPayout: number;
-  status: 'pending' | 'paid';
-}
-
-// Mock data - will be real Convex queries once commission tables exist
-const MOCK_COMMISSIONS: CommissionRecord[] = [
-  {
-    brokerId: 'broker_001',
-    brokerName: 'John Smith (American Fidelity)',
-    activeEnrollments: 45,
-    commissionRate: 2.5, // $2.50 per member per month
-    calculatedPayout: 112.5, // 45 * 2.50
-    status: 'pending',
-  },
-  {
-    brokerId: 'broker_002',
-    brokerName: 'Sarah Johnson (Independent)',
-    activeEnrollments: 28,
-    commissionRate: 2.0,
-    calculatedPayout: 56.0,
-    status: 'paid',
-  },
-  {
-    brokerId: 'broker_003',
-    brokerName: 'Agency XYZ (Group)',
-    activeEnrollments: 67,
-    commissionRate: 1.5, // Agency override rate
-    calculatedPayout: 100.5,
-    status: 'pending',
-  },
-];
-
 export default function CommissionsPage() {
-  const totalPayout = MOCK_COMMISSIONS.reduce((sum, c) => sum + c.calculatedPayout, 0);
-  const pendingAmount = MOCK_COMMISSIONS.filter((c) => c.status === 'pending').reduce(
-    (sum, c) => sum + c.calculatedPayout,
+  // Query real data from Convex (currently empty until commission tables are created)
+  const commissions = useQuery(api.admin.commissions.getBrokerCommissions) || [];
+
+  const totalPayout = commissions.reduce((sum: number, c: any) => sum + c.calculatedPayout, 0);
+  const pendingAmount = commissions.filter((c: any) => c.status === 'pending').reduce(
+    (sum: number, c: any) => sum + c.calculatedPayout,
     0
   );
 
@@ -78,7 +46,7 @@ export default function CommissionsPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-lg shadow p-6">
           <p className="text-slate-600 text-sm">Total Brokers</p>
-          <p className="text-4xl font-bold text-slate-900 mt-2">{MOCK_COMMISSIONS.length}</p>
+          <p className="text-4xl font-bold text-slate-900 mt-2">{commissions.length}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-6">
           <p className="text-slate-600 text-sm">Pending Payout</p>
@@ -123,7 +91,7 @@ export default function CommissionsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
-            {MOCK_COMMISSIONS.map((commission) => (
+            {commissions.map((commission: any) => (
               <tr key={commission.brokerId} className="hover:bg-slate-50">
                 <td className="px-6 py-4 font-medium text-slate-900">{commission.brokerName}</td>
                 <td className="px-6 py-4 text-right">{commission.activeEnrollments}</td>

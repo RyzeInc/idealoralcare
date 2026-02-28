@@ -56,8 +56,8 @@ Agent 3 (Operations — Admin, Vendor Files, CSV Eligibility, Member Services) h
 
 ### Vendor File Generation
 **[convex/admin/vendorFiles.ts](convex/admin/vendorFiles.ts)** (150+ lines)
-- Format-specific CSV generation for Careington and Dial Care
-- Careington: member_id, first_name, last_name, dob, effective_date, termination_date, group_code
+- Format-specific CSV generation for Dental Discount Network and Dial Care
+- Dental Discount Network: member_id, first_name, last_name, dob, effective_date, termination_date, group_code
 - Dial Care: member_id, name, email, phone, effective_date, active
 - All dates formatted YYYY-MM-DD per vendor specifications
 - 2 vendor actions + 1 dispatcher action + 1 recording mutation + 1 query
@@ -163,14 +163,14 @@ Agent 3 (Operations — Admin, Vendor Files, CSV Eligibility, Member Services) h
 ### Vendor File Management
 **[src/app/health/dashboard/admin/vendor-files/page.tsx](src/app/health/dashboard/admin/vendor-files/page.tsx)** (200 lines)
 - Group selector dropdown
-- 2 vendor cards: Careington, Dial Care
+- 2 vendor cards: Dental Discount Network, Dial Care
   - Status indicator (Ready, Generated, Delivered)
   - Member count snapshot
   - Last generated / delivered dates
   - Action buttons: Generate, Download, Send (SFTP)
 - Delivery history table: filename, vendor, delivery date, method (SFTP/Manual), status
 - 2-second generation animation for UI feedback
-- ✅ Status: Complete, mock data active (wire to api.admin.vendorFiles.generateCareingtonFile, generateDialCareFile)
+- ✅ Status: Complete, mock data active (wire to api.admin.vendorFiles.generateDental Discount NetworkFile, generateDialCareFile)
 
 ### Billing Summary Report
 **[src/app/health/dashboard/admin/billing/page.tsx](src/app/health/dashboard/admin/billing/page.tsx)** (200 lines)
@@ -201,7 +201,7 @@ Agent 3 (Operations — Admin, Vendor Files, CSV Eligibility, Member Services) h
 - Member ID card display component
 - Blue gradient background (Ideal Health branding)
 - 4-field layout: Member name, Member ID, Plan name, Effective date
-- Network links footer: Careington, Dial Care, Toothlens (external deep links)
+- Network links footer: Dental Discount Network, Dial Care, Toothlens (external deep links)
 - Download button for PDF version
 - Responsive grid layout with Tailwind CSS
 - ✅ Status: Complete, display-ready (wire to api.admin.memberCards.getMemberCardData)
@@ -215,7 +215,7 @@ Agent 3 (Operations — Admin, Vendor Files, CSV Eligibility, Member Services) h
 ### 6 Cron Job Definitions (Deployment-Ready)
 
 1. **monthly_vendor_file_generation** (1st of month, 6 AM)
-   - Loop all groups → generateVendorFile for Careington & Dial Care
+   - Loop all groups → generateVendorFile for Dental Discount Network & Dial Care
    - Attempt SFTP delivery → fallback to download URL
    - Log completion events
    - ✅ Status: Ready (awaits Convex cron enablement)
@@ -328,7 +328,7 @@ Agent 3 (Operations — Admin, Vendor Files, CSV Eligibility, Member Services) h
 > - Admin hierarchy (sites, accounts, groups) ✅
 > - Member roster management ✅
 > - CSV eligibility file upload + processing ✅
-> - Vendor file generation (Careington, Dial Care) ✅
+> - Vendor file generation (Dental Discount Network, Dial Care) ✅
 > - SFTP delivery + manual fallback ✅
 > - Transactional email system ✅
 > - Member ID card generation ✅
@@ -400,7 +400,7 @@ CONVEX_DEPLOYMENT=production
 **Agent 3 (Operations) is 100% code-complete and production-ready.** All 22 deliverables have been implemented, tested, and documented. The system is fully functional for:
 
 - ✅ Admin operations (hierarchy, member, eligibility management)
-- ✅ Vendor file delivery (Careington, Dial Care, manual fallback)
+- ✅ Vendor file delivery (Dental Discount Network, Dial Care, manual fallback)
 - ✅ Transactional emails (welcome, receipts, ID cards, reminders)
 - ✅ Billing summaries (E123 import format)
 - ✅ Commission tracking (UI ready, tables pending Agent 1)

@@ -2,53 +2,14 @@
 
 import { useState } from 'react';
 import { Search, Eye, Edit, Trash2, Filter } from 'lucide-react';
+import { useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 
 /**
  * MEMBERS ADMIN PAGE
  * 
  * Member roster, search, filtering, and status management
  */
-
-interface Member {
-  id: string;
-  name: string;
-  email: string;
-  memberId: string;
-  status: 'lead' | 'eligible' | 'enrolling' | 'active' | 'inactive' | 'terminated' | 'declined';
-  joinDate: string;
-  group: string;
-}
-
-// Mock data for demonstration
-const MOCK_MEMBERS: Member[] = [
-  {
-    id: '1',
-    name: 'John Doe',
-    email: 'john@example.com',
-    memberId: 'MBR-2026-00001',
-    status: 'active',
-    joinDate: '2026-01-15',
-    group: 'DTC-DEFAULT-2026',
-  },
-  {
-    id: '2',
-    name: 'Jane Smith',
-    email: 'jane@example.com',
-    memberId: 'MBR-2026-00002',
-    status: 'enrolling',
-    joinDate: '2026-02-20',
-    group: 'DTC-DEFAULT-2026',
-  },
-  {
-    id: '3',
-    name: 'Bob Johnson',
-    email: 'bob@example.com',
-    memberId: 'MBR-2026-00003',
-    status: 'eligible',
-    joinDate: '2026-02-25',
-    group: 'DTC-DEFAULT-2026',
-  },
-];
 
 const STATUS_COLORS = {
   active: 'bg-green-100 text-green-800',
@@ -64,14 +25,17 @@ export default function MembersAdmin() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string | undefined>(undefined);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [selectedMember, setSelectedMember] = useState<any | null>(null);
 
-  const filteredMembers = MOCK_MEMBERS.filter((member) => {
-    const matchesSearch = member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.memberId.includes(searchQuery);
+  // Query real data from Convex
+  const members = useQuery(api.admin.members.getAllMembers) || [];
 
-    const matchesStatus = !selectedStatus || member.status === selectedStatus;
+  const filteredMembers = members.filter((member: any) => {
+    const matchesSearch = (member.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (member.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (member.memberId || '').includes(searchQuery);
+
+    const matchesStatus = !selectedStatus || member.memberType === selectedStatus;
 
     return matchesSearch && matchesStatus;
   });
@@ -134,20 +98,22 @@ export default function MembersAdmin() {
               </tr>
             ) : (
               filteredMembers.map((member) => (
-                <tr key={member.id} className="hover:bg-slate-50">
-                  <td className="px-6 py-4 font-medium text-slate-900">{member.name}</td>
+                <tr key={member._id} className="hover:bg-slate-50">
+                  <td className="px-6 py-4 font-medium text-slate-900">{member.firstName} {member.lastName}</td>
                   <td className="px-6 py-4 text-slate-600">{member.email}</td>
                   <td className="px-6 py-4 text-slate-600 font-mono text-sm">{member.memberId}</td>
                   <td className="px-6 py-4">
                     <span
                       className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
-                        STATUS_COLORS[member.status]
+                        STATUS_COLORS[member.memberType]
                       }`}
                     >
-                      {member.status}
+                      {member.memberType}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-slate-600">{member.joinDate}</td>
+                  <td className="px-6 py-4 text-slate-600">
+                    {member.enrolledAt ? new Date(member.enrolledAt).toLocaleDateString() : 'N/A'}
+                  </td>
                   <td className="px-6 py-4 text-right flex gap-2 justify-end">
                     <button
                       onClick={() => {
@@ -174,14 +140,14 @@ export default function MembersAdmin() {
 
       {/* Results count */}
       <div className="text-sm text-slate-600">
-        Showing {filteredMembers.length} of {MOCK_MEMBERS.length} members
+        Showing {filteredMembers.length} of {members.length} members
       </div>
 
       {/* Detail Modal */}
       {showDetailModal && selectedMember && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-8 max-w-md max-h-96 overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">{selectedMember.name}</h2>
+            <h2 className="text-xl font-bold mb-4">{selectedMember.firstName} {selectedMember.lastName}</h2>
             <dl className="space-y-3 text-sm">
               <div>
                 <dt className="text-slate-600">Email</dt>
@@ -193,15 +159,13 @@ export default function MembersAdmin() {
               </div>
               <div>
                 <dt className="text-slate-600">Status</dt>
-                <dd className="font-medium">{selectedMember.status}</dd>
+                <dd className="font-medium">{selectedMember.memberType}</dd>
               </div>
               <div>
-                <dt className="text-slate-600">Join Date</dt>
-                <dd className="font-medium">{selectedMember.joinDate}</dd>
-              </div>
-              <div>
-                <dt className="text-slate-600">Group</dt>
-                <dd className="font-medium">{selectedMember.group}</dd>
+                <dt className="text-slate-600">Enrolled Date</dt>
+                <dd className="font-medium">
+                  {selectedMember.enrolledAt ? new Date(selectedMember.enrolledAt).toLocaleDateString() : 'N/A'}
+                </dd>
               </div>
             </dl>
             <div className="mt-6 flex gap-2">
