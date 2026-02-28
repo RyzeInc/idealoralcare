@@ -8,13 +8,14 @@ import { v } from "convex/values";
  */
 
 /**
- * Generate a unique member ID
- * Format: MBR-{YEAR}-{SEQUENCE}
+ * Generate a unique 9-digit member ID
+ * Format: {9-digit numeric}
+ * Example: 100000001, 100000002, etc.
+ * Note: In production with nanoid, can use custom numeric alphabet for shorter IDs
  */
 function generateMemberId(sequence: number): string {
-  const year = new Date().getFullYear();
-  const paddedSeq = String(sequence).padStart(5, "0");
-  return `MBR-${year}-${paddedSeq}`;
+  const memberId = String(100000000 + sequence).slice(0, 9);
+  return memberId;
 }
 
 /**

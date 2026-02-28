@@ -2,16 +2,15 @@ import Head from "next/head";
 import Image from "next/image";
 import HealthHeader from "@/components/health/HealthHeader";
 
-
-// Nexus Health - A comprehensive health plan by Ryze
-// Currently launching with oral health care as the foundation, expanding to additional health services
+// Ideal Health - Comprehensive oral health plan
+// Toothlens AI scanning, Dial Care teledentistry, Careington network access
 
 export default function HealthLanding() {
   return (
     <div className="health-landing">
       <Head>
-        <title>Nexus Health | Modern Health Plans Made Simple</title>
-        <meta name="description" content="Nexus Health by Ryze - A modern health plan that puts you first. Starting with virtual-first oral care, we're building the future of accessible, affordable healthcare." />
+        <title>Ideal Health Oral Health Plan | Affordable Dental Care</title>
+        <meta name="description" content="Ideal Health Oral Health Plan - Toothlens AI oral scanning, Dial Care teledentistry, and Careington POS dental network access. $15/mo or $13/mo with ACH." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       
@@ -25,18 +24,18 @@ export default function HealthLanding() {
             <div className="col-12">
               <picture className="hero-home__img_w">
                 <source srcSet="/health-assets/main_800x900-1-768x864.jpg" media="(max-width: 768px)" />
-                <Image src="/health-assets/main_2320x900-1.jpg" alt="Woman using a phone to take control of her health" width={2320} height={900} className="hero-home__img" priority />
+                <Image src="/health-assets/main_2320x900-1.jpg" alt="Woman taking control of her dental health" width={2320} height={900} className="hero-home__img" priority />
               </picture>
             </div>
           </div>
           <div className="row">
             <div className="col-8">
               <div className="hero-home__heading">
-                <div className="hero-home__subtitle">NEXUS HEALTH</div>
-                <h1>Health Plans That Work For You</h1>
-                <p className="hero-home__descr">Meet Nexus Health—two powerful plans designed to support your wellness journey: weight management with GLP-1 support and comprehensive oral health care.</p>
-                <a className="button button--primary" href="#plans">
-                  Explore Plans
+                <div className="hero-home__subtitle">IDEAL HEALTH</div>
+                <h1>Oral Health Coverage That Works For You</h1>
+                <p className="hero-home__descr">Comprehensive dental coverage starting at just $15/month. Get Toothlens AI oral scanning, Dial Care teledentistry access, and the Careington POS network—all in one affordable plan.</p>
+                <a className="button button--primary" href="/health/dental">
+                  Learn More
                 </a>
               </div>
             </div>
@@ -44,58 +43,51 @@ export default function HealthLanding() {
         </div>
       </section>
 
-      {/* Our Plans */}
+      {/* Our Plan */}
       <section className="related-posts section">
         <div className="container">
           <div className="heading-block">
-            <h2>Nexus Health Plans</h2>
-            <p className="heading-block__descr">Choose the plan that fits your health goals.</p>
+            <h2>Ideal Health Oral Health Plan</h2>
+            <p className="heading-block__descr">Everything you need for comprehensive dental coverage.</p>
           </div>
-          <div className="related-posts__grid">
-            <div className="related-posts__card">
-              <img src="/health-assets/oral-health_1086x1024.jpg" alt="Wellness GLP Plan" />
-              <h4>Wellness GLP Plan</h4>
-              <p style={{fontSize: '0.9375rem', marginBottom: '12px'}}>24/7/365 access to clinical support, GLP-1 and weight management medications, personalized treatment plans, nutrition coaching, and more.</p>
-              <a href="#plans" className="link-arrow">Learn More</a>
-            </div>
-            <div className="related-posts__card">
-              <img src="/health-assets/kid_thumbs_up.jpg" alt="Oral Health Plan" />
+          <div className="related-posts__grid" style={{maxWidth: '600px', margin: '0 auto'}}>
+            <div className="related-posts__card" style={{width: '100%'}}>
+              <img src="/health-assets/kid_thumbs_up.jpg" alt="Ideal Health Oral Health Plan" />
               <h4>Oral Health Plan</h4>
-              <p style={{fontSize: '0.9375rem', marginBottom: '12px'}}>Toothlens AI oral scanning, teledentistry consultations, discount offerings, and access to our nationwide provider network.</p>
-              <a href="/health/dental" className="link-arrow">Learn More</a>
-            </div>
-            <div className="related-posts__card">
-              <img src="/health-assets/talk-live_1086x1024.jpg" alt="More Coming Soon" />
-              <h4>More Services Coming</h4>
-              <p style={{fontSize: '0.9375rem', marginBottom: '12px'}}>Nexus Health is expanding with additional health services and specialties. Stay tuned for announcements.</p>
-              <div className="link-arrow">View All</div>
+              <p style={{fontSize: '0.9375rem', marginBottom: '12px'}}>
+                Toothlens AI oral scanning for home monitoring, 24/7 Dial Care teledentistry consultations, and access to the Careington POS dental discount network nationwide.
+              </p>
+              <div style={{fontSize: '1.25rem', fontWeight: 'bold', color: '#1e3a5f', marginBottom: '12px'}}>
+                <span>$15/mo</span> or <span style={{color: '#14b8a6'}}>$13/mo with ACH</span>
+              </div>
+              <a href="/health/dental" className="link-arrow">Get Started</a>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Wellness GLP Plan Details */}
+      {/* Plan Features */}
       <section className="our-use-case section bg--blue">
         <div className="container">
           <div className="heading-block">
-            <h2>Wellness GLP Plan</h2>
-            <p className="heading-block__descr">Comprehensive weight management and wellness support, 24/7/365.</p>
+            <h2>What's Included</h2>
+            <p className="heading-block__descr">Comprehensive dental care, all in one affordable plan.</p>
           </div>
           <div className="our-use-case__content">
             <div className="our-use-case__image">
-              <img src="/health-assets/image-2-1.png" alt="Weight management support" />
+              <img src="/health-assets/smilescan_1086x1024.jpg" alt="Toothlens AI scanning" />
             </div>
             <ul className="our-use-case__list">
-              <li>24/7/365 Clinical Support Team</li>
-              <li>GLP-1 & Weight Loss Medications</li>
-              <li>Personalized Treatment Plans</li>
-              <li>Initial Health Assessment</li>
-              <li>Lab Testing & Monitoring</li>
-              <li>Nutrition & Dietary Coaching</li>
-              <li>Goal Setting & Education</li>
-              <li>Ongoing Provider Support</li>
+              <li>Toothlens Smart Check AI Oral Scanning</li>
+              <li>24/7 Dial Care Teledentistry Access</li>
+              <li>Careington POS Network Discounts</li>
+              <li>Member ID Card (Physical & Digital)</li>
+              <li>Emergency Dental Support</li>
+              <li>Preventive Care Guidance</li>
+              <li>Network Provider Assistance</li>
+              <li>Ongoing Care Coordination</li>
             </ul>
-            <div className="our-use-case__btn_w"><a className="button button--accent" href="#plans">Explore Wellness GLP</a></div>
+            <div className="our-use-case__btn_w"><a className="button button--accent" href="/health/dental">Explore the Plan</a></div>
           </div>
         </div>
       </section>
@@ -105,34 +97,30 @@ export default function HealthLanding() {
         <div className="container">
           <div className="one-team__row" style={{display: 'flex', flexWrap: 'wrap', gap: '2.5rem', alignItems: 'flex-start'}}>
             <div className="one-team__col_img" style={{flex: '1 1 400px', maxWidth: '500px'}}>
-              <img src="/health-assets/d1-team_896x1352-opt2.jpg" alt="Nexus Health care team collaborating" style={{maxWidth: '100%', height: 'auto', objectFit: 'cover', borderRadius: '1.25rem'}} />
+              <img src="/health-assets/d1-team_896x1352-opt2.jpg" alt="Ideal Health care team" style={{maxWidth: '100%', height: 'auto', objectFit: 'cover', borderRadius: '1.25rem'}} />
             </div>
             <div className="one-team__col_info" style={{flex: '1 1 400px'}}>
-                <h3>Your Nexus Health Care Team</h3>
-                <p>Every team member across both plans is dedicated to supporting your specific health goals. Whether you're managing weight, improving your smile, or both—we've got a team ready to help.</p>
+              <h3>Your Ideal Health Support Team</h3>
+              <p>Our team is dedicated to supporting your oral health goals. Whether you're preventive-focused or managing complex dental needs, we have resources to help.</p>
               <div className="faq__list">
                 <div className="accordion">
-                  <h4>Clinical Providers</h4>
-                  <div>Board-certified clinicians specializing in weight management, nutrition, and overall wellness, available 24/7 for your care.</div>
-                </div>
-                <div className="accordion">
-                  <h4>Care Advisors</h4>
-                  <div>Your personal advocates who coordinate your care, answer questions, and ensure you're getting the support you need at every step.</div>
-                </div>
-                <div className="accordion">
-                  <h4>Wellness Coaches</h4>
-                  <div>Certified experts in health and prevention who provide personalized guidance, tips, and recommendations tailored just for you.</div>
+                  <h4>Teledentistry Specialists</h4>
+                  <div>Licensed dental professionals available 24/7 via Dial Care for consultations, treatment planning, and emergency support.</div>
                 </div>
                 <div className="accordion">
                   <h4>Care Coordinators</h4>
-                  <div>Behind-the-scenes heroes who handle scheduling, referrals, and logistics so you can focus on what really matters—your health.</div>
+                  <div>Our team helps you navigate the Careington network, find in-network providers, and coordinate your in-person care.</div>
                 </div>
                 <div className="accordion">
-                  <h4>Health Specialists</h4>
-                  <div>Our nationwide network of providers offer virtual consultations, treatment coordination, and seamless access to in-person care when needed.</div>
+                  <h4>Toothlens Support</h4>
+                  <div>Get help optimizing your AI-powered oral scanning, interpreting results, and connecting with providers for follow-up care.</div>
+                </div>
+                <div className="accordion">
+                  <h4>Member Services</h4>
+                  <div>We're here to answer questions about coverage, billing, provider access, and any other plan details you need.</div>
                 </div>
               </div>
-              <a className="button button--primary" href="#plans">Choose Your Plan</a>
+              <a className="button button--primary" href="/health/dental">Choose Your Plan</a>
             </div>
           </div>
         </div>
@@ -142,52 +130,52 @@ export default function HealthLanding() {
       <section className="our-service section bg--blue" id="plans">
         <div className="container">
           <div className="heading-block">
-            <h2>Getting Started With Nexus Health</h2>
-            <p className="heading-block__descr">Simple enrollment, immediate access to care.</p>
+            <h2>Getting Started With Ideal Health</h2>
+            <p className="heading-block__descr">Simple enrollment, immediate access to dental care.</p>
           </div>
           <div className="our-service__row">
             <div className="our-service__list">
               <div className="service">
-                <h4>1. Select Your Plan</h4>
-                <p>Choose between our Wellness GLP Plan for weight management support or our Oral Health Plan for smile health. You can select both if you want comprehensive coverage.</p>
+                <h4>1. Review the Plan</h4>
+                <p>Learn about our Oral Health Plan, pricing options, and what's included. See if it's right for your dental care needs.</p>
               </div>
               <div className="service">
-                <h4>2. Complete Your Enrollment</h4>
-                <p>Quick, straightforward enrollment takes just a few minutes online. Provide basic health information and select your preferences.</p>
+                <h4>2. Enroll Online</h4>
+                <p>Quick enrollment takes just a few minutes. Choose your cadence (monthly or annual savings) and payment method (card or ACH).</p>
               </div>
               <div className="service">
-                <h4>3. Get Your Initial Assessment</h4>
-                <p>Schedule your first appointment with a care provider or dentist. For the Wellness GLP Plan, we'll start with a comprehensive health assessment.</p>
+                <h4>3. Get Your Member ID</h4>
+                <p>Immediately receive your digital and physical member ID cards with access information for all plan services.</p>
               </div>
               <div className="service">
-                <h4>4. Start Your Health Journey</h4>
-                <p>Begin receiving personalized treatment plans, medications (if applicable), coaching, and ongoing support from your care team.</p>
+                <h4>4. Activate Your Services</h4>
+                <p>Set up your Toothlens Smart Check account, download the Dial Care app, and access the Careington provider directory.</p>
               </div>
               <div className="service">
-                <h4>5. Achieve Your Goals</h4>
-                <p>With 24/7 support and a coordinated care team, you'll have everything you need to reach your health and wellness goals.</p>
+                <h4>5. Start Your Dental Journey</h4>
+                <p>Use AI scanning for home monitoring, get teledentistry consultations when needed, and access discounted in-network care.</p>
               </div>
             </div>
             <div className="our-service__img col-6">
-              <img src="/health-assets/smilescan_1086x1024.jpg" alt="Nexus Health Plans" />
+              <img src="/health-assets/smilescan_1086x1024.jpg" alt="Ideal Health Oral Health Plan" />
             </div>
-            <div className="our-service__btn_w"><a className="button button--primary" href="/health/plans">Enroll Now</a></div>
+            <div className="our-service__btn_w"><a className="button button--primary" href="/health/dental">Enroll Now</a></div>
           </div>
         </div>
       </section>
 
-      {/* Why Nexus Health */}
+      {/* Why Ideal Health */}
       <section className="benefits section bg--white">
         <div className="container">
-          <h2>Why Nexus Health Plans Work Better</h2>
+          <h2>Why Ideal Health Stands Out</h2>
           <ul className="benefits__list">
-            <li><strong>24/7/365 Support</strong>: Round-the-clock access to clinical teams and care coordinators whenever you need support.</li>
-            <li><strong>Medication Access</strong>: For the Wellness GLP Plan, immediate access to GLP-1 and weight management medications with personalized dosing.</li>
-            <li><strong>AI-Powered Tools</strong>: From Toothlens oral scanning to personalized wellness tracking, technology enhances your care.</li>
-            <li><strong>Transparent Pricing</strong>: No surprise bills. Plans are affordably priced with predictable costs.</li>
-            <li><strong>Comprehensive Support</strong>: Nutrition coaching, oral health care, clinical monitoring, and ongoing guidance all coordinated together.</li>
-            <li><strong>Flexible Options</strong>: Choose one plan or enroll in both for complete health coverage aligned with your needs.</li>
-            <li><strong>Real Doctors & Dentists</strong>: Board-certified providers who actually care about your outcomes, available when you need them.</li>
+            <li><strong>Affordable Pricing</strong>: Just $15/month (or $13 with ACH). No hidden fees or surprise bills.</li>
+            <li><strong>24/7 Support</strong>: Dial Care teledentistry available round-the-clock whenever you need dental guidance.</li>
+            <li><strong>AI-Powered Screening</strong>: Toothlens Smart Check puts oral health monitoring in your hands with AI-powered analysis.</li>
+            <li><strong>Wide Network Access</strong>: The Careington POS network includes thousands of dentists nationwide for discounted care.</li>
+            <li><strong>Flexible Care Options</strong>: Mix remote teledentistry with in-network provider visits—whatever works best for you.</li>
+            <li><strong>Transparent Enrollment</strong>: No long-term contracts. Choose month-to-month or annual billing with ACH savings.</li>
+            <li><strong>Actual Dentists</strong>: Real, licensed dental professionals providing real care and support.</li>
           </ul>
         </div>
       </section>
@@ -197,15 +185,15 @@ export default function HealthLanding() {
         <div className="container">
           <div className="for-organization__row">
             <div className="for-organization__col">
-              <h2>Health Plans for Your Organization</h2>
-              <p>Offer your employees, members, or plan participants the Nexus Health difference. Our dual-plan approach—combining wellness support and oral health coverage—helps improve employee health, reduce healthcare costs, and increase satisfaction.</p>
+              <h2>Dental Coverage for Your Organization</h2>
+              <p>Offer employees or group members the Ideal Health Oral Health Plan. It's an affordable, high-value benefit that improves employee satisfaction and health outcomes. Perfect for small groups, large employers, associations, and unions.</p>
               <div className="for-organization__btn_w">
-                <a className="button button--accent" href="/organizations">For Employers</a>
+                <a className="button button--accent" href="#contact">For Groups</a>
                 <a className="button button--primary" href="#contact">Schedule a Demo</a>
               </div>
             </div>
             <div className="for-organization__img">
-              <img src="/health-assets/virtual-first_896x992-2.jpg" alt="Employers choosing Nexus Health" />
+              <img src="/health-assets/virtual-first_896x992-2.jpg" alt="Ideal Health for organizations" />
             </div>
           </div>
         </div>
@@ -214,27 +202,31 @@ export default function HealthLanding() {
       {/* FAQ */}
       <section className="faq section">
         <div className="container">
-          <h2>Questions About Nexus Health?</h2>
+          <h2>Questions About Ideal Health?</h2>
           <div className="faq__list">
             <div className="accordion">
-              <h4>What's included in the Wellness GLP Plan?</h4>
-              <div>The Wellness GLP Plan includes 24/7/365 access to clinical providers, GLP-1 and weight loss medications, personalized treatment plans, initial health assessment, lab testing, nutrition and dietary coaching, goal setting resources, and ongoing clinical supervision and support.</div>
+              <h4>What exactly is included in the plan?</h4>
+              <div>The Ideal Health Oral Health Plan includes Toothlens Smart Check AI scanning for at-home monitoring, 24/7 access to Dial Care teledentistry specialists, member ID cards, and discounted access to the Careington POS network of thousands of dentists nationwide.</div>
             </div>
             <div className="accordion">
-              <h4>What's included in the Oral Health Plan?</h4>
-              <div>The Oral Health Plan features Toothlens AI-powered oral scanning for home monitoring, access to teledentistry consultations with qualified specialists, discount pricing on comprehensive oral health procedures, and connections to our nationwide network of providers for in-person appointments when needed.</div>
+              <h4>Is this dental insurance?</h4>
+              <div>No, this is a savings-based dental plan with discounts and teledentistry access. It's not replacement health insurance but works great as a complementary benefit for oral health care and prevention.</div>
             </div>
             <div className="accordion">
-              <h4>Can I enroll in both plans?</h4>
-              <div>Absolutely! Many members choose to enroll in both the Wellness GLP Plan and Oral Health Plan for comprehensive health coverage. You can manage both plans through a single Nexus Health account.</div>
+              <h4>How much does it cost?</h4>
+              <div>The Ideal Health Oral Health Plan costs $15/month if you pay with a credit card, or $13/month if you choose automatic ACH bank transfers. Annual billing options are also available with additional savings.</div>
             </div>
             <div className="accordion">
-              <h4>How much do the plans cost?</h4>
-              <div>Both plans are affordably priced with transparent, predictable costs. Pricing varies based on the specific services selected and your individual health needs. Contact us or visit our pricing page for current rates and options.</div>
+              <h4>Can I cancel anytime?</h4>
+              <div>Yes! There are no long-term contracts or cancellation fees. You can cancel your membership at any time, with your final payment as your last. We think you'll love the plan—but it's your choice.</div>
             </div>
             <div className="accordion">
-              <h4>When will more health services be available?</h4>
-              <div>We're actively expanding the Nexus Health platform. The Wellness GLP Plan and Oral Health Plan are our launch services, and we're planning to add additional health specialties and services over the coming months.</div>
+              <h4>How do I access Toothlens and Dial Care?</h4>
+              <div>After enrollment, you'll receive instructions to download the Toothlens Smart Check and Dial Care apps. Both are simple to use and available on iOS and Android. Teledentistry consultations can be scheduled 24/7 through the app.</div>
+            </div>
+            <div className="accordion">
+              <h4>Are there any restrictions or requirements?</h4>
+              <div>This plan is available to individuals and groups. There's no medical underwriting—anyone can enroll. Simply review the terms to ensure the plan aligns with your dental care needs.</div>
             </div>
           </div>
         </div>
@@ -247,9 +239,8 @@ export default function HealthLanding() {
             <div className="col-12">
               <div className="site-footer__row_top">
                 <a href="/health" className="site-footer__logo_w">
-                  <Image src="/nexus-health-logo.png" alt="Nexus Health logo" width={48} height={48} />
+                  <Image src="/ideal-health-logo.png" alt="Ideal Health logo" width={48} height={48} />
                 </a>
-                {/* ...footer form and links... */}
               </div>
             </div>
           </div>

@@ -6,4 +6,4 @@
 export * from "./sessions";
 export * from "./members";
 export * from "./seed";
-export { resolveHierarchyByGroupCode, resolveSiteBySlug, resolveSiteByDomain, resolveAllowedPlanIds, resolveProductPricing } from "../hierarchy/site-resolver";
+export { resolveHierarchyByGroupCode, resolveSiteBySlug, resolveSiteByDomain, resolveAllowedPlanIds, resolveProductPricing } from "../hierarchy/site_resolver";

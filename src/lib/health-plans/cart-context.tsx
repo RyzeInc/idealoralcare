@@ -21,8 +21,9 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import type { CartState, CartItem, CatalogProduct, Cadence, PaymentMethod } from "@/lib/health-plans/types";
 
-const STORAGE_KEY = "nexus-health-cart";
-const CADENCE_SELECTED_KEY = "nexus-cadence-selected";
+const STORAGE_KEY = "ideal-health-cart";
+const CADENCE_SELECTED_KEY = "ideal-cadence-selected";
+const SESSION_ID_KEY = "ideal-cart-session-id";
 const MAX_COMPARE_ITEMS = 4;
 
 interface CartContextType {
@@ -71,12 +72,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [showCadenceModal, setShowCadenceModal] = useState(false);
   const [hasSelectedCadence, setHasSelectedCadence] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  
+  // TODO: Wire Convex mutations when checkout API is ready
+  // const createSession = useMutation(api.subscriptions.cartMutations.createSession);
+  // const addToSession = useMutation(api.subscriptions.cartMutations.addItem);
+  // const removeFromSession = useMutation(api.subscriptions.cartMutations.removeItem);
+  // const updateSessionPricing = useMutation(api.subscriptions.cartMutations.updatePricing);
   
   // Load from localStorage on mount
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       const cadenceSelected = localStorage.getItem(CADENCE_SELECTED_KEY) === "true";
+      const savedSessionId = localStorage.getItem(SESSION_ID_KEY);
       
       if (stored) {
         const parsed = JSON.parse(stored);
@@ -86,10 +95,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       if (cadenceSelected) {
         setHasSelectedCadence(true);
       }
+      
+      if (savedSessionId) {
+        setSessionId(savedSessionId);
+      }
     } catch {
       // Invalid storage, reset
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(CADENCE_SELECTED_KEY);
+      localStorage.removeItem(SESSION_ID_KEY);
     }
     setIsLoaded(true);
   }, []);
@@ -98,8 +112,23 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isLoaded) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(cart));
+      
+      // TODO: Sync to Convex cartSessions when checkout API is ready
+      // if (sessionId) {
+      //   try {
+      //     updateSessionPricing({
+      //       sessionId,
+      //       subtotal: subtotalCents,
+      //       discount: achSavingsCents,
+      //       items: cart.items.map(i => ({ productId: i.productId, quantity: 1 })),
+      //     });
+      //   } catch (err) {
+      //     console.warn('Failed to sync cart to Convex:', err);
+      //     // Continue with localStorage fallback
+      //   }
+      // }
     }
-  }, [cart, isLoaded]);
+  }, [cart, isLoaded, sessionId]);
   
   // Add item to cart
   const addItem = useCallback((product: CatalogProduct) => {
@@ -116,7 +145,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       if (prev.items.some((item) => item.productId === product._id)) {
         return prev;
       }
-      return {
+      const newCart = {
         ...prev,
         items: [
           ...prev.items,
@@ -127,16 +156,46 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           },
         ],
       };
+      
+      // TODO: Call Convex addItem mutation when checkout API is ready
+      // if (sessionId) {
+      //   try {
+      //     addToSession({
+      //       sessionId,
+      //       productId: product._id,
+      //     });
+      //   } catch (err) {
+      //     console.warn('Failed to sync to Convex:', err);
+      //   }
+      // }
+      
+      return newCart;
     });
-  }, [hasSelectedCadence]);
+  }, [hasSelectedCadence, sessionId]);
   
   // Remove item from cart
   const removeItem = useCallback((productId: string) => {
-    setCart((prev) => ({
-      ...prev,
-      items: prev.items.filter((item) => item.productId !== productId),
-    }));
-  }, []);
+    setCart((prev) => {
+      const newCart = {
+        ...prev,
+        items: prev.items.filter((item) => item.productId !== productId),
+      };
+      
+      // TODO: Call Convex removeItem mutation when checkout API is ready
+      // if (sessionId) {
+      //   try {
+      //     removeFromSession({
+      //       sessionId,
+      //       productId,
+      //     });
+      //   } catch (err) {
+      //     console.warn('Failed to sync to Convex:', err);
+      //   }
+      // }
+      
+      return newCart;
+    });
+  }, [sessionId]);
   
   // Clear cart
   const clearCart = useCallback(() => {
@@ -161,9 +220,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setShowCadenceModal(false);
     
     // Check for pending add
-    const pendingAdd = localStorage.getItem("nexus-pending-add");
+    const pendingAdd = localStorage.getItem("ideal-pending-add");
     if (pendingAdd) {
-      localStorage.removeItem("nexus-pending-add");
+      localStorage.removeItem("ideal-pending-add");
       // Note: caller should re-trigger addItem with the product
     }
   }, []);

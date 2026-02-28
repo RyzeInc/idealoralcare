@@ -34,10 +34,43 @@ export function ReviewStep() {
 
     try {
       setLoading(true);
-      // In production, trigger actual checkout here
-      // For now, just proceed to confirmation
+
+      // Get the first selected plan
+      const planEntries = Object.entries(state?.selectedPlans || {});
+      if (planEntries.length === 0) {
+        throw new Error("No plans selected");
+      }
+
+      const [planId] = planEntries[0];
+
+      // Call Stripe checkout API
+      const response = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planId,
+          cadence: "monthly", // TODO: Get from state
+          paymentMethod: "card", // TODO: Get from state
+          enrollmentSessionId: state?.sessionId || "" + Date.now(),
+          brokerCode: state?.brokerCode,
+          groupId: state?.group?._id,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to initiate checkout");
+      }
+
+      const { url } = await response.json();
+      if (!url) {
+        throw new Error("No checkout URL returned");
+      }
+
+      // Mark as completed and redirect
       dispatch({ type: "MARK_STEP_COMPLETED", payload: "review" });
-      nextStep();
+      window.location.href = url; // Redirect to Stripe Checkout
+
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to process";
       setError(message);

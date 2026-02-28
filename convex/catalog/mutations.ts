@@ -22,33 +22,34 @@ export const seedInitialData = mutation({
 
     const initialProducts = [
       {
-        slug: "dental-savings",
-        name: "Oral Health Savings Plan",
+        slug: "oral-health-plan",
+        name: "Ideal Health Oral Health Plan",
         category: "dental",
         description:
-          "Toothlens AI oral scanning, teledentistry consultations, and access to our nationwide provider network with discount offerings.",
+          "Comprehensive oral health coverage with Toothlens AI oral scanning, Dial Care teledentistry consultations, and access to the Careington POS dental discount network.",
         longDescription:
-          "Our Oral Health Savings Plan provides comprehensive access to oral care through innovative technology and a nationwide network of providers. Features include AI-powered oral scanning (Toothlens), 24/7 teledentistry consultations, and significant discounts on procedures.",
+          "Our Oral Health Plan provides comprehensive access to dental care through innovative technology and a nationwide network of providers. Features include AI-powered oral scanning (Toothlens Smart Check), 24/7 teledentistry consultations via Dial Care, and significant discounts on procedures through the Careington dental provider network.",
         inclusions: [
-          "AI-Powered Oral Scanning",
-          "24/7 Teledentistry Access",
-          "Nationwide Provider Network",
-          "Discount Procedures",
-          "Emergency Support",
+          "Toothlens AI Oral Scanning",
+          "Dial Care 24/7 Teledentistry",
+          "Careington POS Network Access",
+          "Preventive Discounts",
+          "Member ID Card",
+          "Emergency Access",
         ],
-        exclusions: ["Not traditional insurance", "Discounts only"],
+        exclusions: ["Not traditional dental insurance", "Savings-based discount plan"],
         eligibilityRules: {
           minAge: undefined,
           maxAge: undefined,
           requiresVerification: false,
-          disclosureText: "Not insurance.",
+          disclosureText: "This is a savings-based discount plan, not insurance.",
         },
         activationBehavior: "immediate",
         pricing: {
-          monthlyCardCents: 2999,
-          monthlyACHCents: 2799,
-          annualCardCents: 29999,
-          annualACHCents: 27999,
+          monthlyCardCents: 1500,
+          monthlyACHCents: 1300,
+          annualCardCents: 15000,
+          annualACHCents: 13000,
         },
         metadata: {
           icon: "🦷",
@@ -57,117 +58,6 @@ export const seedInitialData = mutation({
         isVisible: true,
         isFeatured: true,
         order: 0,
-      },
-      {
-        slug: "wellness-glp",
-        name: "Wellness GLP Plan",
-        category: "wellness",
-        description:
-          "24/7/365 clinical support, GLP-1 and weight management medications, personalized treatment plans, and nutrition coaching.",
-        longDescription:
-          "Comprehensive weight management program with access to GLP-1 medications and clinical support. Our licensed team provides personalized treatment plans, ongoing monitoring, and nutrition coaching to help you achieve your health goals.",
-        inclusions: [
-          "24/7/365 Clinical Support",
-          "GLP-1 Medications",
-          "Personalized Treatment",
-          "Nutrition Coaching",
-          "Lab Testing & Monitoring",
-        ],
-        exclusions: ["Requires health assessment", "Medication costs separate"],
-        eligibilityRules: {
-          minAge: undefined,
-          maxAge: undefined,
-          requiresVerification: true,
-          disclosureText: "Requires health assessment.",
-        },
-        activationBehavior: "verified_then_immediate",
-        pricing: {
-          monthlyCardCents: 9999,
-          monthlyACHCents: 9799,
-          annualCardCents: 99999,
-          annualACHCents: 97999,
-        },
-        metadata: {
-          icon: "💊",
-          bestFor: ["Weight Management", "Wellness"],
-        },
-        isVisible: true,
-        isFeatured: true,
-        order: 1,
-      },
-      {
-        slug: "vision-care",
-        name: "Vision Care Plus",
-        category: "vision",
-        description:
-          "Discounts on eye exams, glasses, contacts, and LASIK procedures at participating providers nationwide.",
-        longDescription:
-          "Access significant discounts on vision care services including eye exams, eyewear, contact lenses, and LASIK procedures through our network of participating providers across the country.",
-        inclusions: [
-          "40-50% Off Eye Exams",
-          "20-60% Off Frames & Lenses",
-          "Contact Lens Discounts",
-          "LASIK Savings",
-          "Online Retailer Discounts",
-        ],
-        exclusions: ["Not vision insurance", "Discounts vary by provider"],
-        eligibilityRules: {
-          minAge: undefined,
-          maxAge: undefined,
-          requiresVerification: false,
-          disclosureText: "Not insurance.",
-        },
-        activationBehavior: "immediate",
-        pricing: {
-          monthlyCardCents: 1499,
-          monthlyACHCents: 1299,
-          annualCardCents: 14999,
-          annualACHCents: 12999,
-        },
-        metadata: {
-          icon: "👁️",
-          bestFor: ["Individuals", "Families"],
-        },
-        isVisible: true,
-        isFeatured: false,
-        order: 2,
-      },
-      {
-        slug: "telehealth-unlimited",
-        name: "Telehealth Unlimited",
-        category: "telehealth",
-        description:
-          "Unlimited 24/7 virtual doctor visits for common conditions, prescriptions, and health questions.",
-        longDescription:
-          "Get instant access to healthcare professionals 24/7 through virtual visits. Treat common conditions, get prescriptions, receive mental health support, and get answers to your health questions all from your phone or computer.",
-        inclusions: [
-          "Unlimited Virtual Visits",
-          "24/7 Availability",
-          "Prescription Services",
-          "Mental Health Support",
-          "No Per-Visit Fees",
-        ],
-        exclusions: ["Does not replace emergency care", "Some prescriptions excluded"],
-        eligibilityRules: {
-          minAge: undefined,
-          maxAge: undefined,
-          requiresVerification: false,
-          disclosureText: "Virtual care only.",
-        },
-        activationBehavior: "immediate",
-        pricing: {
-          monthlyCardCents: 1999,
-          monthlyACHCents: 1799,
-          annualCardCents: 19999,
-          annualACHCents: 17999,
-        },
-        metadata: {
-          icon: "📱",
-          bestFor: ["Individuals", "Families"],
-        },
-        isVisible: true,
-        isFeatured: false,
-        order: 3,
       },
     ];
 
@@ -205,33 +95,34 @@ export const reseedData = mutation({
 
     const initialProducts = [
       {
-        slug: "dental-savings",
-        name: "Oral Health Savings Plan",
+        slug: "oral-health-plan",
+        name: "Ideal Health Oral Health Plan",
         category: "dental",
         description:
-          "Toothlens AI oral scanning, teledentistry consultations, and access to our nationwide provider network with discount offerings.",
+          "Comprehensive oral health coverage with Toothlens AI oral scanning, Dial Care teledentistry consultations, and access to the Careington POS dental discount network.",
         longDescription:
-          "Our Oral Health Savings Plan provides comprehensive access to oral care through innovative technology and a nationwide network of providers. Features include AI-powered oral scanning (Toothlens), 24/7 teledentistry consultations, and significant discounts on procedures.",
+          "Our Oral Health Plan provides comprehensive access to dental care through innovative technology and a nationwide network of providers. Features include AI-powered oral scanning (Toothlens Smart Check), 24/7 teledentistry consultations via Dial Care, and significant discounts on procedures through the Careington dental provider network.",
         inclusions: [
-          "AI-Powered Oral Scanning",
-          "24/7 Teledentistry Access",
-          "Nationwide Provider Network",
-          "Discount Procedures",
-          "Emergency Support",
+          "Toothlens AI Oral Scanning",
+          "Dial Care 24/7 Teledentistry",
+          "Careington POS Network Access",
+          "Preventive Discounts",
+          "Member ID Card",
+          "Emergency Access",
         ],
-        exclusions: ["Not traditional insurance", "Discounts only"],
+        exclusions: ["Not traditional dental insurance", "Savings-based discount plan"],
         eligibilityRules: {
           minAge: undefined,
           maxAge: undefined,
           requiresVerification: false,
-          disclosureText: "Not insurance.",
+          disclosureText: "This is a savings-based discount plan, not insurance.",
         },
         activationBehavior: "immediate",
         pricing: {
-          monthlyCardCents: 2999,
-          monthlyACHCents: 2799,
-          annualCardCents: 29999,
-          annualACHCents: 27999,
+          monthlyCardCents: 1500,
+          monthlyACHCents: 1300,
+          annualCardCents: 15000,
+          annualACHCents: 13000,
         },
         metadata: {
           icon: "🦷",
@@ -240,117 +131,6 @@ export const reseedData = mutation({
         isVisible: true,
         isFeatured: true,
         order: 0,
-      },
-      {
-        slug: "wellness-glp",
-        name: "Wellness GLP Plan",
-        category: "wellness",
-        description:
-          "24/7/365 clinical support, GLP-1 and weight management medications, personalized treatment plans, and nutrition coaching.",
-        longDescription:
-          "Comprehensive weight management program with access to GLP-1 medications and clinical support. Our licensed team provides personalized treatment plans, ongoing monitoring, and nutrition coaching to help you achieve your health goals.",
-        inclusions: [
-          "24/7/365 Clinical Support",
-          "GLP-1 Medications",
-          "Personalized Treatment",
-          "Nutrition Coaching",
-          "Lab Testing & Monitoring",
-        ],
-        exclusions: ["Requires health assessment", "Medication costs separate"],
-        eligibilityRules: {
-          minAge: undefined,
-          maxAge: undefined,
-          requiresVerification: true,
-          disclosureText: "Requires health assessment.",
-        },
-        activationBehavior: "verified_then_immediate",
-        pricing: {
-          monthlyCardCents: 9999,
-          monthlyACHCents: 9799,
-          annualCardCents: 99999,
-          annualACHCents: 97999,
-        },
-        metadata: {
-          icon: "💊",
-          bestFor: ["Weight Management", "Wellness"],
-        },
-        isVisible: true,
-        isFeatured: true,
-        order: 1,
-      },
-      {
-        slug: "vision-care",
-        name: "Vision Care Plus",
-        category: "vision",
-        description:
-          "Discounts on eye exams, glasses, contacts, and LASIK procedures at participating providers nationwide.",
-        longDescription:
-          "Access significant discounts on vision care services including eye exams, eyewear, contact lenses, and LASIK procedures through our network of participating providers across the country.",
-        inclusions: [
-          "40-50% Off Eye Exams",
-          "20-60% Off Frames & Lenses",
-          "Contact Lens Discounts",
-          "LASIK Savings",
-          "Online Retailer Discounts",
-        ],
-        exclusions: ["Not vision insurance", "Discounts vary by provider"],
-        eligibilityRules: {
-          minAge: undefined,
-          maxAge: undefined,
-          requiresVerification: false,
-          disclosureText: "Not insurance.",
-        },
-        activationBehavior: "immediate",
-        pricing: {
-          monthlyCardCents: 1499,
-          monthlyACHCents: 1299,
-          annualCardCents: 14999,
-          annualACHCents: 12999,
-        },
-        metadata: {
-          icon: "👁️",
-          bestFor: ["Individuals", "Families"],
-        },
-        isVisible: true,
-        isFeatured: false,
-        order: 2,
-      },
-      {
-        slug: "telehealth-unlimited",
-        name: "Telehealth Unlimited",
-        category: "telehealth",
-        description:
-          "Unlimited 24/7 virtual doctor visits for common conditions, prescriptions, and health questions.",
-        longDescription:
-          "Get instant access to healthcare professionals 24/7 through virtual visits. Treat common conditions, get prescriptions, receive mental health support, and get answers to your health questions all from your phone or computer.",
-        inclusions: [
-          "Unlimited Virtual Visits",
-          "24/7 Availability",
-          "Prescription Services",
-          "Mental Health Support",
-          "No Per-Visit Fees",
-        ],
-        exclusions: ["Does not replace emergency care", "Some prescriptions excluded"],
-        eligibilityRules: {
-          minAge: undefined,
-          maxAge: undefined,
-          requiresVerification: false,
-          disclosureText: "Virtual care only.",
-        },
-        activationBehavior: "immediate",
-        pricing: {
-          monthlyCardCents: 1999,
-          monthlyACHCents: 1799,
-          annualCardCents: 19999,
-          annualACHCents: 17999,
-        },
-        metadata: {
-          icon: "📱",
-          bestFor: ["Individuals", "Families"],
-        },
-        isVisible: true,
-        isFeatured: false,
-        order: 3,
       },
     ];
 

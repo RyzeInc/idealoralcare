@@ -5,7 +5,7 @@
  * Manages enrollment wizard state and provides context to all steps
  */
 
-import React, { createContext, useContext, useReducer, ReactNode, useCallback } from "react";
+import React, { createContext, useContext, useReducer, ReactNode, useCallback, useEffect } from "react";
 import {
   EnrollmentWizardState,
   EnrollmentAction,
@@ -149,6 +149,9 @@ function enrollmentReducer(state: EnrollmentWizardState, action: EnrollmentActio
     case "SET_MEMBER_PROFILE_ID":
       return { ...state, memberProfileId: action.payload };
 
+    case "SET_BROKER_CODE":
+      return { ...state, brokerCode: action.payload };
+
     case "UPDATE_PRICING":
       return {
         ...state,
@@ -176,8 +179,25 @@ function enrollmentReducer(state: EnrollmentWizardState, action: EnrollmentActio
 }
 
 // Provider component
-export function EnrollmentProvider({ children }: { children: ReactNode }) {
+export function EnrollmentProvider({
+  children,
+  brokerCode,
+  groupCode,
+}: {
+  children: ReactNode;
+  brokerCode?: string;
+  groupCode?: string;
+}) {
   const [state, dispatch] = useReducer(enrollmentReducer, INITIAL_STATE);
+
+  // Initialize with broker/group codes if provided
+  useEffect(() => {
+    if (brokerCode) {
+      dispatch({ type: "SET_BROKER_CODE", payload: brokerCode });
+    }
+    // TODO: On group code, call Convex to resolve hierarchy and set group context
+    // This will be done in EligibilityStep or in a separate initialization step
+  }, [brokerCode, groupCode]);
 
   const steps: EnrollmentWizardState["currentStep"][] = [
     "eligibility",

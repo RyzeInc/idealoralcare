@@ -1,12 +1,16 @@
 'use client';
 
 import { useEnrollment } from '@/components/enrollment/EnrollmentProvider';
+import { useSiteThemeOptional } from '@/components/providers/SiteThemeProvider';
 import { Check, Download, Share2, Home } from 'lucide-react';
 import Link from 'next/link';
 import styles from './confirmation-page.module.css';
 
 export function ConfirmationPage() {
   const { state } = useEnrollment();
+  const siteTheme = useSiteThemeOptional();
+  const site = siteTheme?.site || state.site;
+  
   const memberProfileId = state.memberProfileId;
   const personalInfo = state.personalInfo;
   const selectedPlans = state.selectedPlans || {};
@@ -16,6 +20,11 @@ export function ConfirmationPage() {
     tax: state.tax,
     total: state.total,
   };
+
+  // Get support contact from site or use defaults
+  const supportEmail = site?.enrollmentDefaults?.supportEmail || 'support@idealhealth.com';
+  const supportPhone = site?.enrollmentDefaults?.supportPhone || '1-844-IDEAL-01';
+  const welcomeMessage = site?.enrollmentDefaults?.welcomeMessage || 'Welcome to Ideal Health';
 
   // Generate mock barcode content (in production, use JsBarcode library)
   const barcodeContent = memberProfileId || 'MBR-2026-00000';
@@ -31,7 +40,7 @@ export function ConfirmationPage() {
           </div>
           <h1 className={styles.title}>Enrollment Complete!</h1>
           <p className={styles.subtitle}>
-            Welcome to Ryze Health. Your membership is now active.
+            {welcomeMessage}. Your membership is now active.
           </p>
         </div>
 
@@ -67,21 +76,16 @@ export function ConfirmationPage() {
         <div className={styles.plansSection}>
           <h2 className={styles.sectionTitle}>Your Plans</h2>
           <div className={styles.plansList}>
-            {Object.entries(selectedPlans || {}).map(([planId, isSelected]) => {
-              if (!isSelected) return null;
-              // Mock plan data (in production, fetch from state/Convex)
-              const planName =
-                planId === 'dental-savings' ? 'Dental Savings Plan' : 'Wellness GLP';
-              const planPrice =
-                planId === 'dental-savings' ? '$29.99' : '$99.99';
+            {Object.entries(selectedPlans || {}).map(([planId, plan]) => {
+              if (!plan) return null;
               return (
                 <div key={planId} className={styles.planItem}>
                   <div className={styles.planCheck}>
                     <Check size={20} />
                   </div>
                   <div>
-                    <h4 className={styles.planName}>{planName}</h4>
-                    <p className={styles.planPrice}>{planPrice}/month</p>
+                    <h4 className={styles.planName}>{plan.name || 'Ideal Health Oral Health Plan'}</h4>
+                    <p className={styles.planPrice}>${(plan.price / 100).toFixed(2)}/{plan.cadence}</p>
                   </div>
                 </div>
               );
@@ -135,7 +139,7 @@ export function ConfirmationPage() {
             <li>
               <span className={styles.stepNumber}>3</span>
               <span>
-                Visit our provider directory to find doctors and specialists near you
+                Visit our provider directory to find dentists and specialists near you
               </span>
             </li>
             <li>
@@ -167,8 +171,8 @@ export function ConfirmationPage() {
         <div className={styles.supportSection}>
           <p>
             Questions? Contact our member support team at{' '}
-            <a href="mailto:support@ryzehealth.com">support@ryzehealth.com</a> or
-            call <a href="tel:1-800-RYZE-100">1-800-RYZE-100</a>
+            <a href={`mailto:${supportEmail}`}>{supportEmail}</a> or
+            call <a href={`tel:${supportPhone.replace(/\D/g, '')}`}>{supportPhone}</a>
           </p>
         </div>
       </div>

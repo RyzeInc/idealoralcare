@@ -24,16 +24,16 @@ export const seedDTCData = mutation({
 
     // Create DTC Site
     const siteId = await ctx.db.insert("sites", {
-      slug: "ryze-health",
-      name: "Ryze Oral Health",
+      slug: "ideal-health",
+      name: "Ideal Health",
       type: "primary",
       branding: {
-        logoUrl: "https://ryzehealth.com/logo.png",
-        primaryColor: "#0066cc",
-        secondaryColor: "#00aa66",
-        accentColor: "#ff6600",
+        logoUrl: "/ideal-health-logo.png",
+        primaryColor: "#1e3a5f",
+        secondaryColor: "#14b8a6",
+        accentColor: "#0ea5e9",
         heroHeadline: "Your Health, Our Mission",
-        heroSubtext: "Affordable, quality dental and wellness coverage",
+        heroSubtext: "Affordable, quality dental care coverage",
       },
       allowedPlanIds: productIds,
       defaultCadence: "monthly",
@@ -48,9 +48,9 @@ export const seedDTCData = mutation({
         collectPhone: true,
         collectEmployeeId: false,
         collectDependents: true,
-        welcomeMessage: "Welcome to Ryze Health!",
-        supportEmail: "support@ryzehealth.com",
-        supportPhone: "1-800-RYZE-123",
+        welcomeMessage: "Welcome to Ideal Health!",
+        supportEmail: "support@idealhealth.com",
+        supportPhone: "1-844-IDEAL-01",
       },
       status: "active",
       createdAt: now,
@@ -101,7 +101,7 @@ export const seedDTCData = mutation({
     // Create a sample member for testing
     const memberId = await ctx.db.insert("memberProfiles", {
       memberId: "MBR-2026-00001",
-      barcode: "RYZ26TEST01",
+      barcode: "IDH26TEST01",
       siteId,
       accountId,
       groupId,

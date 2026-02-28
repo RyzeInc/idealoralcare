@@ -429,6 +429,12 @@ export default defineSchema({
       v.literal("checkout.completed"),
       v.literal("checkout.abandoned"),
       
+      // Enrollment wizard flow
+      v.literal("enrollment.started"),
+      v.literal("enrollment.step_completed"),
+      v.literal("enrollment.completed"),
+      v.literal("enrollment.abandoned"),
+      
       // Payment events (from Stripe webhooks)
       v.literal("payment.succeeded"),
       v.literal("payment.failed"),
@@ -1069,11 +1075,11 @@ export default defineSchema({
   // ELIGIBILITY FILES (Uploaded member lists)
   eligibilityFiles: defineTable({
     siteId: v.id("sites"),
-    accountId: v.id("accounts"),
+    accountId: v.optional(v.id("accounts")),
     groupId: v.id("groups"),
     
     fileName: v.string(),
-    storageId: v.optional(v.id("_storage")),
+    storageId: v.optional(v.string()), // Storage ID from Convex _storage
     fileType: v.union(
       v.literal("csv"),
       v.literal("xlsx"),
@@ -1114,11 +1120,86 @@ export default defineSchema({
     ),
     
     // AUDIT
-    uploadedBy: v.string(), // Clerk user ID
+    uploadedBy: v.optional(v.string()), // Clerk user ID
     uploadedAt: v.number(),
     processedAt: v.optional(v.number()),
     completedAt: v.optional(v.number()),
   })
     .index("by_group", ["groupId"])
     .index("by_status", ["status"]),
+
+  // ============================================
+  // COMMISSION SYSTEM
+  // ============================================
+
+  // COMMISSION RATES (Broker rates and overrides)
+  commissionRates: defineTable({
+    // BROKER IDENTITY
+    brokerId: v.string(), // Clerk user ID
+    agencyId: v.optional(v.string()), // Agency this broker belongs to
+    
+    // RATE CONFIG
+    siteId: v.optional(v.id("sites")), // Optional: site-specific rate
+    ratePercentage: v.number(), // Base rate as decimal (e.g., 0.25 for 25%)
+    overridePercentage: v.optional(v.number()), // Agency-level override per Feb 27 meeting
+    
+    // EFFECTIVE DATES
+    effectiveFrom: v.number(), // Timestamp
+    effectiveTo: v.optional(v.number()), // Timestamp, undefined = ongoing
+    
+    // STATUS
+    status: v.union(
+      v.literal("active"),
+      v.literal("inactive"),
+      v.literal("archived")
+    ),
+    
+    // AUDIT
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    createdBy: v.optional(v.string()), // Clerk user ID of admin who created
+  })
+    .index("by_broker", ["brokerId"])
+    .index("by_agency", ["agencyId"])
+    .index("by_status", ["status"])
+    .index("by_date_range", ["effectiveFrom", "effectiveTo"]),
+
+  // COMMISSION PAYABLES (Detailed commission records owed to brokers)
+  commissionPayables: defineTable({
+    // BROKER IDENTITY
+    brokerId: v.string(), // Clerk user ID
+    agencyId: v.optional(v.string()), // For rollup/reporting
+    
+    // ENROLLMENT REFERENCE
+    enrollmentSessionId: v.optional(v.id("enrollmentSessions")),
+    memberId: v.optional(v.id("memberProfiles")),
+    
+    // RATE APPLIED
+    rateApplied: v.number(), // Base rate as decimal
+    overrideApplied: v.optional(v.number()), // Agency override if any
+    
+    // AMOUNT CALCULATIONS
+    amount: v.number(), // Commission amount in cents
+    period: v.string(), // "2026-03" YYYY-MM format for monthly reconciliation
+    
+    // STATUS
+    status: v.union(
+      v.literal("pending"), // Commission earned, awaiting approval
+      v.literal("approved"), // Approved for payout
+      v.literal("paid"), // Payout processed
+      v.literal("disputed"), // Under dispute/review
+      v.literal("voided") // Canceled (e.g., member cancellation)
+    ),
+    paidAt: v.optional(v.number()), // Timestamp of payout
+    
+    // AUDIT
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    notes: v.optional(v.string()),
+  })
+    .index("by_broker", ["brokerId"])
+    .index("by_agency", ["agencyId"])
+    .index("by_period", ["period"])
+    .index("by_status", ["status"])
+    .index("by_enrollment", ["enrollmentSessionId"]),
 });

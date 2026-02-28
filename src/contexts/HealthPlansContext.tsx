@@ -1,14 +1,18 @@
 /**
- * HEALTH PLANS CONTEXT
+ * HEALTH PLANS CONTEXT - DEPRECATED
  *
- * Global state management for:
- * - Current cart session
- * - Cadence lock
+ * ⚠️ DEPRECATION NOTICE: This context is being phased out in favor of CartProvider.
+ * 
+ * CartProvider (src/lib/health-plans/cart-context.tsx) now manages:
+ * - Cart items
+ * - Cadence selection (monthly/annual)
  * - Payment method selection
- * - Catalog data
- * - Customer entitlements
+ * - Comparison lists
+ * - Persistence (localStorage + Convex sync)
  *
- * Design principle: Context is read-heavy, mutation-driven by events.
+ * Current usage: CartDrawer.tsx - SHOULD BE REFACTORED to use CartProvider
+ *
+ * TODO: Migrate CartDrawer to CartProvider and remove this context entirely.
  */
 
 "use client";

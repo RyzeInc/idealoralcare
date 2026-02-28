@@ -68,15 +68,52 @@ function CheckoutContent() {
   
   // Calculate actual total (subtotal is always card price, then apply ACH discount if applicable)
   const totalDueToday = cart.paymentMethod === "ach" ? achTotal : cardTotal;
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   
   const handleCheckout = async () => {
     if (!isSignedIn || !agreedToTerms || !agreedToNotInsurance) return;
-    
-    setIsProcessing(true);
-    // TODO: Implement Stripe checkout
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsProcessing(false);
-    window.location.href = "/health/dashboard";
+    if (itemCount === 0) return;
+
+    try {
+      setIsProcessing(true);
+      setCheckoutError(null);
+
+      // Get the first item (DTC flow handles single product)
+      const primaryItem = cart.items[0];
+      if (!primaryItem) {
+        throw new Error("No items in cart");
+      }
+
+      // Call Stripe checkout API
+      const response = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planId: primaryItem.product._id,
+          cadence: cart.cadence,
+          paymentMethod: cart.paymentMethod,
+          enrollmentSessionId: "" + Date.now(), // Temporary session ID (will be replaced with real Convex session)
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to create checkout session");
+      }
+
+      const { url } = await response.json();
+      if (!url) {
+        throw new Error("No checkout URL returned");
+      }
+
+      // Redirect to Stripe Checkout
+      window.location.href = url;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Checkout failed";
+      setCheckoutError(message);
+      setIsProcessing(false);
+      console.error("[checkout] Error:", error);
+    }
   };
   
   // Empty cart state
@@ -712,6 +749,21 @@ function CheckoutContent() {
                   </div>
                 </div>
                 
+                {/* Error Display */}
+                {checkoutError && (
+                  <div style={{
+                    marginBottom: "1rem",
+                    padding: "0.75rem 1rem",
+                    background: "#fee2e2",
+                    border: "1px solid #fca5a5",
+                    borderRadius: "0.5rem",
+                    color: "#991b1b",
+                    fontSize: "0.875rem"
+                  }}>
+                    {checkoutError}
+                  </div>
+                )}
+
                 {/* Complete Button */}
                 <button
                   onClick={handleCheckout}

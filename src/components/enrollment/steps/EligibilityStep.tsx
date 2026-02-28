@@ -37,9 +37,9 @@ export function EligibilityStep() {
     try {
       setLoading(true);
       
-      // For Phase 1 DTC, auto-resolve to default site (Ryze Oral Health)
+      // For Phase 1 DTC, auto-resolve to default site (Ideal Health)
       // In Phase 2, we'll add group code resolution
-      const site = await resolveSite({ slug: "ryze-health" });
+      const site = await resolveSite({ slug: "ideal-health" });
 
       if (!site) {
         setLocalError("Unable to resolve site. Please try again.");

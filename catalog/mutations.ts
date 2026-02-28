@@ -4,7 +4,7 @@
  * Mutations for managing the product catalog
  */
 
-import { mutation } from "../_generated/server";
+import { mutation } from "../convex/_generated/server";
 import { v } from "convex/values";
 
 // Seed initial catalog data

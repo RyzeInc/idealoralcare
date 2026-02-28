@@ -5,12 +5,15 @@
  * 
  * Rebuilt to match existing /health design system
  * Uses health.css classes for consistent glassmorphism
+ * Fetches products from Convex catalog
  */
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ShoppingCart, Check, ArrowRight, Sparkles } from "lucide-react";
+import { ShoppingCart, Check, ArrowRight, Sparkles, Loader } from "lucide-react";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import HealthHeader from "@/components/health/HealthHeader";
 import { CartProvider, useCart } from "@/lib/health-plans";
 import { formatPrice, getPrice } from "@/lib/health-plans/types";
@@ -50,97 +53,7 @@ interface CatalogProduct {
   order: number;
 }
 
-// Mock catalog products
-const MOCK_PRODUCTS: CatalogProduct[] = [
-  {
-    _id: "dental-savings-1",
-    slug: "dental-savings",
-    name: "Oral Health Savings Plan",
-    category: "dental",
-    description: "Toothlens AI oral scanning, teledentistry consultations, and access to our nationwide provider network with discount offerings.",
-    inclusions: [
-      "AI-Powered Oral Scanning",
-      "24/7 Teledentistry Access",
-      "Nationwide Provider Network",
-      "Discount Procedures",
-      "Emergency Support",
-    ],
-    exclusions: ["Discounts only", "No claims processing"],
-    eligibilityRules: { requiresVerification: false, disclosureText: "Discount program." },
-    activationBehavior: "immediate",
-    pricing: { monthlyCardCents: 2999, monthlyACHCents: 2799, annualCardCents: 29999, annualACHCents: 27999 },
-    metadata: { icon: "🦷", bestFor: ["Individuals", "Families"], image: "/health-assets/smilescan_1086x1024.jpg" },
-    isVisible: true,
-    isFeatured: true,
-    order: 0,
-  },
-  {
-    _id: "wellness-glp-1",
-    slug: "wellness-glp",
-    name: "Wellness GLP Plan",
-    category: "wellness",
-    description: "24/7/365 clinical support, GLP-1 and weight management medications, personalized treatment plans, and nutrition coaching.",
-    inclusions: [
-      "24/7/365 Clinical Support",
-      "GLP-1 Medications",
-      "Personalized Treatment",
-      "Nutrition Coaching",
-      "Lab Testing & Monitoring",
-    ],
-    exclusions: ["Requires health assessment", "Medication costs separate"],
-    eligibilityRules: { requiresVerification: true, disclosureText: "Requires health assessment." },
-    activationBehavior: "verified_then_immediate",
-    pricing: { monthlyCardCents: 9999, monthlyACHCents: 9799, annualCardCents: 99999, annualACHCents: 97999 },
-    metadata: { icon: "💊", bestFor: ["Weight Management", "Wellness"], image: "/health-assets/oral-health_1086x1024.jpg" },
-    isVisible: true,
-    isFeatured: true,
-    order: 1,
-  },
-  {
-    _id: "vision-care-1",
-    slug: "vision-care",
-    name: "Vision Care Plus",
-    category: "vision",
-    description: "Discounts on eye exams, glasses, contacts, and LASIK procedures at participating providers nationwide.",
-    inclusions: [
-      "40-50% Off Eye Exams",
-      "20-60% Off Frames & Lenses",
-      "Contact Lens Discounts",
-      "LASIK Savings",
-      "Online Retailer Discounts",
-    ],
-    exclusions: ["Discounts vary by provider", "No claims processing"],
-    eligibilityRules: { requiresVerification: false, disclosureText: "Discount program." },
-    activationBehavior: "immediate",
-    pricing: { monthlyCardCents: 1499, monthlyACHCents: 1299, annualCardCents: 14999, annualACHCents: 12999 },
-    metadata: { icon: "👁️", bestFor: ["Individuals", "Families"], image: "/health-assets/talk-live_1086x1024.jpg" },
-    isVisible: true,
-    isFeatured: false,
-    order: 2,
-  },
-  {
-    _id: "telehealth-1",
-    slug: "telehealth-unlimited",
-    name: "Telehealth Unlimited",
-    category: "telehealth",
-    description: "Unlimited 24/7 virtual doctor visits for common conditions, prescriptions, and health questions.",
-    inclusions: [
-      "Unlimited Virtual Visits",
-      "24/7 Availability",
-      "Prescription Services",
-      "Mental Health Support",
-      "No Per-Visit Fees",
-    ],
-    exclusions: ["Does not replace emergency care", "Some prescriptions excluded"],
-    eligibilityRules: { requiresVerification: false, disclosureText: "Virtual care only." },
-    activationBehavior: "immediate",
-    pricing: { monthlyCardCents: 1999, monthlyACHCents: 1799, annualCardCents: 19999, annualACHCents: 17999 },
-    metadata: { icon: "📱", bestFor: ["Individuals", "Families"], image: "/health-assets/talk-live_1086x1024.jpg" },
-    isVisible: true,
-    isFeatured: false,
-    order: 3,
-  },
-];
+// Products are now fetched from Convex: api.catalog.queries.list
 
 const CATEGORIES = [
   { slug: "all", name: "All Plans" },
@@ -485,10 +398,15 @@ function PlansContent() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const { itemCount } = useCart();
   
+  // Fetch products from Convex catalog
+  const products = useQuery(api.catalog.queries.list, {});
+  const isLoading = products === undefined;
+  
   const filteredProducts = useMemo(() => {
-    if (selectedCategory === "all") return MOCK_PRODUCTS;
-    return MOCK_PRODUCTS.filter((p) => p.category === selectedCategory);
-  }, [selectedCategory]);
+    if (!products) return [];
+    if (selectedCategory === "all") return products;
+    return products.filter((p: any) => p.category === selectedCategory);
+  }, [products, selectedCategory]);
 
   return (
     <div className="health-landing">
@@ -563,9 +481,32 @@ function PlansContent() {
           }}>
             {/* Plan Cards Grid */}
             <div className="related-posts__grid" style={{ marginBottom: 0 }}>
-              {filteredProducts.map((product) => (
-                <PlanCard key={product._id} product={product} />
-              ))}
+              {isLoading ? (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: '400px',
+                  color: 'var(--text-muted)'
+                }}>
+                  <Loader size={24} style={{ marginRight: '12px', animation: 'spin 1s linear infinite' }} />
+                  Loading plans...
+                </div>
+              ) : filteredProducts.length === 0 ? (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: '200px',
+                  color: 'var(--text-muted)'
+                }}>
+                  No plans available in this category.
+                </div>
+              ) : (
+                filteredProducts.map((product: CatalogProduct) => (
+                  <PlanCard key={product._id} product={product} />
+                ))
+              )}
             </div>
             
             {/* Sticky Cart */}
