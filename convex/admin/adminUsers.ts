@@ -57,7 +57,7 @@ export const getBrokersByDepartment = query({
     // Public query - fetch all users with broker department
     const allAdmins = await ctx.db.query("adminUsers").collect();
     return allAdmins.filter((admin) =>
-      admin.departments.includes("broker")
+      admin.departments?.includes("broker") ?? false
     );
   },
 });
