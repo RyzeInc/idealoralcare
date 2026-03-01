@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { requireAdmin } from "./lib/authGuards";
 
 // Submit a new contact form
 export const submitContactForm = mutation({
@@ -25,6 +26,9 @@ export const getContactSubmissions = query({
     status: v.optional(v.union(v.literal("new"), v.literal("read"), v.literal("replied"))),
   },
   handler: async (ctx, args) => {
+    // Admin-only access
+    await requireAdmin(ctx);
+    
     if (args.status) {
       return await ctx.db
         .query("contactSubmissions")
@@ -46,6 +50,9 @@ export const updateContactStatus = mutation({
     status: v.union(v.literal("new"), v.literal("read"), v.literal("replied")),
   },
   handler: async (ctx, args) => {
+    // Admin-only access
+    await requireAdmin(ctx);
+    
     await ctx.db.patch(args.id, { status: args.status });
   },
 });

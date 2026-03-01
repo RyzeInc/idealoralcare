@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Eye, Edit, Trash2, Filter } from 'lucide-react';
+import { Search, Eye, Edit, Trash2 } from 'lucide-react';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 
@@ -31,7 +31,8 @@ export default function MembersAdmin() {
   const members = useQuery(api.admin.members.getAllMembers) || [];
 
   const filteredMembers = members.filter((member: any) => {
-    const matchesSearch = (member.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const memberName = `${member.firstName || ''} ${member.lastName || ''}`.toLowerCase();
+    const matchesSearch = memberName.includes(searchQuery.toLowerCase()) ||
       (member.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (member.memberId || '').includes(searchQuery);
 

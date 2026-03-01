@@ -1,5 +1,7 @@
 import { action, query, mutation } from "../_generated/server";
 import { v } from "convex/values";
+import { api } from "../_generated/api";
+import { requireAdmin, requireAdminAction } from "../lib/authGuards";
 
 /**
  * S/FTP DELIVERY SYSTEM
@@ -21,6 +23,7 @@ export const deliverVendorFileViaSftp = action({
     groupCode: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     // Placeholder for SFTP implementation
     // In production, use ssh2-sftp-client library with environment credentials
 
@@ -88,6 +91,7 @@ export const recordSftpDelivery = mutation({
     errorMessage: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     // Create delivery history record
     // Note: may need to add sftpDeliveryHistory table to schema
     return {
@@ -130,8 +134,8 @@ export const getFileForDownload = action({
     vendor: v.string(), // "careington" | "dialcare"
   },
   handler: async (ctx, args) => {
+    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     // Call vendor file generator to get content
-    const api = (ctx as any).runAction;
     let fileData;
 
     if (args.vendor === "careington") {

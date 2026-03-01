@@ -1,6 +1,7 @@
 import { action } from "../_generated/server";
 import { v } from "convex/values";
 import { api } from "../_generated/api";
+import { requireAdminAction } from "../lib/authGuards";
 
 /**
  * MEMBER ID CARD GENERATION
@@ -21,6 +22,7 @@ export const generateMemberIdCardPdf: any = action({
     memberId: v.id("memberProfiles"),
   },
   handler: async (ctx, args) => {
+    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const memberDetail = await ctx.runQuery(api.admin.members.getMemberDetail, { memberId: args.memberId });
     if (!memberDetail) throw new Error("Member not found");
     const member = memberDetail.member;
@@ -105,6 +107,7 @@ export const getMemberCardData: any = action({
     memberId: v.id("memberProfiles"),
   },
   handler: async (ctx, args) => {
+    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const memberDetail = await ctx.runQuery(api.admin.members.getMemberDetail, { memberId: args.memberId });
     if (!memberDetail) throw new Error("Member not found");
     const member = memberDetail.member;

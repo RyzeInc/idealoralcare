@@ -1,5 +1,6 @@
 import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
+import { requireAdmin } from "../lib/authGuards";
 
 // Get all navigation items (for admin)
 export const getAll = query({
@@ -30,6 +31,7 @@ export const create = mutation({
     isVisible: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     let order = args.order;
     if (order === undefined) {
       const allItems = await ctx.db.query("navigationItems").collect();
@@ -56,6 +58,7 @@ export const update = mutation({
     isVisible: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const { id, ...updates } = args;
 
     const cleanUpdates: Record<string, unknown> = { updatedAt: Date.now() };
@@ -73,6 +76,7 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("navigationItems") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     await ctx.db.delete(args.id);
   },
 });
@@ -81,6 +85,7 @@ export const remove = mutation({
 export const toggleVisibility = mutation({
   args: { id: v.id("navigationItems") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const item = await ctx.db.get(args.id);
     if (item) {
       await ctx.db.patch(args.id, {
@@ -97,6 +102,7 @@ export const reorder = mutation({
     orderedIds: v.array(v.id("navigationItems")),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     for (let i = 0; i < args.orderedIds.length; i++) {
       await ctx.db.patch(args.orderedIds[i], {
         order: i,

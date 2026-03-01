@@ -181,6 +181,13 @@ export interface EnrollmentWizardState {
   account?: AccountContext;
   group?: GroupContext;
   brokerCode?: string; // Broker/agent attribution
+  selectedBroker?: {
+    _id: string;
+    name: string;
+    email: string;
+    phone?: string;
+    clerkUserId: string;
+  }; // Selected broker for broker flows
   resolvedConfig?: EnrollmentConfig;
   
   // Pricing
@@ -220,6 +227,7 @@ export type EnrollmentAction =
   | { type: "ADD_SIGNED_WAIVER"; payload: string } // Document ID
   | { type: "SET_MEMBER_PROFILE_ID"; payload: string }
   | { type: "SET_BROKER_CODE"; payload: string }
+  | { type: "SET_SELECTED_BROKER"; payload: { _id: string; name: string; email: string; phone?: string; clerkUserId: string } }
   | { type: "SET_FLOW_TYPE"; payload: string }
   | { type: "UPDATE_PRICING"; payload: { subtotal: number; discount: number; tax: number; total: number } }
   | { type: "SET_ERROR"; payload: string }

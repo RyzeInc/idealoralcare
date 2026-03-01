@@ -1,6 +1,7 @@
 import { mutation, query, action } from "../_generated/server";
 import { v } from "convex/values";
 import { api } from "../_generated/api";
+import { requireAdmin, requireAdminAction } from "../lib/authGuards";
 
 /**
  * ELIGIBILITY FILE PROCESSING
@@ -35,6 +36,7 @@ export const uploadEligibilityFile = mutation({
     uploadedBy: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const fileId = await ctx.db.insert("eligibilityFiles", {
       siteId: args.siteId,
       accountId: args.accountId,
@@ -184,6 +186,7 @@ export const processEligibilityFile = action({
     fileId: v.id("eligibilityFiles"),
   },
   handler: async (ctx, args) => {
+    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const file = await ctx.runQuery(api.admin.eligibility.getEligibilityFileDetail, { fileId: args.fileId });
     if (!file) throw new Error("File not found");
 
@@ -234,6 +237,7 @@ export const updateFileStatus = mutation({
     status: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const file = await ctx.db.get(args.fileId);
     if (!file) throw new Error("File not found");
 
@@ -261,6 +265,7 @@ export const addFileError = mutation({
     message: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const file = await ctx.db.get(args.fileId);
     if (!file) throw new Error("File not found");
 
@@ -298,6 +303,7 @@ export const createMembersFromEligibilityFile = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const file = await ctx.db.get(args.fileId);
     if (!file) throw new Error("File not found");
 
@@ -420,6 +426,7 @@ export const completeFileProcessing = mutation({
     newMembers: v.number(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const file = await ctx.db.get(args.fileId);
     if (!file) throw new Error("File not found");
 
@@ -458,6 +465,7 @@ export const completeFileProcessing = mutation({
 export const deleteEligibilityFile = mutation({
   args: { fileId: v.id("eligibilityFiles") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const file = await ctx.db.get(args.fileId);
     if (!file) throw new Error("File not found");
 

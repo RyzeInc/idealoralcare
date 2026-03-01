@@ -1,5 +1,6 @@
 import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
+import { requireAdmin } from "../lib/authGuards";
 
 /**
  * ADMIN HIERARCHY MANAGEMENT
@@ -24,6 +25,7 @@ export const createSite = mutation({
     status: v.optional(v.union(v.literal("active"), v.literal("suspended"), v.literal("onboarding"), v.literal("terminated"))),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const existingSite = await ctx.db
       .query("sites")
       .filter((q) => q.eq(q.field("slug"), args.slug))
@@ -63,6 +65,7 @@ export const updateSite = mutation({
     status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const site = await ctx.db.get(args.siteId);
     if (!site) throw new Error("Site not found");
 
@@ -86,6 +89,7 @@ export const updateSite = mutation({
 
 export const getSites = query({
   handler: async (ctx) => {
+    // Public query - access control at page level (/admin layout verifies admin role)
     return await ctx.db.query("sites").order("asc").collect();
   },
 });
@@ -93,6 +97,7 @@ export const getSites = query({
 export const getSiteById = query({
   args: { siteId: v.id("sites") },
   handler: async (ctx, args) => {
+    // Public query - access control at page level
     return await ctx.db.get(args.siteId);
   },
 });
@@ -100,6 +105,7 @@ export const getSiteById = query({
 export const getSiteBySlug = query({
   args: { slug: v.string() },
   handler: async (ctx, args) => {
+    // Public query - access control at page level
     return await ctx.db
       .query("sites")
       .filter((q) => q.eq(q.field("slug"), args.slug))
@@ -110,6 +116,7 @@ export const getSiteBySlug = query({
 export const removeSite = mutation({
   args: { siteId: v.id("sites") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const site = await ctx.db.get(args.siteId);
     if (!site) throw new Error("Site not found");
 
@@ -134,6 +141,7 @@ export const createAccount = mutation({
     status: v.optional(v.union(v.literal("active"), v.literal("suspended"), v.literal("onboarding"), v.literal("terminated"))),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const site = await ctx.db.get(args.siteId);
     if (!site) throw new Error("Site not found");
 
@@ -181,6 +189,7 @@ export const updateAccount = mutation({
     status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const account = await ctx.db.get(args.accountId);
     if (!account) throw new Error("Account not found");
 
@@ -204,6 +213,7 @@ export const updateAccount = mutation({
 export const getAccountsBySite = query({
   args: { siteId: v.id("sites") },
   handler: async (ctx, args) => {
+    // Public query - access control at page level
     return await ctx.db
       .query("accounts")
       .filter((q) => q.eq(q.field("siteId"), args.siteId))
@@ -215,6 +225,7 @@ export const getAccountsBySite = query({
 export const getAccountById = query({
   args: { accountId: v.id("accounts") },
   handler: async (ctx, args) => {
+    // Public query - access control at page level
     return await ctx.db.get(args.accountId);
   },
 });
@@ -222,6 +233,7 @@ export const getAccountById = query({
 export const getAccountBySlug = query({
   args: { siteId: v.id("sites"), slug: v.string() },
   handler: async (ctx, args) => {
+    // Public query - access control at page level
     return await ctx.db
       .query("accounts")
       .filter(
@@ -238,6 +250,7 @@ export const getAccountBySlug = query({
 export const removeAccount = mutation({
   args: { accountId: v.id("accounts") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const account = await ctx.db.get(args.accountId);
     if (!account) throw new Error("Account not found");
 
@@ -263,6 +276,7 @@ export const createGroup = mutation({
     status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const site = await ctx.db.get(args.siteId);
     if (!site) throw new Error("Site not found");
 
@@ -312,6 +326,7 @@ export const updateGroup = mutation({
     status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const group = await ctx.db.get(args.groupId);
     if (!group) throw new Error("Group not found");
 
@@ -335,6 +350,7 @@ export const updateGroup = mutation({
 export const getGroupsByAccount = query({
   args: { accountId: v.id("accounts") },
   handler: async (ctx, args) => {
+    // Public query - access control at page level
     return await ctx.db
       .query("groups")
       .filter((q) => q.eq(q.field("accountId"), args.accountId))
@@ -346,6 +362,7 @@ export const getGroupsByAccount = query({
 export const getGroupById = query({
   args: { groupId: v.id("groups") },
   handler: async (ctx, args) => {
+    // Public query - access control at page level
     return await ctx.db.get(args.groupId);
   },
 });
@@ -353,6 +370,7 @@ export const getGroupById = query({
 export const getGroupByCode = query({
   args: { groupCode: v.string() },
   handler: async (ctx, args) => {
+    // Public query - access control at page level
     return await ctx.db
       .query("groups")
       .filter((q) => q.eq(q.field("groupCode"), args.groupCode))
@@ -363,6 +381,7 @@ export const getGroupByCode = query({
 export const removeGroup = mutation({
   args: { groupId: v.id("groups") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const group = await ctx.db.get(args.groupId);
     if (!group) throw new Error("Group not found");
 
@@ -387,6 +406,7 @@ export const setCustomPricing = mutation({
     achPrice: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     let target;
     let targetTable;
 
@@ -440,6 +460,7 @@ export const setAllowedPlanIds = mutation({
     planIds: v.array(v.id("catalogProducts")),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     let target;
     let targetTable;
 
@@ -476,6 +497,7 @@ export const setGroupCapacity = mutation({
     maxMembers: v.number(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const group = await ctx.db.get(args.groupId);
     if (!group) throw new Error("Group not found");
 
@@ -494,6 +516,7 @@ export const setGroupCapacity = mutation({
 export const getGroupMemberCount = query({
   args: { groupId: v.id("groups") },
   handler: async (ctx, args) => {
+    // Public query - access control at page level
     const members = await ctx.db
       .query("memberProfiles")
       .filter((q) => q.eq(q.field("groupId"), args.groupId))

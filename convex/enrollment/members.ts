@@ -1,6 +1,7 @@
-import { mutation, query } from "../_generated/server";
+import { mutation, query, internalMutation } from "../_generated/server";
 import { MutationCtx, QueryCtx } from "../_generated/server";
 import { v } from "convex/values";
+import { requireAuth, requireAdmin, requireSelf } from "../lib/authGuards";
 
 /**
  * Member Profile Management
@@ -100,6 +101,9 @@ export const createMemberProfile = mutation({
     externalMemberId: v.optional(v.string()),
   },
   handler: async (ctx: MutationCtx, args: any) => {
+    // Authenticated users can create member profiles
+    await requireAuth(ctx);
+    
     // Generate unique member ID and barcode
     const memberCount = await ctx.db
       .query("memberProfiles")
@@ -158,6 +162,182 @@ export const createMemberProfile = mutation({
 });
 
 /**
+ * Internal mutation: Create a new member profile (for webhooks, background jobs)
+ * Called during enrollment without requiring authentication
+ */
+export const internalCreateMemberProfile = internalMutation({
+  args: {
+    siteId: v.id("sites"),
+    accountId: v.id("accounts"),
+    groupId: v.id("groups"),
+    firstName: v.string(),
+    lastName: v.string(),
+    email: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    dateOfBirth: v.optional(v.string()),
+    gender: v.optional(
+      v.union(
+        v.literal("male"),
+        v.literal("female"),
+        v.literal("non_binary"),
+        v.literal("prefer_not_to_say"),
+        v.literal("other")
+      )
+    ),
+    address: v.optional(v.any()),
+    dependents: v.optional(v.any()),
+    memberType: v.union(
+      v.literal("lead"),
+      v.literal("eligible"),
+      v.literal("enrolling"),
+      v.literal("active")
+    ),
+    leadType: v.optional(v.string()),
+    signupSource: v.optional(v.string()),
+    enrollmentSessionId: v.optional(v.id("enrollmentSessions")),
+    groupMemberId: v.optional(v.string()),
+    externalMemberId: v.optional(v.string()),
+  },
+  handler: async (ctx: MutationCtx, args: any) => {
+    // Generate unique member ID and barcode
+    const memberCount = await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_site", (q: any) => q.eq("siteId", args.siteId))
+      .collect();
+
+    const memberId = generateMemberId(memberCount.length + 1);
+    const barcode = generateBarcode("default");
+
+    const now = Date.now();
+
+    const profile = await ctx.db.insert("memberProfiles", {
+      memberId,
+      barcode,
+      siteId: args.siteId,
+      accountId: args.accountId,
+      groupId: args.groupId,
+      firstName: args.firstName,
+      lastName: args.lastName,
+      email: args.email,
+      phone: args.phone,
+      dateOfBirth: args.dateOfBirth,
+      gender: args.gender,
+      address: args.address,
+      dependents: args.dependents,
+      memberType: args.memberType,
+      leadType: args.leadType,
+      signupSource: args.signupSource,
+      enrollmentSessionId: args.enrollmentSessionId,
+      groupMemberId: args.groupMemberId,
+      externalMemberId: args.externalMemberId,
+      status: "active",
+      communicationPrefs: {
+        emailOptIn: true,
+        smsOptIn: true,
+        callOptIn: true,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Log activity
+    await ctx.db.insert("memberActivities", {
+      memberProfileId: profile,
+      siteId: args.siteId,
+      groupId: args.groupId,
+      activityType: "lead_created",
+      title: "Lead created",
+      description: `New ${args.memberType} added to system`,
+      actorType: "system",
+      createdAt: now,
+    });
+
+    return profile;
+  },
+});
+
+/**
+ * Webhook wrapper: Create member profile from webhook
+ * Public mutation that implements internalCreateMemberProfile logic without auth
+ */
+export const webhookCreateMemberProfile = mutation({
+  args: {
+    siteId: v.id("sites"),
+    accountId: v.id("accounts"),
+    groupId: v.id("groups"),
+    firstName: v.string(),
+    lastName: v.string(),
+    email: v.string(),
+    memberType: v.union(
+      v.literal("lead"),
+      v.literal("eligible"),
+      v.literal("enrolling"),
+      v.literal("active"),
+      v.literal("inactive"),
+      v.literal("terminated"),
+      v.literal("declined")
+    ),
+    signupSource: v.optional(v.string()),
+    groupMemberId: v.optional(v.string()),
+    externalMemberId: v.optional(v.string()),
+    enrollmentSessionId: v.optional(v.id("enrollmentSessions")),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+
+    // Generate unique member ID and barcode
+    const memberCount = await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_site", (q: any) => q.eq("siteId", args.siteId))
+      .collect();
+    const memberId = generateMemberId(memberCount.length + 1);
+    const barcode = generateBarcode("default");
+
+    const profile = await ctx.db.insert("memberProfiles", {
+      memberId,
+      barcode,
+      siteId: args.siteId,
+      accountId: args.accountId,
+      groupId: args.groupId,
+      firstName: args.firstName,
+      lastName: args.lastName,
+      email: args.email,
+      phone: "",
+      dateOfBirth: "",
+      address: { line1: "", city: "", state: "", postalCode: "", country: "" },
+      dependents: [],
+      memberType: args.memberType,
+      signupSource: args.signupSource,
+      groupMemberId: args.groupMemberId,
+      externalMemberId: args.externalMemberId,
+      enrollmentSessionId: args.enrollmentSessionId,
+      status: "active",
+      communicationPrefs: {
+        emailOptIn: true,
+        smsOptIn: true,
+        callOptIn: true,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Log activity
+    await ctx.db.insert("memberActivities", {
+      memberProfileId: profile,
+      siteId: args.siteId,
+      groupId: args.groupId,
+      activityType: "lead_created",
+      title: "Lead created",
+      description: `New ${args.memberType} added to system`,
+      actorType: "system",
+      createdAt: now,
+    });
+
+    return profile;
+  },
+});
+
+/**
  * Update member profile
  */
 export const updateMemberProfile = mutation({
@@ -187,6 +367,17 @@ export const updateMemberProfile = mutation({
     const profile = await ctx.db.get(args.memberId);
     if (!profile) {
       throw new Error("Member profile not found");
+    }
+
+    // User can update their own profile or admins can update any
+    const identity = await requireAuth(ctx);
+    
+    // Check if user owns this profile (by Clerk ID match)
+    const isOwner = (profile as any).clerkUserId === identity.clerkUserId;
+    
+    if (!isOwner) {
+      // If not owner, must be admin
+      await requireAdmin(ctx);
     }
 
     const updates: any = { updatedAt: Date.now() };
@@ -252,6 +443,9 @@ export const linkMemberToClerk = mutation({
 export const getMemberProfile = query({
   args: { memberId: v.id("memberProfiles") },
   handler: async (ctx: QueryCtx, args: any) => {
+    // Authenticated users can view member profiles
+    await requireAuth(ctx);
+    
     return await ctx.db.get(args.memberId);
   },
 });
@@ -262,6 +456,9 @@ export const getMemberProfile = query({
 export const getMemberByMemberId = query({
   args: { memberId: v.string() },
   handler: async (ctx: QueryCtx, args: any) => {
+    // Authenticated users can view member profiles
+    await requireAuth(ctx);
+    
     return await ctx.db
       .query("memberProfiles")
       .withIndex("by_member_id", (q: any) => q.eq("memberId", args.memberId))
@@ -309,6 +506,9 @@ export const getMembersByStatus = query({
 export const getMemberByClerkId = query({
   args: { clerkUserId: v.string() },
   handler: async (ctx: QueryCtx, args: any) => {
+    // Authenticated users can view member profiles
+    await requireAuth(ctx);
+    
     return await ctx.db
       .query("memberProfiles")
       .withIndex("by_customer", (q: any) => q.eq("customerId", args.clerkUserId))
@@ -370,6 +570,132 @@ export const getMemberActivities = query({
       .take(args.limit || 50);
 
     return activities;
+  },
+});
+
+/**
+ * Create a lead from admin enrollment launcher
+ * Called when a salesperson/broker starts enrolling a new client
+ * Sets assignedStaffId to link the lead to the enrolling broker
+ */
+export const createLeadFromAdmin = mutation({
+  args: {
+    siteId: v.id("sites"),
+    accountId: v.id("accounts"),
+    groupId: v.id("groups"),
+    firstName: v.string(),
+    lastName: v.string(),
+    email: v.string(),
+    phone: v.string(),
+    assignedStaffClerkId: v.string(), // Clerk user ID of the enrolling agent
+    assignedStaffName: v.string(), // Display name of the enrolling agent
+    enrollmentType: v.optional(
+      v.union(
+        v.literal("individual"),
+        v.literal("group_member"),
+        v.literal("group_employer")
+      )
+    ),
+  },
+  handler: async (ctx: MutationCtx, args: any) => {
+    const now = Date.now();
+
+    // Look up the admin user by their Clerk ID to get their Convex ID
+    const adminUser = await ctx.db
+      .query("adminUsers")
+      .withIndex("by_clerk_id", (q: any) => q.eq("clerkUserId", args.assignedStaffClerkId))
+      .first();
+
+    if (!adminUser) {
+      throw new Error("Admin user not found");
+    }
+
+    // Generate unique member ID and barcode
+    const memberCount = await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_site", (q: any) => q.eq("siteId", args.siteId))
+      .collect();
+    const memberId = generateMemberId(memberCount.length + 1);
+    const barcode = generateBarcode("default");
+
+    const profile = await ctx.db.insert("memberProfiles", {
+      memberId,
+      barcode,
+      siteId: args.siteId,
+      accountId: args.accountId,
+      groupId: args.groupId,
+      firstName: args.firstName,
+      lastName: args.lastName,
+      email: args.email,
+      phone: args.phone,
+      dateOfBirth: "",
+      gender: undefined,
+      address: { line1: "", city: "", state: "", postalCode: "", country: "" },
+      dependents: [],
+      memberType: "lead",
+      leadType: "partner",
+      signupSource: "admin_enrollment",
+      status: "active",
+      assignedStaffId: adminUser._id,
+      assignedStaffName: args.assignedStaffName,
+      assignedAt: now,
+      communicationPrefs: {
+        emailOptIn: true,
+        smsOptIn: true,
+        callOptIn: true,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Log activity
+    await ctx.db.insert("memberActivities", {
+      memberProfileId: profile,
+      siteId: args.siteId,
+      groupId: args.groupId,
+      activityType: "lead_created",
+      title: "Lead created by staff",
+      description: `Lead created by ${args.assignedStaffName} via admin enrollment`,
+      actorType: "staff",
+      actorId: args.assignedStaffClerkId,
+      actorName: args.assignedStaffName,
+      createdAt: now,
+    });
+
+    // Return both the Convex record ID and the human-readable member ID
+    return {
+      _id: profile,
+      memberId,
+    };
+  },
+});
+
+/**
+ * Get lead by member ID string
+ * Used to fetch pre-filled lead data when enrollment page opens with ?lead= param
+ */
+export const getLeadByMemberId = query({
+  args: { memberId: v.string() },
+  handler: async (ctx: QueryCtx, args: any) => {
+    const lead = await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_member_id", (q: any) => q.eq("memberId", args.memberId))
+      .first();
+
+    if (!lead) {
+      return null;
+    }
+
+    // Return only the fields needed for pre-population in the PersonalInfoStep
+    return {
+      _id: lead._id,
+      memberId: lead.memberId,
+      firstName: lead.firstName,
+      lastName: lead.lastName,
+      email: lead.email,
+      phone: lead.phone,
+      assignedStaffName: lead.assignedStaffName,
+    };
   },
 });
 

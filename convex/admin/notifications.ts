@@ -1,6 +1,7 @@
 import { action } from "../_generated/server";
 import { v } from "convex/values";
 import { api } from "../_generated/api";
+import { requireAdminAction } from "../lib/authGuards";
 
 /**
  * EMAIL NOTIFICATION SYSTEM
@@ -66,6 +67,7 @@ export const sendWelcomeEmail = action({
     memberId: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const html = `
       <html>
         <body style="font-family: Arial, sans-serif; color: #333;">
@@ -118,6 +120,7 @@ export const sendPaymentReceiptEmail = action({
     transactionId: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const html = `
       <html>
         <body style="font-family: Arial, sans-serif; color: #333;">
@@ -179,6 +182,7 @@ export const sendMemberIdCardEmail = action({
     memberId: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const html = `
       <html>
         <body style="font-family: Arial, sans-serif; color: #333;">
@@ -221,6 +225,7 @@ export const sendEligibilityReminderEmail = action({
     adminName: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 5); // 5 days from now (roughly 1st of next month)
 
@@ -269,6 +274,7 @@ export const sendTestEmail = action({
     email: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const html = `
       <html>
         <body style="font-family: Arial, sans-serif; color: #333;">

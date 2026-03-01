@@ -1,6 +1,7 @@
 import { action, query, mutation } from "../_generated/server";
 import { v } from "convex/values";
 import { api } from "../_generated/api";
+import { requireAdmin, requireAdminAction } from "../lib/authGuards";
 
 /**
  * VENDOR FILE GENERATION
@@ -52,6 +53,7 @@ export const generateDentalDiscountNetworkFile: any = action({
     groupId: v.id("groups"),
   },
   handler: async (ctx, args) => {
+    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const group = await ctx.runQuery(api.admin.hierarchy.getGroupById, { groupId: args.groupId });
     if (!group) throw new Error("Group not found");
 
@@ -88,6 +90,7 @@ export const generateDialCareFile: any = action({
     groupId: v.id("groups"),
   },
   handler: async (ctx, args) => {
+    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const group = await ctx.runQuery(api.admin.hierarchy.getGroupById, { groupId: args.groupId });
     if (!group) throw new Error("Group not found");
 
@@ -124,6 +127,7 @@ export const generateVendorFile: any = action({
     vendor: v.string(), // "careington" | "dialcare"
   },
   handler: async (ctx, args) => {
+    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const group = await ctx.runQuery(api.admin.hierarchy.getGroupById, { groupId: args.groupId });
     if (!group) throw new Error("Group not found");
 
@@ -180,6 +184,7 @@ export const recordVendorFileGeneration = mutation({
     memberCount: v.number(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     // Create a record for audit trail
     // Note: actual file content is stored in Convex _storage or returned to caller
     return {

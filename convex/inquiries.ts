@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { requireAdmin } from "./lib/authGuards";
 
 // Submit a new inquiry (partnership, investment, careers, or other)
 export const submitInquiry = mutation({
@@ -55,6 +56,9 @@ export const getInquiries = query({
     )),
   },
   handler: async (ctx, args) => {
+    // Admin-only access
+    await requireAdmin(ctx);
+    
     const inquiriesQuery = ctx.db.query("inquiries");
     
     if (args.type) {
@@ -87,6 +91,9 @@ export const updateInquiryStatus = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    // Admin-only access
+    await requireAdmin(ctx);
+    
     await ctx.db.patch(args.id, { status: args.status });
   },
 });

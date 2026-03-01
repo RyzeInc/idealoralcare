@@ -3,7 +3,10 @@ import Stripe from "stripe";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
+if (!process.env.STRIPE_SECRET_KEY) {
+  throw new Error("STRIPE_SECRET_KEY environment variable is required");
+}
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 /**
  * POST /api/stripe/webhook
@@ -58,7 +61,7 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ received: true });
         }
 
-        const { clerkUserId, enrollmentSessionId, brokerCode } = metadata;
+        const { clerkUserId, enrollmentSessionId, brokerCode, brokerClerkUserId } = metadata;
 
         try {
           // Fetch enrollment session to get site/account/group context
@@ -86,7 +89,7 @@ export async function POST(req: NextRequest) {
 
           // 1. Create member profile (linked to enrollment session)
           const memberProfileId = await convex.mutation(
-            api.enrollment.members.createMemberProfile,
+            api.enrollment.members.webhookCreateMemberProfile,
             {
               siteId: enrollmentSession.siteId,
               accountId: enrollmentSession.accountId,
@@ -101,7 +104,7 @@ export async function POST(req: NextRequest) {
           );
 
           // 2. Create subscription bundle
-          const bundleId = await convex.mutation(api.subscriptions.mutations.createBundle, {
+          const bundleId = await convex.mutation(api.subscriptions.mutations.webhookCreateBundle, {
             customerId: clerkUserId,
             cadence,
             paymentMethod: paymentMethod as "card" | "ach",
@@ -120,7 +123,7 @@ export async function POST(req: NextRequest) {
               ? item.plan.product 
               : (item.plan.product as any)?.id || "";
               
-            await convex.mutation(api.subscriptions.mutations.activateEntitlement, {
+            await convex.mutation(api.subscriptions.mutations.webhookActivateEntitlement, {
               customerId: clerkUserId,
               bundleId,
               productId: stripeProductId,
@@ -155,8 +158,22 @@ export async function POST(req: NextRequest) {
             }
           }
 
+          // 5a. Assign member to the broker/staff (use brokerClerkUserId if available, fallback to brokerCode)
+          const staffClerkId = brokerClerkUserId || brokerCode;
+          if (staffClerkId) {
+            try {
+              await convex.mutation(api.admin.members.assignMemberToStaff, {
+                memberProfileId,
+                staffClerkId,
+              });
+            } catch (assignError) {
+              console.warn("[webhook] Failed to assign member to staff:", assignError);
+              // Don't fail the whole webhook for staff assignment issues
+            }
+          }
+
           // 6. Log event
-          await convex.mutation(api.subscriptions.mutations.logEvent, {
+          await convex.mutation(api.subscriptions.mutations.webhookLogEvent, {
             eventType: "checkout.session.completed",
             actor: "stripe",
             customerId: clerkUserId,
@@ -178,7 +195,7 @@ export async function POST(req: NextRequest) {
         } catch (error) {
           console.error("[webhook] Error processing checkout.session.completed:", error);
           try {
-            await convex.mutation(api.subscriptions.mutations.logEvent, {
+            await convex.mutation(api.subscriptions.mutations.webhookLogEvent, {
               eventType: "checkout.session.completed",
               actor: "stripe",
               customerId: clerkUserId || "",
@@ -204,9 +221,37 @@ export async function POST(req: NextRequest) {
 
         try {
           if (stripeSubscriptionId) {
-            await convex.mutation(api.subscriptions.mutations.logEvent, {
+            // Find the bundle to check if it was past_due
+            const bundle = await convex.query(
+              api.subscriptions.webhookActions.getBundleByStripeSubscription,
+              { stripeSubscriptionId }
+            );
+
+            // If bundle was past_due, reactivate it
+            if (bundle && bundle.status === "past_due") {
+              await convex.mutation(
+                api.subscriptions.webhookActions.reactivateBundleFromWebhook,
+                {
+                  bundleId: bundle._id,
+                  reason: `Payment succeeded: ${invoice.id}`,
+                }
+              );
+
+              console.log(
+                "[webhook] invoice.payment_succeeded — bundle reactivated:",
+                {
+                  stripeSubscriptionId,
+                  bundleId: bundle._id,
+                }
+              );
+            }
+
+            // Log the event
+            await convex.mutation(api.subscriptions.mutations.webhookLogEvent, {
               eventType: "invoice.payment_succeeded",
               actor: "stripe",
+              customerId: bundle?.customerId,
+              bundleId: bundle?._id,
               stripeEventId: event.id,
               stripeObjectId: invoice.id,
               payload: { subscription: stripeSubscriptionId },
@@ -224,26 +269,132 @@ export async function POST(req: NextRequest) {
         break;
       }
 
-      case "customer.subscription.deleted": {
-        const subscription = event.data.object as Stripe.Subscription;
-        const stripeSubscriptionId = subscription.id;
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as any;
+        const stripeSubscriptionId = typeof invoice.subscription === "string"
+          ? invoice.subscription
+          : undefined;
+
+        if (!stripeSubscriptionId) {
+          console.warn("[webhook] invoice.payment_failed without subscription:", invoice.id);
+          break;
+        }
 
         try {
-          await convex.mutation(api.subscriptions.mutations.logEvent, {
-            eventType: "customer.subscription.deleted",
+          // Find the bundle by Stripe subscription ID
+          const bundle = await convex.query(
+            api.subscriptions.webhookActions.getBundleByStripeSubscription,
+            { stripeSubscriptionId }
+          );
+
+          if (bundle) {
+            // Suspend the bundle and entitlements
+            await convex.mutation(api.subscriptions.webhookActions.suspendBundleFromWebhook, {
+              bundleId: bundle._id,
+              reason: `Payment failed: ${invoice.id}`,
+            });
+
+            console.log("[webhook] invoice.payment_failed processed — bundle suspended:", {
+              stripeSubscriptionId,
+              bundleId: bundle._id,
+              invoiceId: invoice.id,
+            });
+          } else {
+            console.warn("[webhook] No bundle found for failed payment subscription:", stripeSubscriptionId);
+          }
+
+          // Log event
+          await convex.mutation(api.subscriptions.mutations.webhookLogEvent, {
+            eventType: "invoice.payment_failed",
             actor: "stripe",
+            customerId: bundle?.customerId,
+            bundleId: bundle?._id,
             stripeEventId: event.id,
-            stripeObjectId: subscription.id,
-            payload: { subscription: stripeSubscriptionId },
+            stripeObjectId: invoice.id,
+            payload: {
+              subscription: stripeSubscriptionId,
+              attemptCount: invoice.attempt_count,
+              amountDue: invoice.amount_due,
+            },
             success: true,
             idempotencyKey: event.id,
           });
+        } catch (error) {
+          console.error("[webhook] Error processing invoice.payment_failed:", error);
+        }
+        break;
+      }
 
-          console.log("[webhook] customer.subscription.deleted logged:", {
-            stripeSubscriptionId,
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object as Stripe.Subscription;
+        const stripeSubscriptionId = subscription.id;
+        const stripeCustomerId = typeof subscription.customer === "string"
+          ? subscription.customer
+          : (subscription.customer as any)?.id || "";
+
+        try {
+          // 1. Find and cancel the subscription bundle in Convex
+          const bundle = await convex.query(
+            api.subscriptions.webhookActions.getBundleByStripeSubscription,
+            { stripeSubscriptionId }
+          );
+
+          if (bundle) {
+            // 2. Cancel the bundle
+            await convex.mutation(api.subscriptions.webhookActions.cancelBundleFromWebhook, {
+              bundleId: bundle._id,
+              reason: "Stripe subscription deleted",
+              stripeEventId: event.id,
+            });
+
+            // 3. Revoke all entitlements for this bundle
+            await convex.mutation(api.subscriptions.webhookActions.revokeEntitlementsByBundle, {
+              bundleId: bundle._id,
+              reason: "Stripe subscription deleted",
+            });
+
+            console.log("[webhook] customer.subscription.deleted processed:", {
+              stripeSubscriptionId,
+              bundleId: bundle._id,
+              customerId: bundle.customerId,
+            });
+          } else {
+            console.warn("[webhook] No bundle found for deleted subscription:", stripeSubscriptionId);
+          }
+
+          // 4. Log the event
+          await convex.mutation(api.subscriptions.mutations.webhookLogEvent, {
+            eventType: "customer.subscription.deleted",
+            actor: "stripe",
+            customerId: bundle?.customerId,
+            bundleId: bundle?._id,
+            stripeEventId: event.id,
+            stripeObjectId: subscription.id,
+            payload: {
+              subscription: stripeSubscriptionId,
+              bundleCancelled: !!bundle,
+            },
+            success: true,
+            idempotencyKey: event.id,
           });
         } catch (error) {
           console.error("[webhook] Error processing customer.subscription.deleted:", error);
+
+          // Log failure event
+          try {
+            await convex.mutation(api.subscriptions.mutations.webhookLogEvent, {
+              eventType: "customer.subscription.deleted",
+              actor: "stripe",
+              stripeEventId: event.id,
+              stripeObjectId: subscription.id,
+              payload: { subscription: stripeSubscriptionId },
+              success: false,
+              errorMessage: error instanceof Error ? error.message : "Unknown error",
+              idempotencyKey: `${event.id}_error`,
+            });
+          } catch (logError) {
+            console.error("[webhook] Failed to log error event:", logError);
+          }
         }
         break;
       }

@@ -12,7 +12,11 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useAuth, useUser, useSignIn, useSignUp } from "@clerk/nextjs";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { useUser, useSignIn, useSignUp } from "@clerk/nextjs";
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "");
 import { 
   ArrowLeft, 
   CreditCard, 
@@ -322,6 +326,76 @@ function InlineAuth() {
   );
 }
 
+/* ─── Inline Stripe payment form ─────────────────────────────────────────── */
+function InlinePaymentForm() {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [payError, setPayError] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+    setProcessing(true);
+    setPayError(null);
+    const { error } = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: `${window.location.origin}/health/dashboard?status=success`,
+      },
+    });
+    if (error) {
+      setPayError(error.message || "Payment failed. Please try again.");
+      setProcessing(false);
+    }
+    // On success Stripe handles the redirect via return_url
+  };
+
+  return (
+    <form onSubmit={handleSubmit} style={{ marginTop: "1.5rem" }}>
+      <PaymentElement options={{ layout: "tabs" }} />
+      {payError && (
+        <div style={{
+          marginTop: "1rem",
+          padding: "0.75rem 1rem",
+          background: "#fee2e2",
+          border: "1px solid #fca5a5",
+          borderRadius: "0.5rem",
+          color: "#991b1b",
+          fontSize: "0.875rem",
+        }}>
+          {payError}
+        </div>
+      )}
+      <button
+        type="submit"
+        disabled={!stripe || processing}
+        className="button button--primary"
+        style={{
+          width: "100%",
+          marginTop: "1.5rem",
+          padding: "1rem 1.5rem",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "0.5rem",
+          opacity: (!stripe || processing) ? 0.6 : 1,
+          cursor: (!stripe || processing) ? "not-allowed" : "pointer",
+        }}
+      >
+        {processing ? (
+          "Processing..."
+        ) : (
+          <>
+            <Lock size={16} />
+            Complete Purchase
+          </>
+        )}
+      </button>
+    </form>
+  );
+}
+
 function CheckoutContent() {
   const { user, isLoaded, isSignedIn } = useUser();
   const { 
@@ -335,7 +409,8 @@ function CheckoutContent() {
   
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [agreedToNotInsurance, setAgreedToNotInsurance] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [paymentSetupLoading, setPaymentSetupLoading] = useState(false);
   
   const periodLabel = cart.cadence === "monthly" ? "Monthly" : "Annual";
   const periodShort = cart.cadence === "monthly" ? "/mo" : "/yr";
@@ -362,49 +437,43 @@ function CheckoutContent() {
   const totalDueToday = cart.paymentMethod === "ach" ? achTotal : cardTotal;
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   
-  const handleCheckout = async () => {
+  const handleSetUpPayment = async () => {
     if (!isSignedIn || !agreedToTerms || !agreedToNotInsurance) return;
     if (itemCount === 0) return;
 
+    const primaryItem = cart.items[0];
+    if (!primaryItem) return;
+
     try {
-      setIsProcessing(true);
+      setPaymentSetupLoading(true);
       setCheckoutError(null);
 
-      // Get the first item (DTC flow handles single product)
-      const primaryItem = cart.items[0];
-      if (!primaryItem) {
-        throw new Error("No items in cart");
-      }
-
-      // Call Stripe checkout API
-      const response = await fetch("/api/stripe/checkout", {
+      const response = await fetch("/api/stripe/setup-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           planId: primaryItem.product._id,
           cadence: cart.cadence,
           paymentMethod: cart.paymentMethod,
-          enrollmentSessionId: "" + Date.now(), // Temporary session ID (will be replaced with real Convex session)
         }),
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to create checkout session");
+        const err = await response.json();
+        throw new Error(err.error || "Failed to initialize payment");
       }
 
-      const { url } = await response.json();
-      if (!url) {
-        throw new Error("No checkout URL returned");
+      const data = await response.json();
+      if (data.clientSecret) {
+        setClientSecret(data.clientSecret);
+      } else {
+        throw new Error("No client secret returned");
       }
-
-      // Redirect to Stripe Checkout
-      window.location.href = url;
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Checkout failed";
+      const message = error instanceof Error ? error.message : "Payment setup failed";
       setCheckoutError(message);
-      setIsProcessing(false);
-      console.error("[checkout] Error:", error);
+    } finally {
+      setPaymentSetupLoading(false);
     }
   };
   
@@ -924,29 +993,7 @@ function CheckoutContent() {
                   </label>
                 </div>
                 
-                {/* Secure Payment Note */}
-                {isSignedIn && agreedToTerms && agreedToNotInsurance && (
-                  <div style={{
-                    marginTop: "1.5rem",
-                    padding: "1rem",
-                    background: "#f8fafc",
-                    borderRadius: "12px",
-                    border: "1px solid #e2e8f0",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.75rem"
-                  }}>
-                    <Lock size={20} color="#64748b" />
-                    <div>
-                      <span style={{ fontWeight: 600, color: "#0f172a" }}>
-                        Secure payment powered by Stripe
-                      </span>
-                      <span style={{ display: "block", fontSize: "0.8125rem", color: "#94a3b8", marginTop: "2px" }}>
-                        Payment integration coming soon. For demo, click Complete Purchase.
-                      </span>
-                    </div>
-                  </div>
-                )}
+
               </div>
             </div>
             
@@ -1067,32 +1114,51 @@ function CheckoutContent() {
                   </div>
                 )}
 
-                {/* Complete Button */}
-                <button
-                  onClick={handleCheckout}
-                  disabled={!isSignedIn || !agreedToTerms || !agreedToNotInsurance || isProcessing}
-                  className="button button--primary"
-                  style={{
-                    width: "100%",
-                    marginTop: "1.5rem",
-                    padding: "1rem 1.5rem",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "0.5rem",
-                    opacity: (!isSignedIn || !agreedToTerms || !agreedToNotInsurance) ? 0.5 : 1,
-                    cursor: (!isSignedIn || !agreedToTerms || !agreedToNotInsurance) ? "not-allowed" : "pointer"
-                  }}
-                >
-                  {isProcessing ? (
-                    "Processing..."
-                  ) : (
-                    <>
-                      Complete Purchase
-                      <ChevronRight size={20} />
-                    </>
-                  )}
-                </button>
+                {/* Payment Section — inline Stripe Elements or setup button */}
+                {!clientSecret ? (
+                  <button
+                    onClick={handleSetUpPayment}
+                    disabled={!isSignedIn || !agreedToTerms || !agreedToNotInsurance || paymentSetupLoading}
+                    className="button button--primary"
+                    style={{
+                      width: "100%",
+                      marginTop: "1.5rem",
+                      padding: "1rem 1.5rem",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "0.5rem",
+                      opacity: (!isSignedIn || !agreedToTerms || !agreedToNotInsurance) ? 0.5 : 1,
+                      cursor: (!isSignedIn || !agreedToTerms || !agreedToNotInsurance) ? "not-allowed" : "pointer"
+                    }}
+                  >
+                    {paymentSetupLoading ? (
+                      "Setting up payment…"
+                    ) : (
+                      <>
+                        <Lock size={16} />
+                        Proceed to Payment
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <Elements
+                    stripe={stripePromise}
+                    options={{
+                      clientSecret,
+                      appearance: {
+                        theme: "stripe",
+                        variables: {
+                          colorPrimary: "#0066CC",
+                          fontFamily: "inherit",
+                          borderRadius: "10px",
+                        },
+                      },
+                    }}
+                  >
+                    <InlinePaymentForm />
+                  </Elements>
+                )}
                 
                 {/* Pricing Clarification */}
                 <p style={{

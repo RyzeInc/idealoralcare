@@ -16,6 +16,7 @@ export function ReviewStep() {
   const { state, dispatch } = useEnrollment();
   const { selectedPlans, total } = useEnrollmentPricing();
   const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({
+    broker: true,
     plans: true,
     personal: true,
     address: true,
@@ -55,6 +56,7 @@ export function ReviewStep() {
           paymentMethod,
           enrollmentSessionId: state?.sessionId,
           brokerCode: state?.brokerCode,
+          brokerClerkUserId: state?.selectedBroker?.clerkUserId,
           groupId: state?.group?._id,
         }),
       });
@@ -91,6 +93,60 @@ export function ReviewStep() {
       </div>
 
       <form onSubmit={handleSubmit} className={reviewStyles.reviewForm}>
+        {/* Broker Confirmation Banner */}
+        {state.selectedBroker && (
+          <div className={reviewStyles.brokerConfirmationBanner}>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <span>Your broker is assigned and ready to receive credit for this enrollment</span>
+          </div>
+        )}
+
+        {/* Selected Broker (for broker flows) */}
+        {state.selectedBroker && (
+          <div className={`${reviewStyles.section} ${reviewStyles.brokerSection}`}>
+            <button
+              type="button"
+              className={reviewStyles.sectionHeader}
+              onClick={() => toggleSection("broker")}
+            >
+              <h3>Your Broker</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span className={reviewStyles.brokerSectionBadge}>
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                    <path d="M6 1a5 5 0 110 10 5 5 0 010-10zm2.39 3.39a.5.5 0 00-.78-.62l-2.34 2.92-1.17-1.17a.5.5 0 00-.7.7l1.51 1.52a.5.5 0 00.75-.05l2.73-3.4z" />
+                  </svg>
+                  Assigned
+                </span>
+                <ChevronDown
+                  size={20}
+                  className={expandedSections.broker ? reviewStyles.chevronOpen : ""}
+                />
+              </div>
+            </button>
+
+            {expandedSections.broker && (
+              <div className={reviewStyles.sectionContent}>
+                <div className={reviewStyles.item}>
+                  <div className={reviewStyles.itemLabel}>Broker Name</div>
+                  <div className={reviewStyles.itemValue}>{state.selectedBroker.name}</div>
+                </div>
+                <div className={reviewStyles.item}>
+                  <div className={reviewStyles.itemLabel}>Email</div>
+                  <div className={reviewStyles.itemValue}>{state.selectedBroker.email}</div>
+                </div>
+                {state.selectedBroker.phone && (
+                  <div className={reviewStyles.item}>
+                    <div className={reviewStyles.itemLabel}>Phone</div>
+                    <div className={reviewStyles.itemValue}>{state.selectedBroker.phone}</div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Selected Plans */}
         <div className={reviewStyles.section}>
           <button

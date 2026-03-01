@@ -1,5 +1,6 @@
 import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
+import { requireAdmin } from "../lib/authGuards";
 
 /**
  * ADMIN MEMBER MANAGEMENT
@@ -132,6 +133,7 @@ export const updateMemberStatus = mutation({
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const member = await ctx.db.get(args.memberId);
     if (!member) throw new Error("Member not found");
 
@@ -213,6 +215,7 @@ export const addMemberNote = mutation({
     authorName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const member = await ctx.db.get(args.memberId);
     if (!member) throw new Error("Member not found");
 
@@ -385,6 +388,7 @@ export const bulkUpdateMemberStatus = mutation({
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const results = [];
 
     for (const memberId of args.memberIds) {
@@ -433,6 +437,66 @@ export const bulkUpdateMemberStatus = mutation({
       succeeded: results.filter((r) => r.success).length,
       failed: results.filter((r) => !r.success).length,
       results,
+    };
+  },
+});
+/**
+ * Assign a member to a staff member (typically called from enrollment webhook)
+ * Links member to their enrolling broker/agent via adminUsers table
+ */
+export const assignMemberToStaff = mutation({
+  args: {
+    memberProfileId: v.id("memberProfiles"),
+    staffClerkId: v.string(), // Clerk user ID of the staff member
+  },
+  handler: async (ctx, args) => {
+    const member = await ctx.db.get(args.memberProfileId);
+    if (!member) {
+      throw new Error("Member not found");
+    }
+
+    // Look up the admin user by their Clerk ID
+    const adminUser = await ctx.db
+      .query("adminUsers")
+      .withIndex("by_clerk_id", (q: any) => q.eq("clerkUserId", args.staffClerkId))
+      .first();
+
+    if (!adminUser) {
+      // If the staff user doesn't exist as an admin, silently return
+      // This allows the webhook to complete even if the broker hasn't been onboarded as an admin
+      console.warn(`[assignMemberToStaff] Admin user not found for Clerk ID: ${args.staffClerkId}`);
+      return null;
+    }
+
+    const now = Date.now();
+
+    // Update member with staff assignment
+    await ctx.db.patch(args.memberProfileId, {
+      assignedStaffId: adminUser._id,
+      assignedStaffName: adminUser.name,
+      assignedAt: now,
+      updatedAt: now,
+    });
+
+    // Log activity
+    await ctx.db.insert("memberActivities", {
+      memberProfileId: args.memberProfileId,
+      siteId: member.siteId,
+      groupId: member.groupId,
+      activityType: "staff_assigned",
+      title: "Member assigned to staff",
+      description: `Member assigned to ${adminUser.name}`,
+      actorType: "system",
+      actorId: args.staffClerkId,
+      actorName: adminUser.name,
+      createdAt: now,
+    });
+
+    return {
+      memberProfileId: args.memberProfileId,
+      assignedStaffId: adminUser._id,
+      assignedStaffName: adminUser.name,
+      assignedAt: now,
     };
   },
 });

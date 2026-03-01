@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { ConvexHttpClient } from "convex/browser";
 import {
   LayoutDashboard,
   Building2,
@@ -9,6 +10,8 @@ import {
   BarChart3,
   ArrowLeft,
   Package,
+  ShieldCheck,
+  Briefcase,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -16,10 +19,12 @@ const ADMIN_NAVIGATION = [
   { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { label: "Sites & Accounts", href: "/admin/hierarchy", icon: Building2 },
   { label: "Members", href: "/admin/members", icon: Users },
+  { label: "Brokers", href: "/admin/brokers", icon: Briefcase },
   { label: "Eligibility Files", href: "/admin/eligibility", icon: FileText },
   { label: "Vendor Files", href: "/admin/vendor-files", icon: BarChart3 },
   { label: "Billing", href: "/admin/billing", icon: DollarSign },
   { label: "Commissions", href: "/admin/commissions", icon: BarChart3 },
+  { label: "Admin Users", href: "/admin/users", icon: ShieldCheck },
   { label: "Catalog Seed", href: "/admin/catalog-seed", icon: Package },
 ];
 
@@ -77,7 +82,28 @@ export default async function AdminLayout({
 }) {
   const { userId } = await auth();
 
+  // Must be authenticated
   if (!userId) {
+    redirect("/health");
+  }
+
+  // Verify admin role via Convex
+  try {
+    const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+    if (convexUrl) {
+      const convex = new ConvexHttpClient(convexUrl);
+      // Call the unprotected isAdmin query to check role
+      const isAdmin = await convex.query(
+        "admin/adminUsers:isAdmin" as any,
+        { clerkUserId: userId }
+      );
+      if (!isAdmin) {
+        redirect("/health");
+      }
+    }
+  } catch (error) {
+    console.error("[admin-layout] Auth check error:", error);
+    // On error, deny access (fail-safe)
     redirect("/health");
   }
 

@@ -1,5 +1,6 @@
 import { query } from "../_generated/server";
 import { v } from "convex/values";
+import { requireAdmin } from "../lib/authGuards";
 
 /**
  * ADMIN COMMISSION MANAGEMENT

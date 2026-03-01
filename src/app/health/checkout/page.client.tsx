@@ -300,16 +300,7 @@ function CheckoutContent() {
               </label>
             </div>
             
-            {/* Payment Form Placeholder */}
-            {isSignedIn && agreedToTerms && agreedToNotInsurance && (
-              <div className={styles.paymentFormPlaceholder}>
-                <Lock size={20} />
-                <span>Secure payment powered by Stripe</span>
-                <p style={{ fontSize: "0.8125rem", color: "#94a3b8", marginTop: 8 }}>
-                  Payment integration coming soon. For demo, click Complete Purchase.
-                </p>
-              </div>
-            )}
+
           </div>
         </div>
         

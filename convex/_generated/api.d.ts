@@ -41,6 +41,8 @@ import type * as healthplans_oral from "../healthplans/oral.js";
 import type * as hierarchy from "../hierarchy.js";
 import type * as hierarchy_site_resolver from "../hierarchy/site_resolver.js";
 import type * as inquiries from "../inquiries.js";
+import type * as lib_authGuards from "../lib/authGuards.js";
+import type * as lib_sanitize from "../lib/sanitize.js";
 import type * as newsletter from "../newsletter.js";
 import type * as nexus_categories from "../nexus/categories.js";
 import type * as nexus_index from "../nexus/index.js";
@@ -55,6 +57,7 @@ import type * as subscriptions_entitlements from "../subscriptions/entitlements.
 import type * as subscriptions_events from "../subscriptions/events.js";
 import type * as subscriptions_mutations from "../subscriptions/mutations.js";
 import type * as subscriptions_queries from "../subscriptions/queries.js";
+import type * as subscriptions_webhookActions from "../subscriptions/webhookActions.js";
 
 import type {
   ApiFromModules,
@@ -96,6 +99,8 @@ declare const fullApi: ApiFromModules<{
   hierarchy: typeof hierarchy;
   "hierarchy/site_resolver": typeof hierarchy_site_resolver;
   inquiries: typeof inquiries;
+  "lib/authGuards": typeof lib_authGuards;
+  "lib/sanitize": typeof lib_sanitize;
   newsletter: typeof newsletter;
   "nexus/categories": typeof nexus_categories;
   "nexus/index": typeof nexus_index;
@@ -110,6 +115,7 @@ declare const fullApi: ApiFromModules<{
   "subscriptions/events": typeof subscriptions_events;
   "subscriptions/mutations": typeof subscriptions_mutations;
   "subscriptions/queries": typeof subscriptions_queries;
+  "subscriptions/webhookActions": typeof subscriptions_webhookActions;
 }>;
 
 /**

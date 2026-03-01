@@ -113,9 +113,22 @@ export default defineSchema({
     clerkUserId: v.string(),
     email: v.string(),
     name: v.string(),
+    phone: v.optional(v.string()),
     role: v.union(v.literal("owner"), v.literal("editor")),
+    departments: v.optional(v.array(
+      v.union(
+        v.literal("broker"),
+        v.literal("sales"),
+        v.literal("hr"),
+        v.literal("executive"),
+        v.literal("admin")
+      )
+    )),
+    commissionRate: v.optional(v.number()), // Commission percentage for brokers
     createdAt: v.number(),
-  }).index("by_clerk_id", ["clerkUserId"]),
+  })
+    .index("by_clerk_id", ["clerkUserId"])
+    .index("by_departments", ["departments"]),
 
   // ============================================
   // FORM SUBMISSIONS (existing)
@@ -345,6 +358,7 @@ export default defineSchema({
       v.literal("cancel_at_period_end"), // Cancellation scheduled
       v.literal("cancelled"), // Fully ended
       v.literal("payment_failed"), // Latest payment failed
+      v.literal("past_due"), // Payment failed, suspended pending retry
       v.literal("suspended") // E.g., ACH issues
     ),
     
@@ -366,6 +380,8 @@ export default defineSchema({
     activatedAt: v.optional(v.number()), // When payment first succeeded
     updatedAt: v.number(),
     cancelledAt: v.optional(v.number()), // When bundle was cancelled
+    cancellationReason: v.optional(v.string()), // Reason for cancellation
+    pastDueAt: v.optional(v.number()), // When bundle entered past_due status (payment failed)
   })
     .index("by_customer", ["customerId"])
     .index("by_status", ["status"])

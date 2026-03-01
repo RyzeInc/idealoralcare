@@ -4,7 +4,10 @@ import { ConvexHttpClient } from "convex/browser";
 import Stripe from "stripe";
 import { api } from "@/convex/_generated/api";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
+if (!process.env.STRIPE_SECRET_KEY) {
+  throw new Error("STRIPE_SECRET_KEY environment variable is required");
+}
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 /**
  * POST /api/stripe/checkout
@@ -39,7 +42,7 @@ export async function POST(req: NextRequest) {
     const userEmail = user.emailAddresses[0].emailAddress;
 
     const body = await req.json();
-    const { planId, cadence, paymentMethod, enrollmentSessionId, brokerCode, groupId } = body;
+    const { planId, cadence, paymentMethod, enrollmentSessionId, brokerCode, groupId, brokerClerkUserId } = body;
 
     // Validate required fields
     if (!planId || !cadence || !paymentMethod || !enrollmentSessionId) {
@@ -138,6 +141,7 @@ export async function POST(req: NextRequest) {
         clerkUserId: userId,
         enrollmentSessionId,  // This is the Convex session ID string - get the doc ID from webhook
         brokerCode: brokerCode || "",
+        brokerClerkUserId: brokerClerkUserId || "",
         groupId: groupId || "",
       },
       success_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/health/dashboard?session_id={CHECKOUT_SESSION_ID}&status=success`,

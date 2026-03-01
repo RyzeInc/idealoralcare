@@ -1,6 +1,7 @@
 import { mutation, query } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import { v } from "convex/values";
+import { requireAdmin } from "../lib/authGuards";
 
 // Get all team members (for admin)
 export const getAll = query({
@@ -56,6 +57,7 @@ export const create = mutation({
     isVisible: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     // Get max order if not provided
     let order = args.order;
     if (order === undefined) {
@@ -106,6 +108,7 @@ export const update = mutation({
     isVisible: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const { id, ...updates } = args;
 
     // Remove undefined values
@@ -124,6 +127,7 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("teamMembers") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     await ctx.db.delete(args.id);
   },
 });
@@ -132,6 +136,7 @@ export const remove = mutation({
 export const toggleVisibility = mutation({
   args: { id: v.id("teamMembers") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const member = await ctx.db.get(args.id);
     if (member) {
       await ctx.db.patch(args.id, {
@@ -148,6 +153,7 @@ export const reorder = mutation({
     orderedIds: v.array(v.id("teamMembers")),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     for (let i = 0; i < args.orderedIds.length; i++) {
       await ctx.db.patch(args.orderedIds[i], {
         order: i,

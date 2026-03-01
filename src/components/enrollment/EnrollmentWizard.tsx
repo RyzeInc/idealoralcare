@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useEnrollment } from './EnrollmentProvider';
 import { OrderSummaryRail } from './OrderSummaryRail';
 import { StepProgressBar } from './StepProgressBar';
@@ -9,6 +10,7 @@ import { PersonalInfoStep } from './steps/PersonalInfoStep';
 import { AccountPaymentStep } from './steps/AccountPaymentStep';
 import { ReviewStep } from './steps/ReviewStep';
 import { ConfirmationPage } from './ConfirmationPage';
+import type { Doc } from '@/convex/_generated/dataModel';
 
 interface FlowStep {
   key: string;
@@ -48,8 +50,25 @@ const FLOW_STEPS: Record<string, FlowStep[]> = {
   ],
 };
 
-export function EnrollmentWizard() {
-  const { state } = useEnrollment();
+export function EnrollmentWizard({ selectedBroker }: { selectedBroker?: Doc<'adminUsers'> | null }) {
+  const { state, dispatch } = useEnrollment();
+
+  // Dispatch selected broker to state
+  useEffect(() => {
+    if (selectedBroker) {
+      dispatch({
+        type: 'SET_SELECTED_BROKER',
+        payload: {
+          _id: selectedBroker._id.toString(),
+          name: selectedBroker.name,
+          email: selectedBroker.email,
+          phone: selectedBroker.phone,
+          clerkUserId: selectedBroker.clerkUserId,
+        },
+      });
+    }
+  }, [selectedBroker, dispatch]);
+
   const currentStep = state.currentStep;
   const flowType = (state.flowType as string | undefined) || 'dtc';
 

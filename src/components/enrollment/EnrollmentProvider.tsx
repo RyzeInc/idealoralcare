@@ -153,6 +153,9 @@ function enrollmentReducer(state: EnrollmentWizardState, action: EnrollmentActio
     case "SET_BROKER_CODE":
       return { ...state, brokerCode: action.payload };
 
+    case "SET_SELECTED_BROKER":
+      return { ...state, selectedBroker: action.payload };
+
     case "SET_FLOW_TYPE":
       return { ...state, flowType: action.payload };
 

@@ -1,6 +1,7 @@
 import { query, action } from "../_generated/server";
 import { v } from "convex/values";
 import { api } from "../_generated/api";
+import { requireAdmin, requireAdminAction } from "../lib/authGuards";
 
 /**
  * LIST-BILL DATA BRIDGE
@@ -167,6 +168,7 @@ export const generateBillingCsv: any = action({
     accountId: v.id("accounts"),
   },
   handler: async (ctx, args) => {
+    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const summary = await ctx.runQuery(api.admin.billing.getAccountBillingSummary, { accountId: args.accountId });
 
     let csv =

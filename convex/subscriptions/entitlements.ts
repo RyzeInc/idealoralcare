@@ -1,7 +1,8 @@
 import { defineTable } from "convex/server";
 import { v } from "convex/values";
-import { mutation, query } from "../_generated/server";
+import { mutation, query, internalMutation } from "../_generated/server";
 import { MutationCtx, QueryCtx } from "../_generated/server";
+import { requireAdmin, requireSelf } from "../lib/authGuards";
 
 /**
  * ENTITLEMENT LEDGER TABLE
@@ -82,6 +83,45 @@ export const activateEntitlement = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Admin-only access
+    await requireAdmin(ctx);
+    
+    const entitlementId = await ctx.db.insert("entitlements", {
+      customerId: args.customerId,
+      bundleId: args.bundleId,
+      productId: args.productId,
+      periodStart: args.periodStart,
+      periodEnd: args.periodEnd,
+      status: "active",
+      endCondition: (args.endCondition as any) ?? "renew",
+      stripeSubscriptionItemId: args.stripeSubscriptionItemId,
+      createdAt: Date.now(),
+      activatedAt: Date.now(),
+      expiresAt: args.periodEnd,
+      createdVia: (args.createdVia as any) ?? "initial_purchase",
+      notes: args.notes,
+    });
+
+    return await ctx.db.get(entitlementId);
+  },
+});
+
+/**
+ * Internal mutation: Activate an entitlement (no auth check)
+ */
+export const internalActivateEntitlement = internalMutation({
+  args: {
+    customerId: v.string(),
+    bundleId: v.id("subscriptionBundles"),
+    productId: v.id("catalogProducts"),
+    periodStart: v.number(),
+    periodEnd: v.number(),
+    createdVia: v.string(),
+    stripeSubscriptionItemId: v.optional(v.string()),
+    endCondition: v.optional(v.string()),
+    notes: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
     const entitlementId = await ctx.db.insert("entitlements", {
       customerId: args.customerId,
       bundleId: args.bundleId,
@@ -108,9 +148,17 @@ export const activateEntitlement = mutation({
 export const scheduleEntitlementCancellation = mutation({
   args: {
     entitlementId: v.id("entitlements"),
+    customerId: v.string(),
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // User can cancel their own or admins can cancel any
+    try {
+      await requireSelf(ctx, args.customerId);
+    } catch {
+      await requireAdmin(ctx);
+    }
+    
     const entitlement = await ctx.db.get(args.entitlementId);
     if (!entitlement) throw new Error("Entitlement not found");
 
@@ -128,6 +176,31 @@ export const scheduleEntitlementCancellation = mutation({
  * Suspend an entitlement (temporary hold)
  */
 export const suspendEntitlement = mutation({
+  args: {
+    entitlementId: v.id("entitlements"),
+    notes: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Admin-only access
+    await requireAdmin(ctx);
+    
+    const entitlement = await ctx.db.get(args.entitlementId);
+    if (!entitlement) throw new Error("Entitlement not found");
+
+    await ctx.db.patch(args.entitlementId, {
+      status: "suspended",
+      suspendedAt: Date.now(),
+      notes: args.notes ?? `Suspended at ${new Date().toISOString()}`,
+    });
+
+    return await ctx.db.get(args.entitlementId);
+  },
+});
+
+/**
+ * Internal mutation: Suspend an entitlement (no auth check)
+ */
+export const internalSuspendEntitlement = internalMutation({
   args: {
     entitlementId: v.id("entitlements"),
     notes: v.optional(v.string()),
@@ -155,6 +228,9 @@ export const revokeEntitlement = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Admin-only access
+    await requireAdmin(ctx);
+    
     const entitlement = await ctx.db.get(args.entitlementId);
     if (!entitlement) throw new Error("Entitlement not found");
 
@@ -178,6 +254,9 @@ export const reactivateEntitlement = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Admin-only access
+    await requireAdmin(ctx);
+    
     const entitlement = await ctx.db.get(args.entitlementId);
     if (!entitlement) throw new Error("Entitlement not found");
 
