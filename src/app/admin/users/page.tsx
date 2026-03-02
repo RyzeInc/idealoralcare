@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { useUser } from '@clerk/nextjs';
 import { api } from '@/convex/_generated/api';
@@ -16,9 +16,16 @@ interface Notification {
 
 export default function UsersAdmin() {
   const { user: clerkUser, isLoaded: clerkLoaded } = useUser();
+  const [authTimeout, setAuthTimeout] = useState(false);
   
   // Call all hooks unconditionally (before any early returns)
   const admins = useQuery(api.admin.adminUsers.getAll) ?? [];
+
+  // Failsafe: if Clerk doesn't load within 5s, proceed anyway
+  useEffect(() => {
+    const t = setTimeout(() => setAuthTimeout(true), 5000);
+    return () => clearTimeout(t);
+  }, []);
   const addAdmin = useMutation(api.admin.adminUsers.add);
   const updateRole = useMutation(api.admin.adminUsers.updateRole);
   const removeAdmin = useMutation(api.admin.adminUsers.remove);
@@ -35,8 +42,8 @@ export default function UsersAdmin() {
   // Bootstrap form state
   const [bootstrapForm, setBootstrapForm] = useState({ clerkUserId: '', email: '', name: '' });
 
-  // Show loading state while Clerk loads
-  if (!clerkLoaded) {
+  // Show loading state while Clerk loads (with 5s timeout failsafe)
+  if (!clerkLoaded && !authTimeout) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium bg-blue-50 text-blue-800 border border-blue-200">
@@ -47,8 +54,8 @@ export default function UsersAdmin() {
     );
   }
 
-  // Show error if not authenticated
-  if (!clerkUser) {
+  // Show error if not authenticated (skip if Clerk timed out — server layout already verified admin)
+  if (!clerkUser && !authTimeout) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium bg-red-50 text-red-800 border border-red-200">

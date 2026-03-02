@@ -43,8 +43,6 @@ export const seedInitialData = mutation({
         ],
         exclusions: ["Not traditional dental insurance", "Savings-based discount plan"],
         eligibilityRules: {
-          minAge: undefined,
-          maxAge: undefined,
           requiresVerification: false,
           disclosureText: "This is a savings-based discount plan, not insurance.",
         },
@@ -125,8 +123,6 @@ export const reseedData = mutation({
         ],
         exclusions: ["Not traditional dental insurance", "Savings-based discount plan"],
         eligibilityRules: {
-          minAge: undefined,
-          maxAge: undefined,
           requiresVerification: false,
           disclosureText: "This is a savings-based discount plan, not insurance.",
         },
