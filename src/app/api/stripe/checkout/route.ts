@@ -45,9 +45,9 @@ export async function POST(req: NextRequest) {
     const { planId, cadence, paymentMethod, enrollmentSessionId, brokerCode, groupId, brokerClerkUserId } = body;
 
     // Validate required fields
-    if (!planId || !cadence || !paymentMethod || !enrollmentSessionId) {
+    if (!planId || !cadence || !paymentMethod) {
       return NextResponse.json(
-        { error: "Missing required fields: planId, cadence, paymentMethod, enrollmentSessionId" },
+        { error: "Missing required fields: planId, cadence, paymentMethod" },
         { status: 400 }
       );
     }
@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
     let productName = "Oral Health Plan";
 
     try {
+      // @ts-ignore - Avoid deep type instantiation issue with api.catalog.queries
       const product = await convex.query(api.catalog.queries.getById, { id: planId });
       if (product) {
         productName = product.name;
@@ -138,7 +139,7 @@ export async function POST(req: NextRequest) {
       ],
       metadata: {
         clerkUserId: userId,
-        enrollmentSessionId,  // This is the Convex session ID string - get the doc ID from webhook
+        enrollmentSessionId: enrollmentSessionId || "",  // Optional — may be empty from /health/checkout
         brokerCode: brokerCode || "",
         brokerClerkUserId: brokerClerkUserId || "",
         groupId: groupId || "",
