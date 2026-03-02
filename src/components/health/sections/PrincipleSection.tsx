@@ -11,7 +11,7 @@ const PRINCIPLES = [
   {
     number: 2,
     headline: "Accessible at Participating Dentists",
-    text: "Access thousands of participating dentists nationwide via the Dental Discount Network Dental Discount Network network. Use your benefits immediately.",
+    text: "Access thousands of participating dentists nationwide via the Dental Discount Network. Use your benefits within 24 hours of enrollment.",
   },
   {
     number: 3,
@@ -21,7 +21,7 @@ const PRINCIPLES = [
   {
     number: 4,
     headline: "Human Support When You Need It",
-    text: "24/7 Dial Care teledentistry + dedicated member support. Real dentists, real care, real answers.",
+    text: "24/7 Teledentistry Program + dedicated member support. Real dentists, real care, real answers.",
   },
 ];
 

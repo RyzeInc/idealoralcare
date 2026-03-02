@@ -10,7 +10,7 @@ interface PlanCardContentProps {
 }
 
 export default function PlanCardContent({
-  title = "Ideal Health Oral Plan",
+  title = "Ideal Oral Health Plan",
   description = "Comprehensive oral health coverage with AI scanning, teledentistry, and nationwide provider discounts.",
 }: PlanCardContentProps) {
   // Query for oral plan data from Convex
@@ -97,20 +97,8 @@ export default function PlanCardContent({
                 margin: "0.5rem 0 0 0",
               }}
             >
-              <strong>Dental Discount Network POS:</strong>{" "}
-              {planData.careington.networkDescription} (
-              {planData.careington.networkSize.toLocaleString()} providers)
-            </p>
-            <p
-              style={{
-                fontSize: "0.9375rem",
-                color: "#0c4a6e",
-                margin: "0.25rem 0 0 0",
-              }}
-            >
-              <strong>Dial Care Teledentistry:</strong>{" "}
-              {planData.dialCare.availability} availability with licensed dental
-              specialists
+              <strong>Toothlens Smart Check:</strong> AI-powered oral health
+              scanning available on iOS and Android
             </p>
           </div>
 

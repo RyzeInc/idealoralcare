@@ -8,7 +8,7 @@ import { requireAdminAction } from "../lib/authGuards";
  *
  * Generate PDF member ID cards with:
  * - Member name, 9-digit ID, plan name, effective date
- * - Network provider info (Dental Discount Network, Dial Care)
+ * - Network provider info (Dental Discount Network, Teledentistry Program)
  * - Smart check link (Toothlens)
  * - QR code / barcode
  */
@@ -34,8 +34,8 @@ export const generateMemberIdCardPdf: any = action({
       planName: "Oral Health Plan",
       effectiveDate: member.createdAt ? new Date(member.createdAt).toLocaleDateString() : new Date().toLocaleDateString(),
       networks: [
-        "Dental Discount Network Dental Network",
-        "Dial Care Teledentistry",
+        "Dental Discount Network",
+        "Teledentistry Program",
         "Toothlens Smart Checks",
       ],
       toothlensLink: `https://toothlens.com/verify?memberId=${member.memberId}`,
@@ -87,7 +87,7 @@ export const generateMemberIdCardPdf: any = action({
                 <div class="card-value">${cardData.effectiveDate}</div>
               </div>
               <div style="margin-top: 6px; font-size: 8px; border-top: 1px solid rgba(255,255,255,0.5); padding-top: 4px;">
-                Dental Discount Network • Dial Care • Toothlens Smart Check
+                Toothlens Smart Check
               </div>
             </div>
           </body>
@@ -121,11 +121,11 @@ export const getMemberCardData: any = action({
       barcode: member.barcode,
       networks: {
         careington: {
-          name: "Dental Discount Network Dental Network",
+          name: "Dental Discount Network",
           memberUrl: "https://www.careington.com/members",
         },
         dialCare: {
-          name: "Dial Care Teledentistry",
+          name: "Teledentistry Program",
           memberUrl: "https://www.dialcare.com/members",
         },
         toothlens: {

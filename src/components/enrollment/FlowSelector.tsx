@@ -28,7 +28,7 @@ const FLOWS: FlowOption[] = [
     icon: <User size={28} />,
     title: "Individual Enrollment",
     who: "For individuals",
-    description: "Sign up directly for the Ideal Health Oral Health Plan.",
+    description: "Sign up directly for the Ideal Oral Health Plan.",
     details: [
       "Instant coverage activation",
       "Monthly or annual billing",

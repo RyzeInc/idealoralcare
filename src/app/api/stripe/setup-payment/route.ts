@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
 
     // Fetch product name from Convex
     const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || "");
-    let productName = "Ideal Health Oral Health Plan";
+    let productName = "Ideal Oral Health Plan";
     try {
       const product = await convex.query(api.catalog.queries.getById, { id: planId });
       if (product?.name) productName = product.name;

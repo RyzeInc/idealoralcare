@@ -13,13 +13,13 @@ const BENEFITS = [
     icon: Clock,
     title: "24/7 Teledentistry",
     description:
-      "Connect with licensed dentists anytime, anywhere via Dial Care for consultations and guidance.",
+      "Connect with licensed dentists anytime, anywhere via our Teledentistry Program for consultations and guidance.",
   },
   {
     icon: Smile,
     title: "Network Discounts",
     description:
-      "Access thousands of dentists nationwide through Dental Discount Network Dental Discount Network with negotiated discount rates.",
+      "Access thousands of dentists nationwide through the Dental Discount Network with negotiated discount rates.",
   },
   {
     icon: Heart,

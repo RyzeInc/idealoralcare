@@ -13,6 +13,7 @@ import type * as admin_billing from "../admin/billing.js";
 import type * as admin_commissions from "../admin/commissions.js";
 import type * as admin_coreValues from "../admin/coreValues.js";
 import type * as admin_eligibility from "../admin/eligibility.js";
+import type * as admin_grantFreeAccess from "../admin/grantFreeAccess.js";
 import type * as admin_hierarchy from "../admin/hierarchy.js";
 import type * as admin_index from "../admin/index.js";
 import type * as admin_memberCards from "../admin/memberCards.js";
@@ -71,6 +72,7 @@ declare const fullApi: ApiFromModules<{
   "admin/commissions": typeof admin_commissions;
   "admin/coreValues": typeof admin_coreValues;
   "admin/eligibility": typeof admin_eligibility;
+  "admin/grantFreeAccess": typeof admin_grantFreeAccess;
   "admin/hierarchy": typeof admin_hierarchy;
   "admin/index": typeof admin_index;
   "admin/memberCards": typeof admin_memberCards;

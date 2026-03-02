@@ -50,7 +50,7 @@ export function PlanSelectionStep() {
     {
       _id: "product_ideal_health_oral",
       slug: "ideal-health-oral",
-      name: "Ideal Health Oral Plan",
+      name: "Ideal Oral Health Plan",
       description: "Comprehensive dental coverage including preventive, basic, and major services",
       category: "oral_health",
       pricing: {

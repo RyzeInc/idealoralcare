@@ -13,7 +13,7 @@ interface OralHeroProps {
 export default function OralHero({
   headline = "Comprehensive Oral Health Care",
   subtitle =
-    "AI-powered Toothlens scanning, 24/7 Dial Care teledentistry, and Dental Discount Network Dental Discount Network network discounts—all in one affordable plan.",
+    "AI-powered Toothlens scanning, 24/7 Teledentistry Program, and Dental Discount Network discounts—all in one affordable plan.",
   bullets = [
     "Toothlens AI scanning for home monitoring",
     "24/7 teledentistry consultations",

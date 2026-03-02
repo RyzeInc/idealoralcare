@@ -46,14 +46,14 @@ export const initializeEnrollment = mutation({
       const now0 = Date.now();
       oralPlanId = await ctx.db.insert("catalogProducts", {
         slug: "oral-health-plan",
-        name: "Ideal Health Oral Health Plan",
+        name: "Ideal Oral Health Plan",
         category: "dental",
         description:
-          "Comprehensive oral health coverage with Toothlens AI oral scanning, Dial Care teledentistry, and Dental Discount Network Dental Discount Network network discounts.",
+          "Comprehensive oral health coverage with Toothlens AI oral scanning, 24/7 teledentistry, and Dental Discount Network discounts.",
         inclusions: [
           "Toothlens AI Oral Scanning",
-          "Dial Care 24/7 Teledentistry",
-          "Dental Discount Network Dental Discount Network Network Access",
+          "24/7 Teledentistry Program",
+          "Dental Discount Network Access",
           "Preventive Discounts",
           "Member ID Card",
           "Emergency Access",

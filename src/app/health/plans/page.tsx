@@ -4,7 +4,7 @@
  * IDEAL HEALTH PLANS - DTC SELF-SERVE CATALOG
  * 
  * Single product focused page for direct-to-consumer enrollment
- * Simplified to show only the Ideal Health Oral Plan
+ * Simplified to show only the Ideal Oral Health Plan
  * Uses health.css classes for consistent glassmorphism
  */
 
@@ -521,7 +521,7 @@ function PlansContent() {
               lineHeight: '1.6',
               maxWidth: '500px'
             }}>
-              Instant access to dental savings, teledentistry, and AI oral scanning. Cancel anytime.
+              Access dental savings, teledentistry, and AI oral scanning. Cancel anytime.
             </p>
             <CadenceToggle />
           </div>
@@ -571,7 +571,7 @@ function PlansContent() {
                     gap: '1rem'
                   }}>
                     {[
-                      'Instant activation',
+                      'Activation within 24 hours',
                       'No enrollment fees',
                       'Cancel anytime',
                       '24/7 support'
@@ -615,7 +615,7 @@ function PlansContent() {
           }}>
             {[
               { icon: Lock, title: 'Secure Payments', desc: 'Your payment info is encrypted and protected' },
-              { icon: Zap, title: 'Instant Access', desc: 'Start using your plan immediately after purchase' },
+              { icon: Zap, title: 'Access Within 24 Hours', desc: 'Your plan is activated within 24 hours of enrollment' },
               { icon: RotateCcw, title: 'Flexible Billing', desc: 'Monthly or annual — switch anytime' },
               { icon: MessageCircle, title: '24/7 Support', desc: 'We\'re here to help whenever you need us' },
             ].map((item, i) => {

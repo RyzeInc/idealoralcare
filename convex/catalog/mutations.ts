@@ -27,16 +27,16 @@ export const seedInitialData = mutation({
     const initialProducts = [
       {
         slug: "oral-health-plan",
-        name: "Ideal Health Oral Health Plan",
+        name: "Ideal Oral Health Plan",
         category: "dental",
         description:
-          "Comprehensive oral health coverage with Toothlens AI oral scanning, Dial Care teledentistry consultations, and access to the Dental Discount Network Dental Discount Network dental discount network.",
+          "Comprehensive oral health coverage with Toothlens AI oral scanning, 24/7 teledentistry consultations, and access to the Dental Discount Network dental discount network.",
         longDescription:
-          "Our Oral Health Plan provides comprehensive access to dental care through innovative technology and a nationwide network of providers. Features include AI-powered oral scanning (Toothlens Smart Check), 24/7 teledentistry consultations via Dial Care, and significant discounts on procedures through the Dental Discount Network dental provider network.",
+          "Our Oral Health Plan provides comprehensive access to dental care through innovative technology and a nationwide network of providers. Features include AI-powered oral scanning (Toothlens Smart Check), 24/7 teledentistry consultations, and significant discounts on procedures through the Dental Discount Network dental provider network.",
         inclusions: [
           "Toothlens AI Oral Scanning",
-          "Dial Care 24/7 Teledentistry",
-          "Dental Discount Network Dental Discount Network Network Access",
+          "24/7 Teledentistry Program",
+          "Dental Discount Network Access",
           "Preventive Discounts",
           "Member ID Card",
           "Emergency Access",
@@ -109,16 +109,16 @@ export const reseedData = mutation({
     const initialProducts = [
       {
         slug: "oral-health-plan",
-        name: "Ideal Health Oral Health Plan",
+        name: "Ideal Oral Health Plan",
         category: "dental",
         description:
-          "Comprehensive oral health coverage with Toothlens AI oral scanning, Dial Care teledentistry consultations, and access to the Dental Discount Network Dental Discount Network dental discount network.",
+          "Comprehensive oral health coverage with Toothlens AI oral scanning, 24/7 teledentistry consultations, and access to the Dental Discount Network dental discount network.",
         longDescription:
-          "Our Oral Health Plan provides comprehensive access to dental care through innovative technology and a nationwide network of providers. Features include AI-powered oral scanning (Toothlens Smart Check), 24/7 teledentistry consultations via Dial Care, and significant discounts on procedures through the Dental Discount Network dental provider network.",
+          "Our Oral Health Plan provides comprehensive access to dental care through innovative technology and a nationwide network of providers. Features include AI-powered oral scanning (Toothlens Smart Check), 24/7 teledentistry consultations, and significant discounts on procedures through the Dental Discount Network dental provider network.",
         inclusions: [
           "Toothlens AI Oral Scanning",
-          "Dial Care 24/7 Teledentistry",
-          "Dental Discount Network Dental Discount Network Network Access",
+          "24/7 Teledentistry Program",
+          "Dental Discount Network Access",
           "Preventive Discounts",
           "Member ID Card",
           "Emergency Access",

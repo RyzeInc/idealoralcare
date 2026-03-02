@@ -28,7 +28,7 @@ const PlanCardContent = dynamic(() => import("./PlanCardContent"), {
 });
 
 export default function PlanCard({
-  title = "Ideal Health Oral Plan",
+  title = "Ideal Oral Health Plan",
   description = "Comprehensive oral health coverage with AI scanning, teledentistry, and nationwide provider discounts.",
 }: PlanCardProps) {
   return <PlanCardContent title={title} description={description} />;

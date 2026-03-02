@@ -33,8 +33,8 @@ const STEPS = [
   },
   {
     number: 4,
-    title: "Instant Access",
-    description: "Get immediate access to your plans. Benefits are available immediately with no waiting periods.",
+    title: "Activation Within 24 Hours",
+    description: "Your benefits are activated within 24 hours of enrollment with no waiting periods.",
     icon: <Check size={28} />,
   },
   {
@@ -57,7 +57,7 @@ const BENEFITS = [
 const WHAT_IS = [
   { title: "Discount Programs", desc: "Save 20-60% on oral health, vision, and other health services at participating providers." },
   { title: "Wellness Services", desc: "Access to telehealth, coaching, and clinical support for your health goals." },
-  { title: "Immediate Access", desc: "Benefits are active immediately upon enrollment with no waiting periods." },
+  { title: "Access Within 24 Hours", desc: "Benefits are activated within 24 hours of enrollment with no waiting periods." },
   { title: "Flexible Plans", desc: "Mix and match plans based on your needs. Cancel individual plans anytime." },
 ];
 

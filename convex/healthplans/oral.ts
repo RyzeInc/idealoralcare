@@ -1,22 +1,22 @@
 /**
- * IDEAL HEALTH ORAL PLAN
+ * IDEAL ORAL HEALTH PLAN
  *
  * Convex module for oral health plan data
- * Integrates with Dental Discount Network Dental Discount Network and Dial Care teledentistry
+ * Integrates with Dental Discount Network and Teledentistry Program
  */
 
 import { query } from "../_generated/server";
 import { v } from "convex/values";
 
 /**
- * Get the Ideal Health Oral Plan with Dental Discount Network + DialCare integration
+ * Get the Ideal Oral Health Plan with Dental Discount Network + Teledentistry Program integration
  */
 export const getOralPlan = query({
   args: {},
   handler: async (ctx) => {
     return {
       _id: "plan_oral_001",
-      name: "Ideal Health Oral Plan",
+      name: "Ideal Oral Health Plan",
       type: "oral-health",
       status: "active",
 
@@ -40,22 +40,22 @@ export const getOralPlan = query({
         },
         {
           id: "teledentistry",
-          name: "24/7 Dial Care Teledentistry",
+          name: "24/7 Teledentistry Program",
           description: "Licensed dental professionals available round-the-clock",
           icon: "clock",
           included: true,
         },
         {
           id: "network_discounts",
-          name: "Dental Discount Network Dental Discount Network Network Discounts",
+          name: "Dental Discount Network Discounts",
           description: "Access thousands of dentists nationwide with negotiated rates",
           icon: "smile",
           included: true,
         },
         {
           id: "member_card",
-          name: "Digital & Physical Member Cards",
-          description: "Instant access to benefits at any participating provider",
+          name: "Digital Member Card",
+          description: "Access to benefits at any participating provider within 24 hours of enrollment",
           icon: "shield",
           included: true,
         },
@@ -75,7 +75,7 @@ export const getOralPlan = query({
         },
       ],
 
-      // Dental Discount Network Dental Discount Network Network Integration
+      // Dental Discount Network Integration
       careington: {
         provider: "Dental Discount Network International",
         networkSize: 10000,
@@ -105,9 +105,9 @@ export const getOralPlan = query({
         },
       },
 
-      // Dial Care Teledentistry Integration
+      // Teledentistry Program Integration
       dialCare: {
-        provider: "Dial Care Teledentistry",
+        provider: "Teledentistry Program",
         availability: "24/7",
         responseTime: "Within 2 hours for urgent issues",
         services: [
@@ -207,7 +207,7 @@ export const getOralPlanComparison = query({
       plans: [
         {
           id: "plan_oral_001",
-          name: "Ideal Health Oral Plan",
+          name: "Ideal Oral Health Plan",
           monthlyPrice: 15,
           monthlyACHPrice: 13,
           features: [

@@ -1,7 +1,7 @@
 import HeroSlideshow from "@/components/health/HeroSlideshow";
 import HealthHeader from "@/components/health/HealthHeader";
 
-// Ideal Health Oral Health Plan landing page
+// Ideal Oral Health Plan landing page
 // Features comprehensive AI-powered oral health care with Toothlens and teledentistry
 
 export default function OralHealthLanding() {

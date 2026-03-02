@@ -1,9 +1,32 @@
 'use client';
 
 import Link from "next/link";
-import { ArrowRight, Users, FileUp, BarChart3, AlertCircle } from "lucide-react";
+import { ArrowRight, Users, FileUp, BarChart3, AlertCircle, Gift } from "lucide-react";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { useState } from "react";
 
 export default function AdminDashboard() {
+  const grantAccess = useMutation(api.admin.grantFreeAccess.grantMeFullAccess);
+  const [isGranting, setIsGranting] = useState(false);
+  const [grantStatus, setGrantStatus] = useState<null | { success: boolean; message: string }>(null);
+
+  const handleGrantAccess = async () => {
+    setIsGranting(true);
+    setGrantStatus(null);
+    try {
+      const result = await grantAccess({ durationDays: 365 });
+      setGrantStatus({ success: true, message: result.message });
+    } catch (error) {
+      setGrantStatus({
+        success: false,
+        message: `Error: ${error instanceof Error ? error.message : "Failed to grant access"}`,
+      });
+    } finally {
+      setIsGranting(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div>
@@ -49,6 +72,19 @@ export default function AdminDashboard() {
           <h2 className="text-lg font-semibold text-slate-900">Quick Actions</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-slate-100">
+          <button
+            onClick={handleGrantAccess}
+            disabled={isGranting}
+            className="bg-white px-6 py-4 hover:bg-emerald-50 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-slate-900">Grant Free Access</p>
+                <p className="text-sm text-slate-500 mt-0.5">Enable all plans for this admin account</p>
+              </div>
+              <Gift size={16} className="text-emerald-500 flex-shrink-0" />
+            </div>
+          </button>
           <QuickAction
             label="Create New Group"
             description="Set up a new enrollment group"
@@ -70,6 +106,17 @@ export default function AdminDashboard() {
             href="/admin/billing"
           />
         </div>
+        {grantStatus && (
+          <div
+            className={`px-6 py-3 border-t border-slate-100 text-sm font-medium ${
+              grantStatus.success
+                ? "bg-emerald-50 text-emerald-700"
+                : "bg-red-50 text-red-700"
+            }`}
+          >
+            {grantStatus.message}
+          </div>
+        )}
       </div>
 
       {/* Recent Activity */}

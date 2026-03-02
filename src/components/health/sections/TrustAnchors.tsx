@@ -11,7 +11,7 @@ const TRUST_ITEMS = [
   {
     icon: Users,
     title: "Real Licensed Dentists",
-    text: "All Dial Care providers are licensed dental professionals with real expertise.",
+    text: "All teledentistry providers are licensed dental professionals with real expertise.",
   },
   {
     icon: Award,
@@ -20,8 +20,8 @@ const TRUST_ITEMS = [
   },
   {
     icon: Zap,
-    title: "Immediate Access",
-    text: "Start using your benefits the same day you enroll.",
+    title: "Access Within 24 Hours",
+    text: "Your benefits are activated within 24 hours of enrollment.",
   },
 ];
 

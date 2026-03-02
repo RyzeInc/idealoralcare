@@ -11,9 +11,9 @@ import {
 } from "@/components/health/sections";
 
 export const metadata = {
-  title: "Ideal Health Oral Plan | Comprehensive Oral Health Coverage",
+  title: "Ideal Oral Health Plan | Comprehensive Oral Health Coverage",
   description:
-    "Ideal Health Oral Health Plan - Toothlens AI oral scanning, Dial Care teledentistry, and Dental Discount Network Dental Discount Network dental network access. Affordable monthly membership.",
+    "Ideal Oral Health Plan - Toothlens AI oral scanning, 24/7 teledentistry, and Dental Discount Network dental access. Affordable monthly membership.",
 };
 
 /**
@@ -42,7 +42,7 @@ export default function HealthLanding() {
       {/* HERO SECTION - Full Bleed, High Energy */}
       <OralHero
         headline="Comprehensive Oral Health Care"
-        subtitle="AI-powered Toothlens scanning, 24/7 Dial Care teledentistry, and Dental Discount Network Dental Discount Network network discounts—all in one affordable plan."
+        subtitle="AI-powered Toothlens scanning, 24/7 teledentistry, and Dental Discount Network discounts—all in one affordable plan."
         bullets={[
           "Toothlens AI scanning for early detection",
           "24/7 teledentistry consultations with licensed dentists",
@@ -59,7 +59,7 @@ export default function HealthLanding() {
 
       {/* PLAN CARD - Single Comprehensive Offering */}
       <PlanCard
-        title="Ideal Health Oral Plan"
+        title="Ideal Oral Health Plan"
         description="Everything you need for comprehensive oral health coverage in one affordable plan."
       />
 

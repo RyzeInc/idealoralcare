@@ -17,16 +17,10 @@ const STEPS = [
     step: 3,
     title: "Get Your Member ID",
     description:
-      "Immediately receive your digital and physical member ID cards with access information for all plan services.",
+      "Receive your digital member ID card within 24 hours of enrollment with access to all plan services.",
   },
   {
     step: 4,
-    title: "Activate Your Services",
-    description:
-      "Set up your Toothlens Smart Check account, download the Dial Care app, and access the Dental Discount Network provider directory.",
-  },
-  {
-    step: 5,
     title: "Start Your Dental Journey",
     description:
       "Use AI scanning for home monitoring, get teledentistry consultations when needed, and access discounted in-network care.",
@@ -50,7 +44,7 @@ export default function HowItWorks() {
           >
             Simple Process
           </p>
-          <h2>Getting Started Takes 5 Easy Steps</h2>
+          <h2>Getting Started Takes 4 Easy Steps</h2>
           <p style={{ fontSize: "1.125rem", color: "#475569", maxWidth: "600px", margin: "0 auto" }}>
             From enrollment to access—everything you need to start your oral health journey.
           </p>
