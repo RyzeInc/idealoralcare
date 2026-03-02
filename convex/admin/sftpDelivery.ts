@@ -23,6 +23,7 @@ export const deliverVendorFileViaSftp = action({
     groupCode: v.string(),
   },
   handler: async (ctx, args) => {
+    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
     await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     // Placeholder for SFTP implementation
     // In production, use ssh2-sftp-client library with environment credentials
@@ -130,6 +131,7 @@ export const getFileForDownload = action({
     vendor: v.string(), // "careington" | "dialcare"
   },
   handler: async (ctx, args) => {
+    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
     await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     // Call vendor file generator to get content
     let fileData;

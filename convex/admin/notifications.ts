@@ -66,6 +66,7 @@ export const sendWelcomeEmail = action({
     memberId: v.string(),
   },
   handler: async (ctx, args) => {
+    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
     await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const html = `
       <html>
@@ -119,6 +120,7 @@ export const sendPaymentReceiptEmail = action({
     transactionId: v.string(),
   },
   handler: async (ctx, args) => {
+    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
     await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const html = `
       <html>
@@ -181,6 +183,7 @@ export const sendMemberIdCardEmail = action({
     memberId: v.string(),
   },
   handler: async (ctx, args) => {
+    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
     await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const html = `
       <html>
@@ -224,6 +227,7 @@ export const sendEligibilityReminderEmail = action({
     adminName: v.string(),
   },
   handler: async (ctx, args) => {
+    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
     await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 5); // 5 days from now (roughly 1st of next month)
@@ -273,6 +277,7 @@ export const sendTestEmail = action({
     email: v.string(),
   },
   handler: async (ctx, args) => {
+    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
     await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const html = `
       <html>

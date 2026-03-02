@@ -130,13 +130,13 @@ export async function requireAuthAction(ctx: ActionCtx): Promise<AuthIdentity> {
  */
 export async function requireAdminAction(
   ctx: ActionCtx,
-  isAdminQuery: any
+  isAdminQuery: unknown
 ): Promise<AuthIdentity> {
   const identity = await requireAuthAction(ctx);
 
-  const isAdmin = (await ctx.runQuery(isAdminQuery, {
+  const isAdmin = (await ctx.runQuery(isAdminQuery as any, {
     clerkUserId: identity.clerkUserId,
-  })) as any;
+  })) as boolean;
 
   if (!isAdmin) {
     throw new Error("Unauthorized: Admin role required");

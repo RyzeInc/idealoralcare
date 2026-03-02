@@ -83,9 +83,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Create the subscription in an incomplete state so we can collect payment inline.
-    // NOTE: Do NOT restrict payment_method_types here — the PaymentElement handles
-    // method selection automatically. Restricting it at the subscription level can
-    // prevent Stripe from generating a PaymentIntent for the invoice.
+    // Stripe SDK v18+ (basil API) removed `payment_intent` from Invoice and replaced
+    // it with `confirmation_secret` — a client_secret you pass directly to Elements.
     const subscription = await stripe.subscriptions.create({
       customer: stripeCustomerId,
       collection_method: "charge_automatically",
@@ -106,7 +105,7 @@ export async function POST(req: NextRequest) {
       payment_settings: {
         save_default_payment_method: "on_subscription",
       },
-      expand: ["latest_invoice.payment_intent"],
+      expand: ["latest_invoice.confirmation_secret"],
       metadata: {
         clerkUserId: userId,
         planId,
@@ -116,24 +115,26 @@ export async function POST(req: NextRequest) {
     });
 
     const invoice = subscription.latest_invoice as any;
-    const paymentIntent = invoice?.payment_intent as any;
+    // In basil+ API versions, use confirmation_secret instead of payment_intent.client_secret
+    const clientSecret: string | undefined =
+      invoice?.confirmation_secret?.client_secret ??
+      invoice?.confirmation_secret ??
+      undefined;
 
     console.log("[setup-payment] subscription.status:", subscription.status);
     console.log("[setup-payment] invoice.status:", invoice?.status);
-    console.log("[setup-payment] paymentIntent.status:", paymentIntent?.status);
-    console.log("[setup-payment] has client_secret:", !!paymentIntent?.client_secret);
+    console.log("[setup-payment] invoice.confirmation_secret:", JSON.stringify(invoice?.confirmation_secret));
+    console.log("[setup-payment] has client_secret:", !!clientSecret);
 
-    if (!paymentIntent?.client_secret) {
-      // Log details to help diagnose future occurrences
+    if (!clientSecret) {
       console.error("[setup-payment] Missing client_secret. Subscription:", {
         id: subscription.id,
         status: subscription.status,
         invoiceId: typeof invoice === "string" ? invoice : invoice?.id,
         invoiceStatus: invoice?.status,
-        paymentIntentId: typeof paymentIntent === "string" ? paymentIntent : paymentIntent?.id,
-        paymentIntentStatus: paymentIntent?.status,
+        confirmationSecret: invoice?.confirmation_secret,
+        invoiceKeys: invoice ? Object.keys(invoice) : [],
       });
-      // Cancel the incomplete subscription and return error
       await stripe.subscriptions.cancel(subscription.id);
       return NextResponse.json(
         { error: "Could not initialize payment. Please try again." },
@@ -142,7 +143,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({
-      clientSecret: paymentIntent.client_secret,
+      clientSecret,
       subscriptionId: subscription.id,
       productName,
     });

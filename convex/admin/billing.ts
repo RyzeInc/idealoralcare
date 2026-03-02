@@ -175,6 +175,7 @@ export const generateBillingCsv: any = action({
   },
   handler: async (ctx, args) => {
     const api = getApi();
+    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
     await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const summary = await ctx.runQuery(api.admin.billing.getAccountBillingSummary, { accountId: args.accountId });
 

@@ -186,6 +186,7 @@ export const processEligibilityFile = action({
     fileId: v.id("eligibilityFiles"),
   },
   handler: async (ctx, args) => {
+    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
     await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const file = await ctx.runQuery(api.admin.eligibility.getEligibilityFileDetail, { fileId: args.fileId });
     if (!file) throw new Error("File not found");

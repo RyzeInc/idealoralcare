@@ -22,6 +22,7 @@ export const generateMemberIdCardPdf: any = action({
     memberId: v.id("memberProfiles"),
   },
   handler: async (ctx, args) => {
+    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
     await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const memberDetail = await ctx.runQuery(api.admin.members.getMemberDetail, { memberId: args.memberId });
     if (!memberDetail) throw new Error("Member not found");
@@ -107,6 +108,7 @@ export const getMemberCardData: any = action({
     memberId: v.id("memberProfiles"),
   },
   handler: async (ctx, args) => {
+    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
     await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const memberDetail = await ctx.runQuery(api.admin.members.getMemberDetail, { memberId: args.memberId });
     if (!memberDetail) throw new Error("Member not found");

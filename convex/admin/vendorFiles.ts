@@ -53,6 +53,7 @@ export const generateDentalDiscountNetworkFile: any = action({
     groupId: v.id("groups"),
   },
   handler: async (ctx, args) => {
+    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
     await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const group = await ctx.runQuery(api.admin.hierarchy.getGroupById, { groupId: args.groupId });
     if (!group) throw new Error("Group not found");
@@ -90,6 +91,7 @@ export const generateDialCareFile: any = action({
     groupId: v.id("groups"),
   },
   handler: async (ctx, args) => {
+    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
     await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const group = await ctx.runQuery(api.admin.hierarchy.getGroupById, { groupId: args.groupId });
     if (!group) throw new Error("Group not found");
@@ -127,6 +129,7 @@ export const generateVendorFile: any = action({
     vendor: v.string(), // "careington" | "dialcare"
   },
   handler: async (ctx, args) => {
+    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
     await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const group = await ctx.runQuery(api.admin.hierarchy.getGroupById, { groupId: args.groupId });
     if (!group) throw new Error("Group not found");
