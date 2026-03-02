@@ -46,12 +46,18 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://challenges.cloudflare.com",
-              "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob: https://*.clerk.com https://img.clerk.com",
-              "font-src 'self' data:",
-              "connect-src 'self' https://*.convex.cloud wss://*.convex.cloud https://*.clerk.accounts.dev https://api.stripe.com",
-              "frame-src https://*.clerk.accounts.dev https://js.stripe.com https://challenges.cloudflare.com",
+              // Clerk (dev + prod custom domain) + Stripe + Cloudflare
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://clerk.getidealoh.com https://js.stripe.com https://challenges.cloudflare.com",
+              // Inline styles + Google Fonts
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+              // Images: Clerk CDN + general
+              "img-src 'self' data: blob: https://*.clerk.com https://img.clerk.com https://*.clerk.accounts.dev",
+              // Fonts: local + Google Fonts CDN
+              "font-src 'self' data: https://fonts.gstatic.com",
+              // API connections: Convex + Clerk (dev + prod) + Stripe
+              "connect-src 'self' https://*.convex.cloud wss://*.convex.cloud https://*.clerk.accounts.dev https://clerk.getidealoh.com https://api.stripe.com https://r.stripe.com",
+              // Iframes: Clerk + Stripe + Cloudflare
+              "frame-src https://*.clerk.accounts.dev https://clerk.getidealoh.com https://js.stripe.com https://hooks.stripe.com https://challenges.cloudflare.com",
               "worker-src 'self' blob:",
             ].join("; "),
           },

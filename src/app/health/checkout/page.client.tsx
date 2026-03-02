@@ -16,7 +16,7 @@
  * - Clear policy acknowledgments
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import { 
@@ -49,6 +49,13 @@ function CheckoutContent() {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [agreedToNotInsurance, setAgreedToNotInsurance] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  // Fallback: if Clerk JS is blocked by CSP or slow, stop showing Loading... after 5s
+  const [clerkTimeout, setClerkTimeout] = useState(false);
+  useEffect(() => {
+    if (isLoaded) return;
+    const t = setTimeout(() => setClerkTimeout(true), 5000);
+    return () => clearTimeout(t);
+  }, [isLoaded]);
   
   const periodLabel = cart.cadence === "monthly" ? "Monthly" : "Annual";
   const periodShort = cart.cadence === "monthly" ? "/mo" : "/yr";
@@ -221,7 +228,7 @@ function CheckoutContent() {
               <h2 className={styles.cardTitle}>Account</h2>
             </div>
             
-            {!isLoaded ? (
+            {!isLoaded && !clerkTimeout ? (
               <div className={styles.accountLoading}>Loading...</div>
             ) : isSignedIn ? (
               <div className={styles.accountInfo}>

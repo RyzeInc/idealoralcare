@@ -5,7 +5,7 @@
  * Used for testing, trials, or manual access grants.
  */
 
-import { mutation, query } from "../_generated/server";
+import { mutation, query, internalMutation } from "../_generated/server";
 import { v } from "convex/values";
 import { requireAdmin } from "../lib/authGuards";
 import { api } from "../_generated/api";
@@ -264,6 +264,74 @@ export const grantMeFullAccess = mutation({
       entitlements: entitlementIds.length,
       expiresAt: new Date(periodEnd).toISOString(),
       message: `✅ Full free access granted! ${productIds.length} product(s) active until ${new Date(periodEnd).toLocaleDateString()}`,
+    };
+  },
+});
+
+/**
+ * Internal version — no auth check.
+ * Run from terminal: npx convex run admin/grantFreeAccess:grantMeFullAccessInternal --prod '{"customerId":"user_XXXX"}'
+ */
+export const grantMeFullAccessInternal = internalMutation({
+  args: {
+    customerId: v.string(),
+    durationDays: v.optional(v.number()),
+  },
+  handler: async (ctx: any, args: any) => {
+    const allProducts = await ctx.db.query("catalogProducts").collect();
+    if (allProducts.length === 0) throw new Error("No products in catalog — run reseedInternal first");
+
+    const now = Date.now();
+    const durationMs = (args.durationDays ?? 365) * 24 * 60 * 60 * 1000;
+    const periodEnd = now + durationMs;
+
+    const bundleId = await ctx.db.insert("subscriptionBundles", {
+      customerId: args.customerId,
+      cadence: "annual",
+      paymentMethod: "card",
+      stripeCustomerId: `free_local_${args.customerId}`,
+      stripeSubscriptionId: `free_${Date.now()}`,
+      status: "active",
+      currentPeriodStart: now,
+      currentPeriodEnd: periodEnd,
+      pricingSnapshot: {
+        cadence: "annual",
+        paymentMethod: "card",
+        totalCents: 0,
+        planCount: allProducts.length,
+        capturedAt: now,
+      },
+      createdAt: now,
+      updatedAt: now,
+      activatedAt: now,
+    });
+
+    const entitlementIds = [];
+    for (const product of allProducts) {
+      const id = await ctx.db.insert("entitlements", {
+        customerId: args.customerId,
+        bundleId,
+        productId: product._id,
+        periodStart: now,
+        periodEnd,
+        status: "active",
+        endCondition: "expire",
+        createdAt: now,
+        activatedAt: now,
+        expiresAt: periodEnd,
+        createdVia: "admin_action",
+        notes: `Free access granted internally on ${new Date().toISOString()}`,
+      });
+      entitlementIds.push(id);
+    }
+
+    return {
+      success: true,
+      customerId: args.customerId,
+      bundleId,
+      productsGranted: allProducts.length,
+      entitlements: entitlementIds.length,
+      expiresAt: new Date(periodEnd).toISOString(),
     };
   },
 });

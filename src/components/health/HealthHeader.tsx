@@ -49,18 +49,18 @@ export default function HealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
         {/* Desktop Navigation */}
         <nav className={styles.desktopNav}>
           <ul className="nav-list">
-            {/* Services - Enrollment Flows */}
-            <li className="nav-item">
-              <Link href="/health/enroll?flow=dtc" className="nav-link">Individual</Link>
-            </li>
-            <li className="nav-item">
-              <Link href="/health/enroll?flow=broker-individual" className="nav-link">Broker</Link>
-            </li>
-            <li className="nav-item">
-              <Link href="/health/enroll?flow=broker-group-member" className="nav-link">Group (Member)</Link>
-            </li>
-            <li className="nav-item">
-              <Link href="/health/enroll?flow=broker-group-employer" className="nav-link">Group (Employer)</Link>
+            {/* Services Dropdown - Enrollment Flows */}
+            <li className="nav-item nav-item--dropdown">
+              <a href="#" className="nav-link nav-link--dropdown">Services</a>
+              <div className="dropdown-menu">
+                <p className="dropdown-description">Choose your enrollment path.</p>
+                <ul className="dropdown-list">
+                  <li><Link href="/health/enroll?flow=dtc">Individual Enrollment</Link></li>
+                  <li><Link href="/health/enroll?flow=broker-individual">Broker — Individual Client</Link></li>
+                  <li><Link href="/health/enroll?flow=broker-group-member">Broker — Group (Member Pays)</Link></li>
+                  <li><Link href="/health/enroll?flow=broker-group-employer">Broker — Group (Employer Pays)</Link></li>
+                </ul>
+              </div>
             </li>
             
             {/* For Organizations Dropdown */}
@@ -171,46 +171,31 @@ export default function HealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
         {mobileMenuOpen && (
           <div className={`${styles.mobileMenu} ${mobileMenuOpen ? styles.open : ''}`}>
           <div className={styles.mobileMenuContent}>
-              {/* Services Mobile - Enrollment Flows */}
+              {/* Services Mobile - Enrollment Flows Dropdown */}
               <div className={styles.mobileMenuSection}>
-                <Link 
-                  href="/health/enroll?flow=dtc" 
-                  onClick={closeMenu}
+                <button
+                  onClick={() => toggleDropdown('services')}
                   className={styles.mobileMenuToggle}
-                  style={{ textDecoration: "none" }}
                 >
-                  Individual
-                </Link>
-              </div>
-              <div className={styles.mobileMenuSection}>
-                <Link 
-                  href="/health/enroll?flow=broker-individual" 
-                  onClick={closeMenu}
-                  className={styles.mobileMenuToggle}
-                  style={{ textDecoration: "none" }}
-                >
-                  Broker
-                </Link>
-              </div>
-              <div className={styles.mobileMenuSection}>
-                <Link 
-                  href="/health/enroll?flow=broker-group-member" 
-                  onClick={closeMenu}
-                  className={styles.mobileMenuToggle}
-                  style={{ textDecoration: "none" }}
-                >
-                  Group (Member Pays)
-                </Link>
-              </div>
-              <div className={styles.mobileMenuSection}>
-                <Link 
-                  href="/health/enroll?flow=broker-group-employer" 
-                  onClick={closeMenu}
-                  className={styles.mobileMenuToggle}
-                  style={{ textDecoration: "none" }}
-                >
-                  Group (Employer Pays)
-                </Link>
+                  Services
+                  <span style={{ fontSize: "0.75rem" }}>{openDropdown === 'services' ? '−' : '+'}</span>
+                </button>
+                <div className={`${styles.mobileMenuDropdown} ${openDropdown === 'services' ? styles.open : ''}`}>
+                  <div>
+                    <Link href="/health/enroll?flow=dtc" onClick={closeMenu} className={styles.mobileMenuLink}>
+                      Individual Enrollment
+                    </Link>
+                    <Link href="/health/enroll?flow=broker-individual" onClick={closeMenu} className={styles.mobileMenuLink}>
+                      Broker — Individual Client
+                    </Link>
+                    <Link href="/health/enroll?flow=broker-group-member" onClick={closeMenu} className={styles.mobileMenuLink}>
+                      Broker — Group (Member Pays)
+                    </Link>
+                    <Link href="/health/enroll?flow=broker-group-employer" onClick={closeMenu} className={styles.mobileMenuLink}>
+                      Broker — Group (Employer Pays)
+                    </Link>
+                  </div>
+                </div>
               </div>
 
               {/* For Organizations Mobile */}

@@ -4,7 +4,7 @@
  * Mutations for managing the product catalog
  */
 
-import { mutation } from "../_generated/server";
+import { mutation, internalMutation } from "../_generated/server";
 import { v } from "convex/values";
 import { requireAdmin } from "../lib/authGuards";
 
@@ -165,6 +165,69 @@ export const reseedData = mutation({
       success: true,
       message: `Successfully reseeded ${createdProducts.length} products (cleared ${existing.length} old products)`,
       count: createdProducts.length,
+    };
+  },
+});
+
+/** Internal version — no auth check, callable via `npx convex run --prod catalog/mutations:reseedInternal` */
+export const reseedInternal = internalMutation({
+  args: {},
+  handler: async (ctx: any) => {
+    const existing = await ctx.db.query("catalogProducts").collect();
+    for (const product of existing) {
+      await ctx.db.delete(product._id);
+    }
+
+    const product = {
+      slug: "oral-health-plan",
+      name: "Ideal Oral Health Plan",
+      category: "dental",
+      description:
+        "Comprehensive oral health coverage with Toothlens AI oral scanning, 24/7 teledentistry consultations, and access to the Dental Discount Network.",
+      longDescription:
+        "Our Oral Health Plan provides comprehensive access to dental care through innovative technology and a nationwide network of providers. Features include AI-powered oral scanning (Toothlens Smart Check), 24/7 teledentistry consultations, and significant discounts on procedures through the Dental Discount Network.",
+      inclusions: [
+        "Toothlens AI Oral Scanning",
+        "24/7 Teledentistry Program",
+        "Dental Discount Network Access",
+        "Preventive Discounts",
+        "Member ID Card",
+        "Emergency Access",
+      ],
+      exclusions: ["Not traditional dental insurance", "Savings-based discount plan"],
+      eligibilityRules: {
+        requiresVerification: false,
+        disclosureText: "This is a savings-based discount plan, not insurance.",
+      },
+      activationBehavior: "immediate" as const,
+      pricing: {
+        monthlyCardCents: 1499,
+        monthlyACHCents: 1299,
+        annualCardCents: 14999,
+        annualACHCents: 12999,
+      },
+      stripeProducts: {
+        monthlyCardId: "prod_U3no15TNX9iTj1",
+        monthlyACHId: "prod_U3nrt0liKgXRmq",
+        annualCardId: "prod_U3nsR7DN8AVcL9",
+        annualACHId: "prod_U3ns1IYNVgNwGM",
+      },
+      metadata: {
+        icon: "Heart",
+        bestFor: ["Individuals", "Families"],
+      },
+      isVisible: true,
+      isFeatured: true,
+      order: 0,
+    };
+
+    const now = Date.now();
+    const id = await ctx.db.insert("catalogProducts", { ...product, createdAt: now, updatedAt: now });
+
+    return {
+      success: true,
+      message: `Reseeded 1 product (cleared ${existing.length} old)`,
+      id,
     };
   },
 });
