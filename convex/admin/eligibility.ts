@@ -208,7 +208,6 @@ export const processEligibilityFile = action({
       // }
 
       // For this implementation, we'll create a helper mutation to process chunked records
-      console.log("Processing eligibility file:", file.file._id);
 
       // Simulate processing (in production: parse actual CSV from _storage)
       await ctx.runMutation(api.admin.eligibility.completeFileProcessing, {

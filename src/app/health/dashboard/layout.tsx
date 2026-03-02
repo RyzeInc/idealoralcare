@@ -63,7 +63,6 @@ export default async function DashboardLayout({
       }
     }
   } catch (error) {
-    console.error("[dashboard-layout] Subscription check error:", error);
     // On error, redirect to plans page (fail-safe - require subscription)
     redirect("/health#plans");
   }

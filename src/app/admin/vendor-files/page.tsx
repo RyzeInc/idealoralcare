@@ -34,6 +34,17 @@ export default function VendorFilesPage() {
         <p className="text-slate-600">Generate and deliver eligibility files to vendors</p>
       </div>
 
+      {/* Coming Soon Banner */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-3 mb-6">
+        <AlertCircle className="text-blue-600 flex-shrink-0" size={20} />
+        <div>
+          <p className="text-sm font-semibold text-blue-900">Vendor File Delivery — Coming Soon</p>
+          <p className="text-sm text-blue-800 mt-1">
+            Automated vendor file generation and SFTP delivery will be available in a future update.
+          </p>
+        </div>
+      </div>
+
       {/* Group Selector */}
       <div className="bg-white rounded-lg shadow p-6">
         <label className="block text-sm font-semibold text-slate-900 mb-2">Select Group</label>

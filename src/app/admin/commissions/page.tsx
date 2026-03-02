@@ -31,13 +31,13 @@ export default function CommissionsPage() {
       </div>
 
       {/* Dependency Note */}
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3">
-        <AlertCircle className="text-amber-600 flex-shrink-0" size={20} />
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-3">
+        <AlertCircle className="text-blue-600 flex-shrink-0" size={20} />
         <div>
-          <p className="text-sm font-semibold text-amber-900">Commission Tables Required</p>
-          <p className="text-sm text-amber-800 mt-1">
-            Real commission data requires Agent 1 to create commissionRates and commissionPayables tables in the schema.
-            The page below shows mock data for demonstration.
+          <p className="text-sm font-semibold text-blue-900">Commission Tracking — Coming Soon</p>
+          <p className="text-sm text-blue-800 mt-1">
+            Broker commission tracking and payroll exports will be available in a future update.
+            For commission inquiries, contact your account representative.
           </p>
         </div>
       </div>

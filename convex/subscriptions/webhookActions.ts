@@ -52,7 +52,6 @@ export const cancelBundleFromWebhook = mutation({
 
     // Idempotency: if already cancelled, skip
     if (bundle.status === "cancelled") {
-      console.log(`[webhookActions] Bundle ${args.bundleId} already cancelled`);
       return bundle._id;
     }
 

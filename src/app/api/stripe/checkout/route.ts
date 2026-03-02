@@ -94,7 +94,6 @@ export async function POST(req: NextRequest) {
         productName = product.name;
       }
     } catch (error) {
-      console.warn("[checkout] Could not fetch product details from Convex:", error);
       // Fall back to default product name
     }
 

@@ -7,9 +7,7 @@ import {
   Users,
   FileText,
   DollarSign,
-  BarChart3,
   ArrowLeft,
-  Package,
   ShieldCheck,
   Briefcase,
 } from "lucide-react";
@@ -21,11 +19,8 @@ const ADMIN_NAVIGATION = [
   { label: "Members", href: "/admin/members", icon: Users },
   { label: "Brokers", href: "/admin/brokers", icon: Briefcase },
   { label: "Eligibility Files", href: "/admin/eligibility", icon: FileText },
-  { label: "Vendor Files", href: "/admin/vendor-files", icon: BarChart3 },
   { label: "Billing", href: "/admin/billing", icon: DollarSign },
-  { label: "Commissions", href: "/admin/commissions", icon: BarChart3 },
   { label: "Admin Users", href: "/admin/users", icon: ShieldCheck },
-  { label: "Catalog Seed", href: "/admin/catalog-seed", icon: Package },
 ];
 
 function AdminSidebar() {
@@ -102,7 +97,6 @@ export default async function AdminLayout({
       }
     }
   } catch (error) {
-    console.error("[admin-layout] Auth check error:", error);
     // On error, deny access (fail-safe)
     redirect("/health");
   }

@@ -104,7 +104,6 @@ export function EnrollmentLauncher({
       router.push(`/health/enroll?${params.toString()}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
-      console.error('Error creating lead:', err);
     } finally {
       setLoading(false);
     }

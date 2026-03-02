@@ -129,7 +129,7 @@ export const initializeEnrollment = mutation({
           type: "primary",
           branding: {
             logoUrl: "/ideal-health-logo.png",
-            primaryColor: "#0066CC",
+            primaryColor: "#1e3a5f",
             secondaryColor: "#14b8a6",
           },
           allowedPlanIds: oralPlanId ? [oralPlanId] : [],
@@ -146,7 +146,7 @@ export const initializeEnrollment = mutation({
             collectEmployeeId: false,
             collectDependents: true,
             welcomeMessage: "Welcome to Ideal Health!",
-            supportEmail: "support@idealhealth.com",
+            supportEmail: "support@getidealoh.com",
           },
           status: "active",
           createdAt: now2,

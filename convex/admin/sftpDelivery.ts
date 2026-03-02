@@ -65,10 +65,6 @@ export const deliverVendorFileViaSftp = action({
     //   throw new Error(`SFTP delivery failed: ${error.message}`);
     // }
 
-    console.log(
-      `[SFTP] Would deliver ${args.filename} to ${args.vendor} at ${vendorCreds.host}:${vendorCreds.remotePath}`
-    );
-
     return {
       success: true,
       vendor: args.vendor,

@@ -96,11 +96,6 @@ export default function AdminDashboard() {
             href="/admin/eligibility"
           />
           <QuickAction
-            label="Generate Vendor Files"
-            description="Create Dental Discount Network & Dial Care feeds"
-            href="/admin/vendor-files"
-          />
-          <QuickAction
             label="View Billing Summary"
             description="Monthly member counts & amounts"
             href="/admin/billing"

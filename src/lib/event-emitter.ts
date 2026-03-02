@@ -23,20 +23,13 @@ export class EventEmitter {
   async emit(event: Omit<SystemEvent, "_id" | "createdAt">): Promise<SystemEvent> {
     try {
       if (!this.mutationFn) {
-        console.warn("[EventEmitter] Mutation function not available, logging event only", event);
         return event as SystemEvent;
       }
 
       // Emit new event via mutation
       const result = await this.mutationFn("subscriptions.events.create", event);
-      console.log(`[EventEmitter] Event emitted: ${event.eventType}`, {
-        customerId: event.customerId,
-        bundleId: event.bundleId,
-      });
-
       return result;
     } catch (error) {
-      console.error("[EventEmitter] Failed to emit event:", event, error);
       throw error;
     }
   }

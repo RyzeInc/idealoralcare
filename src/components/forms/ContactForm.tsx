@@ -85,7 +85,6 @@ export function ContactForm() {
       });
       setIsSubmitted(true);
     } catch (error) {
-      console.error("Failed to submit contact form:", error);
       setErrors({ submit: "Failed to submit. Please try again." });
     } finally {
       setIsSubmitting(false);

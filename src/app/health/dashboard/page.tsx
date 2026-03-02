@@ -48,7 +48,6 @@ export default async function DashboardPage() {
       // For now, render empty state while API types are being updated
       hasSubscriptions = false;
     } catch (error) {
-      console.error("[dashboard] Error fetching subscription data:", error);
       // Fail gracefully - show empty state
     }
   }

@@ -13,41 +13,47 @@ import { v } from "convex/values";
 export const resolveSiteBySlug = query({
   args: { slug: v.string() },
   handler: async (ctx, { slug }) => {
-    // For Phase 1 DTC: always resolve to default site
-    if (slug === "ryze-health" || slug === "ideal-health" || slug === "") {
-      return {
-        _id: "site_dtc_001",
-        name: slug === "ideal-health" ? "Ideal Health" : "Ideal Health DTC",
-        slug: slug || "ideal-health",
-        type: "primary",
-        status: "active",
-        logoUrl: "/assets/logo.png",
-        primaryColor: "#0066cc",
-        secondaryColor: "#00cc99",
-        enrollmentDefaults: {
-          requireGroupCode: false,
-          requireEligibilityMatch: false,
-          allowSelfEnrollment: true,
-          collectPhone: true,
-          collectAddress: true,
-          collectEmployeeId: false,
-          collectDependents: false,
-          requirePayment: true,
-          autoActivate: true,
-          requireEnrollmentTerms: true,
-          requirePrivacyConsent: true,
-          requireAutoPayConsent: true,
-          requireDataSharing: false,
-          requireHipaa: false,
-        },
-        allowedPlanIds: ["dental-savings", "wellness-glp"],
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
+    const normalizedSlug = slug || "ideal-health";
+
+    // Try database first
+    const site = await ctx.db
+      .query("sites")
+      .withIndex("by_slug", (q: any) => q.eq("slug", normalizedSlug))
+      .first();
+
+    if (site) return site;
+
+    // Legacy slug support
+    if (normalizedSlug === "ryze-health") {
+      const legacySite = await ctx.db
+        .query("sites")
+        .withIndex("by_slug", (q: any) => q.eq("slug", "ideal-health"))
+        .first();
+      if (legacySite) return legacySite;
     }
 
-    // Fallback for unknown slugs
-    throw new Error("Site not found");
+    // Return a sensible default for DTC (the enrollment/sessions.ts auto-creates the real site)
+    return {
+      _id: "pending" as any,
+      name: "Ideal Health",
+      slug: normalizedSlug,
+      type: "primary" as const,
+      status: "active" as const,
+      enrollmentDefaults: {
+        requireGroupCode: false,
+        requireEligibilityMatch: false,
+        allowSelfEnrollment: true,
+        collectPhone: true,
+        collectAddress: true,
+        collectEmployeeId: false,
+        collectDependents: false,
+        requirePayment: true,
+        autoActivate: true,
+      },
+      allowedPlanIds: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
   },
 });
 
@@ -57,22 +63,12 @@ export const resolveSiteBySlug = query({
 export const resolveAccountBySite = query({
   args: { siteId: v.string(), slug: v.string() },
   handler: async (ctx, { siteId, slug }) => {
-    // For Phase 1 DTC: default account
-    return {
-      _id: "account_dtc_001",
-      siteId,
-      name: "Ideal Health Direct",
-      slug: "ryze-health-direct",
-      type: "internal",
-      status: "active",
-      billingModel: "per_member",
-      billingDetails: {
-        currency: "USD",
-        paymentTerms: "monthly",
-      },
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
+    // Query database for account
+    const account = await ctx.db
+      .query("accounts")
+      .filter((q) => q.eq(q.field("siteId"), siteId))
+      .first();
+    return account || null;
   },
 });
 
@@ -82,19 +78,12 @@ export const resolveAccountBySite = query({
 export const resolveGroupBySiteAndAccount = query({
   args: { siteId: v.string(), accountId: v.string(), slug: v.optional(v.string()) },
   handler: async (ctx, { siteId, accountId, slug }) => {
-    // For Phase 1 DTC: default group
-    return {
-      _id: "group_dtc_001",
-      siteId,
-      accountId,
-      name: "General Public",
-      slug: "general-public",
-      groupCode: "RYZE-PUBLIC",
-      status: "active",
-      currentMemberCount: 0,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
+    // Query database for group
+    const group = await ctx.db
+      .query("groups")
+      .filter((q) => q.eq(q.field("accountId"), accountId))
+      .first();
+    return group || null;
   },
 });
 
@@ -104,38 +93,12 @@ export const resolveGroupBySiteAndAccount = query({
 export const getSite = query({
   args: { siteId: v.string() },
   handler: async (ctx, { siteId }) => {
-    // For Phase 1: return mock site
-    if (siteId === "site_dtc_001" || siteId === "") {
-      return {
-        _id: "site_dtc_001",
-        name: "Ideal Health DTC",
-        slug: "ryze-health",
-        type: "primary",
-        status: "active",
-        primaryColor: "#0066cc",
-        enrollmentDefaults: {
-          requireGroupCode: false,
-          requireEligibilityMatch: false,
-          allowSelfEnrollment: true,
-          collectPhone: true,
-          collectAddress: true,
-          collectEmployeeId: false,
-          collectDependents: false,
-          requirePayment: true,
-          autoActivate: true,
-          requireEnrollmentTerms: true,
-          requirePrivacyConsent: true,
-          requireAutoPayConsent: true,
-          requireDataSharing: false,
-          requireHipaa: false,
-        },
-        allowedPlanIds: ["dental-savings", "wellness-glp"],
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
+    if (!siteId) return null;
+    try {
+      return await ctx.db.get(siteId as any);
+    } catch {
+      return null;
     }
-
-    return null;
   },
 });
 
@@ -145,22 +108,12 @@ export const getSite = query({
 export const getAccount = query({
   args: { accountId: v.string() },
   handler: async (ctx, { accountId }) => {
-    // For Phase 1: return mock account
-    if (accountId === "account_dtc_001" || accountId === "") {
-      return {
-        _id: "account_dtc_001",
-        siteId: "site_dtc_001",
-        name: "Ideal Health Direct",
-        slug: "ryze-health-direct",
-        type: "internal",
-        status: "active",
-        billingModel: "per_member",
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
+    if (!accountId) return null;
+    try {
+      return await ctx.db.get(accountId as any);
+    } catch {
+      return null;
     }
-
-    return null;
   },
 });
 
@@ -170,22 +123,11 @@ export const getAccount = query({
 export const getGroup = query({
   args: { groupId: v.string() },
   handler: async (ctx, { groupId }) => {
-    // For Phase 1: return mock group
-    if (groupId === "group_dtc_001" || groupId === "") {
-      return {
-        _id: "group_dtc_001",
-        siteId: "site_dtc_001",
-        accountId: "account_dtc_001",
-        name: "General Public",
-        slug: "general-public",
-        groupCode: "RYZE-PUBLIC",
-        status: "active",
-        currentMemberCount: 0,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
+    if (!groupId) return null;
+    try {
+      return await ctx.db.get(groupId as any);
+    } catch {
+      return null;
     }
-
-    return null;
   },
 });

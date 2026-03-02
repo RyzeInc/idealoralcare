@@ -49,7 +49,6 @@ async function sendEmailViaResend(
     // const data = await response.json();
     // return { success: true, messageId: data.id };
 
-    console.log(`[Email] Would send to ${to}: ${subject}`);
     return { success: true, messageId: `mock_${Date.now()}` };
   } catch (error) {
     return { success: false, error: (error as any).message };

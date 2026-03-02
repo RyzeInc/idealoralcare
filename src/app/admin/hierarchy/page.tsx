@@ -63,7 +63,9 @@ export default function HierarchyAdmin() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-8 max-w-md">
             <h2 className="text-xl font-bold mb-4">Create New {activeTab.slice(0, -1)}</h2>
-            <p className="text-slate-600 mb-6">Form placeholder - implement field inputs</p>
+            <p className="text-slate-500 mb-6 text-sm">
+              To create or modify sites, accounts, or groups, please contact your platform administrator.
+            </p>
             <button
               onClick={() => setShowCreateModal(false)}
               className="px-4 py-2 border border-slate-300 rounded hover:bg-slate-50"
@@ -126,8 +128,8 @@ function SitesList({ sites }: { sites: any[] }) {
 function AccountsList({ sites }: { sites: any[] }) {
   return (
     <div className="p-6 text-center text-slate-500">
-      <p>Accounts list placeholder</p>
-      <p className="text-sm">Select a site to view/manage accounts</p>
+      <p className="font-medium text-slate-600">No accounts configured yet</p>
+      <p className="text-sm mt-1">Accounts will appear here once created during enrollment setup.</p>
     </div>
   );
 }
@@ -135,8 +137,8 @@ function AccountsList({ sites }: { sites: any[] }) {
 function GroupsList({ sites }: { sites: any[] }) {
   return (
     <div className="p-6 text-center text-slate-500">
-      <p>Groups list placeholder</p>
-      <p className="text-sm">Select an account to view/manage groups</p>
+      <p className="font-medium text-slate-600">No groups configured yet</p>
+      <p className="text-sm mt-1">Groups will appear here once created during enrollment setup.</p>
     </div>
   );
 }

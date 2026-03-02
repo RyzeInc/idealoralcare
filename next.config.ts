@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
       allowedOrigins: [
         "localhost:3000",
         "localhost:3001",
+        "getidealoh.com",
+        "www.getidealoh.com",
         // Remove *.app.github.dev in production deploys
         ...(process.env.NODE_ENV === "development" ? ["*.app.github.dev"] : []),
       ],

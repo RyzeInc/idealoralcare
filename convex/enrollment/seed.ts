@@ -58,8 +58,6 @@ export const seedDTCData = mutation({
       activatedAt: now,
     });
 
-    console.log("Created DTC site:", siteId);
-
     // Create DTC Account (Individual/Self-Enrolled)
     const accountId = await ctx.db.insert("accounts", {
       siteId,
@@ -80,8 +78,6 @@ export const seedDTCData = mutation({
       activatedAt: now,
     });
 
-    console.log("Created DTC account:", accountId);
-
     // Create DTC Group (Default enrollment group)
     const groupId = await ctx.db.insert("groups", {
       siteId,
@@ -95,8 +91,6 @@ export const seedDTCData = mutation({
       createdAt: now,
       updatedAt: now,
     });
-
-    console.log("Created DTC group:", groupId);
 
     // Create a sample member for testing
     const memberId = await ctx.db.insert("memberProfiles", {
@@ -130,8 +124,6 @@ export const seedDTCData = mutation({
       createdAt: now,
       updatedAt: now,
     });
-
-    console.log("Created sample member:", memberId);
 
     // Log creation activities
     await ctx.db.insert("memberActivities", {
@@ -257,8 +249,6 @@ export const seedTestHierarchy = mutation({
       createdAt: now,
       updatedAt: now,
     });
-
-    console.log("Created white-label test hierarchy");
 
     return {
       siteId: whitelabelSiteId,

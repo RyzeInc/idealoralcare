@@ -49,8 +49,8 @@ type TabId = 'overview' | 'provider-search' | 'oral-scan' | 'teledentistry';
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'overview', label: 'Overview', icon: <HeartPulse size={16} /> },
   { id: 'oral-scan', label: 'Oral Scan', icon: <Scan size={16} /> },
-  { id: 'teledentistry', label: 'Teledentistry', icon: <Video size={16} /> },
-  { id: 'provider-search', label: 'Provider Search', icon: <Search size={16} /> },
+  // { id: 'teledentistry', label: 'Teledentistry', icon: <Video size={16} /> }, // TODO: Enable when vendor integration ready
+  // { id: 'provider-search', label: 'Provider Search', icon: <Search size={16} /> }, // TODO: Enable when provider API ready
 ];
 
 export default function DashboardTabs({
@@ -666,8 +666,8 @@ export default function DashboardTabs({
         </div>
       )}
 
-      {/* ── PROVIDER SEARCH TAB ── */}
-      {activeTab === 'provider-search' && (
+      {/* ── PROVIDER SEARCH TAB (DISABLED - TODO: Enable when provider API ready) ── */}
+      {false && activeTab === 'provider-search' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
           {/* Header */}
@@ -1028,7 +1028,7 @@ export default function DashboardTabs({
         </div>
       )}
 
-      {/* ── ORAL SCAN TAB ── */}
+      {/* ── ORAL SCAN TAB (FULLY FUNCTIONAL - Toothlens SmileScan) ── */}
       {activeTab === 'oral-scan' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
@@ -1678,8 +1678,8 @@ export default function DashboardTabs({
         </div>
       )}
 
-      {/* ── TELEDENTISTRY TAB ── */}
-      {activeTab === 'teledentistry' && (
+      {/* ── TELEDENTISTRY TAB (DISABLED - TODO: Enable when vendor integration ready) ── */}
+      {false && activeTab === 'teledentistry' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {/* Hero */}
           <div

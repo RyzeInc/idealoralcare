@@ -253,7 +253,7 @@ export function SmartInquiryForm({ preselectedType }: SmartInquiryFormProps) {
       });
       setIsSubmitted(true);
     } catch (error) {
-      console.error("Failed to submit inquiry:", error);
+      // Silently handle error
     } finally {
       setIsSubmitting(false);
     }

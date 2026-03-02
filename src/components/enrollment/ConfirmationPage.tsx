@@ -22,8 +22,8 @@ export function ConfirmationPage() {
   };
 
   // Get support contact from site or use defaults
-  const supportEmail = site?.enrollmentDefaults?.supportEmail || 'support@idealhealth.com';
-  const supportPhone = site?.enrollmentDefaults?.supportPhone || '1-844-IDEAL-01';
+  const supportEmail = site?.enrollmentDefaults?.supportEmail || 'support@getidealoh.com';
+  const supportPhone = site?.enrollmentDefaults?.supportPhone || '';
   const welcomeMessage = site?.enrollmentDefaults?.welcomeMessage || 'Welcome to Ideal Health';
 
   // Generate mock barcode content (in production, use JsBarcode library)

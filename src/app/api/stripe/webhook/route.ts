@@ -57,7 +57,6 @@ export async function POST(req: NextRequest) {
 
         // Guard: session must have required metadata
         if (!metadata?.clerkUserId || !metadata?.enrollmentSessionId) {
-          console.warn("[webhook] checkout.session.completed missing metadata", session);
           return NextResponse.json({ received: true });
         }
 
@@ -153,7 +152,6 @@ export async function POST(req: NextRequest) {
                 period: new Date().toISOString().slice(0, 7), // YYYY-MM
               });
             } catch (commissionError) {
-              console.warn("[webhook] Failed to create commission record:", commissionError);
               // Don't fail the whole webhook for commission tracking issues
             }
           }
@@ -167,7 +165,6 @@ export async function POST(req: NextRequest) {
                 staffClerkId,
               });
             } catch (assignError) {
-              console.warn("[webhook] Failed to assign member to staff:", assignError);
               // Don't fail the whole webhook for staff assignment issues
             }
           }
@@ -183,14 +180,6 @@ export async function POST(req: NextRequest) {
             payload: { enrollmentSessionId, brokerCode, memberProfileId },
             success: true,
             idempotencyKey: event.id,
-          });
-
-          console.log("[webhook] checkout.session.completed processed:", {
-            clerkUserId,
-            enrollmentSessionId,
-            bundleId,
-            memberProfileId,
-            brokerCode,
           });
         } catch (error) {
           console.error("[webhook] Error processing checkout.session.completed:", error);
@@ -236,14 +225,6 @@ export async function POST(req: NextRequest) {
                   reason: `Payment succeeded: ${invoice.id}`,
                 }
               );
-
-              console.log(
-                "[webhook] invoice.payment_succeeded — bundle reactivated:",
-                {
-                  stripeSubscriptionId,
-                  bundleId: bundle._id,
-                }
-              );
             }
 
             // Log the event
@@ -257,10 +238,6 @@ export async function POST(req: NextRequest) {
               payload: { subscription: stripeSubscriptionId },
               success: true,
               idempotencyKey: event.id,
-            });
-
-            console.log("[webhook] invoice.payment_succeeded logged:", {
-              stripeSubscriptionId,
             });
           }
         } catch (error) {
@@ -276,7 +253,6 @@ export async function POST(req: NextRequest) {
           : undefined;
 
         if (!stripeSubscriptionId) {
-          console.warn("[webhook] invoice.payment_failed without subscription:", invoice.id);
           break;
         }
 
@@ -293,14 +269,6 @@ export async function POST(req: NextRequest) {
               bundleId: bundle._id,
               reason: `Payment failed: ${invoice.id}`,
             });
-
-            console.log("[webhook] invoice.payment_failed processed — bundle suspended:", {
-              stripeSubscriptionId,
-              bundleId: bundle._id,
-              invoiceId: invoice.id,
-            });
-          } else {
-            console.warn("[webhook] No bundle found for failed payment subscription:", stripeSubscriptionId);
           }
 
           // Log event
@@ -352,14 +320,6 @@ export async function POST(req: NextRequest) {
               bundleId: bundle._id,
               reason: "Stripe subscription deleted",
             });
-
-            console.log("[webhook] customer.subscription.deleted processed:", {
-              stripeSubscriptionId,
-              bundleId: bundle._id,
-              customerId: bundle.customerId,
-            });
-          } else {
-            console.warn("[webhook] No bundle found for deleted subscription:", stripeSubscriptionId);
           }
 
           // 4. Log the event
@@ -400,7 +360,7 @@ export async function POST(req: NextRequest) {
       }
 
       default:
-        console.log(`[webhook] Unhandled event type: ${event.type}`);
+        break;
     }
 
     return NextResponse.json({ received: true });

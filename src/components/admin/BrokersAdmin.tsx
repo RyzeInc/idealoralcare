@@ -126,7 +126,6 @@ export function BrokersAdmin() {
 
       resetForm();
     } catch (error) {
-      console.error('Error saving broker:', error);
       alert('Error saving broker. Please try again.');
     }
   };
@@ -143,7 +142,6 @@ export function BrokersAdmin() {
     try {
       await deleteAdminMutation({ id: broker._id });
     } catch (error) {
-      console.error('Error deleting broker:', error);
       alert('Error deleting broker. Please try again.');
     }
   };

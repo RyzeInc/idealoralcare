@@ -82,9 +82,13 @@ export async function POST(req: NextRequest) {
       stripeCustomerId = customer.id;
     }
 
-    // Create the subscription in an incomplete state so we can collect payment inline
+    // Create the subscription in an incomplete state so we can collect payment inline.
+    // NOTE: Do NOT restrict payment_method_types here — the PaymentElement handles
+    // method selection automatically. Restricting it at the subscription level can
+    // prevent Stripe from generating a PaymentIntent for the invoice.
     const subscription = await stripe.subscriptions.create({
       customer: stripeCustomerId,
+      collection_method: "charge_automatically",
       items: [
         {
           price_data: {
@@ -100,7 +104,6 @@ export async function POST(req: NextRequest) {
       ],
       payment_behavior: "default_incomplete",
       payment_settings: {
-        payment_method_types: paymentMethod === "ach" ? ["us_bank_account"] : ["card"],
         save_default_payment_method: "on_subscription",
       },
       expand: ["latest_invoice.payment_intent"],
@@ -115,7 +118,21 @@ export async function POST(req: NextRequest) {
     const invoice = subscription.latest_invoice as any;
     const paymentIntent = invoice?.payment_intent as any;
 
+    console.log("[setup-payment] subscription.status:", subscription.status);
+    console.log("[setup-payment] invoice.status:", invoice?.status);
+    console.log("[setup-payment] paymentIntent.status:", paymentIntent?.status);
+    console.log("[setup-payment] has client_secret:", !!paymentIntent?.client_secret);
+
     if (!paymentIntent?.client_secret) {
+      // Log details to help diagnose future occurrences
+      console.error("[setup-payment] Missing client_secret. Subscription:", {
+        id: subscription.id,
+        status: subscription.status,
+        invoiceId: typeof invoice === "string" ? invoice : invoice?.id,
+        invoiceStatus: invoice?.status,
+        paymentIntentId: typeof paymentIntent === "string" ? paymentIntent : paymentIntent?.id,
+        paymentIntentStatus: paymentIntent?.status,
+      });
       // Cancel the incomplete subscription and return error
       await stripe.subscriptions.cancel(subscription.id);
       return NextResponse.json(
