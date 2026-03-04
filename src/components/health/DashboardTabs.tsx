@@ -34,8 +34,8 @@ type TabId = 'overview' | 'provider-search' | 'oral-scan' | 'teledentistry';
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'overview', label: 'Overview', icon: <HeartPulse size={16} /> },
-  { id: 'provider-search', label: 'Provider Search', icon: <Search size={16} /> },
   { id: 'oral-scan', label: 'Oral Scan', icon: <Scan size={16} /> },
+  { id: 'provider-search', label: 'Provider Search', icon: <Search size={16} /> },
   // { id: 'teledentistry', label: 'Teledentistry', icon: <Video size={16} /> }, // TODO: Enable when vendor integration ready
 ];
 

@@ -13,6 +13,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ShoppingCart, Menu, X } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "@clerk/nextjs";
 import IdealHealthWordmark from "./NexusHealthWordmark";
 import MemberPortalButton from "@/components/auth/MemberPortalButton";
 import styles from "./health-header.module.css";
@@ -24,9 +25,12 @@ interface HealthHeaderProps {
 
 export default function HealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
   const pathname = usePathname();
+  const { isSignedIn } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-  
+
+  const resourceCenterHref = isSignedIn ? "/health/dashboard" : "/health/resources";
+
   // Determine if Explore Plans should be highlighted
   const isPlansActive = pathname.startsWith("/health/plans") || 
                         pathname === "/health/compare" || 
@@ -94,7 +98,7 @@ export default function HealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
             
             {/* Resource Center */}
             <li className="nav-item">
-              <Link href="/health/resources" className="nav-link">Resource Center</Link>
+              <Link href={resourceCenterHref} className="nav-link">Resource Center</Link>
             </li>
             
             {/* Explore Plans - Primary CTA */}
@@ -257,7 +261,7 @@ export default function HealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
               {/* Resource Center */}
               <div className={styles.mobileMenuSection}>
                 <Link 
-                  href="/health/resources" 
+                  href={resourceCenterHref} 
                   onClick={closeMenu}
                   className={styles.mobileMenuToggle}
                   style={{ textDecoration: "none" }}
