@@ -11,6 +11,87 @@ import { requireAdmin } from "../lib/authGuards";
 import { api } from "../_generated/api";
 
 /**
+ * CLI BOOTSTRAP — run via: npx convex run admin/grantFreeAccess:cliGrantAdmin '{"clerkUserId":"..."}'
+ * No auth required — remove after use.
+ */
+export const cliGrantAdmin = mutation({
+  args: {
+    clerkUserId: v.string(),
+    email: v.optional(v.string()),
+    durationDays: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const email = args.email ?? `admin_${args.clerkUserId}@bootstrap.local`;
+    const now = Date.now();
+    const durationMs = (args.durationDays ?? 365) * 24 * 60 * 60 * 1000;
+    const periodEnd = now + durationMs;
+
+    // Add to adminUsers if not already there
+    const existing = await ctx.db
+      .query("adminUsers")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", args.clerkUserId))
+      .first();
+    if (!existing) {
+      await ctx.db.insert("adminUsers", {
+        clerkUserId: args.clerkUserId,
+        email,
+        name: "Owner",
+        role: "owner",
+        createdAt: now,
+      });
+    }
+
+    // Create subscription bundle if none exists
+    const existingBundle = (await ctx.db.query("subscriptionBundles").collect())
+      .find((b) => b.customerId === args.clerkUserId && b.status === "active");
+    let bundleId = existingBundle?._id;
+    if (!bundleId) {
+      const allProducts = await ctx.db.query("catalogProducts").collect();
+      bundleId = await ctx.db.insert("subscriptionBundles", {
+        customerId: args.clerkUserId,
+        cadence: "annual",
+        paymentMethod: "card",
+        stripeCustomerId: `free_local_${args.clerkUserId}`,
+        stripeSubscriptionId: `free_${now}`,
+        status: "active",
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+        pricingSnapshot: {
+          cadence: "annual",
+          paymentMethod: "card",
+          totalCents: 0,
+          planCount: allProducts.length,
+          capturedAt: now,
+        },
+        createdAt: now,
+        updatedAt: now,
+        activatedAt: now,
+      });
+
+      // Grant entitlements
+      for (const product of allProducts) {
+        await ctx.db.insert("entitlements", {
+          customerId: args.clerkUserId,
+          bundleId: bundleId!,
+          productId: product._id,
+          periodStart: now,
+          periodEnd,
+          status: "active",
+          endCondition: "expire",
+          createdAt: now,
+          activatedAt: now,
+          expiresAt: periodEnd,
+          createdVia: "admin_action",
+          notes: `CLI bootstrap grant on ${new Date().toISOString()}`,
+        });
+      }
+    }
+
+    return { success: true, clerkUserId: args.clerkUserId, isAdmin: true };
+  },
+});
+
+/**
  * Create a free subscription bundle for a user
  * This creates a non-Stripe subscription that's manually managed
  */
@@ -179,6 +260,116 @@ export const listFreeBundles = query({
         bundle.stripeCustomerId?.startsWith("free_local_") ||
         bundle.stripeSubscriptionId?.startsWith("free_")
     );
+  },
+});
+
+/**
+ * BOOTSTRAP: Make the first admin when no admins exist
+ * Safe — only works when the adminUsers table is empty.
+ * Also grants full subscription access so the dashboard works.
+ *
+ * Call from the browser while signed in: 
+ *   /api/bootstrap  (hits this mutation)
+ */
+export const bootstrapFirstAdmin = mutation({
+  args: {
+    durationDays: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    // Must be authenticated
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated — sign in first");
+
+    const clerkUserId = identity.subject;
+    const email = identity.email ?? "unknown";
+    const name = identity.name ?? email;
+
+    // Check if caller is already an admin; if not, add them
+    const existingAdmins = await ctx.db.query("adminUsers").collect();
+    const alreadyAdmin = existingAdmins.find(a => a.clerkUserId === clerkUserId);
+    if (!alreadyAdmin) {
+      await ctx.db.insert("adminUsers", {
+        clerkUserId,
+        email,
+        name,
+        role: "owner",
+        createdAt: Date.now(),
+      });
+    }
+
+    // Also grant full subscription access (so /health/dashboard works)
+    const allProducts = await ctx.db.query("catalogProducts").collect();
+
+    const now = Date.now();
+    const durationMs = (args.durationDays ?? 365) * 24 * 60 * 60 * 1000;
+    const periodEnd = now + durationMs;
+
+    // Check if a bundle already exists
+    const existingBundle = (await ctx.db.query("subscriptionBundles").collect())
+      .find(b => b.customerId === clerkUserId && b.status === "active");
+
+    let bundleId = existingBundle?._id;
+
+    if (!bundleId) {
+      bundleId = await ctx.db.insert("subscriptionBundles", {
+        customerId: clerkUserId,
+        cadence: "annual",
+        paymentMethod: "card",
+        stripeCustomerId: `free_local_${clerkUserId}`,
+        stripeSubscriptionId: `free_${Date.now()}`,
+        status: "active",
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+        pricingSnapshot: {
+          cadence: "annual",
+          paymentMethod: "card",
+          totalCents: 0,
+          planCount: allProducts.length,
+          capturedAt: now,
+        },
+        createdAt: now,
+        updatedAt: now,
+        activatedAt: now,
+      });
+    }
+
+    // Grant entitlements for each product (skip if already granted)
+    const existingEntitlements = (await ctx.db.query("entitlements").collect())
+      .filter(e => e.customerId === clerkUserId && e.status === "active");
+    
+    const grantedProductIds = new Set(existingEntitlements.map(e => e.productId));
+    let newGrants = 0;
+
+    for (const product of allProducts) {
+      if (!grantedProductIds.has(product._id)) {
+        await ctx.db.insert("entitlements", {
+          customerId: clerkUserId,
+          bundleId: bundleId!,
+          productId: product._id,
+          periodStart: now,
+          periodEnd,
+          status: "active",
+          endCondition: "expire",
+          createdAt: now,
+          activatedAt: now,
+          expiresAt: periodEnd,
+          createdVia: "admin_action",
+          notes: `Bootstrap access for ${email} on ${new Date().toISOString()}`,
+        });
+        newGrants++;
+      }
+    }
+
+    return {
+      success: true,
+      clerkUserId,
+      email,
+      isAdmin: true,
+      totalProducts: allProducts.length,
+      newEntitlements: newGrants,
+      existingEntitlements: existingEntitlements.length,
+      message: `✅ You are now admin + have full access! ${allProducts.length} products available until ${new Date(periodEnd).toLocaleDateString()}`,
+    };
   },
 });
 

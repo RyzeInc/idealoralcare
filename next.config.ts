@@ -1,4 +1,9 @@
 import type { NextConfig } from "next";
+import withBundleAnalyzer from "@next/bundle-analyzer";
+
+const withAnalyzer = withBundleAnalyzer({
+  enabled: process.env.ANALYZE === "true",
+});
 
 const nextConfig: NextConfig = {
   experimental: {
@@ -42,7 +47,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=(), browsing-topics=()",
+            value: "camera=*, microphone=*, geolocation=(), browsing-topics=()",
           },
           {
             key: "Content-Security-Policy",
@@ -52,14 +57,14 @@ const nextConfig: NextConfig = {
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://clerk.getidealoh.com https://js.stripe.com https://challenges.cloudflare.com",
               // Inline styles + Google Fonts
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              // Images: Clerk CDN + general
-              "img-src 'self' data: blob: https://*.clerk.com https://img.clerk.com https://*.clerk.accounts.dev",
+              // Images: Clerk CDN + QR code generator + general
+              "img-src 'self' data: blob: https://*.clerk.com https://img.clerk.com https://*.clerk.accounts.dev https://api.qrserver.com",
               // Fonts: local + Google Fonts CDN
               "font-src 'self' data: https://fonts.gstatic.com",
               // API connections: Convex + Clerk (dev + prod) + Stripe
               "connect-src 'self' https://*.convex.cloud wss://*.convex.cloud https://*.clerk.accounts.dev https://clerk.getidealoh.com https://api.stripe.com https://r.stripe.com",
-              // Iframes: Clerk + Stripe + Cloudflare
-              "frame-src https://*.clerk.accounts.dev https://clerk.getidealoh.com https://js.stripe.com https://hooks.stripe.com https://challenges.cloudflare.com",
+              // Iframes: Clerk + Stripe + Cloudflare + Toothlens SmileScan
+              "frame-src https://*.clerk.accounts.dev https://clerk.getidealoh.com https://js.stripe.com https://hooks.stripe.com https://challenges.cloudflare.com https://selfcheck.toothlens.com",
               "worker-src 'self' blob:",
             ].join("; "),
           },
@@ -69,4 +74,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withAnalyzer(nextConfig);

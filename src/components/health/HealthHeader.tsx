@@ -49,16 +49,15 @@ export default function HealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
         {/* Desktop Navigation */}
         <nav className={styles.desktopNav}>
           <ul className="nav-list">
-            {/* Services Dropdown - Enrollment Flows */}
+            {/* Services Dropdown */}
             <li className="nav-item nav-item--dropdown">
               <a href="#" className="nav-link nav-link--dropdown">Services</a>
               <div className="dropdown-menu">
-                <p className="dropdown-description">Choose your enrollment path.</p>
+                <p className="dropdown-description">Explore our oral health services.</p>
                 <ul className="dropdown-list">
-                  <li><Link href="/health/enroll?flow=dtc">Individual Enrollment</Link></li>
-                  <li><Link href="/health/enroll?flow=broker-individual">Broker — Individual Client</Link></li>
-                  <li><Link href="/health/enroll?flow=broker-group-member">Broker — Group (Member Pays)</Link></li>
-                  <li><Link href="/health/enroll?flow=broker-group-employer">Broker — Group (Employer Pays)</Link></li>
+                  <li><Link href="/health/oral-health-scan">Oral Health Scan</Link></li>
+                  <li><Link href="/health/teledentistry">Teledentistry</Link></li>
+                  <li><Link href="/health/discount">Dental Discount Network</Link></li>
                 </ul>
               </div>
             </li>
@@ -171,7 +170,7 @@ export default function HealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
         {mobileMenuOpen && (
           <div className={`${styles.mobileMenu} ${mobileMenuOpen ? styles.open : ''}`}>
           <div className={styles.mobileMenuContent}>
-              {/* Services Mobile - Enrollment Flows Dropdown */}
+              {/* Services Mobile Dropdown */}
               <div className={styles.mobileMenuSection}>
                 <button
                   onClick={() => toggleDropdown('services')}
@@ -182,17 +181,14 @@ export default function HealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
                 </button>
                 <div className={`${styles.mobileMenuDropdown} ${openDropdown === 'services' ? styles.open : ''}`}>
                   <div>
-                    <Link href="/health/enroll?flow=dtc" onClick={closeMenu} className={styles.mobileMenuLink}>
-                      Individual Enrollment
+                    <Link href="/health/oral-health-scan" onClick={closeMenu} className={styles.mobileMenuLink}>
+                      Oral Health Scan
                     </Link>
-                    <Link href="/health/enroll?flow=broker-individual" onClick={closeMenu} className={styles.mobileMenuLink}>
-                      Broker — Individual Client
+                    <Link href="/health/teledentistry" onClick={closeMenu} className={styles.mobileMenuLink}>
+                      Teledentistry
                     </Link>
-                    <Link href="/health/enroll?flow=broker-group-member" onClick={closeMenu} className={styles.mobileMenuLink}>
-                      Broker — Group (Member Pays)
-                    </Link>
-                    <Link href="/health/enroll?flow=broker-group-employer" onClick={closeMenu} className={styles.mobileMenuLink}>
-                      Broker — Group (Employer Pays)
+                    <Link href="/health/discount" onClick={closeMenu} className={styles.mobileMenuLink}>
+                      Dental Discount Network
                     </Link>
                   </div>
                 </div>

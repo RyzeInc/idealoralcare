@@ -8,12 +8,17 @@ import { NextResponse } from "next/server";
  * Uses Clerk's middleware to verify JWT tokens before requests reach pages.
  *
  * Route Strategy:
- * - /admin/*        → Requires authentication (admin role checked in layout)
- * - /health/dashboard/* → Requires authentication (subscription checked in layout)
- * - /health/checkout/*  → Requires authentication
- * - /health/*        → Public (catalog browsing)
- * - /api/stripe/webhook → Public (Stripe sends raw POST)
- * - Everything else  → Public
+ * - /admin/*             → Requires authentication (admin role checked in layout)
+ * - /health/dashboard/*  → Requires authentication (subscription + admin checked in layout)
+ * - /health/checkout/*   → Requires authentication
+ * - /health/*            → Public (catalog browsing)
+ * - /api/stripe/webhook  → Always public (Stripe sends unsigned POST)
+ * - Everything else      → Public
+ *
+ * Sign-in redirect:
+ * Unauthenticated users are redirected to NEXT_PUBLIC_CLERK_SIGN_IN_URL (env var)
+ * which defaults to /health/sign-in. This keeps all redirects on localhost when
+ * developing locally, rather than bouncing to the live Clerk-hosted sign-in page.
  */
 
 // Routes that require authentication
@@ -28,15 +33,24 @@ const isPublicApiRoute = createRouteMatcher([
   "/api/stripe/webhook",
 ]);
 
+// Read sign-in URL from env or fall back to our custom page
+const SIGN_IN_URL = process.env.NEXT_PUBLIC_CLERK_SIGN_IN_URL ?? "/health/sign-in";
+
 export default clerkMiddleware(async (auth, request) => {
   // Never block webhook endpoints
   if (isPublicApiRoute(request)) {
     return NextResponse.next();
   }
 
-  // Enforce auth on protected routes
+  // Enforce auth on protected routes — redirect to local sign-in page,
+  // NOT to Clerk's hosted page (which would go to accounts.getidealoh.com).
   if (isProtectedRoute(request)) {
-    await auth.protect();
+    const { userId } = await auth();
+    if (!userId) {
+      const signInUrl = new URL(SIGN_IN_URL, request.url);
+      signInUrl.searchParams.set("redirect_url", request.url);
+      return NextResponse.redirect(signInUrl);
+    }
   }
 });
 

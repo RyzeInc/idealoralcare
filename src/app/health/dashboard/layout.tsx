@@ -5,10 +5,11 @@ import { ConvexHttpClient } from "convex/browser";
 /**
  * HEALTH DASHBOARD LAYOUT
  *
- * PROTECTED - Requires authentication + active subscription
+ * PROTECTED - Requires authentication + active subscription (or admin role)
  * Users see their active plans, account settings, etc.
  * Redirects to /health (catalog) if not authenticated
- * Redirects to /health#plans if authenticated but no active subscription (Agent 2)
+ * Redirects to /health#plans if authenticated but no active subscription
+ * Admins always have access regardless of subscription status
  */
 export default async function DashboardLayout({
   children,
@@ -27,11 +28,17 @@ export default async function DashboardLayout({
     const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
     if (convexUrl) {
       const convex = new ConvexHttpClient(convexUrl);
-      // Call the public subscription check query
-      const bundle = await convex.query(
-        "subscriptions/queries:getCustomerBundlePublic" as any,
-        { customerId: userId }
-      );
+
+      // Parallelize both checks instead of sequential awaits
+      const [isAdmin, bundle] = await Promise.all([
+        convex.query("admin/adminUsers:isAdmin" as any, { clerkUserId: userId }),
+        convex.query("subscriptions/queries:getCustomerBundlePublic" as any, { customerId: userId }),
+      ]);
+
+      // Admins always get dashboard access
+      if (isAdmin) {
+        return <>{children}</>;
+      }
 
       // Allow access if:
       // 1. Status is "active"

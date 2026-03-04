@@ -22,7 +22,17 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <ClerkProvider>
+        {/*
+          signInUrl / signUpUrl tell Clerk where YOUR sign-in pages live.
+          Without these, Clerk redirects to its hosted page at accounts.getidealoh.com.
+          These are also read from NEXT_PUBLIC_CLERK_SIGN_IN_URL env var if set.
+        */}
+        <ClerkProvider
+          signInUrl="/health/sign-in"
+          signUpUrl="/health/sign-up"
+          signInFallbackRedirectUrl="/health/dashboard"
+          signUpFallbackRedirectUrl="/health/dashboard"
+        >
           <ConvexClientProvider>{children}</ConvexClientProvider>
         </ClerkProvider>
       </body>

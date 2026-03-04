@@ -1,14 +1,7 @@
+import HeroSlideshow from "@/components/health/HeroSlideshow";
 import HealthHeader from "@/components/health/HealthHeader";
-import {
-  OralHero,
-  PrincipleSection,
-  BenefitGrid,
-  PlanCard,
-  HowItWorks,
-  TrustAnchors,
-  FAQSection,
-  CTABand,
-} from "@/components/health/sections";
+import { TrustAnchors } from "@/components/health/sections";
+import { Zap, Clock, Smile, Heart, Shield } from "lucide-react";
 
 export const metadata = {
   title: "Ideal Oral Health Plan | Comprehensive Oral Health Coverage",
@@ -16,69 +9,212 @@ export const metadata = {
     "Ideal Oral Health Plan - Toothlens AI oral scanning, 24/7 teledentistry, and Dental Discount Network dental access. Affordable monthly membership.",
 };
 
-/**
- * IDEAL HEALTH - ORAL PLAN LANDING PAGE
- *
- * Crunch Fitness-inspired high-energy design adapted for healthcare:
- * - Full-bleed hero with clear promise
- * - Personalization band (ZIP lookup)
- * - Core principles (4 sections)
- * - Benefit grid
- * - Single comprehensive plan card
- * - How it works (5 steps)
- * - Trust anchors
- * - FAQ
- * - Final CTA band
- *
- * PUBLIC ACCESS - No authentication required
- */
-
 export default function HealthLanding() {
   return (
     <div className="health-landing">
-      {/* Shared Header */}
+      {/* ── Header ─────────────────────────────────────────────── */}
       <HealthHeader />
 
-      {/* HERO SECTION - Full Bleed, High Energy */}
-      <OralHero
-        headline="Comprehensive Oral Health Care"
-        subtitle="AI-powered Toothlens scanning, 24/7 teledentistry, and Dental Discount Network discounts—all in one affordable plan."
-        bullets={[
-          "Toothlens AI scanning for early detection",
-          "24/7 teledentistry consultations with licensed dentists",
-          "Nationwide dentist network discounts",
-        ]}
-        primaryCTA={{ text: "See Plan Details", href: "#plan" }}
-      />
+      {/* ── Hero + Slideshow ────────────────────────────────────── */}
+      <section className="hero-home section">
+        <div className="container">
+          <div className="row">
+            <div className="col-12">
+              <HeroSlideshow />
+            </div>
+          </div>
+          <div className="row">
+            <div className="col-8">
+              <div className="hero-home__heading">
+                <div className="hero-home__subtitle">IDEAL ORAL HEALTH PLAN</div>
+                <h1>Oral Care — Built on Innovation.</h1>
+                <p className="hero-home__descr">
+                  Affordable, accessible discount program and tech-powered solutions that reduce
+                  costs and improve outcomes for individuals and employers.
+                </p>
+                <a className="button button--primary" href="#whats-included">
+                  Learn More
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      {/* PRINCIPLES SECTION - 4 Core Values */}
-      <PrincipleSection />
+      {/* ── Feature Preview Cards ───────────────────────────────── */}
+      <section className="related-posts section">
+        <div className="container">
+          <div className="related-posts__grid">
+            <div className="related-posts__card">
+              <img src="/health-assets/toothlensscan_1086x1024.png" alt="Toothlens AI Scanning" />
+              <h4>Toothlens AI Scanning</h4>
+              <div className="link-arrow">AI-Powered Detection</div>
+            </div>
+            <div className="related-posts__card">
+              <img src="/health-assets/teledentistr_1024x1024.png" alt="Teledentistry Consultations" />
+              <h4>Teledentistry Consultations</h4>
+              <div className="link-arrow">Expert Guidance 24/7</div>
+            </div>
+            <div className="related-posts__card">
+              <img src="/health-assets/dentist-network-discount_1536x1024.png" alt="Dental Discount Network" />
+              <h4>Dental Discount Network</h4>
+              <div className="link-arrow">Nationwide Access</div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      {/* BENEFIT GRID - What's Included (6 items) */}
-      <BenefitGrid />
+      {/* ── What's Included — image left + benefit tiles right ──── */}
+      <section className="our-use-case section bg--blue" id="whats-included">
+        <div className="container">
+          <div className="heading-block">
+            <h2>What's Included in Your Oral Health Plan</h2>
+          </div>
+          <div className="our-use-case__content">
+            <div className="our-use-case__image">
+              <img src="/health-assets/image-2-1.png" alt="Dentist providing teledentistry consultation" />
+            </div>
+            <div className="benefit-tiles" style={{ flex: 1 }}>
+              <div className="benefit-tile">
+                <div className="benefit-tile__icon"><Zap size={28} color="#0066CC" /></div>
+                <h4 className="benefit-tile__title">AI Oral Scanning</h4>
+                <p className="benefit-tile__description">Toothlens Smart Check analyzes photos of your teeth using AI to detect potential issues early.</p>
+              </div>
+              <div className="benefit-tile">
+                <div className="benefit-tile__icon"><Clock size={28} color="#0066CC" /></div>
+                <h4 className="benefit-tile__title">24/7 Teledentistry</h4>
+                <p className="benefit-tile__description">Connect with licensed dentists anytime via our Teledentistry Program for consultations and guidance.</p>
+              </div>
+              <div className="benefit-tile">
+                <div className="benefit-tile__icon"><Smile size={28} color="#0066CC" /></div>
+                <h4 className="benefit-tile__title">Network Discounts</h4>
+                <p className="benefit-tile__description">Access thousands of dentists nationwide through the Dental Discount Network with negotiated discount rates.</p>
+              </div>
+              <div className="benefit-tile">
+                <div className="benefit-tile__icon"><Heart size={28} color="#0066CC" /></div>
+                <h4 className="benefit-tile__title">Preventive Focus</h4>
+                <p className="benefit-tile__description">Emphasis on preventive care and early detection to reduce costly treatments down the road.</p>
+              </div>
+              <div className="benefit-tile">
+                <div className="benefit-tile__icon"><Shield size={28} color="#0066CC" /></div>
+                <h4 className="benefit-tile__title">Emergency Support</h4>
+                <p className="benefit-tile__description">Immediate access to emergency dental support when pain or urgent concerns arise.</p>
+              </div>
+              <div className="benefit-tile">
+                <div className="benefit-tile__icon"><Shield size={28} color="#14B8A6" /></div>
+                <h4 className="benefit-tile__title">Flexible Options</h4>
+                <p className="benefit-tile__description">Choose between teledentistry, in-network discounts, or a combination—whatever works best for you.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      {/* PLAN CARD - Single Comprehensive Offering */}
-      <PlanCard
-        title="Ideal Oral Health Plan"
-        description="Everything you need for comprehensive oral health coverage in one affordable plan."
-      />
+      {/* ── Why It Works Better ─────────────────────────────────── */}
+      <section className="benefits section bg--white">
+        <div className="container">
+          <h2>Why Ideal Oral Health Works Better</h2>
+          <ul className="benefits__list">
+            <li><strong>Advanced AI Technology</strong>: Toothlens AI scanning detects issues early and provides detailed analysis without the cost of frequent in-person visits.</li>
+            <li><strong>Expert Network</strong>: Access to a carefully selected network of trusted dentists nationwide, all vetted for quality care.</li>
+            <li><strong>Transparent Pricing</strong>: Know upfront what procedures cost with our nationwide provider network discounts. No surprise bills.</li>
+            <li><strong>Preventative Focus</strong>: AI scanning and coaching help catch problems early, reducing costly treatments down the road.</li>
+            <li><strong>Always Available</strong>: 24/7 access to dentists and oral health coaches means you can address concerns at any time, including outside standard office hours.</li>
+            <li><strong>Comprehensive Support</strong>: From emergency care to routine coaching, we're here for every aspect of your oral health journey.</li>
+          </ul>
+        </div>
+      </section>
 
-      {/* HOW IT WORKS - 5 Steps (Crunch energy) */}
-      <HowItWorks />
+      {/* ── How to Get Started ──────────────────────────────────── */}
+      <section style={{ padding: "100px 0", backgroundColor: "#f8fafc" }}>
+        <div className="container">
+          <div style={{ display: "flex", gap: "56px", alignItems: "center" }}>
+            {/* Image — left */}
+            <div style={{ flex: "0 0 38%" }}>
+              <img
+                src="/health-assets/d1-team_896x1352-opt2.jpg"
+                alt="Getting started with Ideal Oral Health"
+                style={{ maxWidth: "100%", height: "auto", borderRadius: "var(--radius-lg)", boxShadow: "var(--glass-shadow-lg)" }}
+              />
+            </div>
+            {/* Steps — right */}
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#0066CC", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "1rem" }}>
+                Simple Process
+              </p>
+              <h2 style={{ marginBottom: "1rem" }}>Getting Started Takes 4 Easy Steps</h2>
+              <p style={{ fontSize: "1.125rem", color: "#475569", marginBottom: "2.5rem" }}>
+                From enrollment to access—everything you need to start your oral health journey.
+              </p>
+              <div className="how-it-works" style={{ gridTemplateColumns: "repeat(4, 1fr)", gap: "24px", margin: 0 }}>
+                {[
+                  { step: 1, title: "Review the Plan", description: "Learn about what's included in our Oral Health Plan and how it supports your dental care needs." },
+                  { step: 2, title: "Enroll Online", description: "Enrollment is completed in a few minutes. Select your payment method (card or ACH) and billing frequency." },
+                  { step: 3, title: "Get Your Member ID", description: "Receive your digital member ID card within 24 hours of enrollment with access to all plan services." },
+                  { step: 4, title: "Start Your Dental Journey", description: "Use AI scanning for home monitoring, get teledentistry consultations when needed, and access discounted in-network care." },
+                ].map((item) => (
+                  <div key={item.step} className="how-it-works__step">
+                    <div className="how-it-works__number">{item.step}</div>
+                    <h3 className="how-it-works__title">{item.title}</h3>
+                    <p className="how-it-works__description">{item.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      {/* TRUST ANCHORS - Why Choose Ideal Health */}
+      {/* ── Trust Anchors ───────────────────────────────────────── */}
       <TrustAnchors />
 
-      {/* FAQ SECTION - 8+ Common Questions */}
-      <FAQSection />
+      {/* ── For Your Team ───────────────────────────────────────── */}
+      <section className="for-organization section bg--white">
+        <div className="container">
+          <div className="for-organization__row">
+            <div className="for-organization__col">
+              <h2>Oral Health Plan for Your Team</h2>
+              <p>
+                Offer your employees a modern oral health plan that actually works. AI-powered
+                scanning, 24/7 teledentistry, and nationwide provider discounts reduce costs,
+                improve preventative care, and boost employee satisfaction.
+              </p>
+              <div className="for-organization__btn_w">
+                <a className="button button--accent" href="/contact">Schedule a Demo</a>
+                <a className="button button--primary" href="/health/checkout">Enroll Now</a>
+              </div>
+            </div>
+            <div className="for-organization__img">
+              <img src="/health-assets/virtual-first_896x992-2.jpg" alt="Team members discussing benefits" />
+            </div>
+          </div>
+        </div>
+      </section>
 
-      {/* FINAL CTA BAND - Conversion Push */}
-      <CTABand
-        headline="Ready to Start Your Oral Health Journey?"
-        subtext="Join thousands of members who are saving money and getting better care with Ideal Health."
-        ctaText="Enroll Now"
-        ctaHref="/health/checkout"
-      />
+      {/* ── FAQ ─────────────────────────────────────────────────── */}
+      <section className="faq section">
+        <div className="container">
+          <h2>Oral Health Plan Questions?</h2>
+          <div className="faq__list">
+            <div className="accordion">
+              <h4>What is the Ideal Oral Health Plan?</h4>
+              <div>The Ideal Oral Health Plan is a comprehensive oral care solution featuring advanced AI technology (Toothlens for oral health scanning), 24/7 teledentistry access with experienced specialists, and a nationwide network of providers with discounted rates. It is designed to make oral care accessible, affordable, and preventative.</div>
+            </div>
+            <div className="accordion">
+              <h4>How does Toothlens AI scanning work?</h4>
+              <div>Toothlens is advanced AI technology that analyzes photos of your teeth and gums. Simply take clear photos and our AI provides a detailed oral health report identifying potential issues, calculating your oral health score, and recommending next steps. It is a convenient way to track your health between in-person visits.</div>
+            </div>
+            <div className="accordion">
+              <h4>Can I use the Oral Health Plan for emergency care?</h4>
+              <div>Yes! The Oral Health Plan includes 24/7 emergency support. If you're experiencing pain or have urgent concerns, you can connect with a specialist immediately via teledentistry to get guidance and relief recommendations.</div>
+            </div>
+            <div className="accordion">
+              <h4>How do the nationwide dentist discounts work?</h4>
+              <div>Ideal Health has partnerships with a nationwide network of licensed dentists. Plan members receive negotiated discount rates on procedures like cleanings, fillings, root canals, and more. You can search our network to find nearby dentists and see their discount rates before scheduling.</div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

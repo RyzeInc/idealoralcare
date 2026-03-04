@@ -64,6 +64,14 @@ function SignInForm() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
+  const [clerkTimeout, setClerkTimeout] = useState(false);
+
+  // If Clerk hasn't loaded in 8s, it's likely blocked or the domain isn't allowlisted
+  useEffect(() => {
+    if (isLoaded) return;
+    const t = setTimeout(() => setClerkTimeout(true), 8000);
+    return () => clearTimeout(t);
+  }, [isLoaded]);
 
   useEffect(() => { if (error) window.scrollTo({ top: 0, behavior: "smooth" }); }, [error]);
 
@@ -106,7 +114,7 @@ function SignInForm() {
   };
 
   const busy = isLoading || !!oauthLoading;
-  const formValid = identifier.trim() !== "" && password.length >= 1;
+  const formValid = identifier.trim() !== "" && password.length >= 1 && isLoaded;
   const signUpHref = redirectTo !== "/health/dashboard"
     ? `/health/sign-up?redirect_url=${encodeURIComponent(redirectTo)}`
     : "/health/sign-up";
@@ -136,6 +144,18 @@ function SignInForm() {
       {/* Form */}
       <section className="section bg--white" style={{ paddingTop: "3rem", paddingBottom: "4rem" }}>
         <div className="container" style={{ maxWidth: "480px" }}>
+
+          {clerkTimeout && !isLoaded && (
+            <div style={{ background: "#fef3c7", border: "1px solid #fde68a", borderRadius: "12px", padding: "1rem", marginBottom: "1.5rem", display: "flex", alignItems: "flex-start", gap: "1rem" }}>
+              <AlertCircle size={20} color="#92400e" style={{ marginTop: "2px", flexShrink: 0 }} />
+              <div>
+                <p style={{ color: "#92400e", margin: "0 0 0.25rem", fontSize: "0.95rem", fontWeight: 600 }}>Auth not initializing</p>
+                <p style={{ color: "#78350f", margin: 0, fontSize: "0.875rem" }}>
+                  Go to <strong>Clerk Dashboard → Domains</strong> and add <code style={{ background: "#fde68a", padding: "1px 4px", borderRadius: "4px" }}>localhost:3000</code> as an allowed origin, then refresh.
+                </p>
+              </div>
+            </div>
+          )}
 
           {error && (
             <div style={{ background: "#fee2e2", border: "1px solid #fecaca", borderRadius: "12px", padding: "1rem", marginBottom: "1.5rem", display: "flex", alignItems: "flex-start", gap: "1rem" }}>
@@ -234,7 +254,7 @@ function SignInForm() {
                 style={{ padding: "0.875rem 1.5rem", background: busy || !formValid ? "#cbd5e1" : "#0066CC", color: "#fff", border: "none", borderRadius: "12px", fontWeight: 600, fontSize: "1rem", cursor: busy ? "wait" : "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", marginTop: "0.25rem" }}
                 onMouseEnter={(e) => { if (!busy && formValid) e.currentTarget.style.background = "#0052a3"; }}
                 onMouseLeave={(e) => { if (!busy && formValid) e.currentTarget.style.background = "#0066CC"; }}>
-                {isLoading ? <><Loader size={18} style={{ animation: "spin 1s linear infinite" }} /> Signing in...</> : "Sign In"}
+                {isLoading ? <><Loader size={18} style={{ animation: "spin 1s linear infinite" }} /> Signing in...</> : !isLoaded ? <><Loader size={18} style={{ animation: "spin 1s linear infinite" }} /> Initializing...</> : "Sign In"}
               </button>
             </form>
 
