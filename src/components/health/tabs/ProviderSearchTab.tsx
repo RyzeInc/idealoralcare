@@ -28,15 +28,27 @@ interface SearchFormData {
   city: string;
   state: string;
   zip: string;
-  radius: string;
 }
 
-// Helper function to calculate rough distance between zip codes (mock calculation)
-const calculateDistance = (zip1: string, zip2: string): number => {
-  // For now, return a mock distance. In production, use a proper distance API
-  // This is a placeholder that returns 1-50 miles randomly based on zip code difference
-  const diff = Math.abs(parseInt(zip1 || '00000') - parseInt(zip2 || '00000'));
-  return Math.min(100, Math.max(1, Math.floor(diff / 1000) * 5));
+// Helper function to calculate distance based on first 3 digits of zip code
+// Matches Careington's search model: 32303 -> all 323xx, 33411 -> all 334xx
+const calculateDistance = (searchZip: string, providerZip: string): number => {
+  // Get first 3 digits of zip codes
+  const searchPrefix = (searchZip || '00000').substring(0, 3);
+  const providerPrefix = (providerZip || '00000').substring(0, 3);
+  
+  // If prefixes match (same 3xx area), distance is 0 (exact area match)
+  if (searchPrefix === providerPrefix) {
+    return 0;
+  }
+  
+  // Otherwise, calculate distance based on numeric difference of 3-digit prefixes
+  const searchNum = parseInt(searchPrefix, 10);
+  const providerNum = parseInt(providerPrefix, 10);
+  const diff = Math.abs(searchNum - providerNum);
+  
+  // Each prefix difference represents roughly 50 miles
+  return diff * 50;
 };
 
 // Helper function to get all unique specialties
@@ -144,8 +156,8 @@ export default function ProviderSearchTab({ onClose }: ProviderSearchTabProps) {
       providersWithDistance.sort((a, b) => a.distance - b.distance);
     }
 
-    // Get max results from the radius selector
-    const maxResults = formData.radius ? parseInt(formData.radius) : 25;
+    // Cap results at 100 (matching Careington's default)
+    const maxResults = 100;
 
     setView({
       type: 'results',
@@ -253,7 +265,6 @@ export default function ProviderSearchTab({ onClose }: ProviderSearchTabProps) {
               city: fd.get('city') as string,
               state: fd.get('state') as string,
               zip: fd.get('zip') as string,
-              radius: fd.get('radius') as string,
             };
             handleSearch(formData);
           }}
@@ -506,76 +517,6 @@ export default function ProviderSearchTab({ onClose }: ProviderSearchTabProps) {
             </div>
           </div>
 
-          {/* Divider */}
-          <div style={{ borderTop: '1px solid #f1f5f9' }} />
-
-          {/* Step 3 — Radius */}
-          <div>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                marginBottom: '0.875rem',
-              }}
-            >
-              <span
-                style={{
-                  width: '24px',
-                  height: '24px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #0066CC, #0052a3)',
-                  color: '#fff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  flexShrink: 0,
-                }}
-              >
-                3
-              </span>
-              <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.9375rem' }}>
-                Display closest within 100 miles
-              </span>
-            </div>
-            <div style={{ display: 'flex', gap: '0.625rem', flexWrap: 'wrap' }}>
-              {[
-                { value: '10', label: '10 providers' },
-                { value: '25', label: '25 providers' },
-                { value: '50', label: '50 providers' },
-                { value: '100', label: '100 providers' },
-              ].map(({ value, label }) => (
-                <label
-                  key={value}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.5rem 1rem',
-                    borderRadius: '10px',
-                    border: '1.5px solid #e2e8f0',
-                    background: '#f8fafc',
-                    cursor: 'pointer',
-                    fontSize: '0.875rem',
-                    fontWeight: 500,
-                    color: '#374151',
-                  }}
-                >
-                  <input
-                    type="radio"
-                    name="radius"
-                    value={value}
-                    defaultChecked={value === '25'}
-                    style={{ accentColor: '#0066CC' }}
-                  />
-                  {label}
-                </label>
-              ))}
-            </div>
-          </div>
-
           {/* Submit */}
           <div
             style={{
@@ -643,6 +584,16 @@ export default function ProviderSearchTab({ onClose }: ProviderSearchTabProps) {
 }
 
 /**
+ * Build a Google Maps URL for a provider
+ */
+function buildMapUrl(provider: Provider): string {
+  // Match Careington's exact URL format: address+parts,CITY,ST&zip=XXXXX
+  const addrPart = provider.address.replace(/ /g, '+');
+  const cityPart = provider.city.replace(/ /g, '+');
+  return `https://maps.google.com/maps?&q=${addrPart},${cityPart},${provider.state}&zip=${provider.zipCode}`;
+}
+
+/**
  * PROVIDER SEARCH RESULTS VIEW
  */
 function ProviderSearchResults({
@@ -652,6 +603,20 @@ function ProviderSearchResults({
   view: ShowResultsState;
   onBack: () => void;
 }) {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  const totalPages = Math.ceil(view.data.length / pageSize);
+  const pageStart = (page - 1) * pageSize;
+  const pageEnd = pageStart + pageSize;
+  const pageProviders = view.data.slice(pageStart, pageEnd);
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setPage(1);
+  };
+
+  const searchZip = view.query.zip;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Back button */}
@@ -685,11 +650,36 @@ function ProviderSearchResults({
           borderRadius: '12px',
         }}
       >
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>
           Provider Search Results
         </h2>
-        <p style={{ opacity: 0.9, fontSize: '0.95rem', marginBottom: '0.5rem' }}>
-          Results for: <strong>{view.count}</strong> providers found
+        <p style={{ opacity: 0.9, fontSize: '0.95rem', margin: '0.25rem 0' }}>
+          Results for: <strong>{searchZip || view.query.city}</strong>
+        </p>
+        <p style={{ opacity: 0.9, fontSize: '0.875rem', margin: '0.25rem 0', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          Search Results (<strong>{view.data.length}</strong> found):&nbsp;
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.825rem', opacity: 0.9 }}>
+            Show
+            <select
+              value={pageSize}
+              onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+              style={{
+                padding: '0.2rem 0.4rem',
+                borderRadius: '6px',
+                border: '1px solid rgba(255,255,255,0.4)',
+                background: 'rgba(255,255,255,0.15)',
+                color: '#fff',
+                fontSize: '0.825rem',
+                cursor: 'pointer',
+                outline: 'none',
+              }}
+            >
+              {[5,10,25,50,100].map(n => (
+                <option key={n} value={n} style={{ background: '#0066CC', color: '#fff' }}>{n}</option>
+              ))}
+            </select>
+            per page
+          </span>
         </p>
         <p style={{ opacity: 0.8, fontSize: '0.85rem', margin: 0, marginTop: '0.75rem' }}>
           Don't see your provider?{' '}
@@ -714,6 +704,86 @@ function ProviderSearchResults({
           do not guarantee participation with Member Services prior to service.
         </p>
       </div>
+
+      {/* Pagination Controls (top) */}
+      {totalPages > 1 && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            flexWrap: 'wrap',
+            fontSize: '0.875rem',
+          }}
+        >
+          <button
+            onClick={() => setPage(1)}
+            disabled={page === 1}
+            style={{
+              padding: '0.375rem 0.75rem',
+              borderRadius: '6px',
+              border: '1px solid #e2e8f0',
+              background: page === 1 ? '#f1f5f9' : '#fff',
+              color: page === 1 ? '#94a3b8' : '#0066CC',
+              cursor: page === 1 ? 'default' : 'pointer',
+              fontSize: '0.8125rem',
+            }}
+          >
+            &lt;&lt; first
+          </button>
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            style={{
+              padding: '0.375rem 0.75rem',
+              borderRadius: '6px',
+              border: '1px solid #e2e8f0',
+              background: page === 1 ? '#f1f5f9' : '#fff',
+              color: page === 1 ? '#94a3b8' : '#0066CC',
+              cursor: page === 1 ? 'default' : 'pointer',
+              fontSize: '0.8125rem',
+            }}
+          >
+            &lt; previous
+          </button>
+          <span style={{ color: '#ef4444', fontWeight: 600, padding: '0 0.5rem' }}>
+            | Page {page} of {totalPages} |
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            style={{
+              padding: '0.375rem 0.75rem',
+              borderRadius: '6px',
+              border: '1px solid #e2e8f0',
+              background: page === totalPages ? '#f1f5f9' : '#fff',
+              color: page === totalPages ? '#94a3b8' : '#0066CC',
+              cursor: page === totalPages ? 'default' : 'pointer',
+              fontSize: '0.8125rem',
+            }}
+          >
+            next &gt;
+          </button>
+          <button
+            onClick={() => setPage(totalPages)}
+            disabled={page === totalPages}
+            style={{
+              padding: '0.375rem 0.75rem',
+              borderRadius: '6px',
+              border: '1px solid #e2e8f0',
+              background: page === totalPages ? '#f1f5f9' : '#fff',
+              color: page === totalPages ? '#94a3b8' : '#0066CC',
+              cursor: page === totalPages ? 'default' : 'pointer',
+              fontSize: '0.8125rem',
+            }}
+          >
+            last &gt;&gt;
+          </button>
+          <span style={{ color: '#64748b', fontSize: '0.8125rem', marginLeft: '0.5rem' }}>
+            Showing {pageStart + 1}–{Math.min(pageEnd, view.data.length)} of {view.data.length}
+          </span>
+        </div>
+      )}
 
       {/* Results Table */}
       <div
@@ -740,34 +810,26 @@ function ProviderSearchResults({
             </tr>
           </thead>
           <tbody>
-            {view.data.map((provider, idx) => (
+            {pageProviders.map((provider, idx) => (
               <tr
                 key={provider.id}
                 style={{
-                  borderBottom: idx < view.data.length - 1 ? '1px solid #e2e8f0' : 'none',
+                  borderBottom: idx < pageProviders.length - 1 ? '1px solid #e2e8f0' : 'none',
                   backgroundColor: idx % 2 === 0 ? '#fff' : '#f8fafc',
                 }}
               >
                 <td style={{ padding: '1rem', verticalAlign: 'top' }}>
-                  <div style={{ fontSize: '0.8125rem', color: '#0f172a', lineHeight: 1.4, fontWeight: 500 }}>
+                  <a
+                    href={buildMapUrl(provider)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ fontSize: '0.8125rem', color: '#0066CC', lineHeight: 1.4, fontWeight: 600, textDecoration: 'none' }}
+                  >
                     {provider.name}
-                  </div>
+                  </a>
                   <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>
                     {provider.phone}
                   </div>
-                  <a
-                    href="#"
-                    style={{
-                      display: 'inline-block',
-                      marginTop: '0.375rem',
-                      color: '#0066CC',
-                      fontSize: '0.75rem',
-                      textDecoration: 'none',
-                      fontWeight: 500,
-                    }}
-                  >
-                    Additional information
-                  </a>
                 </td>
                 <td style={{ padding: '1rem', verticalAlign: 'top' }}>
                   <div style={{ fontSize: '0.8125rem', color: '#0f172a', lineHeight: 1.4 }}>
@@ -779,12 +841,14 @@ function ProviderSearchResults({
                     {provider.address}
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>
-                    {provider.city}, {provider.state} {provider.zipCode}
+                    {provider.city}, {provider.state}&nbsp;&nbsp;{provider.zipCode}
                   </div>
                 </td>
-                <td style={{ padding: '1rem', verticalAlign: 'top', textAlign: 'center' }}>
+                <td style={{ padding: '1rem', verticalAlign: 'top', textAlign: 'center', whiteSpace: 'nowrap' }}>
                   <a
-                    href="#"
+                    href={buildMapUrl(provider)}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     style={{
                       display: 'inline-block',
                       color: '#0066CC',
@@ -797,7 +861,7 @@ function ProviderSearchResults({
                     Map
                   </a>
                   <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                    Est. Distance - {provider.distance} miles
+                    Est. Distance - {provider.distance === 0 ? '0.0' : provider.distance.toFixed(1)} miles
                   </div>
                 </td>
               </tr>
@@ -805,6 +869,84 @@ function ProviderSearchResults({
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Controls (bottom) */}
+      {totalPages > 1 && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            flexWrap: 'wrap',
+            fontSize: '0.875rem',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <button
+            onClick={() => { setPage(1); window.scrollTo(0, 0); }}
+            disabled={page === 1}
+            style={{
+              padding: '0.375rem 0.75rem',
+              borderRadius: '6px',
+              border: '1px solid #e2e8f0',
+              background: page === 1 ? '#f1f5f9' : '#fff',
+              color: page === 1 ? '#94a3b8' : '#0066CC',
+              cursor: page === 1 ? 'default' : 'pointer',
+              fontSize: '0.8125rem',
+            }}
+          >
+            &lt;&lt; first
+          </button>
+          <button
+            onClick={() => { setPage((p) => Math.max(1, p - 1)); window.scrollTo(0, 0); }}
+            disabled={page === 1}
+            style={{
+              padding: '0.375rem 0.75rem',
+              borderRadius: '6px',
+              border: '1px solid #e2e8f0',
+              background: page === 1 ? '#f1f5f9' : '#fff',
+              color: page === 1 ? '#94a3b8' : '#0066CC',
+              cursor: page === 1 ? 'default' : 'pointer',
+              fontSize: '0.8125rem',
+            }}
+          >
+            &lt; previous
+          </button>
+          <span style={{ color: '#ef4444', fontWeight: 600, padding: '0 0.5rem' }}>
+            | Page {page} of {totalPages} |
+          </span>
+          <button
+            onClick={() => { setPage((p) => Math.min(totalPages, p + 1)); window.scrollTo(0, 0); }}
+            disabled={page === totalPages}
+            style={{
+              padding: '0.375rem 0.75rem',
+              borderRadius: '6px',
+              border: '1px solid #e2e8f0',
+              background: page === totalPages ? '#f1f5f9' : '#fff',
+              color: page === totalPages ? '#94a3b8' : '#0066CC',
+              cursor: page === totalPages ? 'default' : 'pointer',
+              fontSize: '0.8125rem',
+            }}
+          >
+            next &gt;
+          </button>
+          <button
+            onClick={() => { setPage(totalPages); window.scrollTo(0, 0); }}
+            disabled={page === totalPages}
+            style={{
+              padding: '0.375rem 0.75rem',
+              borderRadius: '6px',
+              border: '1px solid #e2e8f0',
+              background: page === totalPages ? '#f1f5f9' : '#fff',
+              color: page === totalPages ? '#94a3b8' : '#0066CC',
+              cursor: page === totalPages ? 'default' : 'pointer',
+              fontSize: '0.8125rem',
+            }}
+          >
+            last &gt;&gt;
+          </button>
+        </div>
+      )}
 
       {/* Footer Info */}
       <div
@@ -817,8 +959,8 @@ function ProviderSearchResults({
           textAlign: 'center',
         }}
       >
-        <p style={{ margin: 0, marginBottom: '0.5rem' }}>
-          Updated on: 3/3/2026 · *Approximate distance based off centroid zip code
+        <p style={{ margin: 0 }}>
+          Updated on: 3/4/2026 · *Approximate distance based off centroid zip code
         </p>
       </div>
     </div>
