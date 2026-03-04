@@ -164,29 +164,29 @@ export default function OralHealthScanPage() {
               Three simple steps to instant oral health insights — right from your phone.
             </p>
           </div>
-          <div className="our-service__row">
-            <div className="our-service__list">
-              <div className="service" style={{ textAlign: "center" }}>
-                <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "60px", height: "60px", borderRadius: "50%", background: "linear-gradient(135deg, #0066CC, #0047A3)", color: "#fff", fontSize: "1.75rem", fontWeight: 700, marginBottom: "1.5rem" }}>1</div>
-                <h4 style={{ fontWeight: 700, fontSize: "1.25rem", marginBottom: "0.5rem" }}>Snap a Photo</h4>
-                <p style={{ color: "#64748b" }}>
-                  Use your smartphone camera to capture images of your teeth. No special equipment needed — the tool guides you through the process for the clearest results.
-                </p>
-              </div>
-              <div className="service" style={{ textAlign: "center" }}>
-                <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "60px", height: "60px", borderRadius: "50%", background: "linear-gradient(135deg, #0066CC, #0047A3)", color: "#fff", fontSize: "1.75rem", fontWeight: 700, marginBottom: "1.5rem" }}>2</div>
-                <h4 style={{ fontWeight: 700, fontSize: "1.25rem", marginBottom: "0.5rem" }}>AI Analysis</h4>
-                <p style={{ color: "#64748b" }}>
-                  Our advanced AI engine instantly analyzes your images, identifying potential issues such as cavities, gum concerns, surface staining, and oral health patterns.
-                </p>
-              </div>
-              <div className="service" style={{ textAlign: "center" }}>
-                <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "60px", height: "60px", borderRadius: "50%", background: "linear-gradient(135deg, #0066CC, #0047A3)", color: "#fff", fontSize: "1.75rem", fontWeight: 700, marginBottom: "1.5rem" }}>3</div>
-                <h4 style={{ fontWeight: 700, fontSize: "1.25rem", marginBottom: "0.5rem" }}>Actionable Report</h4>
-                <p style={{ color: "#64748b" }}>
-                  Receive a detailed oral health report with clear, actionable insights with no appointment required. Share with your dentist anytime.
-                </p>
-              </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "2rem", marginTop: "2rem" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+              <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "60px", height: "60px", borderRadius: "50%", background: "linear-gradient(135deg, #0066CC, #0047A3)", color: "#fff", fontSize: "1.75rem", fontWeight: 700, marginBottom: "1.5rem" }}>1</div>
+              <h4 style={{ fontWeight: 700, fontSize: "1.25rem", marginBottom: "1rem" }}>Snap a Photo</h4>
+              <p style={{ color: "#64748b", marginBottom: "1.5rem" }}>
+                Use your smartphone camera to capture images of your teeth. No special equipment needed — the tool guides you through the process for the clearest results.
+              </p>
+              <img src="/health-assets/scan-alignment-guide.png" alt="Alignment guide screen" style={{ width: "100%", maxWidth: "280px", borderRadius: "12px", boxShadow: "0 8px 24px rgba(0,0,0,0.1)" }} />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+              <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "60px", height: "60px", borderRadius: "50%", background: "linear-gradient(135deg, #0066CC, #0047A3)", color: "#fff", fontSize: "1.75rem", fontWeight: 700, marginBottom: "1.5rem" }}>2</div>
+              <h4 style={{ fontWeight: 700, fontSize: "1.25rem", marginBottom: "1rem" }}>AI Analysis</h4>
+              <p style={{ color: "#64748b" }}>
+                Our advanced AI engine instantly analyzes your images, identifying potential issues such as cavities, gum concerns, surface staining, and oral health patterns.
+              </p>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+              <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "60px", height: "60px", borderRadius: "50%", background: "linear-gradient(135deg, #0066CC, #0047A3)", color: "#fff", fontSize: "1.75rem", fontWeight: 700, marginBottom: "1.5rem" }}>3</div>
+              <h4 style={{ fontWeight: 700, fontSize: "1.25rem", marginBottom: "1rem" }}>Actionable Report</h4>
+              <p style={{ color: "#64748b", marginBottom: "1.5rem" }}>
+                Receive a detailed oral health report with clear, actionable insights with no appointment required. Share with your dentist anytime.
+              </p>
+              <img src="/health-assets/scan-result-demo.png" alt="Scan result analysis screen" style={{ width: "100%", maxWidth: "280px", borderRadius: "12px", boxShadow: "0 8px 24px rgba(0,0,0,0.1)" }} />
             </div>
           </div>
         </div>
@@ -218,8 +218,8 @@ export default function OralHealthScanPage() {
             </div>
             <div className="col-6">
               <img
-                src="/health-assets/image-2-1.png"
-                alt="Dental health professional"
+                src="/health-assets/dental-office-exam.png"
+                alt="Professional dental office exam"
                 style={{ width: "100%", borderRadius: "12px", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}
               />
             </div>

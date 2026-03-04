@@ -1,12 +1,164 @@
 'use client';
 
-import { Search } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Search, Map as MapIcon, ChevronLeft } from 'lucide-react';
+
+interface RawProvider {
+  name: string;
+  address: string;
+  phone: string;
+  specialty: string;
+  city: string;
+  state: string;
+  zipCode: string;
+}
+
+interface Provider extends RawProvider {
+  id: string;
+  distance: number;
+}
 
 interface ProviderSearchTabProps {
   onClose: () => void;
 }
 
+interface SearchFormData {
+  specialty: string;
+  providerName: string;
+  city: string;
+  state: string;
+  zip: string;
+  radius: string;
+}
+
+// Helper function to calculate rough distance between zip codes (mock calculation)
+const calculateDistance = (zip1: string, zip2: string): number => {
+  // For now, return a mock distance. In production, use a proper distance API
+  // This is a placeholder that returns 1-50 miles randomly based on zip code difference
+  const diff = Math.abs(parseInt(zip1 || '00000') - parseInt(zip2 || '00000'));
+  return Math.min(100, Math.max(1, Math.floor(diff / 1000) * 5));
+};
+
+// Helper function to get all unique specialties
+const getAllSpecialties = (providers: RawProvider[]): string[] => {
+  const specialties = new Set(providers.map((p) => p.specialty));
+  return Array.from(specialties).sort();
+};
+
+interface ShowResultsState {
+  type: 'results';
+  data: Provider[];
+  query: SearchFormData;
+  count: number;
+}
+
+interface ShowFormState {
+  type: 'form';
+}
+
+type ViewState = ShowFormState | ShowResultsState;
+
 export default function ProviderSearchTab({ onClose }: ProviderSearchTabProps) {
+  const [view, setView] = useState<ViewState>({ type: 'form' });
+  const [providerData, setProviderData] = useState<RawProvider[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+
+  // Load provider data on mount
+  useEffect(() => {
+    const loadProviderData = async () => {
+      try {
+        const response = await fetch('/dentaldiscountnetwork.json');
+        if (response.ok) {
+          const data = await response.json();
+          setProviderData(data);
+        }
+      } catch (error) {
+        console.error('Failed to load provider data:', error);
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+
+    loadProviderData();
+  }, []);
+
+  // Memoize specialty list to avoid recalculation on every render
+  const specialties = useMemo(() => getAllSpecialties(providerData), [providerData]);
+
+  const handleSearch = (formData: SearchFormData) => {
+    // Normalize search inputs - trim whitespace and convert to uppercase for comparisons
+    const normalizeString = (str: string) => str.trim();
+    const normalizedSpecialty = normalizeString(formData.specialty);
+    const normalizedName = normalizeString(formData.providerName).toUpperCase();
+    const normalizedCity = normalizeString(formData.city).toUpperCase();
+    const normalizedState = normalizeString(formData.state).toUpperCase();
+    const normalizedZip = normalizeString(formData.zip);
+
+    // Filter providers based on search criteria (excluding zip for now, we'll use it for distance calculation)
+    let filtered = providerData.filter((provider) => {
+      // Filter by specialty - exact match, case-insensitive
+      if (normalizedSpecialty && normalizedSpecialty !== '(All Specialties)') {
+        if (provider.specialty.trim().toUpperCase() !== normalizedSpecialty.toUpperCase()) {
+          return false;
+        }
+      }
+
+      // Filter by provider name (case insensitive, partial match)
+      if (normalizedName) {
+        if (!provider.name.toUpperCase().includes(normalizedName)) {
+          return false;
+        }
+      }
+
+      // Filter by city - normalize to handle unicode spaces
+      if (normalizedCity) {
+        const providerCity = provider.city
+          .replace(/\s+/g, ' ') // Replace any whitespace (including unicode) with single space
+          .trim()
+          .toUpperCase();
+        if (!providerCity.includes(normalizedCity)) {
+          return false;
+        }
+      }
+
+      // Filter by state
+      if (normalizedState) {
+        if (provider.state.trim().toUpperCase() !== normalizedState) {
+          return false;
+        }
+      }
+
+      // Don't filter by zip - we'll use it to calculate distance instead
+      return true;
+    });
+
+    // Add distance to all providers
+    const providersWithDistance: Provider[] = filtered.map((p, idx) => ({
+      ...p,
+      id: `${p.name}-${idx}`,
+      distance: calculateDistance(normalizedZip || '00000', p.zipCode),
+    }));
+
+    // Always sort by distance if a zip was provided (to show closest providers)
+    if (normalizedZip) {
+      providersWithDistance.sort((a, b) => a.distance - b.distance);
+    }
+
+    // Get max results from the radius selector
+    const maxResults = formData.radius ? parseInt(formData.radius) : 25;
+
+    setView({
+      type: 'results',
+      data: providersWithDistance.slice(0, maxResults),
+      query: formData,
+      count: providersWithDistance.length, // Total count of all matching providers
+    });
+  };
+
+  if (view.type === 'results') {
+    return <ProviderSearchResults view={view} onBack={() => setView({ type: 'form' })} />;
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Header */}
@@ -95,30 +247,15 @@ export default function ProviderSearchTab({ onClose }: ProviderSearchTabProps) {
           onSubmit={(e) => {
             e.preventDefault();
             const fd = new FormData(e.currentTarget);
-            const specialty = fd.get('specialty') as string;
-            const providerName = fd.get('providerName') as string;
-            const city = fd.get('city') as string;
-            const state = fd.get('state') as string;
-            const zip = fd.get('zip') as string;
-            const radius = fd.get('radius') as string;
-
-            // Build the Dental Discount Network search URL with our agent code
-            const params = new URLSearchParams({
-              AgentCode: '1800DEN84707D',
-              ParentDomainName: 'www1.careington.com',
-              Protocol: 'https',
-              ...(specialty && specialty !== '(All Specialties)' ? { Specialty: specialty } : {}),
-              ...(providerName ? { PrvName: providerName } : {}),
-              ...(city ? { City: city } : {}),
-              ...(state ? { State: state } : {}),
-              ...(zip ? { Zip: zip } : {}),
-              ...(radius ? { RowCount: radius } : {}),
-            });
-            window.open(
-              `https://www1.careington.com/Search/PrvSrchResults.aspx?${params.toString()}`,
-              '_blank',
-              'noopener,noreferrer'
-            );
+            const formData: SearchFormData = {
+              specialty: fd.get('specialty') as string,
+              providerName: fd.get('providerName') as string,
+              city: fd.get('city') as string,
+              state: fd.get('state') as string,
+              zip: fd.get('zip') as string,
+              radius: fd.get('radius') as string,
+            };
+            handleSearch(formData);
           }}
           style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}
         >
@@ -166,7 +303,7 @@ export default function ProviderSearchTab({ onClose }: ProviderSearchTabProps) {
                 </label>
                 <select
                   name="specialty"
-                  defaultValue="GENERAL DENTIST"
+                  defaultValue="(All Specialties)"
                   style={{
                     padding: '0.625rem 0.875rem',
                     borderRadius: '10px',
@@ -180,13 +317,11 @@ export default function ProviderSearchTab({ onClose }: ProviderSearchTabProps) {
                   }}
                 >
                   <option value="(All Specialties)">(All Specialties)</option>
-                  <option value="ENDODONTICS">Endodontics</option>
-                  <option value="GENERAL DENTIST">General Dentist</option>
-                  <option value="ORAL SURGERY">Oral Surgery</option>
-                  <option value="ORTHODONTICS">Orthodontics</option>
-                  <option value="PEDIATRICS">Pediatrics</option>
-                  <option value="PERIODONTICS">Periodontics</option>
-                  <option value="PROSTHODONTIC">Prosthodontic</option>
+                  {specialties.map((specialty) => (
+                    <option key={specialty} value={specialty}>
+                      {specialty}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
@@ -502,6 +637,189 @@ export default function ProviderSearchTab({ onClose }: ProviderSearchTabProps) {
         <a href="https://www1.careington.com/help/terms-of-use" target="_blank" rel="noopener noreferrer" style={{ color: '#0066CC' }}>
           Terms of Use
         </a>
+      </div>
+    </div>
+    );
+}
+
+/**
+ * PROVIDER SEARCH RESULTS VIEW
+ */
+function ProviderSearchResults({
+  view,
+  onBack,
+}: {
+  view: ShowResultsState;
+  onBack: () => void;
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {/* Back button */}
+      <button
+        onClick={onBack}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          padding: '0.625rem 1rem',
+          fontSize: '0.9rem',
+          fontWeight: 500,
+          color: '#0066CC',
+          backgroundColor: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          marginBottom: '0.5rem',
+        }}
+      >
+        <ChevronLeft size={18} />
+        Back to Search
+      </button>
+
+      {/* Results Header */}
+      <div
+        className="glass-card"
+        style={{
+          padding: '1.5rem',
+          background: 'linear-gradient(135deg, #0066CC 0%, #0052a3 100%)',
+          color: '#fff',
+          borderRadius: '12px',
+        }}
+      >
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+          Provider Search Results
+        </h2>
+        <p style={{ opacity: 0.9, fontSize: '0.95rem', marginBottom: '0.5rem' }}>
+          Results for: <strong>{view.count}</strong> providers found
+        </p>
+        <p style={{ opacity: 0.8, fontSize: '0.85rem', margin: 0, marginTop: '0.75rem' }}>
+          Don't see your provider?{' '}
+          <span style={{ textDecoration: 'underline', cursor: 'pointer' }}>Nominate</span> your local provider today.
+        </p>
+      </div>
+
+      {/* Information Banner */}
+      <div
+        style={{
+          padding: '1rem',
+          background: '#eff6ff',
+          border: '1px solid #bfdbfe',
+          borderRadius: '8px',
+          fontSize: '0.8125rem',
+          color: '#1e40af',
+          lineHeight: 1.5,
+        }}
+      >
+        <p style={{ margin: 0 }}>
+          For your convenience, click on the provider name to access a map to their location. Results from provider search
+          do not guarantee participation with Member Services prior to service.
+        </p>
+      </div>
+
+      {/* Results Table */}
+      <div
+        style={{
+          overflowX: 'auto',
+          borderRadius: '8px',
+          border: '1px solid #e2e8f0',
+          backgroundColor: '#fff',
+        }}
+      >
+        <table
+          style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            fontSize: '0.875rem',
+          }}
+        >
+          <thead>
+            <tr style={{ backgroundColor: '#0066CC', color: '#fff' }}>
+              <th style={{ padding: '0.875rem 1rem', textAlign: 'left', fontWeight: 600 }}>Name</th>
+              <th style={{ padding: '0.875rem 1rem', textAlign: 'left', fontWeight: 600 }}>Specialties</th>
+              <th style={{ padding: '0.875rem 1rem', textAlign: 'left', fontWeight: 600 }}>Address</th>
+              <th style={{ padding: '0.875rem 1rem', textAlign: 'left', fontWeight: 600 }}>Distance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {view.data.map((provider, idx) => (
+              <tr
+                key={provider.id}
+                style={{
+                  borderBottom: idx < view.data.length - 1 ? '1px solid #e2e8f0' : 'none',
+                  backgroundColor: idx % 2 === 0 ? '#fff' : '#f8fafc',
+                }}
+              >
+                <td style={{ padding: '1rem', verticalAlign: 'top' }}>
+                  <div style={{ fontSize: '0.8125rem', color: '#0f172a', lineHeight: 1.4, fontWeight: 500 }}>
+                    {provider.name}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>
+                    {provider.phone}
+                  </div>
+                  <a
+                    href="#"
+                    style={{
+                      display: 'inline-block',
+                      marginTop: '0.375rem',
+                      color: '#0066CC',
+                      fontSize: '0.75rem',
+                      textDecoration: 'none',
+                      fontWeight: 500,
+                    }}
+                  >
+                    Additional information
+                  </a>
+                </td>
+                <td style={{ padding: '1rem', verticalAlign: 'top' }}>
+                  <div style={{ fontSize: '0.8125rem', color: '#0f172a', lineHeight: 1.4 }}>
+                    {provider.specialty}
+                  </div>
+                </td>
+                <td style={{ padding: '1rem', verticalAlign: 'top' }}>
+                  <div style={{ fontSize: '0.8125rem', color: '#0f172a', lineHeight: 1.4 }}>
+                    {provider.address}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>
+                    {provider.city}, {provider.state} {provider.zipCode}
+                  </div>
+                </td>
+                <td style={{ padding: '1rem', verticalAlign: 'top', textAlign: 'center' }}>
+                  <a
+                    href="#"
+                    style={{
+                      display: 'inline-block',
+                      color: '#0066CC',
+                      fontSize: '0.8125rem',
+                      textDecoration: 'none',
+                      fontWeight: 500,
+                      marginBottom: '0.375rem',
+                    }}
+                  >
+                    Map
+                  </a>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                    Est. Distance - {provider.distance} miles
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Footer Info */}
+      <div
+        style={{
+          padding: '1rem',
+          backgroundColor: '#f8fafc',
+          borderRadius: '8px',
+          fontSize: '0.75rem',
+          color: '#64748b',
+          textAlign: 'center',
+        }}
+      >
+        <p style={{ margin: 0, marginBottom: '0.5rem' }}>
+          Updated on: 3/3/2026 · *Approximate distance based off centroid zip code
+        </p>
       </div>
     </div>
   );

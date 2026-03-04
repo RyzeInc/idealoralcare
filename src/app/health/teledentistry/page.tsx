@@ -119,7 +119,7 @@ export default function TeledentistryPage() {
         {/* Right panel — photo */}
         <div style={{ position: "relative", overflow: "hidden" }}>
           <img
-            src="/health-assets/teledentistr_1024x1024.png"
+            src="/health-assets/teledentistry-video-call.png"
             alt="Teledentistry virtual consultation"
             style={{
               width: "100%",
@@ -351,8 +351,8 @@ export default function TeledentistryPage() {
 
             <div style={{ position: "relative" }}>
               <img
-                src="/health-assets/teledentistr_1024x1024.png"
-                alt="Video consultation with dentist"
+                src="/health-assets/teledentistry-provider.png"
+                alt="Healthcare provider video consultation"
                 style={{
                   width: "100%",
                   borderRadius: "16px",
