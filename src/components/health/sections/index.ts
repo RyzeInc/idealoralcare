@@ -1,6 +1,7 @@
 export { default as OralHero } from "./OralHero";
 export { default as PersonalizationBand } from "./PersonalizationBand";
 export { default as PrincipleSection } from "./PrincipleSection";
+export { default as ProblemBand } from "./ProblemBand";
 export { default as BenefitGrid } from "./BenefitGrid";
 export { default as PlanCard } from "./PlanCard";
 export { default as HowItWorks } from "./HowItWorks";

@@ -1,6 +1,6 @@
 import HeroSlideshow from "@/components/health/HeroSlideshow";
 import HealthHeader from "@/components/health/HealthHeader";
-import { TrustAnchors } from "@/components/health/sections";
+import { TrustAnchors, ProblemBand } from "@/components/health/sections";
 import { Zap, Clock, Smile, Heart, Shield } from "lucide-react";
 
 export const metadata = {
@@ -27,19 +27,23 @@ export default function HealthLanding() {
             <div className="col-8">
               <div className="hero-home__heading">
                 <div className="hero-home__subtitle">IDEAL ORAL HEALTH PLAN</div>
-                <h1>Oral Care — Built on Innovation.</h1>
+                <h1>Oral Health That Works Around Your Life — Not the Other Way Around.</h1>
                 <p className="hero-home__descr">
-                  Affordable, accessible discount program and tech-powered solutions that reduce
-                  costs and improve outcomes for individuals and employers.
+                  Toothlens AI scanning from home, licensed dentists available 24/7, and a
+                  nationwide provider network that saves members 25–85%† on dental
+                  procedures — without the waiting rooms, surprise bills, or guesswork.
                 </p>
                 <a className="button button--primary" href="#whats-included">
-                  Learn More
+                  See What&rsquo;s Included
                 </a>
               </div>
             </div>
           </div>
         </div>
       </section>
+
+      {/* ── Problem Band ─────────────────────────────────────────── */}
+      <ProblemBand />
 
       {/* ── Feature Preview Cards ───────────────────────────────── */}
       <section className="related-posts section">
