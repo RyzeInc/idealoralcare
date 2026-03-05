@@ -66,41 +66,6 @@ export default function HealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
               </div>
             </li>
             
-            {/* For Organizations Dropdown */}
-            <li className="nav-item nav-item--dropdown">
-              <a href="#" className="nav-link nav-link--dropdown">For Organizations</a>
-              <div className="dropdown-menu">
-                <p className="dropdown-description">Empower your team with better health plans.</p>
-                <ul className="dropdown-list">
-                  <li><Link href="/organizations/dental">Oral Health Plans</Link></li>
-                  <li><Link href="/organizations/medicaid">Medicaid / CHIP</Link></li>
-                  <li><Link href="/organizations/brokers">Benefits Brokers</Link></li>
-                  <li><Link href="/organizations/employers">Employers</Link></li>
-                  <li><Link href="/organizations/dso">DSO</Link></li>
-                </ul>
-              </div>
-            </li>
-            
-            {/* About Us Dropdown */}
-            <li className="nav-item nav-item--dropdown">
-              <a href="#" className="nav-link nav-link--dropdown">About Us</a>
-              <div className="dropdown-menu">
-                <p className="dropdown-description">Learn more about Ideal Health by Ideal.</p>
-                <ul className="dropdown-list">
-                  <li><Link href="/about/mission">Our Mission & Vision</Link></li>
-                  <li><Link href="/about/team">Our Team</Link></li>
-                  <li><Link href="/about/providers">For Providers</Link></li>
-                  <li><Link href="/about/newsroom">Newsroom</Link></li>
-                  <li><Link href="/contact">Contact Us</Link></li>
-                </ul>
-              </div>
-            </li>
-            
-            {/* Resource Center */}
-            <li className="nav-item">
-              <Link href={resourceCenterHref} className="nav-link">Resource Center</Link>
-            </li>
-            
             {/* Explore Plans - Primary CTA */}
             <li className="nav-item">
               <Link 
@@ -199,76 +164,10 @@ export default function HealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
               </div>
 
               {/* For Organizations Mobile */}
-              <div className={styles.mobileMenuSection}>
-                <button
-                  onClick={() => toggleDropdown('organizations')}
-                  className={styles.mobileMenuToggle}
-                >
-                  For Organizations
-                  <span style={{ fontSize: "0.75rem" }}>{openDropdown === 'organizations' ? '−' : '+'}</span>
-                </button>
-                <div className={`${styles.mobileMenuDropdown} ${openDropdown === 'organizations' ? styles.open : ''}`}>
-                  <div>
-                    <Link href="/organizations/dental" onClick={closeMenu} className={styles.mobileMenuLink}>
-                      Oral Health Plans
-                    </Link>
-                    <Link href="/organizations/medicaid" onClick={closeMenu} className={styles.mobileMenuLink}>
-                      Medicaid / CHIP
-                    </Link>
-                    <Link href="/organizations/brokers" onClick={closeMenu} className={styles.mobileMenuLink}>
-                      Benefits Brokers
-                    </Link>
-                    <Link href="/organizations/employers" onClick={closeMenu} className={styles.mobileMenuLink}>
-                      Employers
-                    </Link>
-                    <Link href="/organizations/dso" onClick={closeMenu} className={styles.mobileMenuLink}>
-                      DSO
-                    </Link>
-                  </div>
-                </div>
-              </div>
 
               {/* About Us Mobile */}
-              <div className={styles.mobileMenuSection}>
-                <button
-                  onClick={() => toggleDropdown('about')}
-                  className={styles.mobileMenuToggle}
-                >
-                  About Us
-                  <span style={{ fontSize: "0.75rem" }}>{openDropdown === 'about' ? '−' : '+'}</span>
-                </button>
-                <div className={`${styles.mobileMenuDropdown} ${openDropdown === 'about' ? styles.open : ''}`}>
-                  <div>
-                    <Link href="/about/mission" onClick={closeMenu} className={styles.mobileMenuLink}>
-                      Our Mission & Vision
-                    </Link>
-                    <Link href="/about/team" onClick={closeMenu} className={styles.mobileMenuLink}>
-                      Our Team
-                    </Link>
-                    <Link href="/about/providers" onClick={closeMenu} className={styles.mobileMenuLink}>
-                      For Providers
-                    </Link>
-                    <Link href="/about/newsroom" onClick={closeMenu} className={styles.mobileMenuLink}>
-                      Newsroom
-                    </Link>
-                    <Link href="/contact" onClick={closeMenu} className={styles.mobileMenuLink}>
-                      Contact Us
-                    </Link>
-                  </div>
-                </div>
-              </div>
 
               {/* Resource Center */}
-              <div className={styles.mobileMenuSection}>
-                <Link 
-                  href={resourceCenterHref} 
-                  onClick={closeMenu}
-                  className={styles.mobileMenuToggle}
-                  style={{ textDecoration: "none" }}
-                >
-                  Resource Center
-                </Link>
-              </div>
 
               {/* Explore Plans CTA */}
               <div className={styles.mobileMenuSection} style={{ borderTop: "1px solid #e2e8f0", paddingTop: "1rem" }}>

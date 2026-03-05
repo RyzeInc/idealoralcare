@@ -459,7 +459,7 @@ export default function OverviewTab({
           <p
             style={{
               fontSize: '0.9375rem',
-              opacity: 0.9,
+              color: '#0f172a',
               marginBottom: '1.25rem',
               lineHeight: 1.6,
             }}

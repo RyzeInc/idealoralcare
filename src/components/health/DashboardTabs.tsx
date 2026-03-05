@@ -67,6 +67,27 @@ export default function DashboardTabs({
 
   return (
     <>
+      {/* Dashboard Header with Logo */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1rem',
+          marginBottom: '2rem',
+        }}
+      >
+        <div
+          style={{
+            width: '40px',
+            height: '40px',
+            flexShrink: 0,
+          }}
+        >
+          <img src="/favicon.svg" alt="Ideal Health" style={{ width: '100%', height: '100%' }} />
+        </div>
+        <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>Dashboard</h2>
+      </div>
+
       {/* Tab Bar */}
       <div
         style={{

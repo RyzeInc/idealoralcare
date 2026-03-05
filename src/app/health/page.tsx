@@ -1,3 +1,4 @@
+import Link from "next/link";
 import HeroSlideshow from "@/components/health/HeroSlideshow";
 import HealthHeader from "@/components/health/HealthHeader";
 import { TrustAnchors, ProblemBand } from "@/components/health/sections";
@@ -27,7 +28,7 @@ export default function HealthLanding() {
             <div className="col-8">
               <div className="hero-home__heading">
                 <div className="hero-home__subtitle">IDEAL ORAL HEALTH PLAN</div>
-                <h1>Oral Health That Works Around Your Life — Not the Other Way Around.</h1>
+                <h1>Oral Health Care That Works Around Your Life — Not the Other Way Around.</h1>
                 <p className="hero-home__descr">
                   AI Oral Scanning from home, licensed dentists available 24/7, and a
                   nationwide provider network that saves members 25–50% on dental
@@ -48,22 +49,24 @@ export default function HealthLanding() {
       {/* ── Feature Preview Cards ───────────────────────────────── */}
       <section className="related-posts section">
         <div className="container">
+          <h2 style={{ textAlign: "center", marginBottom: "1rem" }}>Start Smiling More</h2>
+          <p style={{ textAlign: "center", color: "#475569", fontSize: "1.125rem", marginBottom: "3rem", maxWidth: "560px", margin: "0 auto 3rem" }}>A smarter dental experience: AI oral imaging, comfortable consults from home, and direct savings on care.</p>
           <div className="related-posts__grid">
-            <div className="related-posts__card">
+            <Link href="/health/oral-health-scan" className="related-posts__card">
               <img src="/health-assets/toothlensscan_1086x1024.png" alt="AI Oral Scanning" />
               <h4>AI Oral Scanning</h4>
               <div className="link-arrow">AI-Powered Detection</div>
-            </div>
-            <div className="related-posts__card">
+            </Link>
+            <Link href="/health/teledentistry" className="related-posts__card">
               <img src="/health-assets/teledentistr_1024x1024.png" alt="Teledentistry Consultations" />
               <h4>Teledentistry Consultations</h4>
               <div className="link-arrow">Expert Guidance 24/7</div>
-            </div>
-            <div className="related-posts__card">
+            </Link>
+            <Link href="/health/discount" className="related-posts__card">
               <img src="/health-assets/dentist-network-discount_1536x1024.png" alt="Dental Discount Network" />
               <h4>Dental Discount Network</h4>
               <div className="link-arrow">Nationwide Access</div>
-            </div>
+            </Link>
           </div>
         </div>
       </section>

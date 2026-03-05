@@ -3,18 +3,18 @@ import { Calendar, HelpCircle, DollarSign } from "lucide-react";
 const problems = [
   {
     Icon: Calendar,
-    title: "Getting an Appointment Shouldn't Take Weeks",
-    body: "Between packed schedules and months-long wait lists, most people delay care until a minor issue becomes an expensive one.",
+    title: "Appointments Take Too Long",
+    body: "Most people wait weeks to get seen — and delay care until a small problem becomes an expensive one.",
   },
   {
     Icon: HelpCircle,
-    title: "No One Knows What They'll Pay Before They Go",
-    body: "Dental offices rarely publish prices. Patients walk in blind, get treatment estimates mid-chair, and leave with bills they weren't prepared for.",
+    title: "No One Knows the Price",
+    body: "Dental offices rarely publish costs. Patients get estimates mid-chair and leave with bills they didn't expect.",
   },
   {
     Icon: DollarSign,
-    title: "Insurance Covers Less Than People Think",
-    body: "77 million Americans have zero dental coverage. Those who do still absorb 40–50% of major procedure costs out of pocket — every single time.",
+    title: "Insurance Covers Less Than You Think",
+    body: "77 million Americans have no dental coverage. Those who do still pay 40–50% of major procedure costs out of pocket.",
   },
 ];
 
@@ -43,7 +43,7 @@ export default function ProblemBand() {
               lineHeight: 1.2,
             }}
           >
-            Stop Overpaying For Dental Care. Start Smiling More.
+            Stop Overpaying For Dental Care.
           </h2>
           <p
             style={{
@@ -54,7 +54,7 @@ export default function ProblemBand() {
               lineHeight: 1.65,
             }}
           >
-            Access, affordability, and transparency have never kept up with what patients actually need.
+            Access, affordability, and transparency haven't kept pace with what patients actually need.
           </p>
         </div>
 

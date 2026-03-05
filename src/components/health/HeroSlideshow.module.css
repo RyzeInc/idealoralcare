@@ -53,8 +53,7 @@
 .indicators {
   position: absolute;
   bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
+  right: 24px;
   display: flex;
   gap: 12px;
   z-index: 10;
@@ -139,6 +138,7 @@
 
   .indicators {
     bottom: 16px;
+    right: 16px;
     padding: 10px 16px;
     gap: 8px;
   }
@@ -161,6 +161,7 @@
   .indicators {
     flex-direction: row;
     bottom: 12px;
+    right: 12px;
     padding: 8px 14px;
   }
 
