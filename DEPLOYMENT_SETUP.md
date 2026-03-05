@@ -282,7 +282,7 @@ After successful deployment:
 - ✅ Billing reports
 
 ### Coming Soon (Hidden from Users)
-- 🚀 AI Oral Scanning (Toothlens integration)
+- 🚀 AI Oral Scanning integration
 - 🚀 Commission tracking and payroll exports
 - 🚀 Automated vendor file delivery (SFTP)
 - 🚀 Bulk member upload (CSV eligibility files)

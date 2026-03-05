@@ -2,7 +2,7 @@ import HeroSlideshow from "@/components/health/HeroSlideshow";
 import HealthHeader from "@/components/health/HealthHeader";
 
 // Ideal Oral Health Plan landing page
-// Features comprehensive AI-powered oral health care with Toothlens and teledentistry
+// Features comprehensive AI-powered oral health care with AI Oral Scanning and teledentistry
 
 export default function OralHealthLanding() {
   return (
@@ -37,8 +37,8 @@ export default function OralHealthLanding() {
         <div className="container">
           <div className="related-posts__grid">
             <div className="related-posts__card">
-              <img src="/health-assets/toothlensscan_1086x1024.png" alt="Toothlens AI Scanning" />
-              <h4>Toothlens AI Scanning</h4>
+              <img src="/health-assets/toothlensscan_1086x1024.png" alt="AI Oral Scanning" />
+              <h4>AI Oral Scanning</h4>
               <div className="link-arrow">AI-Powered Detection</div>
             </div>
             <div className="related-posts__card">
@@ -69,7 +69,7 @@ export default function OralHealthLanding() {
               <img src="/health-assets/image-2-1.png" alt="Dentist providing teledentistry consultation" />
             </div>
             <ul className="our-use-case__list">
-              <li>Toothlens AI-Powered Scanning</li>
+              <li>AI Oral Scanning</li>
               <li>24/7 Teledentistry Access</li>
               <li>Emergency Support</li>
               <li>Nationwide Dentist Network</li>
@@ -90,7 +90,7 @@ export default function OralHealthLanding() {
           <div className="our-service__row">
             <div className="our-service__list">
               <div className="service">
-                <h4>Toothlens AI Scanning</h4>
+                <h4>AI Oral Scanning</h4>
                 <p>Take photos and get instant AI analysis of your oral health. Our advanced scanning technology identifies potential issues early and provides detailed health reports with actionable insights.</p>
               </div>
               <div className="service">
@@ -107,7 +107,7 @@ export default function OralHealthLanding() {
               </div>
             </div>
             <div className="our-service__img col-6">
-              <img src="/health-assets/toothlensscan_1086x1024.png" alt="Toothlens AI Scanning" />
+              <img src="/health-assets/toothlensscan_1086x1024.png" alt="AI Oral Scanning" />
             </div>
             <div className="our-service__btn_w"><a className="button button--primary" href="/health#enrollment">Get Started Today</a></div>
           </div>
@@ -119,7 +119,7 @@ export default function OralHealthLanding() {
         <div className="container">
           <h2>Why Ideal Oral Health Works Better</h2>
           <ul className="benefits__list">
-            <li><strong>Advanced AI Technology</strong>: Toothlens AI scanning detects issues early and provides detailed analysis without the cost of frequent in-person visits.</li>
+            <li><strong>Advanced AI Technology</strong>: AI Oral Scanning detects issues early and provides detailed analysis without the cost of frequent in-person visits.</li>
             <li><strong>Always Available</strong>: 24/7 access to dentists and oral health coaches means you can address concerns at any time, including outside standard office hours.</li>
             <li><strong>Transparent Pricing</strong>: Know upfront what procedures cost with our nationwide provider network discounts. No surprise bills.</li>
             <li><strong>Expert Network</strong>: Access to a carefully selected network of trusted dentists nationwide, all vetted for quality care.</li>
@@ -142,7 +142,7 @@ export default function OralHealthLanding() {
             <ol className="our-use-case__list">
               <li><strong>Enroll in the Oral Health Plan</strong> - Create your Ideal Health account and select the Oral Health Plan at enrollment.</li>
               <li><strong>Complete Your Profile</strong> - Tell us about your oral health history and goals so we can personalize your care.</li>
-              <li><strong>Take Your First Scan</strong> - Use Toothlens to get an AI analysis of your current oral health status.</li>
+              <li><strong>Take Your First Scan</strong> - Use AI Oral Scanning to get an AI analysis of your current oral health status.</li>
               <li><strong>Connect with a Dentist</strong> - Schedule your initial consultation to review results and create your care plan.</li>
               <li><strong>Start Your Journey</strong> - Access teledentistry, coaching, and network dentists as needed for ongoing care.</li>
             </ol>
@@ -174,14 +174,14 @@ export default function OralHealthLanding() {
       <section className="faq section">
         <div className="container">
           <h2>Oral Health Plan Questions?</h2>
-          <div className="faq__list">
+            <div className="faq__list">
             <div className="accordion">
               <h4>What is the Ideal Oral Health Plan?</h4>
-              <div>The Ideal Oral Health Plan is a comprehensive oral care solution featuring advanced AI technology (Toothlens for oral health scanning), 24/7 teledentistry access with experienced specialists, and a nationwide network of providers with discounted rates. It is designed to make oral care accessible, affordable, and preventative.</div>
+              <div>The Ideal Oral Health Plan is a comprehensive oral care solution featuring advanced AI Oral Scanning technology for oral health scanning, 24/7 teledentistry access with experienced specialists, and a nationwide network of providers with discounted rates. It is designed to make oral care accessible, affordable, and preventative.</div>
             </div>
             <div className="accordion">
-              <h4>How does Toothlens AI scanning work?</h4>
-              <div>Toothlens is advanced AI technology that analyzes photos of your teeth and gums. Simply take clear photos and our AI provides a detailed oral health report identifying potential issues, calculating your oral health score, and recommending next steps. It is a convenient way to track your health between in-person visits.</div>
+              <h4>How does AI Oral Scanning work?</h4>
+              <div>AI Oral Scanning analyzes photos of your teeth and gums. Simply take clear photos and our AI provides a detailed oral health report identifying potential issues, calculating your oral health score, and recommending next steps. It is a convenient way to track your health between in-person visits.</div>
             </div>
             <div className="accordion">
               <h4>Can I use the Oral Health Plan for emergency care?</h4>

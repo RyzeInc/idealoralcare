@@ -212,7 +212,7 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
                   step: '2',
                   icon: '✓',
                   title: 'Scan the QR code',
-                  desc: 'Hold your phone steady until a link notification appears. Tap to open Toothlens.',
+                  desc: 'Hold your phone steady until a link notification appears. Tap to open the AI Oral Scanning app.',
                 },
                 {
                   step: '3',
@@ -381,7 +381,7 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
                 }}
                 allow="camera; microphone; accelerometer; gyroscope; clipboard-write"
                 referrerPolicy="origin"
-                title="Toothlens SmileScan — Mobile"
+                title="AI Oral Scanning SmileScan — Mobile"
               />
             </div>
 
@@ -467,7 +467,7 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
                 <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>
                   AI-Powered Oral Scan
                 </h2>
-                <p style={{ opacity: 0.75, fontSize: '0.9375rem' }}>Toothlens SmileScan Technology</p>
+                <p style={{ opacity: 0.75, fontSize: '0.9375rem' }}>AI Oral Scanning SmileScan Technology</p>
               </div>
             </div>
             <p style={{ opacity: 0.9, lineHeight: 1.7, marginBottom: '1.5rem', maxWidth: '600px' }}>
@@ -514,7 +514,7 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
           >
             <img
               src="/health-assets/toothlensscan_1086x1024.png"
-              alt="Toothlens AI SmileScan"
+              alt="AI Oral Scanning SmileScan"
               style={{
                 width: '100%',
                 maxHeight: '380px',

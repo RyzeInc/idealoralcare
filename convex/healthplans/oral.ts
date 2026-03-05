@@ -33,7 +33,7 @@ export const getOralPlan = query({
       features: [
         {
           id: "toothlens",
-          name: "Toothlens Smart Check AI Scanning",
+          name: "AI Oral Scanning",
           description: "AI-powered oral health screening tool for home monitoring",
           icon: "zap",
           included: true,
@@ -211,7 +211,7 @@ export const getOralPlanComparison = query({
           monthlyPrice: 15,
           monthlyACHPrice: 13,
           features: [
-            "Toothlens Scanning",
+            "AI Oral Scanning",
             "24/7 Teledentistry",
             "Network Discounts",
             "Member Card",

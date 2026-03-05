@@ -12,7 +12,7 @@ interface CTABandProps {
 
 export default function CTABand({
   headline = "Ready to Take Control of Your Oral Health?",
-  subtext = "Toothlens AI scanning, 24/7 teledentistry, and a nationwide dentist network—all in one simple plan.",
+  subtext = "AI Oral Scanning, 24/7 teledentistry, and a nationwide dentist network—all in one simple plan.",
   ctaText = "Enroll Now",
   ctaHref = "/health/checkout",
 }: CTABandProps) {

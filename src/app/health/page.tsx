@@ -6,7 +6,7 @@ import { Zap, Clock, Smile, Heart, Shield } from "lucide-react";
 export const metadata = {
   title: "Ideal Oral Health Plan | Comprehensive Oral Health Coverage",
   description:
-    "Ideal Oral Health Plan - Toothlens AI oral scanning, 24/7 teledentistry, and Dental Discount Network dental access. Affordable monthly membership.",
+    "Ideal Oral Health Plan - AI Oral Scanning, 24/7 teledentistry, and Dental Discount Network dental access. Affordable monthly membership.",
 };
 
 export default function HealthLanding() {
@@ -29,8 +29,8 @@ export default function HealthLanding() {
                 <div className="hero-home__subtitle">IDEAL ORAL HEALTH PLAN</div>
                 <h1>Oral Health That Works Around Your Life — Not the Other Way Around.</h1>
                 <p className="hero-home__descr">
-                  Toothlens AI scanning from home, licensed dentists available 24/7, and a
-                  nationwide provider network that saves members 25–85%† on dental
+                  AI Oral Scanning from home, licensed dentists available 24/7, and a
+                  nationwide provider network that saves members 25–50% on dental
                   procedures — without the waiting rooms, surprise bills, or guesswork.
                 </p>
                 <a className="button button--primary" href="#whats-included">
@@ -50,8 +50,8 @@ export default function HealthLanding() {
         <div className="container">
           <div className="related-posts__grid">
             <div className="related-posts__card">
-              <img src="/health-assets/toothlensscan_1086x1024.png" alt="Toothlens AI Scanning" />
-              <h4>Toothlens AI Scanning</h4>
+              <img src="/health-assets/toothlensscan_1086x1024.png" alt="AI Oral Scanning" />
+              <h4>AI Oral Scanning</h4>
               <div className="link-arrow">AI-Powered Detection</div>
             </div>
             <div className="related-posts__card">
@@ -82,7 +82,7 @@ export default function HealthLanding() {
               <div className="benefit-tile">
                 <div className="benefit-tile__icon"><Zap size={28} color="#0066CC" /></div>
                 <h4 className="benefit-tile__title">AI Oral Scanning</h4>
-                <p className="benefit-tile__description">Toothlens Smart Check analyzes photos of your teeth using AI to detect potential issues early.</p>
+                <p className="benefit-tile__description">AI Oral Scanning analyzes photos of your teeth using AI to detect potential issues early.</p>
               </div>
               <div className="benefit-tile">
                 <div className="benefit-tile__icon"><Clock size={28} color="#0066CC" /></div>
@@ -119,7 +119,7 @@ export default function HealthLanding() {
         <div className="container">
           <h2>Why Ideal Oral Health Works Better</h2>
           <ul className="benefits__list">
-            <li><strong>Advanced AI Technology</strong>: Toothlens AI scanning detects issues early and provides detailed analysis without the cost of frequent in-person visits.</li>
+            <li><strong>Advanced AI Technology</strong>: AI Oral Scanning detects issues early and provides detailed analysis without the cost of frequent in-person visits.</li>
             <li><strong>Expert Network</strong>: Access to a carefully selected network of trusted dentists nationwide, all vetted for quality care.</li>
             <li><strong>Transparent Pricing</strong>: Know upfront what procedures cost with our nationwide provider network discounts. No surprise bills.</li>
             <li><strong>Preventative Focus</strong>: AI scanning and coaching help catch problems early, reducing costly treatments down the road.</li>
@@ -202,11 +202,11 @@ export default function HealthLanding() {
           <div className="faq__list">
             <div className="accordion">
               <h4>What is the Ideal Oral Health Plan?</h4>
-              <div>The Ideal Oral Health Plan is a comprehensive oral care solution featuring advanced AI technology (Toothlens for oral health scanning), 24/7 teledentistry access with experienced specialists, and a nationwide network of providers with discounted rates. It is designed to make oral care accessible, affordable, and preventative.</div>
+              <div>The Ideal Oral Health Plan is a comprehensive oral care solution featuring advanced AI Oral Scanning technology for oral health scanning, 24/7 teledentistry access with experienced specialists, and a nationwide network of providers with discounted rates. It is designed to make oral care accessible, affordable, and preventative.</div>
             </div>
             <div className="accordion">
-              <h4>How does Toothlens AI scanning work?</h4>
-              <div>Toothlens is advanced AI technology that analyzes photos of your teeth and gums. Simply take clear photos and our AI provides a detailed oral health report identifying potential issues, calculating your oral health score, and recommending next steps. It is a convenient way to track your health between in-person visits.</div>
+              <h4>How does AI Oral Scanning work?</h4>
+              <div>AI Oral Scanning analyzes photos of your teeth and gums. Simply take clear photos and our AI provides a detailed oral health report identifying potential issues, calculating your oral health score, and recommending next steps. It is a convenient way to track your health between in-person visits.</div>
             </div>
             <div className="accordion">
               <h4>Can I use the Oral Health Plan for emergency care?</h4>

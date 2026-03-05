@@ -26,9 +26,9 @@ export const seedInitialData = mutation({
         name: "Oral Health Savings Plan",
         category: "dental",
         description:
-          "Toothlens AI oral scanning, teledentistry consultations, and access to our nationwide provider network with discount offerings.",
+          "AI Oral Scanning, teledentistry consultations, and access to our nationwide provider network with discount offerings.",
         longDescription:
-          "Our Oral Health Savings Plan provides comprehensive access to oral care through innovative technology and a nationwide network of providers. Features include AI-powered oral scanning (Toothlens), 24/7 teledentistry consultations, and significant discounts on procedures.",
+          "Our Oral Health Savings Plan provides comprehensive access to oral care through innovative technology and a nationwide network of providers. Features include AI Oral Scanning, 24/7 teledentistry consultations, and significant discounts on procedures.",
         inclusions: [
           "AI-Powered Oral Scanning",
           "24/7 Teledentistry Access",
@@ -209,9 +209,9 @@ export const reseedData = mutation({
         name: "Oral Health Savings Plan",
         category: "dental",
         description:
-          "Toothlens AI oral scanning, teledentistry consultations, and access to our nationwide provider network with discount offerings.",
+          "AI Oral Scanning, teledentistry consultations, and access to our nationwide provider network with discount offerings.",
         longDescription:
-          "Our Oral Health Savings Plan provides comprehensive access to oral care through innovative technology and a nationwide network of providers. Features include AI-powered oral scanning (Toothlens), 24/7 teledentistry consultations, and significant discounts on procedures.",
+          "Our Oral Health Savings Plan provides comprehensive access to oral care through innovative technology and a nationwide network of providers. Features include AI Oral Scanning, 24/7 teledentistry consultations, and significant discounts on procedures.",
         inclusions: [
           "AI-Powered Oral Scanning",
           "24/7 Teledentistry Access",

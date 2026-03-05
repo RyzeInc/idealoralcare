@@ -61,10 +61,10 @@ const MOCK_PRODUCTS: Record<string, DetailProduct> = {
     slug: "dental-savings",
     name: "Oral Health Savings Plan",
     category: "dental",
-    description: "Toothlens AI oral scanning, teledentistry consultations, and access to our nationwide provider network with discount offerings.",
+    description: "AI Oral Scanning, teledentistry consultations, and access to our nationwide provider network with discount offerings.",
     longDescription: "The Oral Health Savings Plan gives you and your family immediate access to significant savings on all oral health care. Unlike traditional coverage, there are no waiting periods, no annual maximums, and no claim forms to fill out. Simply show your membership card at any participating provider and receive instant discounts on exams, cleanings, fillings, crowns, and more.",
     inclusions: [
-      "AI-Powered Oral Scanning with Toothlens",
+      "AI Oral Scanning",
       "24/7 Teledentistry Consultations",
       "Access to 140,000+ Specialists Nationwide",
       "20-60% Discount on Procedures",
@@ -79,7 +79,7 @@ const MOCK_PRODUCTS: Record<string, DetailProduct> = {
       "Pre-existing conditions treated same as new",
     ],
     howToUse: [
-      "Download the Toothlens app to scan your teeth anytime",
+      "Use AI Oral Scanning to scan your teeth anytime",
       "Book teledentistry consultations through your dashboard",
       "Find participating dentists using the provider directory",
       "Show your digital membership card at appointments",

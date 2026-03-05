@@ -83,7 +83,7 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
         <div className="pt-4 border-t border-white border-opacity-20">
           <p className="text-xs text-white text-opacity-70 mb-2">MEMBER NETWORKS & SERVICES</p>
           <p className="text-xs leading-relaxed text-white">
-            {cardData.networks.careington.name} • {cardData.networks.dialCare.name} • {cardData.networks.toothlens.name}
+            {cardData.networks.careington.name} • {cardData.networks.dialCare.name} • AI Oral Scanning
           </p>
           <p className="text-xs text-white text-opacity-60 mt-3">
             {cardData.supportPhone} • {cardData.supportEmail}
@@ -119,7 +119,7 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
           rel="noopener noreferrer"
           className="p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
         >
-          <p className="font-semibold text-slate-900 text-sm">{cardData.networks.toothlens.name}</p>
+          <p className="font-semibold text-slate-900 text-sm">AI Oral Scanning</p>
           <p className="text-slate-600 text-xs mt-1">AI-powered smile analysis</p>
         </a>
       </div>

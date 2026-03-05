@@ -262,7 +262,7 @@ The following features are in development and hidden from the current UI:
 - Delivery confirmation reports
 
 ### AI Oral Scanning
-- Toothlens integration for member health assessments
+- AI Oral Scanning integration for member health assessments
 - Scan history and reports
 - Teledentistry referrals
 

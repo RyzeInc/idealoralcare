@@ -6,7 +6,7 @@ const FAQS = [
   {
     question: "What exactly is included in the plan?",
     answer:
-      "The Ideal Oral Health Plan includes Toothlens Smart Check AI scanning for at-home monitoring, 24/7 access to our Teledentistry Program specialists, member ID cards, and discounted access to the Dental Discount Network of thousands of dentists nationwide.",
+      "The Ideal Oral Health Plan includes AI Oral Scanning for at-home monitoring, 24/7 access to our Teledentistry Program specialists, member ID cards, and discounted access to the Dental Discount Network of thousands of dentists nationwide.",
   },
   {
     question: "Is this dental insurance?",
@@ -20,9 +20,9 @@ const FAQS = [
   },
 
   {
-    question: "How do I access Toothlens teledentistry?",
+    question: "How do I access AI Oral Scanning teledentistry?",
     answer:
-      "After enrollment, you will receive instructions to download the Toothlens Smart Check app. It is available on iOS and Android. Teledentistry consultations can be scheduled 24/7 through the app.",
+      "After enrollment, you will receive instructions to download the AI Oral Scanning app. It is available on iOS and Android. Teledentistry consultations can be scheduled 24/7 through the app.",
   },
   {
     question: "Are there any restrictions or requirements?",
@@ -37,7 +37,7 @@ const FAQS = [
   {
     question: "Is there a waiting period?",
     answer:
-      "Your benefits are activated within 24 hours of enrollment. You can begin using Toothlens scanning, scheduling teledentistry appointments, and accessing network dentist discounts.",
+      "Your benefits are activated within 24 hours of enrollment. You can begin using AI Oral Scanning, scheduling teledentistry appointments, and accessing network dentist discounts.",
   },
 ];
 

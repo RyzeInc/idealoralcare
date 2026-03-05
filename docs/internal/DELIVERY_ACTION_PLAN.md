@@ -223,7 +223,7 @@ The "Record Scan", "View Reports", "Request Forward" tabs are empty. Either:
 - **Option A:** Hide them entirely
 - **Option B:** Show "Coming Soon" message
 
-Recommended: Hide until Toothlens integration is complete.
+Recommended: Hide until AI Oral Scanning integration is complete.
 
 ---
 
@@ -309,7 +309,7 @@ This is a Next.js + Convex + Clerk + Stripe application.
 - ✅ Payment processing (Stripe)
 
 ### What's NOT Yet Complete (Hidden from Users)
-- ⏳ OralScan integration (Toothlens)
+- ⏳ OralScan integration (AI Oral Scanning)
 - ⏳ Commission tracking
 - ⏳ SFTP file delivery
 - ⏳ CSV eligibility upload

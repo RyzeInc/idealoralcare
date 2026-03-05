@@ -30,11 +30,11 @@ export const seedInitialData = mutation({
         name: "Ideal Oral Health Plan",
         category: "dental",
         description:
-          "Comprehensive oral health coverage with Toothlens AI oral scanning, 24/7 teledentistry consultations, and access to the Dental Discount Network dental discount network.",
+          "Comprehensive oral health coverage with AI Oral Scanning, 24/7 teledentistry consultations, and access to the Dental Discount Network dental discount network.",
         longDescription:
-          "Our Oral Health Plan provides comprehensive access to dental care through innovative technology and a nationwide network of providers. Features include AI-powered oral scanning (Toothlens Smart Check), 24/7 teledentistry consultations, and significant discounts on procedures through the Dental Discount Network dental provider network.",
+          "Our Oral Health Plan provides comprehensive access to dental care through innovative technology and a nationwide network of providers. Features include AI Oral Scanning, 24/7 teledentistry consultations, and significant discounts on procedures through the Dental Discount Network dental provider network.",
         inclusions: [
-          "Toothlens AI Oral Scanning",
+          "AI Oral Scanning",
           "24/7 Teledentistry Program",
           "Dental Discount Network Access",
           "Preventive Discounts",
@@ -110,11 +110,11 @@ export const reseedData = mutation({
         name: "Ideal Oral Health Plan",
         category: "dental",
         description:
-          "Comprehensive oral health coverage with Toothlens AI oral scanning, 24/7 teledentistry consultations, and access to the Dental Discount Network dental discount network.",
+          "Comprehensive oral health coverage with AI Oral Scanning, 24/7 teledentistry consultations, and access to the Dental Discount Network dental discount network.",
         longDescription:
-          "Our Oral Health Plan provides comprehensive access to dental care through innovative technology and a nationwide network of providers. Features include AI-powered oral scanning (Toothlens Smart Check), 24/7 teledentistry consultations, and significant discounts on procedures through the Dental Discount Network dental provider network.",
+          "Our Oral Health Plan provides comprehensive access to dental care through innovative technology and a nationwide network of providers. Features include AI Oral Scanning, 24/7 teledentistry consultations, and significant discounts on procedures through the Dental Discount Network dental provider network.",
         inclusions: [
-          "Toothlens AI Oral Scanning",
+          "AI Oral Scanning",
           "24/7 Teledentistry Program",
           "Dental Discount Network Access",
           "Preventive Discounts",
@@ -183,11 +183,11 @@ export const reseedInternal = internalMutation({
       name: "Ideal Oral Health Plan",
       category: "dental",
       description:
-        "Comprehensive oral health coverage with Toothlens AI oral scanning, 24/7 teledentistry consultations, and access to the Dental Discount Network.",
+        "Comprehensive oral health coverage with AI Oral Scanning, 24/7 teledentistry consultations, and access to the Dental Discount Network.",
       longDescription:
-        "Our Oral Health Plan provides comprehensive access to dental care through innovative technology and a nationwide network of providers. Features include AI-powered oral scanning (Toothlens Smart Check), 24/7 teledentistry consultations, and significant discounts on procedures through the Dental Discount Network.",
+        "Our Oral Health Plan provides comprehensive access to dental care through innovative technology and a nationwide network of providers. Features include AI Oral Scanning, 24/7 teledentistry consultations, and significant discounts on procedures through the Dental Discount Network.",
       inclusions: [
-        "Toothlens AI Oral Scanning",
+        "AI Oral Scanning",
         "24/7 Teledentistry Program",
         "Dental Discount Network Access",
         "Preventive Discounts",

@@ -201,7 +201,7 @@ Agent 3 (Operations — Admin, Vendor Files, CSV Eligibility, Member Services) h
 - Member ID card display component
 - Blue gradient background (Ideal Health branding)
 - 4-field layout: Member name, Member ID, Plan name, Effective date
-- Network links footer: Dental Discount Network, Dial Care, Toothlens (external deep links)
+- Network links footer: Dental Discount Network, Dial Care, AI Oral Scanning (external deep links)
 - Download button for PDF version
 - Responsive grid layout with Tailwind CSS
 - ✅ Status: Complete, display-ready (wire to api.admin.memberCards.getMemberCardData)

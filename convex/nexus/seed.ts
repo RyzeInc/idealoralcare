@@ -57,7 +57,7 @@ export const seedData = mutation({
       { category: "health", name: "Plus", provider: "", slug: "health-plus", shortDescription: "Complete Wellness", icon: "HeartPlus", order: 10 },
       { category: "health", name: "Delux", provider: "", slug: "health-delux", shortDescription: "Complete Plus", icon: "HeartHandshake", order: 11 },
       { category: "health", name: "Quest Plus Full Panel", provider: "", slug: "quest-plus", shortDescription: "1200 Labs, Urine, Cultures", icon: "Microscope", order: 12 },
-      { category: "health", name: "AI Powered Dental Plan Solution", provider: "Toothlens", slug: "ai-dental-toothlens", icon: "Sparkles", order: 13 },
+      { category: "health", name: "AI Powered Dental Plan Solution", provider: "AI Oral Scanning", slug: "ai-dental-ai-oral-scanning", icon: "Sparkles", order: 13 },
       { category: "health", name: "Chronic Disease Care", provider: "Chronilogix", slug: "chronic-care-chronilogix", icon: "Activity", order: 14 },
 
       // Legal
@@ -207,7 +207,7 @@ export const reseedData = mutation({
       { category: "health", name: "Plus", provider: "", slug: "health-plus", shortDescription: "Complete Wellness", icon: "HeartPlus", order: 10 },
       { category: "health", name: "Delux", provider: "", slug: "health-delux", shortDescription: "Complete Plus", icon: "HeartHandshake", order: 11 },
       { category: "health", name: "Quest Plus Full Panel", provider: "", slug: "quest-plus", shortDescription: "1200 Labs, Urine, Cultures", icon: "Microscope", order: 12 },
-      { category: "health", name: "AI Powered Dental Plan Solution", provider: "Toothlens", slug: "ai-dental-toothlens", icon: "Sparkles", order: 13 },
+      { category: "health", name: "AI Powered Dental Plan Solution", provider: "AI Oral Scanning", slug: "ai-dental-ai-oral-scanning", icon: "Sparkles", order: 13 },
       { category: "health", name: "Chronic Disease Care", provider: "Chronilogix", slug: "chronic-care-chronilogix", icon: "Activity", order: 14 },
 
       // Legal

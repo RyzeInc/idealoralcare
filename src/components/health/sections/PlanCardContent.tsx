@@ -97,7 +97,7 @@ export default function PlanCardContent({
                 margin: "0.5rem 0 0 0",
               }}
             >
-              <strong>Toothlens Smart Check:</strong> AI-powered oral health
+              <strong>AI Oral Scanning:</strong> AI-powered oral health
               scanning available on iOS and Android
             </p>
           </div>

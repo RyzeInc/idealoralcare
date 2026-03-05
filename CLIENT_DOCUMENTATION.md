@@ -1,4 +1,4 @@
-# Toothlens Selfcheck Integration Guide
+# AI Oral Scanning Selfcheck Integration Guide
 
 **A quick reference for embedding the Selfcheck app via iframe.**
 
@@ -38,7 +38,7 @@
 - **What:** Unique string identifying one user.
 - **Format:** 8‑20 characters.
 - **Required:** Yes.
-- **Note:** Share all possible `uid` values with Toothlens before launch. We recommend providing an Excel spreadsheet containing:
+- **Note:** Share all possible `uid` values with AI Oral Scanning before launch. We recommend providing an Excel spreadsheet containing:
   - **Company name**
   - **UID**
   - Any other details you are comfortable sharing (e.g. user name, email, etc.)

@@ -9,7 +9,7 @@ import { requireAdminAction } from "../lib/authGuards";
  * Generate PDF member ID cards with:
  * - Member name, 9-digit ID, plan name, effective date
  * - Network provider info (Dental Discount Network, Teledentistry Program)
- * - Smart check link (Toothlens)
+ * - Smart check link (AI Oral Scanning)
  * - QR code / barcode
  */
 
@@ -37,7 +37,7 @@ export const generateMemberIdCardPdf: any = action({
       networks: [
         "Dental Discount Network",
         "Teledentistry Program",
-        "Toothlens Smart Checks",
+        "AI Oral Scanning",
       ],
       toothlensLink: `https://toothlens.com/verify?memberId=${member.memberId}`,
     };
@@ -131,7 +131,7 @@ export const getMemberCardData: any = action({
           memberUrl: "https://www.dialcare.com/members",
         },
         toothlens: {
-          name: "Toothlens Smart Checks",
+          name: "AI Oral Scanning",
           memberUrl: `https://smartcheck.toothlens.com/verify?memberId=${member.memberId}`,
         },
       },

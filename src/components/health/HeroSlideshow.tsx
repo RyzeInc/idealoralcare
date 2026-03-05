@@ -14,7 +14,7 @@ const slides: Slide[] = [
   {
     // Use PNG - the JPG is too large (2.3MB) and causes loading issues
     image: '/health-assets/hero-scan.png',
-    alt: 'AI-powered oral scanning with Toothlens',
+    alt: 'AI Oral Scanning experience',
     label: '1. Scan with AI'
   },
   {

@@ -49,9 +49,9 @@ export const initializeEnrollment = mutation({
         name: "Ideal Oral Health Plan",
         category: "dental",
         description:
-          "Comprehensive oral health coverage with Toothlens AI oral scanning, 24/7 teledentistry, and Dental Discount Network discounts.",
+          "Comprehensive oral health coverage with AI Oral Scanning, 24/7 teledentistry, and Dental Discount Network discounts.",
         inclusions: [
-          "Toothlens AI Oral Scanning",
+          "AI Oral Scanning",
           "24/7 Teledentistry Program",
           "Dental Discount Network Access",
           "Preventive Discounts",

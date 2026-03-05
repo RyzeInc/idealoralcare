@@ -20,8 +20,8 @@ export default function DentalFeatureCards() {
           onClick={() => openModal('toothlens')}
           style={{ cursor: 'pointer', border: 'none', background: 'transparent', padding: 0, textAlign: 'left', width: '100%' }}
         >
-          <img src="/health-assets/toothlensscan_1086x1024.png" alt="Toothlens AI Scanning" />
-          <h4>Toothlens AI Scanning</h4>
+          <img src="/health-assets/toothlensscan_1086x1024.png" alt="AI Oral Scanning" />
+          <h4>AI Oral Scanning</h4>
           <div className="link-arrow">AI-Powered Detection</div>
         </button>
         

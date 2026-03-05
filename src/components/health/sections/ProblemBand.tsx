@@ -34,18 +34,6 @@ export default function ProblemBand() {
             marginBottom: "56px",
           }}
         >
-          <p
-            style={{
-              fontSize: "0.8125rem",
-              fontWeight: 700,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              color: "#14b8a6",
-              marginBottom: "12px",
-            }}
-          >
-            The Problem
-          </p>
           <h2
             style={{
               fontSize: "clamp(1.625rem, 3.5vw, 2.25rem)",
@@ -55,7 +43,7 @@ export default function ProblemBand() {
               lineHeight: 1.2,
             }}
           >
-            The Dental Care System Is Broken for Most People
+            Stop Overpaying For Dental Care. Start Smiling More.
           </h2>
           <p
             style={{

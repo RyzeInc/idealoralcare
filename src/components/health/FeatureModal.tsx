@@ -17,7 +17,7 @@ export default function FeatureModal({ isOpen, onClose, feature }: FeatureModalP
     switch (feature) {
       case 'toothlens':
         return {
-          title: 'Toothlens AI Scanning',
+          title: 'AI Oral Scanning',
           subtitle: 'AI-Powered Oral Health Detection',
           image: '/health-assets/toothlensscan_1086x1024.png',
           description: 'Start a SmileScan. Take a few photos and let our AI give you a detailed report in minutes, highlighting concerns, tartar buildup, gum health, and alignment issues, helping you catch problems early and stay healthy.',

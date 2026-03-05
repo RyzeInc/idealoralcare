@@ -11,7 +11,7 @@ import "@/app/health/health.css";
  * Member dashboard with tabbed interface:
  * - Overview: active subscriptions, account info, billing
  * - Provider Search: Dental Discount Network dental network finder
- * - Oral Scan: Toothlens AI SmileScan
+ * - Oral Scan: AI Oral Scanning SmileScan
  * - Teledentistry: 24/7 virtual dental consultations
  */
 

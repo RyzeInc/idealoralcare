@@ -7,7 +7,7 @@ const BENEFITS = [
     icon: Zap,
     title: "AI Oral Scanning",
     description:
-      "Toothlens Smart Check analyzes photos of your teeth using AI to detect potential issues early.",
+      "AI Oral Scanning analyzes photos of your teeth using AI to detect potential issues early.",
   },
   {
     icon: Clock,

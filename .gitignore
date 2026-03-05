@@ -27,3 +27,5 @@ pnpm-debug.log*
 
 # macOS
 .DS_Store
+next-env.d.ts
+.gitignore
