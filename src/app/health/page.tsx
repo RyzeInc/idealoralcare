@@ -25,7 +25,7 @@ export default function HealthLanding() {
             </div>
           </div>
           <div className="row">
-            <div className="col-8">
+            <div className="col-12">
               <div className="hero-home__heading">
                 <div className="hero-home__subtitle">IDEAL ORAL HEALTH PLAN</div>
                 <h1>Oral Health Care That Works Around Your Life — Not the Other Way Around.</h1>
