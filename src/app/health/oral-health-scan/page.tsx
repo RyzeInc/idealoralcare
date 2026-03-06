@@ -186,7 +186,6 @@ export default function OralHealthScanPage() {
               <p style={{ color: "#64748b", marginBottom: "1.5rem" }}>
                 Receive a detailed oral health report with clear, actionable insights with no appointment required. Share with your dentist anytime.
               </p>
-              {/* image moved to previous step */}
             </div>
           </div>
         </div>
