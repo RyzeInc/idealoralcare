@@ -8,7 +8,7 @@
  */
 
 import Link from "next/link";
-import { ArrowRight, Check, ShoppingCart, CreditCard, Settings, Shield, Unlock, Scale, DollarSign, RotateCcw, Clock, Lock } from "lucide-react";
+import { ArrowRight, Check, CreditCard, Settings, Shield, Unlock, Scale, DollarSign, Clock, Lock } from "lucide-react";
 import HealthHeader from "@/components/health/HealthHeader";
 import { CartProvider, useCart } from "@/lib/health-plans";
 
