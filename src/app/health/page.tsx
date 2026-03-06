@@ -188,7 +188,6 @@ export default function HealthLanding() {
               </p>
               <div className="for-organization__btn_w">
                 <a className="button button--accent" href="/contact">Schedule a Demo</a>
-                {/* <a className="button button--primary" href="/health/checkout">Enroll Now</a> */}
               </div>
             </div>
             <div className="for-organization__img">
