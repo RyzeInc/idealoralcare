@@ -8,37 +8,31 @@
  */
 
 import Link from "next/link";
-import { ArrowRight, Check, ShoppingCart, CreditCard, Settings, Shield, Unlock, Scale, DollarSign, RotateCcw, Clock, Lock } from "lucide-react";
+import { ArrowRight, Check, CreditCard, Settings, Shield, Unlock, Scale, DollarSign, Clock, Lock } from "lucide-react";
 import HealthHeader from "@/components/health/HealthHeader";
 import { CartProvider, useCart } from "@/lib/health-plans";
 
 const STEPS = [
   {
     number: 1,
-    title: "Browse Plans",
-    description: "Explore our curated health plans. No account required — browse and compare at your own pace.",
-    icon: <ShoppingCart size={28} />,
-  },
-  {
-    number: 2,
     title: "Add to Cart",
     description: "Select the plans that work for you. Choose monthly or annual billing to lock in your rate.",
     icon: <Check size={28} />,
   },
   {
-    number: 3,
+    number: 2,
     title: "Checkout & Pay",
     description: "Create your account and add payment info. We process payments securely with Stripe.",
     icon: <CreditCard size={28} />,
   },
   {
-    number: 4,
+    number: 3,
     title: "Activation Within 24 Hours",
     description: "Your benefits are activated within 24 hours of enrollment with no waiting periods.",
     icon: <Check size={28} />,
   },
   {
-    number: 5,
+    number: 4,
     title: "Manage Anytime",
     description: "View your active plans, update payment methods, or cancel anytime from your dashboard.",
     icon: <Settings size={28} />,
@@ -49,7 +43,6 @@ const BENEFITS = [
   { icon: Unlock, text: "No sign-up required to browse" },
   { icon: Scale, text: "Compare plans side-by-side" },
   { icon: DollarSign, text: "Transparent pricing, no hidden fees" },
-  { icon: RotateCcw, text: "Cancel anytime" },
   { icon: Clock, text: "24/7 access to your benefits" },
   { icon: Lock, text: "Secure Stripe payment processing" },
 ];
@@ -62,6 +55,7 @@ const WHAT_IS = [
 ];
 
 const WHAT_ISNT = [
+  { title: "This is Not Insurance", desc: "Our plans provide discounts and wellness services, but they are not insurance." },
   { title: "Provider Discounts Vary", desc: "Savings depend on the provider and service — discounts are not guaranteed." },
   { title: "No Claims Processing", desc: "You pay the discounted price directly at the point of service." },
 ];
