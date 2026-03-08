@@ -1,5 +1,4 @@
 import HealthHeader from "@/components/health/HealthHeader";
-import { IdealHealthFooter } from "@/components/health/NexusHealthFooter";
 import Link from "next/link";
 
 export const metadata = {
@@ -58,7 +57,7 @@ export default function OralHealthScanPage() {
             </p>
             <h2 style={{ fontSize: "2.25rem" }}>Your Mouth Tells Your Health Story</h2>
             <p style={{ maxWidth: "680px", margin: "1rem auto 0", fontSize: "1.0625rem", color: "#64748b", lineHeight: 1.6 }}>
-              Growing evidence connects a healthy mouth with a healthy body. Here's what researchers have discovered about oral health and systemic wellness:
+              Growing evidence connects a healthy mouth with a healthy body. Here&apos;s what researchers have discovered about oral health and systemic wellness:
             </p>
           </div>
 
