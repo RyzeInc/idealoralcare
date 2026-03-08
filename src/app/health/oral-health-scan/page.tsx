@@ -171,7 +171,7 @@ export default function OralHealthScanPage() {
               <p style={{ color: "#64748b", marginBottom: "1.5rem" }}>
                 Use your smartphone camera to capture images of your teeth. No special equipment needed — the tool guides you through the process for the clearest results.
               </p>
-              <img src="/health-assets/scan-result-demo.png" alt="Scan result analysis screen" style={{ width: "100%", maxWidth: "280px", borderRadius: "12px", boxShadow: "0 8px 24px rgba(0,0,0,0.1)" }} />
+              <img src="/health-assets/scan-result-demo.png" alt="Smartphone camera capturing a photo of teeth for oral health scan" style={{ width: "100%", maxWidth: "280px", borderRadius: "12px", boxShadow: "0 8px 24px rgba(0,0,0,0.1)" }} />
             </div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
               <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "60px", height: "60px", borderRadius: "50%", background: "linear-gradient(135deg, #0066CC, #0047A3)", color: "#fff", fontSize: "1.75rem", fontWeight: 700, marginBottom: "1.5rem" }}>2</div>
@@ -186,7 +186,6 @@ export default function OralHealthScanPage() {
               <p style={{ color: "#64748b", marginBottom: "1.5rem" }}>
                 Receive a detailed oral health report with clear, actionable insights with no appointment required. Share with your dentist anytime.
               </p>
-              {/* image moved to previous step */}
             </div>
           </div>
         </div>
