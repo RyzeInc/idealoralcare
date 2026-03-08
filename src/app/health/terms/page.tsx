@@ -37,14 +37,20 @@ export default function IdealHealthTermsPage() {
               <h2 className="text-2xl font-semibold text-[#0F1320] mb-4">
                 Important Disclaimer
               </h2>
-              <p className="font-semibold text-amber-900">
-                THIS DISCOUNT PROGRAM IS NOT INSURANCE
+              <p className="font-semibold text-amber-900 mb-4">
+                THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance.
+              </p>
+              <p className="mt-4 space-y-3">
+                This plan does not meet the minimum creditable coverage requirements under M.G.L. c.111M and 956 CMR 5.00. This plan is not a Qualified Health Plan under the Affordable Care Act. The range of discounts will vary depending on the type of provider and service. The plan does not pay providers directly. Plan members must pay for all services but will receive a discount from participating providers. The list of participating providers is at the applicable website. A written list of participating providers is available upon request.
               </p>
               <p className="mt-4">
-                The Ideal Health discount program is not intended to replace health insurance. 
-                It does not meet the minimum creditable coverage requirements under the Affordable 
-                Care Act or Massachusetts M.G.L. c. 111M and 956 CMR 5.00, and it is not a 
-                Qualified Health Plan under the Affordable Care Act.
+                <strong>Cancellation Rights:</strong> You may cancel within the first 30 days after effective date or receipt of membership materials (whichever is later) and receive a full refund, less a nominal processing fee (nominal fee for MD residents is $5, AR residents will be refunded the processing fee).
+              </p>
+              <p className="mt-4">
+                <strong>Discount Plan Organization and Administrator:</strong> Careington International Corporation, 7400 Gaylord Parkway, Frisco, TX 75034; phone 800-441-0380.
+              </p>
+              <p className="mt-4 font-semibold text-amber-900">
+                This plan is not available in Vermont or Washington.
               </p>
             </div>
 
