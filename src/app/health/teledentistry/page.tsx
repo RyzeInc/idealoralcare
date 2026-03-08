@@ -393,8 +393,7 @@ export default function TeledentistryPage() {
               lineHeight: 1.6,
             }}
           >
-            <strong>Disclosure:</strong> THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance.
-            State availability may vary. Please contact us for up-to-date information on availability in your state.
+            <strong>Disclosure:</strong> THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance. State availability may vary. Please contact us for up-to-date information on availability in your state.
           </p>
         </div>
       </section>

@@ -75,7 +75,7 @@ export default function HealthLanding() {
       <section className="our-use-case section bg--blue" id="whats-included">
         <div className="container">
           <div className="heading-block">
-            <h2>What's Included in Your Oral Health Plan</h2>
+            <h2>What&apos;s Included in Your Oral Health Plan</h2>
           </div>
           <div className="our-use-case__content">
             <div className="our-use-case__image">
@@ -127,7 +127,7 @@ export default function HealthLanding() {
             <li><strong>Transparent Pricing</strong>: Know upfront what procedures cost with our nationwide provider network discounts. No surprise bills.</li>
             <li><strong>Preventative Focus</strong>: AI scanning and coaching help catch problems early, reducing costly treatments down the road.</li>
             <li><strong>Always Available</strong>: 24/7 access to dentists and oral health coaches means you can address concerns at any time, including outside standard office hours.</li>
-            <li><strong>Comprehensive Support</strong>: From emergency care to routine coaching, we're here for every aspect of your oral health journey.</li>
+            <li><strong>Comprehensive Support</strong>: From emergency care to routine coaching, we&apos;re here for every aspect of your oral health journey.</li>
           </ul>
         </div>
       </section>
@@ -212,7 +212,7 @@ export default function HealthLanding() {
             </div>
             <div className="accordion">
               <h4>Can I use the Oral Health Plan for emergency care?</h4>
-              <div>Yes! The Oral Health Plan includes 24/7 emergency support. If you're experiencing pain or have urgent concerns, you can connect with a specialist immediately via teledentistry to get guidance and relief recommendations.</div>
+              <div>Yes! The Oral Health Plan includes 24/7 emergency support. If you&apos;re experiencing pain or have urgent concerns, you can connect with a specialist immediately via teledentistry to get guidance and relief recommendations.</div>
             </div>
             <div className="accordion">
               <h4>How do the nationwide dentist discounts work?</h4>
