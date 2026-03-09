@@ -1176,4 +1176,53 @@ export default defineSchema({
     .index("by_period", ["period"])
     .index("by_status", ["status"])
     .index("by_enrollment", ["enrollmentSessionId"]),
+
+  // ============================================
+  // MEMBERSHIP AGREEMENTS & LEGAL DOCUMENTS
+  // ============================================
+
+  // MEMBERSHIP AGREEMENTS (Digital member agreements with signatures)
+  membershipAgreements: defineTable({
+    // MEMBER IDENTITY
+    userId: v.string(), // Clerk user ID
+    memberId: v.string(), // Careington member ID
+    memberName: v.string(),
+    memberAddress: v.string(),
+    email: v.string(),
+
+    // PLAN DETAILS
+    planName: v.string(),
+    groupCode: v.string(),
+    term: v.string(), // "Annual", "Monthly", "Quarterly"
+    effectiveDate: v.string(), // YYYY-MM-DD format
+
+    // BILLING INFORMATION
+    classification: v.string(),
+    paymentMode: v.string(),
+    periodicCharge: v.string(),
+    processingFee: v.string(),
+
+    // AGREEMENT ACCEPTANCE
+    membershipTermsAgreed: v.boolean(),
+    termsAndConditionsAgreed: v.boolean(),
+    memberSignature: v.string(), // Signature image/data
+    signatureTimestamp: v.number(),
+
+    // STATUS & TRACKING
+    status: v.union(
+      v.literal("active"),
+      v.literal("cancelled"),
+      v.literal("expired")
+    ),
+    cancelReason: v.optional(v.string()),
+
+    // AUDIT
+    createdAt: v.number(),
+    lastUpdated: v.optional(v.number()),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_memberId", ["memberId"])
+    .index("by_email", ["email"])
+    .index("by_status", ["status"])
+    .index("by_date", ["createdAt"]),
 });
