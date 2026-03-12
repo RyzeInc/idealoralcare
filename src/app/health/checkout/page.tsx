@@ -35,6 +35,7 @@ import HealthHeader from "@/components/health/HealthHeader";
 import { CartProvider, useCart } from "@/lib/health-plans";
 import { formatPrice, getPrice } from "@/lib/health-plans/types";
 import { CadenceModal } from "@/components/health/catalog";
+import { MembershipAgreementModal, TermsAndConditionsModal } from "@/components/legal";
 import "@/app/health/health.css";
 
 /* ─── Inline auth (sign-in / sign-up) used in checkout Step 3 ─────────────── */
@@ -337,6 +338,10 @@ function CheckoutContent() {
   const [agreedToNotInsurance, setAgreedToNotInsurance] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   
+  // Legal modal state
+  const [membershipModalOpen, setMembershipModalOpen] = useState(false);
+  const [termsModalOpen, setTermsModalOpen] = useState(false);
+  
   const periodLabel = cart.cadence === "monthly" ? "Monthly" : "Annual";
   const periodShort = cart.cadence === "monthly" ? "/mo" : "/yr";
   
@@ -444,35 +449,8 @@ function CheckoutContent() {
       {/* Cadence Modal */}
       <CadenceModal />
       
-      {/* Hero Section */}
-      <section className="section bg--blue" style={{ paddingTop: "7rem", paddingBottom: "2rem" }}>
-        <div className="container">
-          <Link 
-            href="/health/plans" 
-            style={{ 
-              display: "inline-flex", 
-              alignItems: "center", 
-              gap: "0.5rem",
-              color: "#0f172a",
-              textDecoration: "none",
-              marginBottom: "1rem",
-              fontSize: "0.9375rem"
-            }}
-          >
-            <ArrowLeft size={18} />
-            Back to Plans
-          </Link>
-          <h1 style={{ fontSize: "clamp(2rem, 5vw, 2.75rem)", fontWeight: 700, color: "#0f172a", marginBottom: "0.5rem" }}>
-            Checkout
-          </h1>
-          <p style={{ color: "#475569", fontSize: "1.125rem" }}>
-            Review your order and complete your purchase
-          </p>
-        </div>
-      </section>
-      
       {/* Main Checkout Grid */}
-      <section className="section bg--white" style={{ paddingTop: "3rem", paddingBottom: "4rem" }}>
+      <section className="section bg--white" style={{ paddingTop: "2rem", paddingBottom: "4rem" }}>
         <div className="container" style={{ maxWidth: "1200px" }}>
           <div style={{
             display: "grid",
@@ -486,6 +464,21 @@ function CheckoutContent() {
               
               {/* Step 1: Review Order */}
               <div className="glass-card" style={{ padding: "1.5rem 2rem" }}>
+                <Link 
+                  href="/health/plans" 
+                  style={{ 
+                    display: "inline-flex", 
+                    alignItems: "center", 
+                    gap: "0.5rem",
+                    color: "#0f172a",
+                    textDecoration: "none",
+                    marginBottom: "1rem",
+                    fontSize: "0.9375rem"
+                  }}
+                >
+                  <ArrowLeft size={18} />
+                  Back to Plans
+                </Link>
                 <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1.5rem" }}>
                   <span style={{
                     width: "32px",
@@ -862,60 +855,84 @@ function CheckoutContent() {
                 
                 {/* Agreements */}
                 <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                  <label style={{
-                    display: "flex",
-                    gap: "0.75rem",
-                    alignItems: "flex-start",
-                    cursor: "pointer",
-                    padding: "0.75rem",
-                    borderRadius: "8px",
-                    background: agreedToTerms ? "#f0fdf4" : "transparent",
-                    transition: "background 0.2s"
-                  }}>
+                  {/* Checkbox 1 → opens MembershipAgreementModal */}
+                  <div
+                    onClick={() => { if (!agreedToTerms) setMembershipModalOpen(true); }}
+                    style={{
+                      display: "flex",
+                      gap: "0.75rem",
+                      alignItems: "flex-start",
+                      cursor: agreedToTerms ? "default" : "pointer",
+                      padding: "0.75rem",
+                      borderRadius: "8px",
+                      background: agreedToTerms ? "#f0fdf4" : "transparent",
+                      border: agreedToTerms ? "1px solid #bbf7d0" : "1px solid transparent",
+                      transition: "background 0.2s"
+                    }}
+                  >
                     <input
                       type="checkbox"
                       checked={agreedToTerms}
-                      onChange={(e) => setAgreedToTerms(e.target.checked)}
+                      readOnly
                       style={{
                         width: "20px",
                         height: "20px",
                         accentColor: "#0066CC",
-                        marginTop: "2px"
+                        marginTop: "2px",
+                        cursor: agreedToTerms ? "default" : "pointer",
+                        pointerEvents: "none"
                       }}
                     />
                     <span style={{ fontSize: "0.9375rem", color: "#475569", lineHeight: 1.6 }}>
                       I understand that I will be billed <strong>{formatPrice(totalDueToday)}</strong> today 
                       and {formatPrice(totalDueToday)}{periodShort} on renewal. I can cancel 
                       anytime and keep access until the end of my billing period.
+                      {!agreedToTerms && (
+                        <span style={{ display: "block", fontSize: "0.8125rem", color: "#0066CC", marginTop: "0.35rem", fontWeight: 500 }}>
+                          Click to review &amp; sign membership agreement →
+                        </span>
+                      )}
                     </span>
-                  </label>
+                  </div>
                   
-                  <label style={{
-                    display: "flex",
-                    gap: "0.75rem",
-                    alignItems: "flex-start",
-                    cursor: "pointer",
-                    padding: "0.75rem",
-                    borderRadius: "8px",
-                    background: agreedToNotInsurance ? "#fef3c7" : "transparent",
-                    transition: "background 0.2s"
-                  }}>
+                  {/* Checkbox 2 → opens TermsAndConditionsModal */}
+                  <div
+                    onClick={() => { if (!agreedToNotInsurance) setTermsModalOpen(true); }}
+                    style={{
+                      display: "flex",
+                      gap: "0.75rem",
+                      alignItems: "flex-start",
+                      cursor: agreedToNotInsurance ? "default" : "pointer",
+                      padding: "0.75rem",
+                      borderRadius: "8px",
+                      background: agreedToNotInsurance ? "#fef3c7" : "transparent",
+                      border: agreedToNotInsurance ? "1px solid #fde68a" : "1px solid transparent",
+                      transition: "background 0.2s"
+                    }}
+                  >
                     <input
                       type="checkbox"
                       checked={agreedToNotInsurance}
-                      onChange={(e) => setAgreedToNotInsurance(e.target.checked)}
+                      readOnly
                       style={{
                         width: "20px",
                         height: "20px",
                         accentColor: "#0066CC",
-                        marginTop: "2px"
+                        marginTop: "2px",
+                        cursor: agreedToNotInsurance ? "default" : "pointer",
+                        pointerEvents: "none"
                       }}
                     />
                     <span style={{ fontSize: "0.9375rem", color: "#475569", lineHeight: 1.6 }}>
                       <strong style={{ color: "#d97706" }}>I understand this is NOT insurance.</strong> These plans provide 
                       discounts and access to services, not insurance coverage.
+                      {!agreedToNotInsurance && (
+                        <span style={{ display: "block", fontSize: "0.8125rem", color: "#0066CC", marginTop: "0.35rem", fontWeight: 500 }}>
+                          Click to review &amp; accept terms and conditions →
+                        </span>
+                      )}
                     </span>
-                  </label>
+                  </div>
                 </div>
                 
 
@@ -1105,6 +1122,33 @@ function CheckoutContent() {
           </div>
         </div>
       </section>
+      
+      {/* Legal Modals */}
+      <MembershipAgreementModal
+        isOpen={membershipModalOpen}
+        onClose={() => setMembershipModalOpen(false)}
+        onAccept={(_signature: string) => {
+          setAgreedToTerms(true);
+          setMembershipModalOpen(false);
+        }}
+        memberData={{
+          memberId: user?.id || "TBD",
+          memberName: user?.fullName || user?.emailAddresses?.[0]?.emailAddress || "Member",
+          memberAddress: "Address on file",
+          email: user?.emailAddresses?.[0]?.emailAddress || "",
+          planName: cart.items?.[0]?.product?.name || "Ideal Oral Health Plan",
+          groupCode: "IOHP",
+          effectiveDate: new Date().toISOString().split("T")[0],
+        }}
+      />
+      <TermsAndConditionsModal
+        isOpen={termsModalOpen}
+        onClose={() => setTermsModalOpen(false)}
+        onAccept={() => {
+          setAgreedToNotInsurance(true);
+          setTermsModalOpen(false);
+        }}
+      />
       
       {/* Trust Section */}
       <section className="section bg--light" style={{ paddingTop: "2rem", paddingBottom: "3rem" }}>

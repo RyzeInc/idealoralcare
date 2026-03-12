@@ -174,15 +174,15 @@ a:hover {
    ======================================== */
 
 .site-header {
-  padding: 12px 24px;
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 1rem 2rem;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid rgba(20, 184, 166, 0.1);
   position: sticky;
   top: 0;
   z-index: 1000;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
 }
 
 .site-header_container {
@@ -233,8 +233,8 @@ a:hover {
 }
 
 .nav-link:hover {
-  color: var(--primary-blue);
-  background: rgba(59, 130, 246, 0.08);
+  color: var(--accent-teal);
+  background: rgba(20, 184, 166, 0.08);
 }
 
 .nav-link--dropdown::after {

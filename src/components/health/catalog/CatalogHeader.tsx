@@ -39,10 +39,10 @@ export function CatalogHeader() {
         {/* Logo */}
         <Link href="/health" className={styles.logo}>
           <Image
-            src="/ideal-health-logo.png"
-            alt="Ideal Health"
-            width={120}
-            height={40}
+            src="/ideal-oral-health-logo.png"
+            alt="Ideal Oral Health"
+            width={105}
+            height={50}
             style={{ objectFit: "contain" }}
             priority
           />

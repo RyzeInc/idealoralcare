@@ -72,10 +72,18 @@ export default function HealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
                 href="/health/plans" 
                 className={`button button--primary ${isPlansActive ? 'button--active' : ''}`}
                 style={{ 
-                  padding: '10px 20px', 
-                  fontSize: '0.875rem',
-                  marginLeft: '8px'
+                  padding: '10px 22px', 
+                  fontSize: '0.9375rem',
+                  marginLeft: '12px',
+                  fontWeight: '600',
+                  background: '#14b8a6',
+                  color: 'white',
+                  borderRadius: '10px',
+                  textDecoration: 'none',
+                  transition: 'all 0.2s',
                 }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; e.currentTarget.style.transform = 'translateY(0)'; }}
               >
                 Explore Plans
               </Link>

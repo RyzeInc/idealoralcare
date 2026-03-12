@@ -123,7 +123,7 @@ export function SiteThemeProvider({
       // Logo URL (for img elements)
       root.style.setProperty(
         "--brand-logo-url",
-        `url('${siteTheme.branding?.logoUrl || "/ideal-health-logo.png"}')`
+        `url('${siteTheme.branding?.logoUrl || "/ideal-oral-health-logo.png"}')`
       );
 
       // Favicon

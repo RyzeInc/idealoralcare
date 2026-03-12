@@ -1,15 +1,10 @@
 "use client";
 
-/**
- * IDEAL HEALTH – SIGN IN
- * SSO (Apple + Facebook + Google), email/username or phone, password, redirect support
- */
-
 import { useState, useEffect, Suspense } from "react";
 import { useSignIn } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Mail, Phone, Lock, Eye, EyeOff, AlertCircle, Loader, KeyRound } from "lucide-react";
+import { Mail, Phone, Lock, Eye, EyeOff, AlertCircle, Loader, KeyRound, Heart, Users, DollarSign, Zap } from "lucide-react";
 import HealthHeader from "@/components/health/HealthHeader";
 import "@/app/health/health.css";
 
@@ -20,6 +15,7 @@ function AppleIcon() {
     </svg>
   );
 }
+
 function GoogleIcon() {
   return (
     <svg viewBox="0 0 24 24" width="20" height="20">
@@ -30,6 +26,7 @@ function GoogleIcon() {
     </svg>
   );
 }
+
 function FacebookIcon() {
   return (
     <svg viewBox="0 0 24 24" width="20" height="20" fill="#1877F2">
@@ -39,17 +36,126 @@ function FacebookIcon() {
 }
 
 const inputBase: React.CSSProperties = {
-  width: "100%", border: "1px solid #e2e8f0", borderRadius: "12px",
-  fontFamily: "inherit", fontSize: "1rem", transition: "all 0.2s", backgroundColor: "#f8fafc",
+  width: "100%",
+  border: "1px solid #e2e8f0",
+  borderRadius: "12px",
+  fontFamily: "inherit",
+  fontSize: "1rem",
+  transition: "all 0.2s",
+  backgroundColor: "#f8fafc",
 };
+
 const focusStyle = (e: React.FocusEvent<HTMLInputElement>) => {
-  e.currentTarget.style.borderColor = "#0066CC";
+  e.currentTarget.style.borderColor = "#14b8a6";
   e.currentTarget.style.backgroundColor = "#fff";
 };
+
 const blurStyle = (e: React.FocusEvent<HTMLInputElement>) => {
   e.currentTarget.style.borderColor = "#e2e8f0";
   e.currentTarget.style.backgroundColor = "#f8fafc";
 };
+
+function PlanShowcase() {
+  const features = [
+    { icon: Heart, label: "Comprehensive Coverage", description: "Oral health services for the whole family" },
+    { icon: DollarSign, label: "Save Up to 40%", description: "On dental procedures at network providers" },
+    { icon: Zap, label: "Instant Activation", description: "Benefits start immediately upon enrollment" },
+    { icon: Users, label: "Wide Provider Network", description: "2,000+ dentists nationwide" },
+  ];
+
+  const trustPoints = [
+    { number: "50K+", label: "Active Members" },
+    { number: "99%", label: "Satisfaction Rate" },
+    { number: "$2.5M+", label: "Savings Generated" },
+  ];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem" }}>
+      <div>
+        <div style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "8px",
+          fontSize: "0.75rem",
+          fontWeight: "700",
+          color: "#14b8a6",
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+          marginBottom: "1rem",
+          background: "rgba(20, 184, 166, 0.1)",
+          padding: "6px 12px",
+          borderRadius: "100px",
+        }}>
+          <Heart size={14} />
+          Ideal Oral Health Plan
+        </div>
+        <h2 style={{ fontSize: "clamp(1.5rem, 3vw, 2rem)", fontWeight: "800", color: "#0f172a", lineHeight: 1.2, marginBottom: "0.75rem" }}>
+          Join thousands of members saving on dental care
+        </h2>
+        <p style={{ fontSize: "1.125rem", color: "#475569", lineHeight: 1.7, maxWidth: "400px" }}>
+          Access affordable dental coverage with no deductibles, no waiting periods, and instant benefits
+        </p>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
+        {features.map((feature, i) => {
+          const Icon = feature.icon;
+          return (
+            <div key={i} style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
+              <div style={{
+                background: "rgba(20, 184, 166, 0.12)",
+                border: "1px solid rgba(20, 184, 166, 0.2)",
+                borderRadius: "10px",
+                padding: "10px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                width: "42px",
+                height: "42px",
+              }}>
+                <Icon size={20} style={{ color: "#14b8a6" }} />
+              </div>
+              <div>
+                <div style={{ fontWeight: "600", color: "#0f172a", fontSize: "0.95rem" }}>{feature.label}</div>
+                <div style={{ fontSize: "0.875rem", color: "#64748b", lineHeight: 1.4 }}>{feature.description}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{
+        background: "linear-gradient(135deg, rgba(20, 184, 166, 0.08) 0%, rgba(6, 182, 212, 0.08) 100%)",
+        border: "1px solid rgba(20, 184, 166, 0.2)",
+        borderRadius: "16px",
+        padding: "1.25rem",
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr 1fr",
+        gap: "1.5rem",
+        textAlign: "center",
+      }}>
+        {trustPoints.map((point, i) => (
+          <div key={i}>
+            <div style={{ fontSize: "1.75rem", fontWeight: "700", color: "#14b8a6", marginBottom: "0.5rem" }}>
+              {point.number}
+            </div>
+            <div style={{ fontSize: "0.875rem", color: "#64748b", fontWeight: "500" }}>
+              {point.label}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <Link
+        href="/health/plans"
+        style={{ display: "inline-flex", alignItems: "center", gap: "8px", color: "#14b8a6", textDecoration: "none", fontWeight: "600", fontSize: "0.95rem" }}
+      >
+        View all plans →
+      </Link>
+    </div>
+  );
+}
 
 function SignInForm() {
   const router = useRouter();
@@ -66,14 +172,15 @@ function SignInForm() {
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
   const [clerkTimeout, setClerkTimeout] = useState(false);
 
-  // If Clerk hasn't loaded in 8s, it's likely blocked or the domain isn't allowlisted
   useEffect(() => {
     if (isLoaded) return;
     const t = setTimeout(() => setClerkTimeout(true), 8000);
     return () => clearTimeout(t);
   }, [isLoaded]);
 
-  useEffect(() => { if (error) window.scrollTo({ top: 0, behavior: "smooth" }); }, [error]);
+  useEffect(() => {
+    if (error) window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [error]);
 
   const handleOAuth = async (strategy: "oauth_apple" | "oauth_google" | "oauth_facebook") => {
     if (!isLoaded) return;
@@ -123,163 +230,212 @@ function SignInForm() {
     <div className="health-landing">
       <HealthHeader />
 
-      {/* Hero */}
-      <section className="section bg--blue" style={{ paddingTop: "7rem", paddingBottom: "2rem" }}>
-        <div className="container" style={{ textAlign: "center" }}>
-          <Link href="/health/plans"
-            style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", color: "#0f172a", textDecoration: "none", marginBottom: "1.5rem", fontSize: "0.9375rem", transition: "color 0.2s" }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "#0066CC")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "#0f172a")}>
-            <ArrowLeft size={18} /> Back to Plans
-          </Link>
-          <h1 style={{ fontSize: "clamp(2rem,5vw,2.75rem)", fontWeight: 700, color: "#0f172a", marginBottom: "0.75rem" }}>
-            Welcome Back
-          </h1>
-          <p style={{ color: "#475569", fontSize: "1.125rem", maxWidth: "500px", margin: "0 auto" }}>
-            Sign in to access your Ideal Health member portal
-          </p>
-        </div>
-      </section>
+      <section style={{
+        background: "transparent",
+        paddingTop: "1.5rem",
+        paddingBottom: "1.5rem",
+      }}>
+        <div className="container" style={{
+          maxWidth: "1280px",
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "3rem",
+          alignItems: "center",
+        }}>
+          {/* Left Column – Plan Showcase */}
+          <div style={{ paddingRight: "2rem" }}>
+            <PlanShowcase />
+          </div>
 
-      {/* Form */}
-      <section className="section bg--white" style={{ paddingTop: "3rem", paddingBottom: "4rem" }}>
-        <div className="container" style={{ maxWidth: "480px" }}>
-
-          {clerkTimeout && !isLoaded && (
-            <div style={{ background: "#fef3c7", border: "1px solid #fde68a", borderRadius: "12px", padding: "1rem", marginBottom: "1.5rem", display: "flex", alignItems: "flex-start", gap: "1rem" }}>
-              <AlertCircle size={20} color="#92400e" style={{ marginTop: "2px", flexShrink: 0 }} />
-              <div>
-                <p style={{ color: "#92400e", margin: "0 0 0.25rem", fontSize: "0.95rem", fontWeight: 600 }}>Auth not initializing</p>
-                <p style={{ color: "#78350f", margin: 0, fontSize: "0.875rem" }}>
-                  Go to <strong>Clerk Dashboard → Domains</strong> and add <code style={{ background: "#fde68a", padding: "1px 4px", borderRadius: "4px" }}>localhost:3000</code> as an allowed origin, then refresh.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {error && (
-            <div style={{ background: "#fee2e2", border: "1px solid #fecaca", borderRadius: "12px", padding: "1rem", marginBottom: "1.5rem", display: "flex", alignItems: "flex-start", gap: "1rem" }}>
-              <AlertCircle size={20} color="#991b1b" style={{ marginTop: "2px", flexShrink: 0 }} />
-              <p style={{ color: "#7f1d1d", margin: 0, fontSize: "0.95rem" }}>{error}</p>
-            </div>
-          )}
-
-          <div className="glass-card" style={{ padding: "2rem" }}>
-
-            {/* SSO Buttons */}
-            <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1.5rem" }}>
-              {[
-                { label: "Apple",    strategy: "oauth_apple" as const,    icon: <AppleIcon />,    bg: "#000",    color: "#fff",     border: "none"              },
-                { label: "Facebook", strategy: "oauth_facebook" as const, icon: <FacebookIcon />, bg: "#1877F2", color: "#fff",     border: "none"              },
-                { label: "Google",   strategy: "oauth_google" as const,   icon: <GoogleIcon />,   bg: "#fff",   color: "#374151",  border: "1px solid #d1d5db" },
-              ].map(({ label, strategy, icon, bg, color, border }) => (
-                <button key={strategy} type="button" title={`Continue with ${label}`}
-                  onClick={() => handleOAuth(strategy)} disabled={busy}
-                  style={{ flex: 1, padding: "0.625rem", borderRadius: "10px", background: bg, color, border, cursor: busy ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: oauthLoading && oauthLoading !== strategy ? 0.4 : 1, transition: "opacity 0.2s, transform 0.1s", boxShadow: "0 1px 3px rgba(0,0,0,0.12)" }}
-                  onMouseEnter={(e) => { if (!busy) e.currentTarget.style.transform = "translateY(-1px)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}>
-                  {oauthLoading === strategy ? <Loader size={18} style={{ animation: "spin 1s linear infinite" }} /> : icon}
-                </button>
-              ))}
-            </div>
-
-            {/* Or divider */}
-            <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1.5rem" }}>
-              <div style={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
-              <span style={{ color: "#94a3b8", fontSize: "0.8125rem" }}>or</span>
-              <div style={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
-            </div>
-
-            <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-
-              {/* Identifier */}
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                  <label htmlFor="identifier" style={{ fontWeight: 600, color: "#0f172a", fontSize: "0.95rem" }}>
-                    {mode === "phone" ? "Phone number" : "Email address or username"}
-                  </label>
-                  <button type="button"
-                    onClick={() => { setMode(m => m === "email" ? "phone" : "email"); setIdentifier(""); }}
-                    style={{ background: "none", border: "none", cursor: "pointer", color: "#0066CC", fontSize: "0.8125rem", fontWeight: 500, padding: 0 }}>
-                    {mode === "phone" ? "Use email" : "Use phone"}
-                  </button>
+          {/* Right Column – Sign In Form */}
+          <div style={{ paddingLeft: "2rem" }}>
+            {clerkTimeout && !isLoaded && (
+              <div style={{ background: "#fef3c7", border: "1px solid #fde68a", borderRadius: "12px", padding: "1rem", marginBottom: "1.5rem", display: "flex", alignItems: "flex-start", gap: "1rem" }}>
+                <AlertCircle size={20} color="#92400e" style={{ marginTop: "2px", flexShrink: 0 }} />
+                <div>
+                  <p style={{ color: "#92400e", margin: "0 0 0.25rem", fontSize: "0.95rem", fontWeight: 600 }}>Auth not initializing</p>
+                  <p style={{ color: "#78350f", margin: 0, fontSize: "0.875rem" }}>
+                    Go to <strong>Clerk Dashboard → Domains</strong> and add{" "}
+                    <code style={{ background: "#fde68a", padding: "1px 4px", borderRadius: "4px" }}>localhost:3000</code>{" "}
+                    as an allowed origin, then refresh.
+                  </p>
                 </div>
-                <div style={{ position: "relative" }}>
-                  {mode === "phone"
-                    ? <Phone size={18} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b", pointerEvents: "none" }} />
-                    : <Mail size={18} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b", pointerEvents: "none" }} />}
-                  {mode === "phone" && (
-                    <span style={{ position: "absolute", left: "38px", top: "50%", transform: "translateY(-50%)", color: "#64748b", fontSize: "0.9rem", pointerEvents: "none", userSelect: "none" }}>
-                      +1
-                    </span>
-                  )}
-                  <input id="identifier"
-                    type={mode === "phone" ? "tel" : "text"}
-                    value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder={mode === "phone" ? "(555) 000-0000" : "email@example.com or username"}
+              </div>
+            )}
+
+            {error && (
+              <div style={{ background: "#fee2e2", border: "1px solid #fecaca", borderRadius: "12px", padding: "1rem", marginBottom: "1.5rem", display: "flex", alignItems: "flex-start", gap: "1rem" }}>
+                <AlertCircle size={20} color="#991b1b" style={{ marginTop: "2px", flexShrink: 0 }} />
+                <p style={{ color: "#7f1d1d", margin: 0, fontSize: "0.95rem" }}>{error}</p>
+              </div>
+            )}
+
+            <div className="glass-card" style={{ padding: "2rem" }}>
+              <h2 style={{ fontSize: "1.5rem", fontWeight: "700", color: "#0f172a", marginBottom: "0.25rem" }}>
+                Sign In
+              </h2>
+              <p style={{ fontSize: "0.9rem", color: "#64748b", marginBottom: "1.25rem" }}>
+                Access your Ideal Health member portal
+              </p>
+
+              {/* SSO Buttons */}
+              <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem" }}>
+                {[
+                  { label: "Apple",    strategy: "oauth_apple" as const,    icon: <AppleIcon />,    bg: "#000",    color: "#fff",    border: "none" },
+                  { label: "Facebook", strategy: "oauth_facebook" as const, icon: <FacebookIcon />, bg: "#1877F2", color: "#fff",    border: "none" },
+                  { label: "Google",   strategy: "oauth_google" as const,   icon: <GoogleIcon />,   bg: "#fff",   color: "#374151", border: "1px solid #d1d5db" },
+                ].map(({ label, strategy, icon, bg, color, border }) => (
+                  <button
+                    key={strategy}
+                    type="button"
+                    title={`Continue with ${label}`}
+                    onClick={() => handleOAuth(strategy)}
                     disabled={busy}
-                    autoComplete={mode === "phone" ? "tel" : "email username"}
-                    style={{ ...inputBase, paddingTop: "0.75rem", paddingBottom: "0.75rem", paddingLeft: mode === "phone" ? "3.5rem" : "2.75rem", paddingRight: "1rem" }}
-                    onFocus={focusStyle} onBlur={blurStyle}
-                  />
-                </div>
-              </div>
-
-              {/* Password */}
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                  <label htmlFor="password" style={{ fontWeight: 600, color: "#0f172a", fontSize: "0.95rem" }}>Password</label>
-                  <Link href="/health/forgot-password" style={{ color: "#0066CC", fontSize: "0.8125rem", fontWeight: 500, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "3px" }}>
-                    <KeyRound size={13} /> Forgot password?
-                  </Link>
-                </div>
-                <div style={{ position: "relative" }}>
-                  <Lock size={18} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b", pointerEvents: "none" }} />
-                  <input id="password" type={showPassword ? "text" : "password"} value={password}
-                    onChange={(e) => setPassword(e.target.value)} placeholder="••••••••"
-                    disabled={busy} autoComplete="current-password"
-                    style={{ ...inputBase, padding: "0.75rem 2.75rem" }}
-                    onFocus={focusStyle} onBlur={blurStyle}
-                  />
-                  <button type="button" onClick={() => setShowPassword(s => !s)}
-                    style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#64748b", padding: "4px", display: "flex" }}>
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    style={{ flex: 1, padding: "0.625rem", borderRadius: "10px", background: bg, color, border, cursor: busy ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: oauthLoading && oauthLoading !== strategy ? 0.4 : 1, transition: "opacity 0.2s, transform 0.1s", boxShadow: "0 1px 3px rgba(0,0,0,0.12)" }}
+                    onMouseEnter={(e) => { if (!busy) e.currentTarget.style.transform = "translateY(-1px)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+                  >
+                    {oauthLoading === strategy ? <Loader size={18} style={{ animation: "spin 1s linear infinite" }} /> : icon}
                   </button>
-                </div>
+                ))}
               </div>
 
-              {/* Submit */}
-              <button type="submit" disabled={busy || !formValid}
-                style={{ padding: "0.875rem 1.5rem", background: busy || !formValid ? "#cbd5e1" : "#0066CC", color: "#fff", border: "none", borderRadius: "12px", fontWeight: 600, fontSize: "1rem", cursor: busy ? "wait" : "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", marginTop: "0.25rem" }}
-                onMouseEnter={(e) => { if (!busy && formValid) e.currentTarget.style.background = "#0052a3"; }}
-                onMouseLeave={(e) => { if (!busy && formValid) e.currentTarget.style.background = "#0066CC"; }}>
-                {isLoading ? <><Loader size={18} style={{ animation: "spin 1s linear infinite" }} /> Signing in...</> : !isLoaded ? <><Loader size={18} style={{ animation: "spin 1s linear infinite" }} /> Initializing...</> : "Sign In"}
-              </button>
-            </form>
+              {/* Divider */}
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
+                <div style={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
+                <span style={{ color: "#94a3b8", fontSize: "0.8125rem" }}>or</span>
+                <div style={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
+              </div>
 
-            {/* Sign up link */}
-            <div style={{ display: "flex", alignItems: "center", gap: "1rem", margin: "1.5rem 0" }}>
-              <div style={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
-              <span style={{ color: "#94a3b8", fontSize: "0.8125rem" }}>Don't have an account?</span>
-              <div style={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
+              <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                {/* Identifier */}
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                    <label htmlFor="identifier" style={{ fontWeight: 600, color: "#0f172a", fontSize: "0.95rem" }}>
+                      {mode === "phone" ? "Phone number" : "Email address or username"}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => { setMode(m => m === "email" ? "phone" : "email"); setIdentifier(""); }}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "#14b8a6", fontSize: "0.8125rem", fontWeight: 500, padding: 0 }}
+                    >
+                      {mode === "phone" ? "Use email" : "Use phone"}
+                    </button>
+                  </div>
+                  <div style={{ position: "relative" }}>
+                    {mode === "phone"
+                      ? <Phone size={18} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b", pointerEvents: "none" }} />
+                      : <Mail size={18} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b", pointerEvents: "none" }} />
+                    }
+                    {mode === "phone" && (
+                      <span style={{ position: "absolute", left: "38px", top: "50%", transform: "translateY(-50%)", color: "#64748b", fontSize: "0.9rem", pointerEvents: "none", userSelect: "none" }}>
+                        +1
+                      </span>
+                    )}
+                    <input
+                      id="identifier"
+                      type={mode === "phone" ? "tel" : "text"}
+                      value={identifier}
+                      onChange={(e) => setIdentifier(e.target.value)}
+                      placeholder={mode === "phone" ? "(555) 000-0000" : "email@example.com or username"}
+                      disabled={busy}
+                      autoComplete={mode === "phone" ? "tel" : "email username"}
+                      style={{ ...inputBase, paddingTop: "0.75rem", paddingBottom: "0.75rem", paddingLeft: mode === "phone" ? "3.5rem" : "2.75rem", paddingRight: "1rem" }}
+                      onFocus={focusStyle}
+                      onBlur={blurStyle}
+                    />
+                  </div>
+                </div>
+
+                {/* Password */}
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                    <label htmlFor="password" style={{ fontWeight: 600, color: "#0f172a", fontSize: "0.95rem" }}>Password</label>
+                    <Link href="/health/forgot-password" style={{ color: "#14b8a6", fontSize: "0.8125rem", fontWeight: 500, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "3px" }}>
+                      <KeyRound size={13} /> Forgot password?
+                    </Link>
+                  </div>
+                  <div style={{ position: "relative" }}>
+                    <Lock size={18} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b", pointerEvents: "none" }} />
+                    <input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      disabled={busy}
+                      autoComplete="current-password"
+                      style={{ ...inputBase, padding: "0.75rem 2.75rem" }}
+                      onFocus={focusStyle}
+                      onBlur={blurStyle}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(s => !s)}
+                      style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#64748b", padding: "4px", display: "flex" }}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Submit */}
+                <button
+                  type="submit"
+                  disabled={busy || !formValid}
+                  style={{ padding: "0.875rem 1.5rem", background: busy || !formValid ? "#cbd5e1" : "#14b8a6", color: "#fff", border: "none", borderRadius: "12px", fontWeight: 600, fontSize: "1rem", cursor: busy ? "wait" : "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", marginTop: "0.25rem" }}
+                  onMouseEnter={(e) => { if (!busy && formValid) e.currentTarget.style.background = "#0d9488"; }}
+                  onMouseLeave={(e) => { if (!busy && formValid) e.currentTarget.style.background = "#14b8a6"; }}
+                >
+                  {isLoading
+                    ? <><Loader size={18} style={{ animation: "spin 1s linear infinite" }} /> Signing in...</>
+                    : !isLoaded
+                      ? <><Loader size={18} style={{ animation: "spin 1s linear infinite" }} /> Initializing...</>
+                      : "Sign In"
+                  }
+                </button>
+              </form>
+
+              {/* Sign up link */}
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem", margin: "1rem 0" }}>
+                <div style={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
+                <span style={{ color: "#94a3b8", fontSize: "0.8125rem" }}>Don&apos;t have an account?</span>
+                <div style={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
+              </div>
+
+              <Link
+                href={signUpHref}
+                style={{ display: "block", textAlign: "center", padding: "0.875rem 1.5rem", background: "#f0f4f8", color: "#14b8a6", border: "1px solid #e2e8f0", borderRadius: "12px", fontWeight: 600, fontSize: "1rem", textDecoration: "none", transition: "all 0.2s" }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "#e0f2f1"; e.currentTarget.style.borderColor = "#14b8a6"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "#f0f4f8"; e.currentTarget.style.borderColor = "#e2e8f0"; }}
+              >
+                Create Account
+              </Link>
+
+              <div style={{ textAlign: "center", marginTop: "1rem" }}>
+                <p style={{ color: "#64748b", fontSize: "0.875rem", marginBottom: "0.5rem" }}>Need help signing in?</p>
+                <a href="mailto:support@idealhealth.com" style={{ color: "#14b8a6", textDecoration: "none", fontWeight: 500 }}>
+                  Contact support
+                </a>
+              </div>
             </div>
-            <Link href={signUpHref}
-              style={{ display: "block", textAlign: "center", padding: "0.875rem 1.5rem", background: "#f0f4f8", color: "#0066CC", border: "1px solid #e2e8f0", borderRadius: "12px", fontWeight: 600, fontSize: "1rem", textDecoration: "none", transition: "all 0.2s" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "#e0ebff"; e.currentTarget.style.borderColor = "#0066CC"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "#f0f4f8"; e.currentTarget.style.borderColor = "#e2e8f0"; }}>
-              Create Account
-            </Link>
-          </div>
-
-          <div style={{ textAlign: "center", marginTop: "2rem" }}>
-            <p style={{ color: "#64748b", fontSize: "0.875rem", marginBottom: "0.5rem" }}>Need help signing in?</p>
-            <a href="mailto:support@idealhealth.com" style={{ color: "#0066CC", textDecoration: "none", fontWeight: 500 }}>Contact support</a>
           </div>
         </div>
       </section>
 
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @media (max-width: 768px) {
+          .health-landing section > .container {
+            grid-template-columns: 1fr !important;
+            gap: 2rem !important;
+          }
+          .health-landing section > .container > div {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

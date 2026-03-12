@@ -42,6 +42,8 @@ import type * as healthplans_oral from "../healthplans/oral.js";
 import type * as hierarchy from "../hierarchy.js";
 import type * as hierarchy_site_resolver from "../hierarchy/site_resolver.js";
 import type * as inquiries from "../inquiries.js";
+import type * as legal_emailFulfillment from "../legal/emailFulfillment.js";
+import type * as legal_membershipAgreements from "../legal/membershipAgreements.js";
 import type * as lib_authGuards from "../lib/authGuards.js";
 import type * as lib_sanitize from "../lib/sanitize.js";
 import type * as newsletter from "../newsletter.js";
@@ -101,6 +103,8 @@ declare const fullApi: ApiFromModules<{
   hierarchy: typeof hierarchy;
   "hierarchy/site_resolver": typeof hierarchy_site_resolver;
   inquiries: typeof inquiries;
+  "legal/emailFulfillment": typeof legal_emailFulfillment;
+  "legal/membershipAgreements": typeof legal_membershipAgreements;
   "lib/authGuards": typeof lib_authGuards;
   "lib/sanitize": typeof lib_sanitize;
   newsletter: typeof newsletter;

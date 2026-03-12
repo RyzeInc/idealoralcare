@@ -13,10 +13,10 @@ export default function IdealHealthWordmark() {
       }}
     >
       <Image
-        src="/ideal-health-logo.png"
-        alt="Ideal Health"
-        width={130}
-        height={44}
+        src="/ideal-oral-health-logo.png"
+        alt="Ideal Oral Health"
+        width={113}
+        height={54}
         style={{ objectFit: 'contain' }}
         priority
       />

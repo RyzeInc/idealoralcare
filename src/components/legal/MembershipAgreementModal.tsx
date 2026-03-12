@@ -27,27 +27,36 @@ export const MembershipAgreementModal: React.FC<MembershipAgreementModalProps> =
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [agreedToConditions, setAgreedToConditions] = useState(false);
   const [signature, setSignature] = useState<string>("");
+  const [hasStroke, setHasStroke] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [scrolledToBottom, setScrolledToBottom] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
 
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!canvasRef.current) return;
     setIsDrawing(true);
+    setHasStroke(true);
     const rect = canvasRef.current.getBoundingClientRect();
+    const scaleX = canvasRef.current.width / rect.width;
+    const scaleY = canvasRef.current.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
     const ctx = canvasRef.current.getContext('2d');
     if (ctx) {
       ctx.beginPath();
-      ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+      ctx.moveTo(x, y);
     }
   };
 
   const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
+    const scaleX = canvasRef.current.width / rect.width;
+    const scaleY = canvasRef.current.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
     const ctx = canvasRef.current.getContext('2d');
     if (ctx) {
-      ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+      ctx.lineTo(x, y);
       ctx.stroke();
     }
   };
@@ -56,36 +65,24 @@ export const MembershipAgreementModal: React.FC<MembershipAgreementModalProps> =
     setIsDrawing(false);
   };
 
-  const handleSignatureSave = () => {
-    if (canvasRef.current) {
-      const sig = canvasRef.current.toDataURL();
-      setSignature(sig);
-    }
-  };
-
   const handleClearSignature = () => {
     if (canvasRef.current) {
       const ctx = canvasRef.current.getContext('2d');
       if (ctx) {
         ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
       }
-      setSignature("");
     }
-  };
-
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const element = e.currentTarget;
-    const isAtBottom =
-      Math.abs(element.scrollHeight - element.scrollTop - element.clientHeight) < 10;
-    setScrolledToBottom(isAtBottom);
+    setSignature("");
+    setHasStroke(false);
   };
 
   const isComplete =
-    agreedToTerms && agreedToConditions && signature && scrolledToBottom;
+    agreedToTerms && agreedToConditions && hasStroke;
 
   const handleAccept = () => {
-    if (isComplete) {
-      onAccept(signature);
+    if (isComplete && canvasRef.current) {
+      const sig = canvasRef.current.toDataURL();
+      onAccept(sig);
     }
   };
 
@@ -98,7 +95,6 @@ export const MembershipAgreementModal: React.FC<MembershipAgreementModalProps> =
 
         {/* Scrollable Agreement Content */}
         <div
-          onScroll={handleScroll}
           className="flex-1 overflow-y-auto border rounded p-4 bg-gray-50 text-sm"
         >
           <div className="space-y-4">
@@ -137,42 +133,96 @@ export const MembershipAgreementModal: React.FC<MembershipAgreementModalProps> =
             </div>
 
             <div className="border-t pt-4 space-y-3">
-              <h3 className="font-semibold">Terms and Conditions Summary</h3>
               <p>
-                By enrolling in this Ideal Oral Health plan, you confirm that you are at
-                least 18 years old and authorize Ideal Oral Health to charge your payment
-                method for the plan you have selected.
+                The Terms and Conditions you have accepted or will accept upon registering at www.dialcare.com, 
+                are part of this membership agreement (Agreement) between you and DialCare, LLC ("DialCare"). 
+                DialCare provides administrative services to DialCare clinicians and does not provide professional medical services.  
+                The Terms and Conditions define the obligations of DialCare, its authorized agents and yourself, 
+                and they establish the basic rules of safe and fair use of DialCare's public website, member website, and services (Services). 
+                DialCare and its authorized agents reserve the right to immediately and without advance notice terminate the Services 
+                and deny access to individuals who do not abide by the Terms and Conditions. 
               </p>
 
-              <h4 className="font-medium">Key Terms:</h4>
-              <ul className="list-disc list-inside space-y-1 text-xs">
-                <li>This plan is not insurance</li>
-                <li>
-                  You must pay for all services at the time of service and receive
-                  negotiated discounts
-                </li>
-                <li>Automatic renewal at end of term unless you cancel</li>
-                <li>
-                  30-day cancellation window for full refund (less processing fee)
-                </li>
-                <li>Careington may modify participating providers</li>
-              </ul>
-
-              <h4 className="font-medium mt-3">Cancellation:</h4>
-              <p className="text-xs">
-                Contact Ideal Oral Health at 801-820-0010 or info@getidealoh.com to
-                cancel within 30 days.
+              <h3 className="font-semibold">Purchase and Renewal Conditions</h3>
+              <p>
+                By joining a plan, for yourself or on behalf of a minor child for whom you are a parent or legal guardian, 
+                you confirm that you are at least 18 years old and you authorize Ryze LLC to charge your credit card or checking account for the plan you have selected. 
+                By joining, you indicate you have read and agree to the terms and conditions of the plan. 
               </p>
 
-              <h4 className="font-medium mt-3">Careington &amp; DialCare Services:</h4>
-              <p className="text-xs">
-                This membership provides access to Careington&apos;s dental network (20-50%
-                discounts) and DialCare&apos;s 24/7 teledentistry services.
+              <h3 className="font-semibold">Termination Conditions</h3>
+              <p>
+                Ryze LLC and DialCare reserve the right to terminate plan members from its plan for any reason, including non-payment. 
+                If Ryze LLC terminates the plan or your membership for a reason other than non-payment, you will receive a pro-rata refund of your membership fees.
               </p>
 
-              <div className="bg-yellow-50 border border-yellow-200 rounded p-2 text-xs">
-                <strong>Important:</strong> Scroll to the bottom to complete the agreement.
+              <h3 className="font-semibold">Cancellation Conditions</h3>
+              <p>
+                You have the right to cancel within the first 30 days after effective date or receipt of membership materials (whichever is later) 
+                and receive a full refund, less the processing fee, if applicable. 
+                If for any reason you wish to cancel, submit a cancellation request with your name and member ID by mail to Ryze LLC, 
+                Ryze LLC, email to info@getidealoh.com or phone. 
+                Ryze LLC will stop collecting membership fees in a reasonable amount of time, but no later than 30 days after receiving a cancellation request. 
+                
+              </p>
+              <p>
+                When you cancel, you will continue to have access to the plan for the remainder of the period for which you have paid; 
+                your membership will terminate at the end of that period. 
+                The preceding sentence does not apply to quarterly, semi-annual or annual memberships in FL and OK, 
+                where you will receive a pro-rata refund whenever you cancel.
+              </p>
+
+              <h3 className="font-semibold">Description of Services</h3>
+              <p>
+                Please see the enclosed materials for a specific description of the programs included in your plan. 
+              </p>
+
+              <h3 className="font-semibold">Limitations, Exclusions and Exceptions</h3>
+              <p>
+                This is a discount plan offered by Careington. 
+                Careington is not a licensed insurer, health maintenance organization or other underwriter of health care services. 
+                This plan is not insurance. No portion of any provider's fees will be reimbursed or otherwise paid by Careington. 
+                Careington is not licensed to provide and does not provide health care services or items to individuals. 
+                You will receive discounts for services at certain health care providers who have contracted with the plan. 
+                You are obligated to pay for all health care services at the time of service. Savings are based upon the provider's normal fees. 
+                Actual savings will vary depending upon location and specific services or products purchased. 
+                Please verify such services with each individual provider. 
+                The plan's discounts may not be used in conjunction with any other discount plan or program. 
+                All listed or quoted prices are current prices by participating providers and subject to change without notice. 
+              </p>
+              <p>
+                Any procedures performed by a non-participating provider are not discounted. 
+                From time to time, certain providers may offer products or services to the general public at prices lower than the discounted prices available through this plan. 
+                In such event, members will be charged the lowest price. Discounts on professional services are not available when prohibited by law. 
+                This plan does not discount all procedures. Providers are subject to change without notice and services may vary in some states. 
+                It is your responsibility to verify that the provider participates in the plan. 
+                At any time Careington may substitute a provider network at its sole discretion. 
+                Careington cannot guarantee the continued participation of any provider. 
+                If the provider leaves the plan, you will need to select another provider. 
+                Providers contracted by Careington are solely responsible for the professional advice and treatment rendered to members and 
+                Careington disclaims any liability with respect to such matters
+              </p>
+
+              <h3 className="font-semibold">Complaint Procedure</h3>
+              <p>
+                If you would like to file a complaint, you must submit your complaint in writing to:  
+              </p>
+              <div className="bg-gray-100 p-2 rounded text-xs">
+                <p>
+                  <strong>DialCare</strong>
+                  <br />
+                  P.O. Box 2568
+                  <br />
+                  Frisco, TX 75034
+                </p>
               </div>
+              <p>
+                You have the right to request an appeal if you are dissatisfied with the complaint resolution. 
+                After completing the complaint resolution process, if you remain dissatisfied you may contact your state insurance department. 
+                Contact information for your state insurance department is available upon request.
+              </p>
+
+
             </div>
           </div>
         </div>
@@ -180,9 +230,22 @@ export const MembershipAgreementModal: React.FC<MembershipAgreementModalProps> =
         {/* Signature Section */}
         <div className="border-t pt-4 space-y-3">
           <div>
-            <label className="text-sm font-semibold mb-2 block">
-              Member Signature
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-semibold">
+                Member Signature
+              </label>
+              {hasStroke && (
+                <span className="text-sm text-green-600">✓ Signature captured</span>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleClearSignature}
+              >
+                Clear
+              </Button>
+            </div>
             <canvas
               ref={canvasRef}
               width={500}
@@ -193,22 +256,6 @@ export const MembershipAgreementModal: React.FC<MembershipAgreementModalProps> =
               onMouseLeave={stopDrawing}
               className="border rounded bg-white cursor-crosshair w-full"
             />
-            <div className="flex gap-2 mt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleClearSignature}
-              >
-                Clear
-              </Button>
-              <Button type="button" variant="outline" size="sm" onClick={handleSignatureSave}>
-                Save Signature
-              </Button>
-            </div>
-            {signature && (
-              <p className="text-xs text-green-600 mt-1">✓ Signature captured</p>
-            )}
           </div>
 
           {/* Agreement Checkboxes */}
@@ -237,11 +284,7 @@ export const MembershipAgreementModal: React.FC<MembershipAgreementModalProps> =
               </label>
             </div>
 
-            {!scrolledToBottom && (
-              <p className="text-xs text-orange-600">
-                ⚠ Please scroll to the bottom of the agreement to proceed.
-              </p>
-            )}
+
           </div>
 
           {/* Action Buttons */}

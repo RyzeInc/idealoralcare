@@ -16,10 +16,10 @@ export function NexusHealthFooter() {
           {/* Logo column */}
           <div>
             <Image
-              src="/ideal-health-logo.png"
-              alt="Ideal Health"
-              width={140}
-              height={48}
+              src="/ideal-oral-health-logo.png"
+              alt="Ideal Oral Health"
+              width={121}
+              height={58}
               style={{ objectFit: "contain", marginBottom: "0" }}
             />
           </div>

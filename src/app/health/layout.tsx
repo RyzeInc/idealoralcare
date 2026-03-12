@@ -8,9 +8,9 @@ export const metadata = {
   title: 'Ideal Health | Modern Health Plans Made Simple',
   description: 'Ideal Health - Comprehensive oral health plan with AI Oral Scanning, 24/7 teledentistry, and Dental Discount Network dental network access.',
   icons: {
-    icon: '/ideal-health-logo.png',
-    shortcut: '/ideal-health-logo.png',
-    apple: '/ideal-health-logo.png',
+    icon: '/ideal-oral-health-logo.png',
+    shortcut: '/ideal-oral-health-logo.png',
+    apple: '/ideal-oral-health-logo.png',
   },
 };
 

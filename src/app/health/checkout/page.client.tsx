@@ -34,6 +34,7 @@ import {
 import { CartProvider, useCart } from "@/lib/health-plans";
 import { formatPrice, getPrice } from "@/lib/health-plans/types";
 import { CatalogHeader } from "@/components/health/catalog";
+import { MembershipAgreementModal, TermsAndConditionsModal } from "@/components/legal";
 import styles from "./checkout.module.css";
 
 function CheckoutContent() {
@@ -49,6 +50,13 @@ function CheckoutContent() {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [agreedToNotInsurance, setAgreedToNotInsurance] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [clerkTimeout, setClerkTimeout] = useState(false);
+  
+  // Legal modal states
+  const [membershipModalOpen, setMembershipModalOpen] = useState(false);
+  const [termsModalOpen, setTermsModalOpen] = useState(false);
+  const [membershipAgreed, setMembershipAgreed] = useState(false);
+  const [membershipSignature, setMembershipSignature] = useState<string>("");
   // Fallback: if Clerk JS is blocked by CSP or slow, stop showing Loading... after 5s
   const [clerkTimeout, setClerkTimeout] = useState(false);
   useEffect(() => {
@@ -97,6 +105,35 @@ function CheckoutContent() {
     
     // For now, redirect to dashboard
     window.location.href = "/health/dashboard";
+  };
+  
+  // Handle membership agreement modal acceptance
+  const handleMembershipAccept = (signature: string) => {
+    setMembershipSignature(signature);
+    setMembershipAgreed(true);
+    setAgreedToTerms(true);
+    setMembershipModalOpen(false);
+  };
+  
+  // Handle terms and conditions modal acceptance
+  const handleTermsAccept = () => {
+    setAgreedToNotInsurance(true);
+    setTermsModalOpen(false);
+  };
+  
+  // Handlers to open modals when user tries to interact with checkboxes
+  const handleMembershipCheckboxClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (!membershipAgreed) {
+      setMembershipModalOpen(true);
+    }
+  };
+  
+  const handleTermsCheckboxClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (!agreedToNotInsurance) {
+      setTermsModalOpen(true);
+    }
   };
   
   // Empty cart
@@ -279,32 +316,54 @@ function CheckoutContent() {
             
             {/* Agreements */}
             <div className={styles.agreements}>
-              <label className={styles.agreement}>
+              {/* Membership Agreement Modal Trigger */}
+              <div
+                className={styles.agreement}
+                onClick={handleMembershipCheckboxClick}
+                style={{ cursor: "pointer", position: "relative" }}
+              >
                 <input
                   type="checkbox"
-                  checked={agreedToTerms}
-                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  checked={membershipAgreed}
+                  readOnly
                   className={styles.agreementCheckbox}
+                  style={{ cursor: "pointer" }}
                 />
                 <span className={styles.agreementText}>
                   I understand that I will be billed {formatPrice(totalDueToday)} today 
                   and {formatPrice(totalDueToday)}{periodShort} on renewal. I can cancel 
                   anytime and keep access until the end of my billing period.
+                  {!membershipAgreed && (
+                    <span style={{ display: "block", fontSize: "0.85rem", color: "#14b8a6", marginTop: "0.5rem", fontWeight: 500 }}>
+                      ✓ Click to review and sign agreement
+                    </span>
+                  )}
                 </span>
-              </label>
+              </div>
               
-              <label className={styles.agreement}>
+              {/* Terms and Conditions Modal Trigger */}
+              <div
+                className={styles.agreement}
+                onClick={handleTermsCheckboxClick}
+                style={{ cursor: "pointer", position: "relative" }}
+              >
                 <input
                   type="checkbox"
                   checked={agreedToNotInsurance}
-                  onChange={(e) => setAgreedToNotInsurance(e.target.checked)}
+                  readOnly
                   className={styles.agreementCheckbox}
+                  style={{ cursor: "pointer" }}
                 />
                 <span className={styles.agreementText}>
                   <strong>I understand this is NOT insurance.</strong> These plans provide 
                   discounts and access to services, not insurance coverage.
+                  {!agreedToNotInsurance && (
+                    <span style={{ display: "block", fontSize: "0.85rem", color: "#14b8a6", marginTop: "0.5rem", fontWeight: 500 }}>
+                      ✓ Click to review and accept terms
+                    </span>
+                  )}
                 </span>
-              </label>
+              </div>
             </div>
             
 
@@ -400,6 +459,28 @@ function CheckoutContent() {
           </div>
         </div>
       </div>
+      
+      {/* Legal Modal Components */}
+      <MembershipAgreementModal
+        isOpen={membershipModalOpen}
+        onClose={() => setMembershipModalOpen(false)}
+        onAccept={handleMembershipAccept}
+        memberData={{
+          memberId: user?.id || "TBD",
+          memberName: user?.fullName || user?.emailAddresses[0]?.emailAddress || "Member",
+          memberAddress: "Address TBD",
+          email: user?.emailAddresses[0]?.emailAddress || "email@example.com",
+          planName: cart.items[0]?.product?.name || "Ideal Oral Health Plan",
+          groupCode: "IOHP",
+          effectiveDate: new Date().toISOString().split('T')[0],
+        }}
+      />
+      
+      <TermsAndConditionsModal
+        isOpen={termsModalOpen}
+        onClose={() => setTermsModalOpen(false)}
+        onAccept={handleTermsAccept}
+      />
     </div>
   );
 }
