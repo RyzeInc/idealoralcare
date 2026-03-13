@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
@@ -11,6 +11,14 @@ import { CheckCircle, AlertCircle, Loader2, HeartPulse } from 'lucide-react';
 type ClaimState = 'loading' | 'ready' | 'claiming' | 'success' | 'error' | 'invalid-token';
 
 export default function ClaimInvitePage() {
+  return (
+    <Suspense fallback={<PageShell><div style={{ textAlign: 'center' }}><Loader2 size={40} color="#0066CC" style={{ marginBottom: '1rem', animation: 'spin 1s linear infinite' }} /><p style={{ color: '#64748b' }}>Loading…</p></div></PageShell>}>
+      <ClaimInviteContent />
+    </Suspense>
+  );
+}
+
+function ClaimInviteContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { isLoaded, isSignedIn } = useUser();
