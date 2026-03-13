@@ -12,6 +12,7 @@
 
 import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
+import { internal } from "../_generated/api";
 
 /**
  * Look up a subscription bundle by Stripe subscription ID
@@ -198,5 +199,57 @@ export const reactivateBundleFromWebhook = mutation({
     }
 
     return { reactivated: true, reactivatedCount };
+  },
+});
+
+/**
+ * Create dependent member profiles after a successful checkout that included
+ * family members. Called by the Stripe webhook handler.
+ *
+ * Accepts the primary member's profile ID and a JSON-encoded array of
+ * dependent data (as stored in Stripe session metadata).
+ */
+export const webhookCreateDependentProfiles = mutation({
+  args: {
+    primaryMemberProfileId: v.id("memberProfiles"),
+    dependentsJson: v.string(), // JSON array of dependent objects
+  },
+  handler: async (ctx, args) => {
+    let dependents: Array<{
+      firstName: string;
+      lastName: string;
+      email: string;
+      dateOfBirth?: string;
+      relationship: "spouse" | "child" | "domestic_partner" | "other";
+    }>;
+
+    try {
+      dependents = JSON.parse(args.dependentsJson);
+    } catch {
+      throw new Error("Invalid dependentsJson: must be valid JSON");
+    }
+
+    if (!Array.isArray(dependents) || dependents.length === 0) return { created: 0 };
+
+    const results: Array<{ dependentId: string; inviteToken: string }> = [];
+
+    for (const dep of dependents) {
+      if (!dep.firstName || !dep.lastName || !dep.email) continue;
+
+      const result = await ctx.runMutation(
+        internal.enrollment.dependents.internalAddDependent,
+        {
+          primaryMemberProfileId: args.primaryMemberProfileId,
+          firstName: dep.firstName,
+          lastName: dep.lastName,
+          email: dep.email,
+          dateOfBirth: dep.dateOfBirth,
+          relationship: dep.relationship ?? "other",
+        }
+      );
+      results.push({ dependentId: result.dependentId.toString(), inviteToken: result.inviteToken });
+    }
+
+    return { created: results.length, results };
   },
 });

@@ -10,7 +10,7 @@ import { NextResponse } from "next/server";
  * Route Strategy:
  * - /admin/*             → Requires authentication (admin role checked in layout)
  * - /health/dashboard/*  → Requires authentication (subscription + admin checked in layout)
- * - /health/checkout/*   → Requires authentication
+ * - /health/checkout/*   → Public (inline auth handled on the Account step of checkout)
  * - /health/*            → Public (catalog browsing)
  * - /api/stripe/webhook  → Always public (Stripe sends unsigned POST)
  * - Everything else      → Public
@@ -25,7 +25,6 @@ import { NextResponse } from "next/server";
 const isProtectedRoute = createRouteMatcher([
   "/admin(.*)",
   "/health/dashboard(.*)",
-  "/health/checkout(.*)",
 ]);
 
 // Routes that should never be blocked (webhooks, public API)

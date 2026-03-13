@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     const userEmail = user.emailAddresses[0].emailAddress;
 
     const body = await req.json();
-    const { planId, cadence, paymentMethod, enrollmentSessionId, brokerCode, groupId, brokerClerkUserId } = body;
+    const { planId, cadence, paymentMethod, enrollmentSessionId, brokerCode, groupId, brokerClerkUserId, dependents } = body;
 
     // Validate required fields
     if (!planId || !cadence || !paymentMethod) {
@@ -60,6 +60,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid paymentMethod" }, { status: 400 });
     }
 
+    // Validate dependents array if provided
+    const dependentList: Array<{
+      firstName: string;
+      lastName: string;
+      email: string;
+      dateOfBirth?: string;
+      relationship: string;
+    }> = Array.isArray(dependents) ? dependents : [];
+
     // Map cadence + paymentMethod to Stripe product ID
     const productIdMap: Record<string, string> = {
       "monthly_card": "prod_U3no15TNX9iTj1",  // Oral Health Plan Monthly Card
@@ -76,9 +85,18 @@ export async function POST(req: NextRequest) {
       "annual_ach": 12999,      // $129.99/year for ACH
     };
 
+    // Per-dependent add-on pricing (each additional family member)
+    const dependentPricingMap: Record<string, number> = {
+      "monthly_card": 999,    // $9.99/mo per dependent (card)
+      "monthly_ach": 899,     // $8.99/mo per dependent (ACH)
+      "annual_card": 9999,    // $99.99/yr per dependent (card)
+      "annual_ach": 8999,     // $89.99/yr per dependent (ACH)
+    };
+
     const priceKey = `${cadence}_${paymentMethod}`;
     const stripeProductId = productIdMap[priceKey];
     const amount = pricingMap[priceKey];
+    const dependentAmount = dependentPricingMap[priceKey];
     
     if (!stripeProductId || !amount) {
       return NextResponse.json({ error: "Invalid pricing configuration" }, { status: 500 });
@@ -116,33 +134,62 @@ export async function POST(req: NextRequest) {
     }
 
     // Create checkout session
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+      {
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: productName,
+            metadata: { planId, stripeProductId },
+          },
+          unit_amount: amount,
+          recurring: {
+            interval: cadence === "monthly" ? "month" : "year",
+            interval_count: 1,
+          },
+        },
+        quantity: 1,
+      },
+    ];
+
+    // Add dependent line item if any dependents are being enrolled
+    if (dependentList.length > 0) {
+      lineItems.push({
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: `Dependent – ${productName}`,
+            description: `Family plan add-on for ${dependentList.length} dependent${dependentList.length > 1 ? "s" : ""}`,
+            metadata: { planId, type: "dependent" },
+          },
+          unit_amount: dependentAmount,
+          recurring: {
+            interval: cadence === "monthly" ? "month" : "year",
+            interval_count: 1,
+          },
+        },
+        quantity: dependentList.length,
+      });
+    }
+
+    // Encode dependent data for webhook processing (max 500 chars per Stripe metadata value)
+    const dependentsMeta =
+      dependentList.length > 0 ? JSON.stringify(dependentList) : "";
+
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
       payment_method_types: paymentMethod === "ach" ? ["us_bank_account"] : ["card"],
       mode: "subscription",
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: productName,
-              metadata: { planId, stripeProductId },
-            },
-            unit_amount: amount,
-            recurring: {
-              interval: cadence === "monthly" ? "month" : "year",
-              interval_count: 1,
-            },
-          },
-          quantity: 1,
-        },
-      ],
+      line_items: lineItems,
       metadata: {
         clerkUserId: userId,
         enrollmentSessionId: enrollmentSessionId || "",  // Optional — may be empty from /health/checkout
         brokerCode: brokerCode || "",
         brokerClerkUserId: brokerClerkUserId || "",
         groupId: groupId || "",
+        dependentCount: String(dependentList.length),
+        // Truncate to 500 chars if needed (Stripe metadata limit per value)
+        dependents: dependentsMeta.slice(0, 500),
       },
       success_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/health/dashboard?session_id={CHECKOUT_SESSION_ID}&status=success`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/health/plans`,

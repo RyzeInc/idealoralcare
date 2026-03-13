@@ -7,6 +7,7 @@ import { StepProgressBar } from './StepProgressBar';
 import { EligibilityStep } from './steps/EligibilityStep';
 import { PlanSelectionStep } from './steps/PlanSelectionStep';
 import { PersonalInfoStep } from './steps/PersonalInfoStep';
+import { DependentsStep } from './steps/DependentsStep';
 import { AccountPaymentStep } from './steps/AccountPaymentStep';
 import { ReviewStep } from './steps/ReviewStep';
 import { ConfirmationPage } from './ConfirmationPage';
@@ -24,6 +25,7 @@ const FLOW_STEPS: Record<string, FlowStep[]> = {
     { key: 'eligibility', label: 'Eligibility', sublabel: 'ZIP code', component: EligibilityStep },
     { key: 'plans', label: 'Choose Plan', sublabel: 'Coverage', component: PlanSelectionStep },
     { key: 'personal-info', label: 'Your Info', sublabel: 'Details', component: PersonalInfoStep },
+    { key: 'dependents', label: 'Family', sublabel: 'Dependents', component: DependentsStep },
     { key: 'payment', label: 'Payment', sublabel: 'Billing', component: AccountPaymentStep },
     { key: 'review', label: 'Review', sublabel: 'Confirm', component: ReviewStep },
   ],
@@ -31,6 +33,7 @@ const FLOW_STEPS: Record<string, FlowStep[]> = {
     { key: 'eligibility', label: 'Verify', sublabel: 'Agent code', component: EligibilityStep },
     { key: 'plans', label: 'Choose Plan', sublabel: 'Coverage', component: PlanSelectionStep },
     { key: 'personal-info', label: 'Your Info', sublabel: 'Details', component: PersonalInfoStep },
+    { key: 'dependents', label: 'Family', sublabel: 'Dependents', component: DependentsStep },
     { key: 'payment', label: 'Payment', sublabel: 'Billing', component: AccountPaymentStep },
     { key: 'review', label: 'Review', sublabel: 'Confirm', component: ReviewStep },
   ],
@@ -38,6 +41,7 @@ const FLOW_STEPS: Record<string, FlowStep[]> = {
     { key: 'eligibility', label: 'Group Code', sublabel: 'Verify', component: EligibilityStep },
     { key: 'plans', label: 'Choose Plan', sublabel: 'Coverage', component: PlanSelectionStep },
     { key: 'personal-info', label: 'Your Info', sublabel: 'Details', component: PersonalInfoStep },
+    { key: 'dependents', label: 'Family', sublabel: 'Dependents', component: DependentsStep },
     { key: 'payment', label: 'Payment', sublabel: 'Your share', component: AccountPaymentStep },
     { key: 'review', label: 'Review', sublabel: 'Confirm', component: ReviewStep },
   ],
@@ -45,6 +49,7 @@ const FLOW_STEPS: Record<string, FlowStep[]> = {
     { key: 'eligibility', label: 'Group Code', sublabel: 'Verify', component: EligibilityStep },
     { key: 'plans', label: 'Choose Plan', sublabel: 'Coverage', component: PlanSelectionStep },
     { key: 'personal-info', label: 'Your Info', sublabel: 'Details', component: PersonalInfoStep },
+    { key: 'dependents', label: 'Family', sublabel: 'Dependents', component: DependentsStep },
     { key: 'payment', label: 'Billing', sublabel: 'Employer pays', component: AccountPaymentStep },
     { key: 'review', label: 'Review', sublabel: 'Confirm', component: ReviewStep },
   ],

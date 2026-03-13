@@ -3,6 +3,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Scan } from 'lucide-react';
+import { useQuery, useMutation, useAction } from 'convex/react';
+import { api } from '../../../../convex/_generated/api';
 
 interface OralScanTabProps {
   userId: string | null;
@@ -15,10 +17,36 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
   const [forwardingIds, setForwardingIds] = useState<Set<string>>(new Set());
   const [showMobileOverlay, setShowMobileOverlay] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [toothlensUid, setToothlensUid] = useState<string | null>(null);
+  const [scanBaseUrl, setScanBaseUrl] = useState<string | null>(null);
+  const [isRegistering, setIsRegistering] = useState(false);
+
+  // Convex queries
+  const toothlensUser = useQuery(
+    api.healthplans.toothlens.getToothlensUser,
+    userId ? { clerkUserId: userId } : "skip"
+  );
+  const scanHistory = useQuery(
+    api.healthplans.toothlens.getScanHistory,
+    userId ? { clerkUserId: userId } : "skip"
+  ) ?? [];
+
+  // Convex mutations & actions
+  const getOrCreateUser = useAction(api.healthplans.toothlens.getOrCreateToothlensUser);
+  const recordScanStartedMut = useMutation(api.healthplans.toothlens.recordScanStarted);
+  const markScanCompletedMut = useMutation(api.healthplans.toothlens.markScanCompleted);
+  const forwardToTeledentistMut = useMutation(api.healthplans.toothlens.forwardToTeledentist);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Sync existing Toothlens user from DB
+  useEffect(() => {
+    if (toothlensUser) {
+      setToothlensUid(toothlensUser.toothlensUid);
+    }
+  }, [toothlensUser]);
 
   // Lock body scroll when mobile overlay is open
   useEffect(() => {
@@ -33,58 +61,71 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
     };
   }, [showMobileOverlay]);
 
-  // Mock implementations - TODO: Implement with real Convex mutations
-  const recordScanStarted = async () => {
-    /* TODO */
-  };
-  const markScanClosed = async (args?: { scanId?: string; completed?: boolean }) => {
-    /* TODO */
-  };
-  const requestForward = async (args?: { scanId?: string }) => {
-    /* TODO */
-  };
-
-  const scanHistory: any[] = [];
-
-  const getToothlensUid = useCallback((): string => {
-    if (!userId) return 'guest_user';
-    const stripped = userId
-      .replace(/^user_/, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '');
-    return stripped.slice(0, 20);
-  }, [userId]);
+  /**
+   * Ensure the user is registered with Toothlens/RyzeHealth.
+   * Returns the UID and base URL for the scanner.
+   */
+  const ensureToothlensUser = useCallback(async (): Promise<{ uid: string; scanBaseUrl: string }> => {
+    // Already cached in state
+    if (toothlensUid && scanBaseUrl) {
+      return { uid: toothlensUid, scanBaseUrl };
+    }
+    // Already in DB
+    if (toothlensUser) {
+      const company = toothlensUser.company || 'ryzehealth';
+      const url = `https://selfcheck.toothlens.com/ai/${company}`;
+      setScanBaseUrl(url);
+      return { uid: toothlensUser.toothlensUid, scanBaseUrl: url };
+    }
+    // Call the action to register with the API
+    setIsRegistering(true);
+    try {
+      const result = await getOrCreateUser({});
+      setToothlensUid(result.uid);
+      setScanBaseUrl(result.scanBaseUrl);
+      return result;
+    } finally {
+      setIsRegistering(false);
+    }
+  }, [toothlensUid, scanBaseUrl, toothlensUser, getOrCreateUser]);
 
   const openScan = useCallback(async () => {
-    const newSessionId = crypto.randomUUID().replace(/-/g, '').slice(0, 20);
-    setSessionId(newSessionId);
-    setScannerActive(true);
-    if (userId) {
-      try {
-        await recordScanStarted();
-      } catch (err) {
-        console.error('[OralScan] Failed to record session:', err);
-      }
+    if (!userId) return;
+    try {
+      const { uid, scanBaseUrl: baseUrl } = await ensureToothlensUser();
+      const newSessionId = crypto.randomUUID().replace(/-/g, '').slice(0, 20);
+      setSessionId(newSessionId);
+      setScannerActive(true);
+
+      // Record the scan session in Convex
+      const scanId = await recordScanStartedMut({
+        clerkUserId: userId,
+        toothlensUid: uid,
+        sessionId: newSessionId,
+      });
+      setConvexScanId(scanId);
+    } catch (err) {
+      console.error('[OralScan] Failed to start scan:', err);
     }
-  }, [userId, getToothlensUid, recordScanStarted]);
+  }, [userId, ensureToothlensUser, recordScanStartedMut]);
 
   const closeScan = useCallback(
     (completed = false) => {
       if (convexScanId) {
-        markScanClosed().catch(() => {});
+        markScanCompletedMut({ scanId: convexScanId as any, completed }).catch(() => {});
       }
       setScannerActive(false);
       setSessionId(null);
       setConvexScanId(null);
     },
-    [convexScanId, markScanClosed]
+    [convexScanId, markScanCompletedMut]
   );
 
   const handleForwardToTeledentist = useCallback(
     async (scanId: string) => {
       setForwardingIds((prev) => new Set(prev).add(scanId));
       try {
-        await requestForward({ scanId: scanId as never });
+        await forwardToTeledentistMut({ scanId: scanId as any });
       } finally {
         setForwardingIds((prev) => {
           const n = new Set(prev);
@@ -93,8 +134,15 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
         });
       }
     },
-    [requestForward]
+    [forwardToTeledentistMut]
   );
+
+  // Build the scanner iframe URL
+  const getScanUrl = useCallback(() => {
+    if (!toothlensUid || !sessionId) return '';
+    const base = scanBaseUrl || 'https://selfcheck.toothlens.com/ai/ryzehealth';
+    return `${base}?uid=${encodeURIComponent(toothlensUid)}&session_id=${encodeURIComponent(sessionId)}`;
+  }, [toothlensUid, sessionId, scanBaseUrl]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -175,7 +223,7 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
                 }}
               >
                 <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`https://selfcheck.toothlens.com/idealhealth?uid=testing-id&session_id=${sessionId ?? ''}`)}&margin=8`}
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(getScanUrl())}&margin=8`}
                   alt="SmileScan QR Code"
                   width={200}
                   height={200}
@@ -368,7 +416,7 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
             <div style={{ flex: 1, overflow: 'hidden', position: 'relative', width: '100%' }}>
               <iframe
                 key={sessionId ?? 'mobile-overlay'}
-                src={`https://selfcheck.toothlens.com/idealhealth?uid=testing-id&session_id=${sessionId ?? ''}`}
+                src={getScanUrl()}
                 style={{
                   position: 'absolute',
                   top: 0,
@@ -477,23 +525,24 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
             </p>
             <button
               onClick={openScan}
+              disabled={isRegistering}
               className="button"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '0.5rem',
-                background: '#0066CC',
+                background: isRegistering ? '#94a3b8' : '#0066CC',
                 color: '#fff',
                 padding: '0.75rem 1.5rem',
                 borderRadius: '10px',
                 border: 'none',
                 fontWeight: 700,
                 fontSize: '0.9375rem',
-                cursor: 'pointer',
+                cursor: isRegistering ? 'default' : 'pointer',
               }}
             >
               <Scan size={18} />
-              Start Free SmileScan
+              {isRegistering ? 'Setting up…' : 'Start Free SmileScan'}
             </button>
           </div>
 
@@ -675,17 +724,18 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
             </p>
             <button
               onClick={openScan}
+              disabled={isRegistering}
               className="button button--primary"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '0.5rem',
                 border: 'none',
-                cursor: 'pointer',
+                cursor: isRegistering ? 'default' : 'pointer',
               }}
             >
               <Scan size={18} />
-              Start SmileScan
+              {isRegistering ? 'Setting up…' : 'Start SmileScan'}
             </button>
           </div>
         </>
@@ -741,8 +791,8 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
               const statusColor =
                 scan.status === 'completed'
                   ? { bg: '#dcfce7', text: '#166534', label: 'Completed' }
-                  : scan.status === 'abandoned'
-                  ? { bg: '#fef3c7', text: '#92400e', label: 'Abandoned' }
+                  : scan.status === 'cancelled'
+                  ? { bg: '#fef3c7', text: '#92400e', label: 'Cancelled' }
                   : { bg: '#dbeafe', text: '#1e40af', label: 'In Progress' };
 
               return (

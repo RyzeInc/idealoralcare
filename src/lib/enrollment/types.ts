@@ -13,6 +13,7 @@ export type EnrollmentStep =
   | "eligibility"
   | "plans"
   | "personal-info"
+  | "dependents"
   | "payment"
   | "review"
   | "confirmation";
@@ -108,8 +109,9 @@ export interface PersonalInfo {
   dependents?: Array<{
     firstName: string;
     lastName: string;
-    dateOfBirth: string;
-    relationship: string;
+    email: string; // Required for invite
+    dateOfBirth?: string;
+    relationship: "spouse" | "child" | "domestic_partner" | "other";
   }>;
 }
 
@@ -222,6 +224,7 @@ export type EnrollmentAction =
   | { type: "SET_CADENCE"; payload: "monthly" | "annual" }
   | { type: "SET_PAYMENT_METHOD"; payload: "card" | "ach" }
   | { type: "SET_PERSONAL_INFO"; payload: Partial<PersonalInfo> }
+  | { type: "SET_DEPENDENTS"; payload: PersonalInfo["dependents"] }
   | { type: "SET_ADDRESS"; payload: Address }
   | { type: "SET_PAYMENT_INFO"; payload: PaymentInfo }
   | { type: "ADD_SIGNED_WAIVER"; payload: string } // Document ID

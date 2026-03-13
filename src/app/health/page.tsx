@@ -135,9 +135,9 @@ export default function HealthLanding() {
       {/* ── How to Get Started ──────────────────────────────────── */}
       <section style={{ padding: "100px 0", backgroundColor: "#f8fafc" }}>
         <div className="container">
-          <div style={{ display: "flex", gap: "56px", alignItems: "center" }}>
+          <div className="how-it-works-section__layout" style={{ display: "flex", gap: "56px", alignItems: "center" }}>
             {/* Image — left */}
-            <div style={{ flex: "0 0 38%" }}>
+            <div className="how-it-works-section__image" style={{ flex: "0 0 38%" }}>
               <img
                 src="/health-assets/d1-team_896x1352-opt2.jpg"
                 alt="Getting started with Ideal Oral Health"
@@ -145,7 +145,7 @@ export default function HealthLanding() {
               />
             </div>
             {/* Steps — right */}
-            <div style={{ flex: 1 }}>
+            <div className="how-it-works-section__content" style={{ flex: 1 }}>
               <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#0066CC", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "1rem" }}>
                 Simple Process
               </p>

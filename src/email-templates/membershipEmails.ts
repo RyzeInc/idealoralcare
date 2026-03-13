@@ -198,13 +198,82 @@ export const emailTemplates = {
       </div>
     `,
   }),
+
+  // Invitation email sent to a family member added as a dependent
+  dependentInvite: (data: {
+    dependentName: string;
+    dependentEmail: string;
+    primaryMemberName: string;
+    planName: string;
+    inviteToken: string;
+    appUrl?: string;
+  }) => {
+    const baseUrl = data.appUrl ?? "https://app.getidealoh.com";
+    const claimUrl = `${baseUrl}/health/claim-invite?token=${data.inviteToken}`;
+    return {
+      to: data.dependentEmail,
+      subject: `${data.primaryMemberName} added you to their Ideal Oral Health plan`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+          <div style="background: linear-gradient(135deg, #0066CC 0%, #14b8a6 100%); color: white; padding: 24px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+            <h1 style="margin: 0; font-size: 24px;">You&apos;re Invited!</h1>
+            <p style="margin: 10px 0 0 0; font-size: 15px; opacity: 0.9;">Family plan access from Ideal Oral Health</p>
+          </div>
+
+          <div style="padding: 32px; background: #f9fafb; border-radius: 0 0 8px 8px;">
+            <p style="font-size: 16px;">Hi ${data.dependentName},</p>
+
+            <p style="font-size: 15px; line-height: 1.6;">
+              <strong>${data.primaryMemberName}</strong> has added you to their
+              <strong>${data.planName}</strong> plan. As a family member on this plan, you&apos;ll get
+              full access to all plan benefits — with no separate billing.
+            </p>
+
+            <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin: 24px 0; text-align: center;">
+              <p style="font-size: 15px; color: #374151; margin: 0 0 16px 0;">
+                Click the button below to create your account and activate your access.
+              </p>
+              <a href="${claimUrl}"
+                style="display: inline-block; padding: 14px 32px; background: #0066CC; color: white; font-weight: 700; font-size: 16px; text-decoration: none; border-radius: 8px;">
+                Accept &amp; Get Access
+              </a>
+              <p style="font-size: 12px; color: #9ca3af; margin: 16px 0 0 0;">
+                This link expires in 30 days.
+              </p>
+            </div>
+
+            <h3 style="color: #0066CC; font-size: 15px;">What You Get:</h3>
+            <ul style="line-height: 1.8; font-size: 14px; color: #4b5563;">
+              <li><strong>Careington Dental Network:</strong> Save 20–50% on dental procedures at thousands of providers nationwide</li>
+              <li><strong>DialCare Teledentistry:</strong> 24/7 virtual consultations with licensed dentists</li>
+              <li><strong>No separate charge:</strong> Your access is included under ${data.primaryMemberName}&apos;s plan</li>
+            </ul>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+
+            <p style="font-size: 13px; color: #6b7280; line-height: 1.5;">
+              If you don&apos;t want to be added to this plan, you can simply ignore this email.
+              If you have questions, contact us at
+              <a href="mailto:info@getidealoh.com" style="color: #0066CC; text-decoration: none;">info@getidealoh.com</a>
+              or <a href="tel:801-820-0010" style="color: #0066CC; text-decoration: none;">801-820-0010</a>.
+            </p>
+
+            <p style="font-size: 11px; color: #9ca3af; margin-top: 16px;">
+              This plan is not insurance. Access link:
+              <a href="${claimUrl}" style="color: #9ca3af;">${claimUrl}</a>
+            </p>
+          </div>
+        </div>
+      `,
+    };
+  },
 };
 
 /**
  * Get email template by type
  */
 export const getEmailTemplate = (
-  templateType: "welcome" | "confirmation" | "cancelled",
+  templateType: "welcome" | "confirmation" | "cancelled" | "dependent-invite",
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   memberData: any
 ) => {
@@ -215,6 +284,8 @@ export const getEmailTemplate = (
       return emailTemplates.membershipConfirmation(memberData);
     case "cancelled":
       return emailTemplates.membershipCancelled(memberData);
+    case "dependent-invite":
+      return emailTemplates.dependentInvite(memberData);
     default:
       throw new Error(`Unknown template type: ${templateType}`);
   }

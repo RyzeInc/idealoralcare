@@ -31,14 +31,97 @@ interface GetCustomerDashboardArgs {
   customerId: string;
 }
 
+// ---------------------------------------------------------------------------
+// DEPENDENT ACCESS HELPERS
+// ---------------------------------------------------------------------------
+
 /**
- * Get CURRENT USER's subscription bundle (member-facing)
- * customerId is derived from auth — no IDOR possible
+ * Resolve the effective Stripe/entitlement customer ID.
+ * Dependents inherit entitlements from their primary member, so access checks
+ * must be performed against the primary's customer ID.
+ */
+async function resolveEffectiveCustomerId(
+  ctx: QueryCtx,
+  callerClerkId: string
+): Promise<string> {
+  const myProfile = await ctx.db
+    .query("memberProfiles")
+    .withIndex("by_customer", (q) => q.eq("customerId", callerClerkId))
+    .first();
+
+  if (!myProfile || (myProfile as any).memberRole !== "dependent") {
+    return callerClerkId;
+  }
+
+  const primaryMemberId = (myProfile as any).primaryMemberId;
+  if (!primaryMemberId) return callerClerkId;
+
+  const primaryProfile = (await ctx.db.get(primaryMemberId)) as any;
+  return primaryProfile?.customerId ?? callerClerkId;
+}
+
+interface MemberRoleInfo {
+  role: "primary" | "dependent" | "unknown";
+  myProfile: any;
+  primaryCustomerId: string | null;
+  primaryMemberName: string | null;
+}
+
+/**
+ * Returns role info about the current user — used by getMyDashboard to decide
+ * which data to expose and whether to hide billing fields.
+ */
+async function getMemberRoleInfo(
+  ctx: QueryCtx,
+  clerkUserId: string
+): Promise<MemberRoleInfo> {
+  const myProfile = await ctx.db
+    .query("memberProfiles")
+    .withIndex("by_customer", (q) => q.eq("customerId", clerkUserId))
+    .first();
+
+  if (!myProfile) return { role: "unknown", myProfile: null, primaryCustomerId: null, primaryMemberName: null };
+
+  if ((myProfile as any).memberRole !== "dependent") {
+    return { role: "primary", myProfile, primaryCustomerId: null, primaryMemberName: null };
+  }
+
+  const primaryMemberId = (myProfile as any).primaryMemberId;
+  if (!primaryMemberId) return { role: "primary", myProfile, primaryCustomerId: null, primaryMemberName: null };
+
+  const primaryProfile = (await ctx.db.get(primaryMemberId)) as any;
+  return {
+    role: "dependent",
+    myProfile,
+    primaryCustomerId: primaryProfile?.customerId ?? null,
+    primaryMemberName: primaryProfile
+      ? `${primaryProfile.firstName} ${primaryProfile.lastName}`
+      : null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// MEMBER-FACING QUERIES
+// ---------------------------------------------------------------------------
+
+/**
+ * Get CURRENT USER's subscription bundle (member-facing).
+ * Dependents do not own bundles — returns null so billing UI is suppressed.
+ * customerId is derived from auth — no IDOR possible.
  */
 export const getMyBundle = query({
   args: {},
   handler: async (ctx: QueryCtx) => {
     const identity = await requireAuth(ctx);
+
+    // Dependents do not own bundles
+    const myProfile = await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_customer", (q) => q.eq("customerId", identity.clerkUserId))
+      .first();
+    if (myProfile && (myProfile as any).memberRole === "dependent") {
+      return null;
+    }
 
     const bundle = await ctx.db
       .query("subscriptionBundles")
@@ -85,8 +168,9 @@ export const getCustomerBundlePublic = query({
 });
 
 /**
- * Get CURRENT USER's active entitlements (member-facing)
- * customerId is derived from auth — no IDOR possible
+ * Get CURRENT USER's active entitlements (member-facing).
+ * Dependents inherit entitlements from their primary member.
+ * customerId is derived from auth — no IDOR possible.
  */
 export const getMyEntitlements = query({
   args: {
@@ -95,10 +179,13 @@ export const getMyEntitlements = query({
   handler: async (ctx: QueryCtx, args) => {
     const identity = await requireAuth(ctx);
 
+    // Dependents check the primary's entitlements
+    const effectiveCustomerId = await resolveEffectiveCustomerId(ctx, identity.clerkUserId);
+
     let q = ctx.db
       .query("entitlements")
       .withIndex("by_customer", (q) =>
-        q.eq("customerId", identity.clerkUserId)
+        q.eq("customerId", effectiveCustomerId)
       );
 
     if (!args.includeExpired) {
@@ -125,8 +212,9 @@ export const getMyEntitlements = query({
 });
 
 /**
- * Check if CURRENT USER has access to a product (member-facing)
- * customerId is derived from auth — no IDOR possible
+ * Check if CURRENT USER has access to a product (member-facing).
+ * Dependents inherit access from their primary member's entitlements.
+ * customerId is derived from auth — no IDOR possible.
  */
 export const myHasAccess = query({
   args: {
@@ -135,10 +223,13 @@ export const myHasAccess = query({
   handler: async (ctx: QueryCtx, args) => {
     const identity = await requireAuth(ctx);
 
+    // Resolve effective customer — dependents share primary's entitlements
+    const effectiveCustomerId = await resolveEffectiveCustomerId(ctx, identity.clerkUserId);
+
     const entitlement = await ctx.db
       .query("entitlements")
       .withIndex("by_customer", (q) =>
-        q.eq("customerId", identity.clerkUserId)
+        q.eq("customerId", effectiveCustomerId)
       )
       .filter((q) => q.eq(q.field("productId"), args.productId))
       .filter((q) =>
@@ -154,36 +245,49 @@ export const myHasAccess = query({
 });
 
 /**
- * Get CURRENT USER's dashboard summary (member-facing)
- * customerId is derived from auth — no IDOR possible
+ * Get CURRENT USER's dashboard summary (member-facing).
+ * - Primary members see full billing info + their list of dependents.
+ * - Dependents see plan/entitlement info but billing is hidden.
+ * customerId is derived from auth — no IDOR possible.
  */
 export const getMyDashboard = query({
   args: {},
   handler: async (ctx: QueryCtx) => {
     const identity = await requireAuth(ctx);
 
+    const memberInfo = await getMemberRoleInfo(ctx, identity.clerkUserId);
+    const isDependent = memberInfo.role === "dependent";
+    const effectiveCustomerId =
+      isDependent && memberInfo.primaryCustomerId
+        ? memberInfo.primaryCustomerId
+        : identity.clerkUserId;
+
     const bundle = await ctx.db
       .query("subscriptionBundles")
       .withIndex("by_customer", (q) =>
-        q.eq("customerId", identity.clerkUserId)
+        q.eq("customerId", effectiveCustomerId)
       )
       .filter((q) => q.neq(q.field("status"), "cancelled"))
       .first();
 
-    if (!bundle) {
-      return {
-        customerId: identity.clerkUserId,
-        bundle: null,
-        entitlements: [],
-        nextRenewalDate: null,
-        upcomingChargeAmount: null,
-      };
-    }
+    const emptyBase = {
+      customerId: identity.clerkUserId,
+      role: (isDependent ? "dependent" : "primary") as "dependent" | "primary",
+      bundle: null as any,
+      entitlements: [] as any[],
+      nextRenewalDate: null as number | null,
+      // Billing fields hidden from dependents
+      upcomingChargeAmount: null as number | null,
+      dependents: [] as any[],
+      primaryMember: memberInfo.primaryMemberName,
+    };
+
+    if (!bundle) return emptyBase;
 
     const entitlements = await ctx.db
       .query("entitlements")
       .withIndex("by_customer", (q) =>
-        q.eq("customerId", identity.clerkUserId)
+        q.eq("customerId", effectiveCustomerId)
       )
       .filter((q) =>
         q.or(
@@ -193,12 +297,40 @@ export const getMyDashboard = query({
       )
       .collect();
 
+    // Primary members: fetch their dependents for the dashboard
+    let dependents: any[] = [];
+    if (!isDependent && memberInfo.myProfile) {
+      const rawDeps = await ctx.db
+        .query("memberProfiles")
+        .withIndex("by_primary_member", (q) =>
+          q.eq("primaryMemberId", memberInfo.myProfile._id)
+        )
+        .filter((q) => q.neq(q.field("status"), "terminated"))
+        .collect();
+      dependents = rawDeps.map((d) => ({
+        _id: d._id,
+        firstName: d.firstName,
+        lastName: d.lastName,
+        relationship: (d as any).relationship as string | undefined,
+        inviteStatus: (d as any).inviteStatus as string | undefined,
+        hasClaimed: !!(d as any).customerId,
+      }));
+    }
+
     return {
       customerId: identity.clerkUserId,
-      bundle,
+      role: (isDependent ? "dependent" : "primary") as "dependent" | "primary",
+      // Safe bundle view: dependents only see status + cadence (no billing amounts)
+      bundle: isDependent
+        ? { _id: bundle._id, status: bundle.status, cadence: bundle.cadence }
+        : bundle,
       entitlements,
-      nextRenewalDate: (bundle as any).currentPeriodEnd,
-      upcomingChargeAmount: (bundle as any).pricingSnapshot?.totalCents,
+      nextRenewalDate: (bundle as any).currentPeriodEnd as number,
+      upcomingChargeAmount: isDependent
+        ? null
+        : ((bundle as any).pricingSnapshot?.totalCents ?? null),
+      dependents,
+      primaryMember: memberInfo.primaryMemberName,
     };
   },
 });

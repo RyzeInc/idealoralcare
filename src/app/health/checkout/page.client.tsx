@@ -29,7 +29,10 @@ import {
   ShoppingCart,
   ChevronRight,
   Shield,
-  X
+  X,
+  Users,
+  UserPlus,
+  Trash2
 } from "lucide-react";
 import { CartProvider, useCart } from "@/lib/health-plans";
 import { formatPrice, getPrice } from "@/lib/health-plans/types";
@@ -51,6 +54,14 @@ function CheckoutContent() {
   const [agreedToNotInsurance, setAgreedToNotInsurance] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [clerkTimeout, setClerkTimeout] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
+  // Dependent/family member state
+  type DepForm = { firstName: string; lastName: string; email: string; relationship: string };
+  const [dependentList, setDependentList] = useState<DepForm[]>([]);
+  const [showAddDependent, setShowAddDependent] = useState(false);
+  const [newDep, setNewDep] = useState<DepForm>({ firstName: "", lastName: "", email: "", relationship: "spouse" });
+  const [depErrors, setDepErrors] = useState<Partial<DepForm>>({});
   
   // Legal modal states
   const [membershipModalOpen, setMembershipModalOpen] = useState(false);
@@ -67,7 +78,37 @@ function CheckoutContent() {
   
   const periodLabel = cart.cadence === "monthly" ? "Monthly" : "Annual";
   const periodShort = cart.cadence === "monthly" ? "/mo" : "/yr";
-  
+
+  // Dependent pricing map (mirrors Stripe checkout route)
+  const DEP_PRICE: Record<string, number> = {
+    monthly_card: 999, monthly_ach: 899, annual_card: 9999, annual_ach: 8999,
+  };
+  const depKey = `${cart.cadence}_${cart.paymentMethod}`;
+  const depUnitCents = DEP_PRICE[depKey] ?? 999;
+  const depTotalCents = dependentList.length * depUnitCents;
+
+  // Dependent handlers
+  const validateNewDep = (): boolean => {
+    const errs: Partial<DepForm> = {};
+    if (!newDep.firstName.trim()) errs.firstName = "Required";
+    if (!newDep.lastName.trim()) errs.lastName = "Required";
+    if (!newDep.email.trim() || !/^[^@]+@[^@]+\.[^@]+$/.test(newDep.email)) errs.email = "Valid email required";
+    setDepErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleAddDependent = () => {
+    if (!validateNewDep()) return;
+    setDependentList((prev) => [...prev, { ...newDep }]);
+    setNewDep({ firstName: "", lastName: "", email: "", relationship: "spouse" });
+    setDepErrors({});
+    setShowAddDependent(false);
+  };
+
+  const handleRemoveDependent = (idx: number) => {
+    setDependentList((prev) => prev.filter((_, i) => i !== idx));
+  };
+
   // Calculate renewal date
   const renewalDate = new Date();
   renewalDate.setMonth(renewalDate.getMonth() + (cart.cadence === "monthly" ? 1 : 12));
@@ -87,24 +128,33 @@ function CheckoutContent() {
   const achSavings = cardTotal - achTotal;
   
   // Calculate actual total (subtotal is always card price, then apply ACH discount if applicable)
-  const totalDueToday = cart.paymentMethod === "ach" ? achTotal : cardTotal;
+  const baseTotal = cart.paymentMethod === "ach" ? achTotal : cardTotal;
+  const totalDueToday = baseTotal + depTotalCents;
   
   const handleCheckout = async () => {
     if (!isSignedIn || !agreedToTerms || !agreedToNotInsurance) return;
-    
+    if (cart.items.length === 0) return;
+
     setIsProcessing(true);
-    // TODO: Implement Stripe checkout
-    // 1. Create Stripe Checkout Session
-    // 2. Redirect to Stripe
-    // 3. On success, create subscription in Convex
-    // 4. Redirect to /health/dashboard
-    
-    // Placeholder: simulate processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsProcessing(false);
-    
-    // For now, redirect to dashboard
-    window.location.href = "/health/dashboard";
+    setCheckoutError(null);
+    try {
+      const response = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planId: cart.items[0].productId,
+          cadence: cart.cadence,
+          paymentMethod: cart.paymentMethod,
+          dependents: dependentList,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Checkout failed");
+      window.location.href = data.url;
+    } catch (err) {
+      setCheckoutError(err instanceof Error ? err.message : "Checkout failed. Please try again.");
+      setIsProcessing(false);
+    }
   };
   
   // Handle membership agreement modal acceptance
@@ -215,7 +265,80 @@ function CheckoutContent() {
             </div>
           </div>
           
-          {/* Step 2: Payment Method */}
+          {/* Step 2: Family Members */}
+          <div className={styles.checkoutCard}>
+            <div className={styles.cardHeader}>
+              <span className={styles.stepNumber}>2</span>
+              <h2 className={styles.cardTitle}>Family Members <span style={{ fontSize: "0.8rem", fontWeight: 400, color: "#6b7280" }}>(Optional)</span></h2>
+            </div>
+
+            {dependentList.length > 0 && (
+              <div style={{ marginBottom: "1rem" }}>
+                {dependentList.map((dep, idx) => (
+                  <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.625rem 0.875rem", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: "0.5rem", marginBottom: "0.5rem" }}>
+                    <div>
+                      <div style={{ fontWeight: 500, fontSize: "0.9rem" }}>{dep.firstName} {dep.lastName}</div>
+                      <div style={{ fontSize: "0.8rem", color: "#6b7280", textTransform: "capitalize" }}>{dep.relationship} · {dep.email}</div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                      <span style={{ fontSize: "0.85rem", color: "#374151", fontWeight: 500 }}>+{formatPrice(depUnitCents)}{periodShort}</span>
+                      <button onClick={() => handleRemoveDependent(idx)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", display: "flex", alignItems: "center" }} aria-label="Remove">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {showAddDependent ? (
+              <div style={{ border: "1px solid #d1d5db", borderRadius: "0.5rem", padding: "1rem", marginBottom: "0.75rem" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "0.75rem" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 500, marginBottom: "0.25rem", color: "#374151" }}>First Name *</label>
+                    <input value={newDep.firstName} onChange={e => setNewDep(p => ({ ...p, firstName: e.target.value }))} style={{ width: "100%", padding: "0.5rem 0.625rem", border: `1px solid ${depErrors.firstName ? "#ef4444" : "#d1d5db"}`, borderRadius: "0.375rem", fontSize: "0.875rem", boxSizing: "border-box" }} placeholder="Jane" />
+                    {depErrors.firstName && <span style={{ fontSize: "0.75rem", color: "#ef4444" }}>{depErrors.firstName}</span>}
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 500, marginBottom: "0.25rem", color: "#374151" }}>Last Name *</label>
+                    <input value={newDep.lastName} onChange={e => setNewDep(p => ({ ...p, lastName: e.target.value }))} style={{ width: "100%", padding: "0.5rem 0.625rem", border: `1px solid ${depErrors.lastName ? "#ef4444" : "#d1d5db"}`, borderRadius: "0.375rem", fontSize: "0.875rem", boxSizing: "border-box" }} placeholder="Doe" />
+                    {depErrors.lastName && <span style={{ fontSize: "0.75rem", color: "#ef4444" }}>{depErrors.lastName}</span>}
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "0.75rem" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 500, marginBottom: "0.25rem", color: "#374151" }}>Email *</label>
+                    <input type="email" value={newDep.email} onChange={e => setNewDep(p => ({ ...p, email: e.target.value }))} style={{ width: "100%", padding: "0.5rem 0.625rem", border: `1px solid ${depErrors.email ? "#ef4444" : "#d1d5db"}`, borderRadius: "0.375rem", fontSize: "0.875rem", boxSizing: "border-box" }} placeholder="jane@example.com" />
+                    {depErrors.email && <span style={{ fontSize: "0.75rem", color: "#ef4444" }}>{depErrors.email}</span>}
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 500, marginBottom: "0.25rem", color: "#374151" }}>Relationship</label>
+                    <select value={newDep.relationship} onChange={e => setNewDep(p => ({ ...p, relationship: e.target.value }))} style={{ width: "100%", padding: "0.5rem 0.625rem", border: "1px solid #d1d5db", borderRadius: "0.375rem", fontSize: "0.875rem", boxSizing: "border-box", background: "white" }}>
+                      <option value="spouse">Spouse</option>
+                      <option value="child">Child</option>
+                      <option value="domestic_partner">Domestic Partner</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <button onClick={handleAddDependent} style={{ padding: "0.5rem 1rem", background: "#14b8a6", color: "white", border: "none", borderRadius: "0.375rem", fontSize: "0.875rem", fontWeight: 500, cursor: "pointer" }}>Add Member</button>
+                  <button onClick={() => { setShowAddDependent(false); setDepErrors({}); setNewDep({ firstName: "", lastName: "", email: "", relationship: "spouse" }); }} style={{ padding: "0.5rem 1rem", background: "transparent", color: "#6b7280", border: "1px solid #d1d5db", borderRadius: "0.375rem", fontSize: "0.875rem", cursor: "pointer" }}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setShowAddDependent(true)} style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.625rem 1rem", background: "transparent", border: "2px dashed #d1d5db", borderRadius: "0.5rem", color: "#6b7280", fontSize: "0.875rem", cursor: "pointer", width: "100%", justifyContent: "center" }}>
+                <UserPlus size={16} />
+                Add a family member (+{formatPrice(depUnitCents)}{periodShort} per person)
+              </button>
+            )}
+
+            <p style={{ fontSize: "0.8rem", color: "#6b7280", marginTop: "0.75rem", marginBottom: 0 }}>
+              Each family member receives the same plan benefits. They&apos;ll get an email invitation to create their own login.
+            </p>
+          </div>
+
+          {/* Step 3: Payment Method */}
           <div className={styles.checkoutCard}>
             <div className={styles.cardHeader}>
               <span className={styles.stepNumber}>2</span>
@@ -258,10 +381,10 @@ function CheckoutContent() {
             </div>
           </div>
           
-          {/* Step 3: Account */}
+          {/* Step 4: Account */}
           <div className={styles.checkoutCard}>
             <div className={styles.cardHeader}>
-              <span className={styles.stepNumber}>3</span>
+              <span className={styles.stepNumber}>4</span>
               <h2 className={styles.cardTitle}>Account</h2>
             </div>
             
@@ -307,10 +430,10 @@ function CheckoutContent() {
             )}
           </div>
           
-          {/* Step 4: Confirm */}
+          {/* Step 5: Confirm */}
           <div className={styles.checkoutCard}>
             <div className={styles.cardHeader}>
-              <span className={styles.stepNumber}>4</span>
+              <span className={styles.stepNumber}>5</span>
               <h2 className={styles.cardTitle}>Confirm & Pay</h2>
             </div>
             
@@ -331,7 +454,7 @@ function CheckoutContent() {
                 />
                 <span className={styles.agreementText}>
                   I understand that I will be billed {formatPrice(totalDueToday)} today 
-                  and {formatPrice(totalDueToday)}{periodShort} on renewal. I can cancel 
+                  and {formatPrice(totalDueToday)}{periodShort} on renewal{dependentList.length > 0 ? ` (includes ${dependentList.length} family member${dependentList.length > 1 ? "s" : ""})` : ""}. I can cancel 
                   anytime and keep access until the end of my billing period.
                   {!membershipAgreed && (
                     <span style={{ display: "block", fontSize: "0.85rem", color: "#14b8a6", marginTop: "0.5rem", fontWeight: 500 }}>
@@ -388,6 +511,15 @@ function CheckoutContent() {
                   </div>
                 );
               })}
+              {dependentList.length > 0 && (
+                <div className={styles.summaryItem}>
+                  <span className={styles.summaryItemName} style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
+                    <Users size={14} />
+                    {dependentList.length} Family Member{dependentList.length > 1 ? "s" : ""}
+                  </span>
+                  <span className={styles.summaryItemPrice}>{formatPrice(depTotalCents)}</span>
+                </div>
+              )}
             </div>
             
             {/* ACH Savings Banner */}
@@ -407,6 +539,12 @@ function CheckoutContent() {
                 <div className={styles.summaryRow} style={{ color: "#16a34a" }}>
                   <span>ACH Discount</span>
                   <span>-{formatPrice(achSavings)}</span>
+                </div>
+              )}
+              {dependentList.length > 0 && (
+                <div className={styles.summaryRow}>
+                  <span>{dependentList.length} × Family Member</span>
+                  <span>+{formatPrice(depTotalCents)}</span>
                 </div>
               )}
               <div className={styles.summaryRowTotal}>
@@ -440,6 +578,12 @@ function CheckoutContent() {
               )}
             </button>
             
+            {checkoutError && (
+              <p style={{ color: "#dc2626", fontSize: "0.875rem", textAlign: "center", marginBottom: "0.75rem" }}>
+                {checkoutError}
+              </p>
+            )}
+
             {/* Pricing Clarification */}
             <p className={styles.pricingNote}>
               Prices shown reflect your selected payment method.

@@ -13,6 +13,7 @@ import {
   Video,
   ShieldCheck,
 } from 'lucide-react';
+import FamilySection from '../FamilySection';
 
 interface Subscription {
   id: string;
@@ -257,6 +258,9 @@ export default function OverviewTab({
             </div>
           </div>
         </div>
+
+        {/* Family Members */}
+        <FamilySection />
 
         {/* Billing & Payment */}
         <div className="glass-card" style={{ padding: '2rem' }}>

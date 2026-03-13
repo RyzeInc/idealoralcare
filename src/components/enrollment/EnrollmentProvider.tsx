@@ -135,6 +135,15 @@ function enrollmentReducer(state: EnrollmentWizardState, action: EnrollmentActio
       };
     }
 
+    case "SET_DEPENDENTS":
+      return {
+        ...state,
+        personalInfo: {
+          ...state.personalInfo,
+          dependents: action.payload ?? [],
+        },
+      };
+
     case "SET_ADDRESS":
       return { ...state, address: action.payload };
 
@@ -215,6 +224,7 @@ export function EnrollmentProvider({
     "eligibility",
     "plans",
     "personal-info",
+    "dependents",
     "payment",
     "review",
     "confirmation",

@@ -1413,6 +1413,65 @@ a:hover {
   margin: 0;
 }
 
+/* ── How It Works — responsive: horizontal scroll carousel ────────── */
+@media (max-width: 1024px) {
+  /* Stack the image / steps layout vertically */
+  .how-it-works-section__layout {
+    flex-direction: column !important;
+    gap: 32px !important;
+  }
+
+  /* Shrink the hero image at tablet; hide entirely on phone */
+  .how-it-works-section__image {
+    flex: 0 0 auto !important;
+    max-width: 320px;
+    margin: 0 auto;
+  }
+
+  /* Prevent the flex child from growing wider than the container */
+  .how-it-works-section__content {
+    min-width: 0;
+    width: 100%;
+  }
+
+  /* Switch the step grid → horizontal flex scroll */
+  .how-it-works {
+    display: flex !important;
+    grid-template-columns: none !important;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    scroll-padding-left: 4px;
+    gap: 20px !important;
+    padding-bottom: 12px;
+    margin: 0 !important;
+  }
+
+  /* Thin scrollbar for touch / trackpad hint */
+  .how-it-works::-webkit-scrollbar {
+    height: 4px;
+  }
+  .how-it-works::-webkit-scrollbar-thumb {
+    background: rgba(0, 102, 204, 0.25);
+    border-radius: 4px;
+  }
+
+  /* Each step card keeps a fixed width so it doesn't squish */
+  .how-it-works__step {
+    min-width: 240px;
+    max-width: 280px;
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+  }
+}
+
+@media (max-width: 640px) {
+  .how-it-works-section__image {
+    display: none;
+  }
+}
+
 /* Trust Anchors */
 .trust-anchors {
   display: grid;

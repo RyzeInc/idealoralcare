@@ -302,6 +302,11 @@ export default defineSchema({
       monthlyACHCents: v.number(), // Price for monthly cadence, ACH (with discount)
       annualCardCents: v.number(), // Price for annual cadence, card payment
       annualACHCents: v.number(), // Price for annual cadence, ACH (with discount)
+      // Per-dependent add-on pricing (optional — if absent, dependents are included free)
+      dependentMonthlyCardCents: v.optional(v.number()),
+      dependentMonthlyACHCents: v.optional(v.number()),
+      dependentAnnualCardCents: v.optional(v.number()),
+      dependentAnnualACHCents: v.optional(v.number()),
     }),
     
     // STRIPE PRODUCT MAPPING (narrow: only for price lookups)
@@ -869,7 +874,24 @@ export default defineSchema({
         v.literal("other")
       ),
     }))),
-    
+
+    // FAMILY / DEPENDENT ROLE
+    memberRole: v.optional(v.union(v.literal("primary"), v.literal("dependent"))),
+    primaryMemberId: v.optional(v.id("memberProfiles")),
+    relationship: v.optional(v.union(
+      v.literal("spouse"),
+      v.literal("child"),
+      v.literal("domestic_partner"),
+      v.literal("other")
+    )),
+    inviteToken: v.optional(v.string()),
+    inviteStatus: v.optional(v.union(
+      v.literal("pending"),
+      v.literal("claimed"),
+      v.literal("expired")
+    )),
+    invitedEmail: v.optional(v.string()),
+
     // COMMUNICATION PREFERENCES
     communicationPrefs: v.optional(v.object({
       emailOptIn: v.boolean(),
@@ -902,7 +924,9 @@ export default defineSchema({
     .index("by_member_id", ["memberId"])
     .index("by_customer", ["customerId"])
     .index("by_status", ["status"])
-    .index("by_member_type", ["memberType"]),
+    .index("by_member_type", ["memberType"])
+    .index("by_primary_member", ["primaryMemberId"])
+    .index("by_invite_token", ["inviteToken"]),
 
   // MEMBER ACTIVITIES (Timeline/activity log)
   memberActivities: defineTable({
@@ -920,6 +944,10 @@ export default defineSchema({
       v.literal("plan_cancelled"),
       v.literal("plan_reactivated"),
       v.literal("plan_changed"),
+      v.literal("dependent_added"),
+      v.literal("dependent_removed"),
+      v.literal("dependent_invited"),
+      v.literal("dependent_claimed"),
       // Payment
       v.literal("payment_succeeded"),
       v.literal("payment_failed"),
@@ -1176,6 +1204,42 @@ export default defineSchema({
     .index("by_period", ["period"])
     .index("by_status", ["status"])
     .index("by_enrollment", ["enrollmentSessionId"]),
+
+  // ============================================
+  // TOOTHLENS / AI ORAL SCANNING
+  // ============================================
+
+  // Toothlens detection user registrations (maps our members to Toothlens UIDs)
+  toothlensUsers: defineTable({
+    clerkUserId: v.string(),                // Clerk user ID
+    memberProfileId: v.optional(v.id("memberProfiles")),
+    toothlensUid: v.string(),               // UID returned from / sent to Toothlens API
+    company: v.string(),                    // "ryzehealth"
+    name: v.optional(v.string()),
+    email: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_clerk_user", ["clerkUserId"])
+    .index("by_uid", ["toothlensUid"]),
+
+  // Individual scan sessions
+  toothlensScans: defineTable({
+    clerkUserId: v.string(),
+    toothlensUid: v.string(),               // The Toothlens UID used
+    sessionId: v.string(),                  // Unique per scan
+    status: v.union(
+      v.literal("started"),
+      v.literal("completed"),
+      v.literal("cancelled")
+    ),
+    forwardedToTeledentist: v.optional(v.boolean()),
+    forwardedAt: v.optional(v.number()),
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_clerk_user", ["clerkUserId"])
+    .index("by_session", ["sessionId"])
+    .index("by_uid", ["toothlensUid"]),
 
   // ============================================
   // MEMBERSHIP AGREEMENTS & LEGAL DOCUMENTS
