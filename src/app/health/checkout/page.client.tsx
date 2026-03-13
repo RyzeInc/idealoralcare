@@ -57,8 +57,8 @@ function CheckoutContent() {
   const [termsModalOpen, setTermsModalOpen] = useState(false);
   const [membershipAgreed, setMembershipAgreed] = useState(false);
   const [membershipSignature, setMembershipSignature] = useState<string>("");
+  
   // Fallback: if Clerk JS is blocked by CSP or slow, stop showing Loading... after 5s
-  const [clerkTimeout, setClerkTimeout] = useState(false);
   useEffect(() => {
     if (isLoaded) return;
     const t = setTimeout(() => setClerkTimeout(true), 5000);
