@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation } from 'convex/react';
+import { useQuery, useMutation, useConvexAuth } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Users, UserPlus, Mail, Trash2, RefreshCw, CheckCircle, Clock } from 'lucide-react';
 
@@ -30,11 +30,20 @@ function InviteStatusBadge({ status }: { status: string | undefined }) {
 }
 
 export default function FamilySection() {
+  // useConvexAuth reflects when the Convex client actually has the JWT token
+  // ready — not just when Clerk has loaded. This prevents premature authenticated queries.
+  const { isAuthenticated } = useConvexAuth();
+
   // Use any-cast to avoid TypeScript deep instantiation limit on Convex generated union types
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/ban-ts-comment
   // @ts-ignore – Convex generated types exceed TS instantiation depth; runtime is correct
   const convexApi = api; // intentionally untyped for the lines below
-  const dependents = useQuery(convexApi.enrollment.dependents.getMyDependents) as any[] | undefined;
+  
+  // Skip query execution until Convex has the auth token
+  const dependents = useQuery(
+    convexApi.enrollment.dependents.getMyDependents,
+    isAuthenticated ? {} : "skip"
+  ) as any[] | undefined;
   const addDependent = useMutation(convexApi.enrollment.dependents.addDependent);
   const removeDependent = useMutation(convexApi.enrollment.dependents.removeDependent);
   const resendInvite = useMutation(convexApi.enrollment.dependents.resendDependentInvite);
@@ -47,6 +56,7 @@ export default function FamilySection() {
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
+  const [queryError, setQueryError] = useState<string | null>(null);
 
   const validate = (): boolean => {
     const errs: Partial<typeof form> = {};

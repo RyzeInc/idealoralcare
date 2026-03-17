@@ -42,43 +42,48 @@ function generateBarcode(siteSlug: string): string {
 export const getMyDependents = query({
   args: {},
   handler: async (ctx: QueryCtx) => {
-    const identity = await requireAuth(ctx);
+    try {
+      const identity = await requireAuth(ctx);
 
-    // Resolve the caller's primary member profile
-    const primaryProfile = await ctx.db
-      .query("memberProfiles")
-      .withIndex("by_customer", (q) => q.eq("customerId", identity.clerkUserId))
-      .filter((q) => q.neq(q.field("status"), "terminated"))
-      .first();
+      // Resolve the caller's primary member profile
+      const primaryProfile = await ctx.db
+        .query("memberProfiles")
+        .withIndex("by_customer", (q) => q.eq("customerId", identity.clerkUserId))
+        .filter((q) => q.neq(q.field("status"), "terminated"))
+        .first();
 
-    if (!primaryProfile) return [];
+      if (!primaryProfile) return [];
 
-    // Only primary members own dependents
-    if ((primaryProfile as any).memberRole === "dependent") return [];
+      // Only primary members own dependents
+      if ((primaryProfile as any).memberRole === "dependent") return [];
 
-    const dependents = await ctx.db
-      .query("memberProfiles")
-      .withIndex("by_primary_member", (q) =>
-        q.eq("primaryMemberId", primaryProfile._id)
-      )
-      .filter((q) => q.neq(q.field("status"), "terminated"))
-      .collect();
+      const dependents = await ctx.db
+        .query("memberProfiles")
+        .withIndex("by_primary_member", (q) =>
+          q.eq("primaryMemberId", primaryProfile._id)
+        )
+        .filter((q) => q.neq(q.field("status"), "terminated"))
+        .collect();
 
-    return dependents.map((d) => ({
-      _id: d._id,
-      memberId: d.memberId,
-      firstName: d.firstName,
-      lastName: d.lastName,
-      email: d.email,
-      dateOfBirth: d.dateOfBirth,
-      relationship: (d as any).relationship as string | undefined,
-      memberRole: (d as any).memberRole as string,
-      inviteStatus: (d as any).inviteStatus as string | undefined,
-      invitedEmail: (d as any).invitedEmail as string | undefined,
-      hasClaimed: !!(d as any).customerId,
-      status: d.status,
-      createdAt: d.createdAt,
-    }));
+      return dependents.map((d) => ({
+        _id: d._id,
+        memberId: d.memberId,
+        firstName: d.firstName,
+        lastName: d.lastName,
+        email: d.email || "",
+        dateOfBirth: d.dateOfBirth,
+        relationship: (d as any).relationship as string | undefined,
+        memberRole: (d as any).memberRole as string,
+        inviteStatus: (d as any).inviteStatus as string | undefined,
+        invitedEmail: (d as any).invitedEmail as string | undefined,
+        hasClaimed: !!(d as any).customerId,
+        status: d.status,
+        createdAt: d.createdAt,
+      }));
+    } catch (error) {
+      console.error("[getMyDependents] Error:", error);
+      throw error;
+    }
   },
 });
 

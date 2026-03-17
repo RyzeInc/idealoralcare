@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
           const cadence = (interval === "year" ? "annual" : "monthly") as "monthly" | "annual";
           const totalCents = (items[0]?.plan as any)?.amount || 1500;
 
-          // 1. Create member profile (linked to enrollment session)
+          // 1. Create member profile (linked to enrollment session and Clerk user)
           const memberProfileId = await convex.mutation(
             api.enrollment.members.webhookCreateMemberProfile,
             {
@@ -96,6 +96,7 @@ export async function POST(req: NextRequest) {
               firstName: session.customer_details?.name?.split(" ")[0] || "Member",
               lastName: session.customer_details?.name?.split(" ")?.[1] || "",
               email: session.customer_email || "",
+              customerId: clerkUserId, // Link to the Clerk user who completed checkout
               memberType: "active",
               signupSource: `stripe:${enrollmentSessionId}`,
               enrollmentSessionId: enrollmentSession._id,

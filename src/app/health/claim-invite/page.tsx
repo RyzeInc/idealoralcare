@@ -8,6 +8,10 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { CheckCircle, AlertCircle, Loader2, HeartPulse } from 'lucide-react';
 
+// This page uses useSearchParams() which requires runtime data from query strings
+// We must force dynamic rendering to prevent static prerendering errors
+export const dynamic = 'force-dynamic';
+
 type ClaimState = 'loading' | 'ready' | 'claiming' | 'success' | 'error' | 'invalid-token';
 
 export default function ClaimInvitePage() {
@@ -18,6 +22,17 @@ export default function ClaimInvitePage() {
   );
 }
 
+function PageShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
+      <div style={{ background: 'white', borderRadius: '16px', padding: '3rem 2.5rem', maxWidth: '480px', width: '100%', boxShadow: '0 4px 24px rgba(0,0,0,0.08)', textAlign: 'center' }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// Inner component that uses useSearchParams - wrapped in Suspense to handle SSR
 function ClaimInviteContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -74,104 +89,6 @@ function ClaimInviteContent() {
     }
   };
 
-  // Redirect to sign-up if not authenticated and the token is valid
-  if (isLoaded && !isSignedIn && claimState === 'ready') {
-    const returnUrl = encodeURIComponent(`/health/claim-invite?token=${token}`);
-    return (
-      <PageShell>
-        <div style={{ textAlign: 'center' }}>
-          <HeartPulse size={40} color="#0066CC" style={{ marginBottom: '1rem' }} />
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>
-            You&apos;re invited!
-          </h1>
-          {invite && (
-            <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
-              <strong>{invite.primaryMemberName}</strong> has invited you to join their plan as a family member.
-            </p>
-          )}
-          <p style={{ color: '#64748b', marginBottom: '2rem' }}>
-            Create a free account (or sign in) to claim your access.
-          </p>
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link
-              href={`/health/sign-up?redirect_url=${returnUrl}`}
-              style={{ padding: '0.625rem 1.5rem', background: '#0066CC', color: 'white', borderRadius: '8px', fontWeight: 600, textDecoration: 'none', fontSize: '0.9rem' }}
-            >
-              Create Account
-            </Link>
-            <Link
-              href={`/health/sign-in?redirect_url=${returnUrl}`}
-              style={{ padding: '0.625rem 1.5rem', background: 'transparent', color: '#0066CC', border: '1px solid #0066CC', borderRadius: '8px', fontWeight: 600, textDecoration: 'none', fontSize: '0.9rem' }}
-            >
-              Sign In
-            </Link>
-          </div>
-        </div>
-      </PageShell>
-    );
-  }
-
-  if (claimState === 'invalid-token') {
-    return (
-      <PageShell>
-        <div style={{ textAlign: 'center' }}>
-          <AlertCircle size={40} color="#ef4444" style={{ marginBottom: '1rem' }} />
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>
-            Invalid or Expired Invite
-          </h1>
-          <p style={{ color: '#64748b', marginBottom: '2rem' }}>
-            This invite link is invalid or has already expired. Ask your family member to send a new invite.
-          </p>
-          <Link href="/health/dashboard" style={{ color: '#0066CC', fontWeight: 600, textDecoration: 'none' }}>
-            Go to Dashboard
-          </Link>
-        </div>
-      </PageShell>
-    );
-  }
-
-  if (claimState === 'success') {
-    return (
-      <PageShell>
-        <div style={{ textAlign: 'center' }}>
-          <CheckCircle size={48} color="#15803d" style={{ marginBottom: '1rem' }} />
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>
-            You&apos;re all set!
-          </h1>
-          <p style={{ color: '#64748b', marginBottom: '2rem' }}>
-            You now have access to the plan benefits. Redirecting you to your dashboard…
-          </p>
-          <Link href="/health/dashboard" style={{ padding: '0.625rem 1.5rem', background: '#0066CC', color: 'white', borderRadius: '8px', fontWeight: 600, textDecoration: 'none' }}>
-            Go to Dashboard
-          </Link>
-        </div>
-      </PageShell>
-    );
-  }
-
-  if (claimState === 'error') {
-    return (
-      <PageShell>
-        <div style={{ textAlign: 'center' }}>
-          <AlertCircle size={40} color="#ef4444" style={{ marginBottom: '1rem' }} />
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>
-            Something went wrong
-          </h1>
-          <p style={{ color: '#64748b', marginBottom: '1rem' }}>{errorMessage}</p>
-          <button
-            onClick={() => setClaimState('ready')}
-            style={{ padding: '0.5rem 1.25rem', background: '#0066CC', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', marginRight: '0.75rem' }}
-          >
-            Try Again
-          </button>
-          <Link href="/health/dashboard" style={{ color: '#64748b', fontWeight: 500, textDecoration: 'none' }}>
-            Dashboard
-          </Link>
-        </div>
-      </PageShell>
-    );
-  }
-
   // Loading / ready / claiming states
   return (
     <PageShell>
@@ -206,12 +123,20 @@ function ClaimInviteContent() {
   );
 }
 
-function PageShell({ children }: { children: React.ReactNode }) {
+// Outer page component with Suspense boundary
+export default function ClaimInvitePage() {
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
-      <div style={{ background: 'white', borderRadius: '16px', padding: '3rem 2.5rem', maxWidth: '480px', width: '100%', boxShadow: '0 4px 24px rgba(0,0,0,0.08)', textAlign: 'center' }}>
-        {children}
-      </div>
-    </div>
+    <Suspense
+      fallback={
+        <PageShell>
+          <div style={{ textAlign: 'center' }}>
+            <Loader2 size={40} color="#0066CC" style={{ marginBottom: '1rem', animation: 'spin 1s linear infinite' }} />
+            <p style={{ color: '#64748b' }}>Loading…</p>
+          </div>
+        </PageShell>
+      }
+    >
+      <ClaimInviteContent />
+    </Suspense>
   );
 }

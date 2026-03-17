@@ -102,7 +102,7 @@ export const createMemberProfile = mutation({
   },
   handler: async (ctx: MutationCtx, args: any) => {
     // Authenticated users can create member profiles
-    await requireAuth(ctx);
+    const identity = await requireAuth(ctx);
     
     // Generate unique member ID and barcode
     const memberCount = await ctx.db
@@ -118,6 +118,7 @@ export const createMemberProfile = mutation({
     const profile = await ctx.db.insert("memberProfiles", {
       memberId,
       barcode,
+      customerId: identity.clerkUserId, // Link to the authenticated Clerk user
       siteId: args.siteId,
       accountId: args.accountId,
       groupId: args.groupId,
@@ -197,6 +198,7 @@ export const internalCreateMemberProfile = internalMutation({
     enrollmentSessionId: v.optional(v.id("enrollmentSessions")),
     groupMemberId: v.optional(v.string()),
     externalMemberId: v.optional(v.string()),
+    customerId: v.optional(v.string()), // Optional Clerk user ID
   },
   handler: async (ctx: MutationCtx, args: any) => {
     // Generate unique member ID and barcode
@@ -213,6 +215,7 @@ export const internalCreateMemberProfile = internalMutation({
     const profile = await ctx.db.insert("memberProfiles", {
       memberId,
       barcode,
+      customerId: args.customerId, // Include if provided
       siteId: args.siteId,
       accountId: args.accountId,
       groupId: args.groupId,
@@ -268,6 +271,7 @@ export const webhookCreateMemberProfile = mutation({
     firstName: v.string(),
     lastName: v.string(),
     email: v.string(),
+    customerId: v.optional(v.string()), // Clerk user ID to link the profile
     memberType: v.union(
       v.literal("lead"),
       v.literal("eligible"),
@@ -296,6 +300,7 @@ export const webhookCreateMemberProfile = mutation({
     const profile = await ctx.db.insert("memberProfiles", {
       memberId,
       barcode,
+      customerId: args.customerId, // Link to Clerk user if provided
       siteId: args.siteId,
       accountId: args.accountId,
       groupId: args.groupId,
