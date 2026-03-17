@@ -13,6 +13,23 @@ import { v } from "convex/values";
 import type { QueryCtx } from "./_generated/server";
 
 /**
+ * Temporary debug query — call from browser console to verify auth:
+ *   convex.query("auth:debugAuth", {})
+ * Safe to leave in (returns nothing sensitive).
+ */
+export const debugAuth = query({
+  args: {},
+  handler: async (ctx: QueryCtx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    return {
+      isAuthenticated: !!identity,
+      tokenIdentifier: identity?.tokenIdentifier ?? null,
+      issuer: identity?.tokenIdentifier?.split("|")[0] ?? null,
+    };
+  },
+});
+
+/**
  * Get current user's role based on adminUsers table lookup
  */
 export const getUserRole = query({

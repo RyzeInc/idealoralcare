@@ -41,6 +41,8 @@ function extractClerkUserId(tokenIdentifier: string): string {
 export async function requireAuth(ctx: AnyCtx): Promise<AuthIdentity> {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) {
+    // Log to help diagnose auth issues — visible in `npx convex logs`
+    console.error("[requireAuth] getUserIdentity() returned null — JWT was not sent or could not be verified against auth.config.ts");
     throw new Error("Unauthorized: Authentication required");
   }
 

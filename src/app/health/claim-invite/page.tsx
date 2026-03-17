@@ -14,14 +14,6 @@ export const dynamic = 'force-dynamic';
 
 type ClaimState = 'loading' | 'ready' | 'claiming' | 'success' | 'error' | 'invalid-token';
 
-export default function ClaimInvitePage() {
-  return (
-    <Suspense fallback={<PageShell><div style={{ textAlign: 'center' }}><Loader2 size={40} color="#0066CC" style={{ marginBottom: '1rem', animation: 'spin 1s linear infinite' }} /><p style={{ color: '#64748b' }}>Loading…</p></div></PageShell>}>
-      <ClaimInviteContent />
-    </Suspense>
-  );
-}
-
 function PageShell({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>

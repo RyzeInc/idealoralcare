@@ -77,9 +77,9 @@ beforeEach(() => {
   // Reset the mock implementation to ensure correct function routing
   vi.mocked(useMutation).mockImplementation((fn: any) => {
     const fnStr = String(fn);
-    if (fnStr.includes("removeDependent")) return mockRemoveDependent;
-    if (fnStr.includes("resendDependentInvite")) return mockResendInvite;
-    return mockAddDependent; // addDependent
+    if (fnStr.includes("removeDependent")) return mockRemoveDependent as any;
+    if (fnStr.includes("resendDependentInvite")) return mockResendInvite as any;
+    return mockAddDependent as any; // addDependent
   });
 
   vi.mocked(useQuery).mockImplementation(() => mockDependents);
