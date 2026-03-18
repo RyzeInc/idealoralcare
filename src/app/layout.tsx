@@ -8,9 +8,9 @@ export const metadata: Metadata = {
   description:
     "Ideal Health - Comprehensive oral health plan with AI Oral Scanning, 24/7 teledentistry, and Dental Discount Network dental network access.",
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
-    apple: "/favicon.svg",
+    icon: "/logo-shortcut-icon.png",
+    shortcut: "/logo-shortcut-icon.png",
+    apple: "/logo-apple-touch-icon.png",
   },
 };
 

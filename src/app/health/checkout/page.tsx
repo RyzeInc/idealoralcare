@@ -29,7 +29,11 @@ import {
   EyeOff,
   Loader,
   AlertCircle,
-  UserPlus
+  UserPlus,
+  Phone,
+  MapPin,
+  User,
+  Heart
 } from "lucide-react";
 import HealthHeader from "@/components/health/HealthHeader";
 import { CartProvider, useCart } from "@/lib/health-plans";
@@ -64,8 +68,84 @@ function FacebookIcon() {
   );
 }
 
+const US_STATES = [
+  "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA",
+  "KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
+  "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT",
+  "VA","WA","WV","WI","WY","DC",
+];
+
 type AuthTab = "signin" | "signup";
 type AuthStep = "form" | "verify";
+
+// ── Shared sub-components (must be module-level to avoid remount on each keystroke) ──
+
+function Field({ label, error: err, optional, children }: { label: string; error?: string; optional?: boolean; children: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+      <label style={{ fontSize: "0.8125rem", fontWeight: 500, color: "#374151", display: "flex", gap: "4px", alignItems: "center" }}>
+        {label}
+        {optional
+          ? <span style={{ color: "#94a3b8", fontWeight: 400, fontSize: "0.75rem" }}>(optional)</span>
+          : <span style={{ color: "#ef4444" }}>*</span>}
+      </label>
+      {children}
+      {err && (
+        <p style={{ color: "#dc2626", fontSize: "0.75rem", margin: 0, display: "flex", alignItems: "center", gap: "3px" }}>
+          <AlertCircle size={11} style={{ flexShrink: 0 }} />{err}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function IconField({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div style={{ position: "relative" }}>
+      <span style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none", display: "flex" }}>{icon}</span>
+      {children}
+    </div>
+  );
+}
+
+const WIZARD_LABELS = ["Your Info", "Address", "Account"];
+function StepIndicator({ wizardStep }: { wizardStep: number }) {
+  return (
+    <div style={{ display: "flex", alignItems: "flex-start", marginBottom: "1.5rem" }}>
+      {WIZARD_LABELS.map((label, i) => {
+        const isComplete = i < wizardStep;
+        const isActive   = i === wizardStep;
+        return [
+          <div key={`step-${i}`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "5px", flex: "none" }}>
+            <div style={{
+              width: 30, height: 30, borderRadius: "50%",
+              background: isComplete || isActive ? "#0066CC" : "#e2e8f0",
+              color: isComplete || isActive ? "#fff" : "#94a3b8",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: "0.8125rem", fontWeight: 700,
+              boxShadow: isActive ? "0 0 0 4px rgba(0,102,204,0.15)" : "none",
+              transition: "all 0.25s",
+            }}>
+              {isComplete ? <Check size={14} /> : i + 1}
+            </div>
+            <span style={{
+              fontSize: "0.6875rem", fontWeight: isActive ? 700 : 400,
+              color: isComplete || isActive ? "#0066CC" : "#94a3b8",
+              whiteSpace: "nowrap", transition: "color 0.25s",
+            }}>
+              {label}
+            </span>
+          </div>,
+          i < 2 && <div key={`line-${i}`} style={{
+            flex: 1, height: 2, marginTop: 14,
+            background: isComplete ? "#0066CC" : "#e2e8f0",
+            transition: "background 0.25s",
+          }} />,
+        ];
+      })}
+    </div>
+  );
+}
 
 function InlineAuth() {
   const { signIn, isLoaded: siLoaded, setActive: siSetActive } = useSignIn();
@@ -73,47 +153,131 @@ function InlineAuth() {
 
   const [tab, setTab]                       = useState<AuthTab>("signup");
   const [step, setStep]                     = useState<AuthStep>("form");
+  const [wizardStep, setWizardStep]         = useState(0); // 0=Your Info, 1=Address, 2=Account
+  // Clerk fields
   const [firstName, setFirstName]           = useState("");
+  const [lastName, setLastName]             = useState("");
+  const [phoneNumber, setPhoneNumber]       = useState("");
   const [email, setEmail]                   = useState("");
   const [password, setPassword]             = useState("");
   const [confirmPwd, setConfirmPwd]         = useState("");
   const [showPwd, setShowPwd]               = useState(false);
   const [verifyCode, setVerifyCode]         = useState("");
+  // Careington fields
+  const [dateOfBirth, setDateOfBirth]       = useState("");
+  const [gender, setGender]                 = useState("");
+  const [addressLine1, setAddressLine1]     = useState("");
+  const [addressLine2, setAddressLine2]     = useState("");
+  const [city, setCity]                     = useState("");
+  const [state, setState]                   = useState("");
+  const [postalCode, setPostalCode]         = useState("");
+  // UX state
+  const [touched, setTouched]               = useState<Record<string, boolean>>({});
   const [error, setError]                   = useState("");
   const [isLoading, setIsLoading]           = useState(false);
   const [oauthLoading, setOauthLoading]     = useState<string | null>(null);
 
-  useEffect(() => { setError(""); setStep("form"); }, [tab]);
+  useEffect(() => { setError(""); setStep("form"); setTouched({}); setWizardStep(0); }, [tab]);
 
+  const touch = (field: string) => setTouched(prev => ({ ...prev, [field]: true }));
   const busy = isLoading || !!oauthLoading;
-  const isLoaded = tab === "signin" ? siLoaded : suLoaded;
 
-  const inputStyle: React.CSSProperties = {
-    width: "100%", border: "1px solid #e2e8f0", borderRadius: "10px",
-    fontFamily: "inherit", fontSize: "0.9375rem", transition: "all 0.2s",
-    backgroundColor: "#f8fafc", padding: "0.7rem 1rem 0.7rem 2.625rem",
+  // Per-field errors (only shown after the field has been touched)
+  const fe = {
+    lastName:   touched.lastName   && !lastName.trim()                                    ? "Last name is required" : "",
+    phone:      touched.phone      && phoneNumber.length > 0 && phoneNumber.replace(/\D/g, "").length < 10 ? "Enter a valid 10-digit number" : "",
+    dob:        touched.dob        && dateOfBirth.replace(/\D/g, "").length < 8           ? "Enter a complete date (MM/DD/YYYY)" : "",
+    address1:   touched.address1   && !addressLine1.trim()                                ? "Street address is required" : "",
+    city:       touched.city       && !city.trim()                                        ? "City is required" : "",
+    state:      touched.state      && !state                                              ? "Select a state" : "",
+    zip:        touched.zip        && !/^\d{5}$/.test(postalCode)                        ? "Enter a 5-digit ZIP" : "",
+    email:      touched.email      && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)          ? "Enter a valid email" : "",
+    password:   touched.password   && password.length > 0 && password.length < 8         ? "Must be at least 8 characters" : "",
+    confirmPwd: touched.confirmPwd && confirmPwd.length > 0 && password !== confirmPwd   ? "Passwords don't match" : "",
   };
-  const onFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+
+  // Password strength (0=none, 1=too short, 2=weak, 3=fair, 4=strong)
+  const pwdStrength = !password ? 0
+    : password.length < 8 ? 1
+    : password.length >= 12 && /[A-Z]/.test(password) && /\d/.test(password) && /[^a-zA-Z0-9]/.test(password) ? 4
+    : password.length >= 8  && (/[A-Z]/.test(password) || /\d/.test(password)) ? 3
+    : 2;
+  const strengthMeta = [
+    { label: "", color: "#e2e8f0" },
+    { label: "Too short", color: "#ef4444" },
+    { label: "Weak", color: "#f97316" },
+    { label: "Fair", color: "#eab308" },
+    { label: "Strong", color: "#22c55e" },
+  ];
+
+  // Dynamic border color for a field
+  const border = (field: string, value: string, errorMsg: string) => {
+    if (!touched[field]) return "#e2e8f0";
+    if (errorMsg) return "#ef4444";
+    return value ? "#22c55e" : "#e2e8f0";
+  };
+
+  const baseInput: React.CSSProperties = {
+    width: "100%", borderRadius: "10px", fontFamily: "inherit",
+    fontSize: "0.9375rem", transition: "border-color 0.2s, background-color 0.2s, box-shadow 0.2s",
+    backgroundColor: "#f8fafc", outline: "none",
+  };
+  const inp = (field: string, value: string, errorMsg: string, hasIcon = false): React.CSSProperties => ({
+    ...baseInput,
+    border: `1px solid ${border(field, value, errorMsg)}`,
+    padding: `0.7rem 1rem 0.7rem ${hasIcon ? "2.625rem" : "1rem"}`,
+  });
+
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
     e.currentTarget.style.borderColor = "#0066CC";
     e.currentTarget.style.backgroundColor = "#fff";
+    e.currentTarget.style.boxShadow = "0 0 0 3px rgba(0,102,204,0.10)";
   };
-  const onBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.currentTarget.style.borderColor = "#e2e8f0";
-    e.currentTarget.style.backgroundColor = "#f8fafc";
+  const handleBlur = (field: string, value: string, errorMsg: string) =>
+    (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
+      touch(field);
+      const hasError = errorMsg || (field === "confirmPwd" && value !== password);
+      e.currentTarget.style.borderColor = !value ? "#e2e8f0" : hasError ? "#ef4444" : "#22c55e";
+      e.currentTarget.style.backgroundColor = "#f8fafc";
+      e.currentTarget.style.boxShadow = "none";
+    };
+
+  // Format phone: (XXX) XXX-XXXX
+  const formatPhone = (raw: string) => {
+    const d = raw.replace(/\D/g, "").slice(0, 10);
+    if (d.length <= 3) return d;
+    if (d.length <= 6) return `(${d.slice(0, 3)}) ${d.slice(3)}`;
+    return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+  };
+
+  // Format DOB mask: MM/DD/YYYY
+  const formatDob = (raw: string) => {
+    const d = raw.replace(/\D/g, "").slice(0, 8);
+    if (d.length > 4) return d.slice(0, 2) + "/" + d.slice(2, 4) + "/" + d.slice(4);
+    if (d.length > 2) return d.slice(0, 2) + "/" + d.slice(2);
+    return d;
+  };
+
+  const saveCareingtonProfile = () => {
+    sessionStorage.setItem("careington_profile", JSON.stringify({
+      dateOfBirth,
+      gender,
+      address: {
+        line1: addressLine1,
+        ...(addressLine2 && { line2: addressLine2 }),
+        city, state, postalCode, country: "US",
+      },
+    }));
   };
 
   const handleOAuth = async (strategy: "oauth_apple" | "oauth_google" | "oauth_facebook") => {
-    if (!isLoaded) return;
+    if (!(tab === "signin" ? siLoaded : suLoaded)) return;
     setOauthLoading(strategy);
     try {
       const fn = tab === "signin"
         ? signIn!.authenticateWithRedirect
         : signUp!.authenticateWithRedirect;
-      await fn({
-        strategy,
-        redirectUrl: "/health/sso-callback",
-        redirectUrlComplete: "/health/checkout",
-      });
+      await fn({ strategy, redirectUrl: "/health/sso-callback", redirectUrlComplete: "/health/checkout" });
     } catch (err: any) {
       setError(err?.errors?.[0]?.message || "OAuth failed.");
       setOauthLoading(null);
@@ -139,18 +303,45 @@ function InlineAuth() {
     }
   };
 
+  // Advance wizard step with per-step validation
+  const handleNextStep = () => {
+    setError("");
+    if (wizardStep === 0) {
+      setTouched(prev => ({ ...prev, lastName: true, phone: true, dob: true }));
+      if (!lastName.trim())                                                                          { setError("Last name is required."); return; }
+      if (phoneNumber.length > 0 && phoneNumber.replace(/\D/g, "").length < 10)                     { setError("Enter a complete 10-digit phone number or leave it blank."); return; }
+      if (dateOfBirth.replace(/\D/g, "").length < 8)                                                { setError("A complete date of birth is required."); return; }
+      setWizardStep(1);
+    } else if (wizardStep === 1) {
+      setTouched(prev => ({ ...prev, address1: true, city: true, state: true, zip: true }));
+      if (!addressLine1.trim())                          { setError("Street address is required."); return; }
+      if (!city.trim())                                  { setError("City is required."); return; }
+      if (!state)                                        { setError("State is required."); return; }
+      if (!/^\d{5}$/.test(postalCode))                  { setError("A valid 5-digit ZIP code is required."); return; }
+      setWizardStep(2);
+    }
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (password !== confirmPwd) { setError("Passwords do not match."); return; }
-    if (password.length < 8)    { setError("Password must be at least 8 characters."); return; }
+    // Touch step-2 fields to reveal inline errors
+    setTouched(prev => ({ ...prev, email: true, password: true, confirmPwd: true }));
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))         { setError("Enter a valid email address."); return; }
+    if (password.length < 8)                                { setError("Password must be at least 8 characters."); return; }
+    if (password !== confirmPwd)                            { setError("Passwords do not match."); return; }
     if (!suLoaded) return;
     setIsLoading(true);
     try {
-      const params: Record<string, string> = { emailAddress: email, password };
-      if (firstName) params.firstName = firstName;
-      const result = await signUp!.create(params);
+      const result = await signUp!.create({
+        emailAddress: email,
+        password,
+        firstName: firstName || undefined,
+        lastName,
+        ...(phoneNumber.replace(/\D/g, "").length === 10 && { phoneNumber: `+1${phoneNumber.replace(/\D/g, "")}` }),
+      } as any);
       if (result.status === "complete") {
+        saveCareingtonProfile();
         await suSetActive!({ session: result.createdSessionId });
       } else if (result.unverifiedFields?.includes("email_address")) {
         await signUp!.prepareEmailAddressVerification({ strategy: "email_code" });
@@ -159,7 +350,7 @@ function InlineAuth() {
         setError("Account creation requires additional steps.");
       }
     } catch (err: any) {
-      setError(err?.errors?.[0]?.message || "Sign-up failed.");
+      setError(err?.errors?.[0]?.longMessage ?? err?.errors?.[0]?.message ?? "Sign-up failed.");
     } finally {
       setIsLoading(false);
     }
@@ -172,26 +363,41 @@ function InlineAuth() {
     try {
       const result = await signUp!.attemptEmailAddressVerification({ code: verifyCode });
       if (result.status === "complete") {
+        saveCareingtonProfile();
         await suSetActive!({ session: result.createdSessionId });
       } else {
-        setError("Verification failed. Check your code.");
+        const missing = (result as any).missingFields ?? [];
+        setStep("form");
+        setVerifyCode("");
+        setError(
+          missing.length > 0
+            ? `Account setup incomplete. Missing: ${missing.join(", ")}. Please try again.`
+            : "Email verified, but account setup couldn't complete. Please try again."
+        );
       }
     } catch (err: any) {
-      setError(err?.errors?.[0]?.message || "Invalid code.");
+      setError(err?.errors?.[0]?.longMessage ?? err?.errors?.[0]?.message ?? "Invalid verification code.");
     } finally {
       setIsLoading(false);
     }
   };
 
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  // (Field, IconField, StepIndicator are module-level components above InlineAuth)
   const oauthButtons = [
-    { strategy: "oauth_apple"    as const, icon: <AppleIcon />,    bg: "#000",    color: "#fff",    border: "none",                title: "Apple"    },
-    { strategy: "oauth_facebook" as const, icon: <FacebookIcon />, bg: "#1877F2", color: "#fff",    border: "none",                title: "Facebook" },
+    { strategy: "oauth_apple"    as const, icon: <AppleIcon />,    bg: "#000",    color: "#fff",    border: "none",              title: "Apple"    },
+    { strategy: "oauth_facebook" as const, icon: <FacebookIcon />, bg: "#1877F2", color: "#fff",    border: "none",              title: "Facebook" },
     { strategy: "oauth_google"   as const, icon: <GoogleIcon />,   bg: "#fff",    color: "#374151", border: "1px solid #d1d5db", title: "Google"   },
   ] as const;
 
+  // Per-step submit-button validity
+  const step0Valid = !!lastName.trim() && (phoneNumber.length === 0 || phoneNumber.replace(/\D/g, "").length === 10) && dateOfBirth.replace(/\D/g, "").length === 8;
+  const step1Valid = !!addressLine1.trim() && !!city.trim() && !!state && /^\d{5}$/.test(postalCode);
+  const step2Valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && password.length >= 8 && password === confirmPwd;
+
   return (
     <div>
-      {/* tabs */}
+      {/* ── Tabs ── */}
       <div style={{ display: "flex", borderRadius: "10px", background: "#f1f5f9", padding: "4px", marginBottom: "1.25rem" }}>
         {(["signup", "signin"] as AuthTab[]).map((t) => (
           <button key={t} type="button" onClick={() => setTab(t)}
@@ -204,6 +410,7 @@ function InlineAuth() {
         ))}
       </div>
 
+      {/* ── Global error ── */}
       {error && (
         <div style={{ background: "#fee2e2", border: "1px solid #fecaca", borderRadius: "8px", padding: "0.75rem 1rem", marginBottom: "1rem", display: "flex", gap: "0.625rem", alignItems: "flex-start" }}>
           <AlertCircle size={16} color="#991b1b" style={{ marginTop: "2px", flexShrink: 0 }} />
@@ -214,108 +421,272 @@ function InlineAuth() {
       {step === "verify" ? (
         /* ── Email verification ── */
         <form onSubmit={handleVerify} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          <p style={{ color: "#475569", fontSize: "0.9rem", margin: 0 }}>Enter the 6-digit code sent to <strong>{email}</strong>.</p>
+          <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: "10px", padding: "1rem", display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
+            <Mail size={18} color="#0284c7" style={{ marginTop: "1px", flexShrink: 0 }} />
+            <p style={{ color: "#0369a1", margin: 0, fontSize: "0.9rem", lineHeight: 1.5 }}>
+              We sent a 6-digit code to <strong>{email}</strong>. Check your inbox and enter it below.
+            </p>
+          </div>
           <input type="text" value={verifyCode}
             onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-            placeholder="123456" maxLength={6} disabled={isLoading} required
-            style={{ border: "1px solid #e2e8f0", borderRadius: "10px", padding: "0.7rem", fontFamily: "monospace", fontSize: "1.375rem", letterSpacing: "0.4em", textAlign: "center", backgroundColor: "#f8fafc", width: "100%" }}
-            onFocus={(e) => { e.currentTarget.style.borderColor = "#0066CC"; e.currentTarget.style.backgroundColor = "#fff"; }}
-            onBlur={(e) => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.backgroundColor = "#f8fafc"; }}
+            placeholder="_ _ _ _ _ _" maxLength={6} disabled={isLoading} required
+            style={{ border: "1px solid #e2e8f0", borderRadius: "12px", padding: "1rem", fontFamily: "monospace", fontSize: "1.75rem", letterSpacing: "0.5em", textAlign: "center", backgroundColor: "#f8fafc", width: "100%", outline: "none", transition: "border-color 0.2s" }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = "#0066CC"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(0,102,204,0.10)"; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.boxShadow = "none"; }}
           />
           <button type="submit" disabled={isLoading || verifyCode.length < 6}
-            style={{ padding: "0.75rem", background: isLoading || verifyCode.length < 6 ? "#cbd5e1" : "#0066CC", color: "#fff", border: "none", borderRadius: "10px", fontWeight: 600, cursor: isLoading ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
-            {isLoading ? <><Loader size={16} style={{ animation: "spin 1s linear infinite" }} /> Verifying...</> : "Verify & Continue"}
+            style={{ padding: "0.8125rem", background: isLoading || verifyCode.length < 6 ? "#cbd5e1" : "#0066CC", color: "#fff", border: "none", borderRadius: "10px", fontWeight: 600, fontSize: "1rem", cursor: isLoading ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
+            {isLoading ? <><Loader size={16} style={{ animation: "spin 1s linear infinite" }} /> Verifying…</> : "Verify & Continue →"}
           </button>
           <button type="button" onClick={() => { setStep("form"); setError(""); setVerifyCode(""); }}
             style={{ background: "none", border: "none", color: "#64748b", fontSize: "0.8125rem", cursor: "pointer", textDecoration: "underline" }}>
-            ← Back
+            ← Use a different email
           </button>
         </form>
       ) : (
         <>
-          {/* ── OAuth row ── */}
+          {/* ── OAuth buttons (shared for both tabs) ── */}
           <div style={{ display: "flex", gap: "0.625rem", marginBottom: "1rem" }}>
-            {oauthButtons.map(({ strategy, icon, bg, color, border, title }) => (
+            {oauthButtons.map(({ strategy, icon, bg, color, border: btnBorder, title }) => (
               <button key={strategy} type="button" title={`Continue with ${title}`}
                 onClick={() => handleOAuth(strategy)} disabled={busy}
-                style={{ flex: 1, padding: "0.5rem", borderRadius: "8px", background: bg, color, border, cursor: busy ? "wait" : "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center",
+                style={{ flex: 1, padding: "0.5625rem", borderRadius: "8px", background: bg, color, border: btnBorder,
+                  cursor: busy ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                   opacity: oauthLoading && oauthLoading !== strategy ? 0.4 : 1,
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.12)", transition: "opacity 0.2s, transform 0.1s" }}
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.10)", transition: "opacity 0.2s, transform 0.15s" }}
                 onMouseEnter={(e) => { if (!busy) e.currentTarget.style.transform = "translateY(-1px)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}>
-                {oauthLoading === strategy
-                  ? <Loader size={16} style={{ animation: "spin 1s linear infinite" }} />
-                  : icon}
+                {oauthLoading === strategy ? <Loader size={16} style={{ animation: "spin 1s linear infinite" }} /> : icon}
               </button>
             ))}
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.25rem" }}>
             <div style={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
             <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>or continue with email</span>
             <div style={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
           </div>
 
-          {/* ── Form ── */}
-          <form onSubmit={tab === "signin" ? handleSignIn : handleSignUp}
-            style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+          {/* ── Sign-up wizard / Sign-in form ── */}
+          {tab === "signup" ? (
+            <>
+              <StepIndicator wizardStep={wizardStep} />
+              <form onSubmit={handleSignUp} style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
 
-            {tab === "signup" && (
-              <div style={{ position: "relative" }}>
-                <UserPlus size={16} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none" }} />
-                <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)}
-                  placeholder="First name (optional)" disabled={busy} style={inputStyle} onFocus={onFocus} onBlur={onBlur} />
-              </div>
-            )}
+                {/* Step 0 — Your Information */}
+                {wizardStep === 0 && (
+                  <>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.625rem" }}>
+                      <Field label="First Name" optional>
+                        <IconField icon={<User size={15} />}>
+                          <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)}
+                            placeholder="e.g. Jamie" disabled={busy} autoComplete="given-name"
+                            style={inp("firstName", firstName, "")} onFocus={handleFocus}
+                            onBlur={handleBlur("firstName", firstName, "")} />
+                        </IconField>
+                      </Field>
+                      <Field label="Last Name" error={fe.lastName}>
+                        <IconField icon={<User size={15} />}>
+                          <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)}
+                            placeholder="e.g. Smith" disabled={busy} autoComplete="family-name"
+                            style={inp("lastName", lastName, fe.lastName)} onFocus={handleFocus}
+                            onBlur={handleBlur("lastName", lastName, fe.lastName)} />
+                        </IconField>
+                      </Field>
+                    </div>
 
-            <div style={{ position: "relative" }}>
-              <Mail size={16} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none" }} />
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email address" disabled={busy} required autoComplete="email"
-                style={inputStyle} onFocus={onFocus} onBlur={onBlur} />
-            </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.625rem" }}>
+                      <Field label="Date of Birth" error={fe.dob}>
+                        <input type="text" inputMode="numeric" value={dateOfBirth}
+                          onChange={(e) => setDateOfBirth(formatDob(e.target.value))}
+                          placeholder="MM/DD/YYYY" disabled={busy} maxLength={10} autoComplete="bday"
+                          style={inp("dob", dateOfBirth, fe.dob)} onFocus={handleFocus}
+                          onBlur={handleBlur("dob", dateOfBirth, fe.dob)} />
+                      </Field>
+                      <Field label="Gender" optional>
+                        <select value={gender} onChange={(e) => setGender(e.target.value)}
+                          disabled={busy}
+                          style={{ ...inp("gender", gender, ""), appearance: "none" as const, cursor: "pointer" }}
+                          onFocus={handleFocus} onBlur={handleBlur("gender", gender, "")}>
+                          <option value="">Prefer not to say</option>
+                          <option value="M">Male</option>
+                          <option value="F">Female</option>
+                        </select>
+                      </Field>
+                    </div>
 
-            <div style={{ position: "relative" }}>
-              <Lock size={16} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none" }} />
-              <input type={showPwd ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)}
-                placeholder={tab === "signup" ? "Create password (min. 8 chars)" : "Password"}
-                disabled={busy} required autoComplete={tab === "signup" ? "new-password" : "current-password"}
-                style={{ ...inputStyle, paddingRight: "2.625rem" }} onFocus={onFocus} onBlur={onBlur} />
-              <button type="button" onClick={() => setShowPwd(s => !s)}
-                style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: "2px", display: "flex" }}>
-                {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
+                    <Field label="Phone Number" error={fe.phone} optional>
+                      <IconField icon={<Phone size={15} />}>
+                        <input type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(formatPhone(e.target.value))}
+                          placeholder="(555) 555-5555" disabled={busy} autoComplete="tel-national"
+                          style={inp("phone", phoneNumber, fe.phone, true)} onFocus={handleFocus}
+                          onBlur={handleBlur("phone", phoneNumber, fe.phone)} />
+                      </IconField>
+                    </Field>
+                  </>
+                )}
 
-            {tab === "signup" && (
-              <div style={{ position: "relative" }}>
-                <Lock size={16} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none" }} />
-                <input type={showPwd ? "text" : "password"} value={confirmPwd} onChange={(e) => setConfirmPwd(e.target.value)}
-                  placeholder="Confirm password" disabled={busy} required autoComplete="new-password"
-                  style={{ ...inputStyle, borderColor: confirmPwd && password === confirmPwd ? "#22c55e" : "#e2e8f0" }}
-                  onFocus={onFocus}
-                  onBlur={(e) => { e.currentTarget.style.borderColor = confirmPwd && password === confirmPwd ? "#22c55e" : "#e2e8f0"; e.currentTarget.style.backgroundColor = "#f8fafc"; }} />
-              </div>
-            )}
+                {/* Step 1 — Home Address */}
+                {wizardStep === 1 && (
+                  <>
+                    <Field label="Street Address" error={fe.address1}>
+                      <IconField icon={<MapPin size={15} />}>
+                        <input type="text" value={addressLine1} onChange={(e) => setAddressLine1(e.target.value)}
+                          placeholder="123 Main St" disabled={busy} autoComplete="address-line1"
+                          style={inp("address1", addressLine1, fe.address1, true)} onFocus={handleFocus}
+                          onBlur={handleBlur("address1", addressLine1, fe.address1)} />
+                      </IconField>
+                    </Field>
 
-            {tab === "signin" && (
+                    <Field label="Apt / Suite / Unit" optional>
+                      <input type="text" value={addressLine2} onChange={(e) => setAddressLine2(e.target.value)}
+                        placeholder="Apt 4B" disabled={busy} autoComplete="address-line2"
+                        style={inp("address2", addressLine2, "")} onFocus={handleFocus}
+                        onBlur={handleBlur("address2", addressLine2, "")} />
+                    </Field>
+
+                    <Field label="City" error={fe.city}>
+                      <input type="text" value={city} onChange={(e) => setCity(e.target.value)}
+                        placeholder="Los Angeles" disabled={busy} autoComplete="address-level2"
+                        style={inp("city", city, fe.city)} onFocus={handleFocus}
+                        onBlur={handleBlur("city", city, fe.city)} />
+                    </Field>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 88px", gap: "0.625rem" }}>
+                      <Field label="State" error={fe.state}>
+                        <select value={state} onChange={(e) => setState(e.target.value)}
+                          disabled={busy}
+                          style={{ ...inp("state", state, fe.state), appearance: "none" as const, cursor: "pointer" }}
+                          onFocus={handleFocus} onBlur={handleBlur("state", state, fe.state)}>
+                          <option value="">Select…</option>
+                          {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </Field>
+                      <Field label="ZIP Code" error={fe.zip}>
+                        <input type="text" value={postalCode} onChange={(e) => setPostalCode(e.target.value.replace(/\D/g, "").slice(0, 5))}
+                          placeholder="90210" disabled={busy} maxLength={5} autoComplete="postal-code"
+                          style={inp("zip", postalCode, fe.zip)} onFocus={handleFocus}
+                          onBlur={handleBlur("zip", postalCode, fe.zip)} />
+                      </Field>
+                    </div>
+                  </>
+                )}
+
+                {/* Step 2 — Account */}
+                {wizardStep === 2 && (
+                  <>
+                    <Field label="Email Address" error={fe.email}>
+                      <IconField icon={<Mail size={15} />}>
+                        <input id="signup-email" name="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                          placeholder="you@example.com" disabled={busy} required autoComplete="email"
+                          style={inp("email", email, fe.email, true)} onFocus={handleFocus}
+                          onBlur={handleBlur("email", email, fe.email)} />
+                      </IconField>
+                    </Field>
+
+                    <Field label="Password" error={fe.password}>
+                      <IconField icon={<Lock size={15} />}>
+                        <input id="signup-password" name="password" type={showPwd ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)}
+                          placeholder="Create a password" disabled={busy} required autoComplete="new-password"
+                          style={{ ...inp("password", password, fe.password, true), paddingRight: "2.625rem" }}
+                          onFocus={handleFocus} onBlur={handleBlur("password", password, fe.password)} />
+                        <button type="button" onClick={() => setShowPwd(s => !s)}
+                          style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: "2px", display: "flex" }}>
+                          {showPwd ? <EyeOff size={15} /> : <Eye size={15} />}
+                        </button>
+                      </IconField>
+                      {password.length > 0 && (
+                        <div style={{ display: "flex", gap: "3px", alignItems: "center", marginTop: "0.25rem" }}>
+                          {[1,2,3,4].map((level) => (
+                            <div key={level} style={{ flex: 1, height: "3px", borderRadius: "2px", background: pwdStrength >= level ? strengthMeta[pwdStrength].color : "#e2e8f0", transition: "background 0.3s" }} />
+                          ))}
+                          <span style={{ fontSize: "0.6875rem", color: strengthMeta[pwdStrength].color, fontWeight: 600, marginLeft: "4px", minWidth: "50px" }}>
+                            {strengthMeta[pwdStrength].label}
+                          </span>
+                        </div>
+                      )}
+                    </Field>
+
+                    <Field label="Confirm Password" error={fe.confirmPwd}>
+                      <IconField icon={<Lock size={15} />}>
+                        <input id="signup-confirm-password" name="confirm-password" type={showPwd ? "text" : "password"} value={confirmPwd} onChange={(e) => setConfirmPwd(e.target.value)}
+                          placeholder="Re-enter your password" disabled={busy} required autoComplete="new-password"
+                          style={inp("confirmPwd", confirmPwd, fe.confirmPwd, true)}
+                          onFocus={handleFocus} onBlur={handleBlur("confirmPwd", confirmPwd, fe.confirmPwd)} />
+                      </IconField>
+                    </Field>
+
+                    <div id="clerk-captcha" />
+                  </>
+                )}
+
+                {/* Wizard navigation */}
+                <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.25rem" }}>
+                  {wizardStep > 0 && (
+                    <button type="button" onClick={() => { setWizardStep(s => s - 1); setError(""); }} disabled={busy}
+                      style={{ flex: "none", padding: "0.8125rem 1.25rem", background: "#f1f5f9", color: "#374151", border: "1px solid #e2e8f0", borderRadius: "10px", fontWeight: 600, fontSize: "0.9375rem", cursor: "pointer", transition: "background 0.15s" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "#e2e8f0"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "#f1f5f9"; }}>
+                      ← Back
+                    </button>
+                  )}
+                  {wizardStep < 2 ? (
+                    <button type="button" onClick={handleNextStep} disabled={busy}
+                      style={{ flex: 1, padding: "0.8125rem", background: "#0066CC", color: "#fff", border: "none", borderRadius: "10px", fontWeight: 600, fontSize: "0.9375rem", cursor: busy ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", transition: "background 0.2s" }}
+                      onMouseEnter={(e) => { if (!busy) e.currentTarget.style.background = "#0052a3"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "#0066CC"; }}>
+                      Next →
+                    </button>
+                  ) : (
+                    <button type="submit" disabled={busy || !step2Valid}
+                      style={{ flex: 1, padding: "0.8125rem", background: (!step2Valid || busy) ? "#cbd5e1" : "#0066CC", color: "#fff", border: "none", borderRadius: "10px", fontWeight: 600, fontSize: "0.9375rem", cursor: busy ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", transition: "background 0.2s" }}
+                      onMouseEnter={(e) => { if (!busy && step2Valid) e.currentTarget.style.background = "#0052a3"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = (!step2Valid || busy) ? "#cbd5e1" : "#0066CC"; }}>
+                      {isLoading ? <><Loader size={16} style={{ animation: "spin 1s linear infinite" }} /> Creating Account…</> : "Create Account & Continue"}
+                    </button>
+                  )}
+                </div>
+              </form>
+            </>
+          ) : (
+            /* ── Sign-in form ── */
+            <form onSubmit={handleSignIn} style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+              <Field label="Email Address" error={fe.email}>
+                <IconField icon={<Mail size={15} />}>
+                  <input id="signin-email" name="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com" disabled={busy} required autoComplete="email"
+                    style={inp("email", email, fe.email, true)} onFocus={handleFocus}
+                    onBlur={handleBlur("email", email, fe.email)} />
+                </IconField>
+              </Field>
+
+              <Field label="Password" error={fe.password}>
+                <IconField icon={<Lock size={15} />}>
+                  <input id="signin-password" name="password" type={showPwd ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Password" disabled={busy} required autoComplete="current-password"
+                    style={{ ...inp("password", password, fe.password, true), paddingRight: "2.625rem" }}
+                    onFocus={handleFocus} onBlur={handleBlur("password", password, fe.password)} />
+                  <button type="button" onClick={() => setShowPwd(s => !s)}
+                    style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: "2px", display: "flex" }}>
+                    {showPwd ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </IconField>
+              </Field>
+
               <div style={{ textAlign: "right", marginTop: "-0.375rem" }}>
                 <Link href="/health/forgot-password" style={{ color: "#0066CC", fontSize: "0.8125rem", textDecoration: "none" }}>
                   Forgot password?
                 </Link>
               </div>
-            )}
 
-            <button type="submit" disabled={busy || !email || !password || (tab === "signup" && !confirmPwd)}
-              style={{ padding: "0.75rem", background: busy || !email || !password ? "#cbd5e1" : "#0066CC", color: "#fff", border: "none", borderRadius: "10px", fontWeight: 600, fontSize: "0.9375rem", cursor: busy ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", transition: "background 0.2s" }}
-              onMouseEnter={(e) => { if (!busy && email && password) e.currentTarget.style.background = "#0052a3"; }}
-              onMouseLeave={(e) => { if (!busy && email && password) e.currentTarget.style.background = "#0066CC"; }}>
-              {isLoading
-                ? <><Loader size={16} style={{ animation: "spin 1s linear infinite" }} /> {tab === "signin" ? "Signing In..." : "Creating Account..."}</>
-                : tab === "signin" ? "Sign In" : "Create Account & Continue"}
-            </button>
-          </form>
+              <button type="submit" disabled={busy || !email || !password}
+                style={{ marginTop: "0.25rem", padding: "0.8125rem", background: (!email || !password || busy) ? "#cbd5e1" : "#0066CC", color: "#fff", border: "none", borderRadius: "10px", fontWeight: 600, fontSize: "0.9375rem", cursor: busy ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", transition: "background 0.2s" }}
+                onMouseEnter={(e) => { if (!busy) e.currentTarget.style.background = "#0052a3"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = (!email || !password || busy) ? "#cbd5e1" : "#0066CC"; }}>
+                {isLoading ? <><Loader size={16} style={{ animation: "spin 1s linear infinite" }} /> Signing In…</> : "Sign In"}
+              </button>
+            </form>
+          )}
         </>
       )}
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>

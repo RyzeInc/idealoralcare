@@ -27,7 +27,7 @@ export function LogoMark({ size = "md", className, animate = false }: LogoMarkPr
   return (
     <div className={cn(sizes[size], "relative", className)}>
       <Image
-        src="/logo.png"
+        src="/logo192x192.png"
         alt="Ideal logo"
         width={sizePx}
         height={sizePx}

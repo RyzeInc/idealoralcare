@@ -83,7 +83,7 @@ export default function DashboardTabs({
             flexShrink: 0,
           }}
         >
-          <img src="/favicon.svg" alt="Ideal Health" style={{ width: '100%', height: '100%' }} />
+          <img src="/logo192x192.png" alt="Ideal Health" style={{ width: '100%', height: '100%' }} />
         </div>
         <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>Dashboard</h2>
       </div>

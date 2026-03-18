@@ -243,11 +243,19 @@ export const getOrCreateToothlensUser = action({
     // Authenticate with RyzeHealth
     const token = await authenticateRyzeHealth();
 
+    const resolvedEmail = args.email ?? identity.email;
+    // Toothlens API requires a non-empty name — fall back through available sources
+    const resolvedName =
+      args.name ??
+      identity.name ??
+      (resolvedEmail ? resolvedEmail.split("@")[0] : undefined) ??
+      "Member";
+
     // Create detection user
     const { uid } = await createDetectionUser(token, {
       company,
-      name: args.name,
-      email: args.email ?? identity.email,
+      name: resolvedName,
+      email: resolvedEmail,
       age: args.age,
       gender: args.gender,
       phone_number: args.phone,
@@ -262,8 +270,8 @@ export const getOrCreateToothlensUser = action({
       clerkUserId: identity.clerkUserId,
       toothlensUid: uid,
       company,
-      name: args.name,
-      email: args.email ?? identity.email,
+      name: resolvedName,
+      email: resolvedEmail,
     });
 
     return {
