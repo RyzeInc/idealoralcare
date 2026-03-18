@@ -1,11 +1,13 @@
 'use client';
 
-import { Download, QrCode } from 'lucide-react';
+import { useState } from 'react';
+import { Download, RotateCcw } from 'lucide-react';
 
 /**
  * MEMBER ID CARD COMPONENT
- * 
- * Displays member ID card inline in dashboard with download option
+ *
+ * Physical membership card replica with front/back flip.
+ * Matches Careington-style card layout used by the provider network.
  */
 
 export interface MemberCardData {
@@ -14,6 +16,8 @@ export interface MemberCardData {
   planName: string;
   effectiveDate: string;
   barcode: string;
+  groupCode?: string;
+  subscriberId?: string;
   networks: {
     careington: { name: string; memberUrl: string };
     dialCare: { name: string; memberUrl: string };
@@ -29,98 +33,321 @@ interface MemberIdCardProps {
 }
 
 export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps) {
+  const [flipped, setFlipped] = useState(false);
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-slate-900">Your Member ID Card</h3>
-        {onDownload && (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      {/* Top row: title + actions */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h3 style={{ fontSize: '1.0625rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+          Your Member ID Card
+        </h3>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button
-            onClick={onDownload}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+            onClick={() => setFlipped(!flipped)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.375rem',
+              padding: '0.375rem 0.75rem', background: '#f1f5f9', color: '#475569',
+              border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer',
+              fontSize: '0.8125rem', fontWeight: 500,
+            }}
           >
-            <Download size={16} />
-            Download PDF
+            <RotateCcw size={14} />
+            {flipped ? 'Front' : 'Back'}
           </button>
-        )}
+          {onDownload && (
+            <button
+              onClick={onDownload}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.375rem',
+                padding: '0.375rem 0.75rem', background: '#eff6ff', color: '#0066CC',
+                border: '1px solid #bfdbfe', borderRadius: '8px', cursor: 'pointer',
+                fontSize: '0.8125rem', fontWeight: 600,
+              }}
+            >
+              <Download size={14} />
+              Download PDF
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Card Display */}
-      <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-lg p-8 shadow-lg"
+      {/* Card with flip */}
+      <div
         style={{
-          backgroundImage: 'linear-gradient(135deg, #0D47A1 0%, #1565C0 100%)',
+          perspective: '1000px',
+          cursor: 'pointer',
         }}
+        onClick={() => setFlipped(!flipped)}
       >
-        {/* Card Header */}
-        <div className="mb-6 pb-4 border-b border-white border-opacity-20">
-          <h4 className="text-xl font-bold">Ideal Health Oral Care</h4>
-          <p className="text-white text-opacity-80 text-sm">Member ID Card</p>
-        </div>
+        <div
+          style={{
+            position: 'relative',
+            width: '100%',
+            aspectRatio: '1.586',
+            transition: 'transform 0.6s',
+            transformStyle: 'preserve-3d',
+            transform: flipped ? 'rotateY(180deg)' : 'rotateY(0)',
+          }}
+        >
+          {/* ── FRONT ──────────────────────────────────────────────── */}
+          <div
+            style={{
+              position: 'absolute', inset: 0,
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+              background: '#fff',
+              borderRadius: '14px',
+              border: '1px solid #cbd5e1',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+              padding: '1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Top decoration */}
+            <div
+              style={{
+                position: 'absolute', top: 0, left: 0, right: 0, height: '4px',
+                background: 'linear-gradient(90deg, #0066CC, #14b8a6)',
+              }}
+            />
 
-        {/* Card Content Grid */}
-        <div className="grid grid-cols-2 gap-6 mb-6">
-          <div>
-            <p className="text-xs text-white text-opacity-70 uppercase tracking-wider">Member Name</p>
-            <p className="text-lg font-bold mt-1">{cardData.memberName}</p>
+            {/* Header row */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/ideal-oral-health-logo.png"
+                  alt="Ideal Oral Health"
+                  style={{ height: '36px', width: 'auto', objectFit: 'contain' }}
+                />
+                <div>
+                  <div style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>
+                    Ideal Health Oral Care
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
+                    Member ID Card
+                  </div>
+                </div>
+              </div>
+              <div style={{ fontSize: '0.6875rem', color: '#94a3b8', textAlign: 'right' }}>
+                <div>www.getidealoh.com</div>
+                <div>{cardData.supportPhone}</div>
+              </div>
+            </div>
+
+            {/* Fields grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem 1.5rem', marginTop: '0.25rem' }}>
+              <div>
+                <div style={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  Member
+                </div>
+                <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', marginTop: '1px' }}>
+                  {cardData.memberName}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  Member ID
+                </div>
+                <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', marginTop: '1px' }}>
+                  {cardData.memberId}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  Group Code
+                </div>
+                <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', marginTop: '1px' }}>
+                  {cardData.groupCode || 'IOH-DTC'}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  Effective
+                </div>
+                <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', marginTop: '1px' }}>
+                  {cardData.effectiveDate}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div
+              style={{
+                borderTop: '1px solid #e2e8f0',
+                paddingTop: '0.625rem',
+                marginTop: '0.25rem',
+                textAlign: 'center',
+              }}
+            >
+              <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#0f172a', letterSpacing: '0.04em' }}>
+                THIS IS NOT INSURANCE.
+              </div>
+              <div style={{ fontSize: '0.625rem', color: '#94a3b8', marginTop: '2px' }}>
+                This is a discount program. Savings vary by provider.
+              </div>
+            </div>
           </div>
 
-          <div>
-            <p className="text-xs text-white text-opacity-70 uppercase tracking-wider">Member ID</p>
-            <p className="text-lg font-bold font-mono mt-1">{cardData.memberId}</p>
-          </div>
+          {/* ── BACK ───────────────────────────────────────────────── */}
+          <div
+            style={{
+              position: 'absolute', inset: 0,
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+              transform: 'rotateY(180deg)',
+              background: '#f8fafc',
+              borderRadius: '14px',
+              border: '1px solid #cbd5e1',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+              padding: '1.25rem 1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Top decoration */}
+            <div
+              style={{
+                position: 'absolute', top: 0, left: 0, right: 0, height: '4px',
+                background: 'linear-gradient(90deg, #14b8a6, #0066CC)',
+              }}
+            />
 
-          <div>
-            <p className="text-xs text-white text-opacity-70 uppercase tracking-wider">Plan</p>
-            <p className="text-lg font-bold mt-1">{cardData.planName}</p>
-          </div>
+            {/* Networks */}
+            <div>
+              <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.625rem' }}>
+                Networks &amp; Services
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>
+                    Dental — Careington — POS
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{cardData.supportPhone}</span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#475569' }}>
+                  {cardData.networks.careington.memberUrl.replace('https://', '')}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
+                  <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>
+                    Teledentistry — DialCare
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(800) 290-0523</span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#475569' }}>
+                  {cardData.networks.dialCare.memberUrl.replace('https://', '')}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
+                  <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>
+                    AI Oral Scanning — ToothlensAI
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#475569' }}>
+                  {cardData.networks.toothlens.memberUrl.replace('https://', '')}
+                </div>
+              </div>
+            </div>
 
-          <div>
-            <p className="text-xs text-white text-opacity-70 uppercase tracking-wider">Effective Date</p>
-            <p className="text-lg font-bold mt-1">{cardData.effectiveDate}</p>
-          </div>
-        </div>
+            {/* Member ID barcode placeholder */}
+            {cardData.barcode && (
+              <div style={{ textAlign: 'center', marginTop: '0.25rem' }}>
+                <div style={{ fontSize: '0.6875rem', fontFamily: 'monospace', color: '#94a3b8', letterSpacing: '0.15em' }}>
+                  {cardData.barcode}
+                </div>
+              </div>
+            )}
 
-        {/* Card Footer */}
-        <div className="pt-4 border-t border-white border-opacity-20">
-          <p className="text-xs text-white text-opacity-70 mb-2">MEMBER NETWORKS & SERVICES</p>
-          <p className="text-xs leading-relaxed text-white">
-            {cardData.networks.careington.name} • {cardData.networks.dialCare.name} • AI Oral Scanning
-          </p>
-          <p className="text-xs text-white text-opacity-60 mt-3">
-            {cardData.supportPhone} • {cardData.supportEmail}
-          </p>
+            {/* Footer */}
+            <div
+              style={{
+                borderTop: '1px solid #e2e8f0',
+                paddingTop: '0.625rem',
+                marginTop: '0.25rem',
+                textAlign: 'center',
+              }}
+            >
+              <div style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#0f172a', letterSpacing: '0.02em' }}>
+                THIS IS NOT INSURANCE. IT IS A DISCOUNT PROGRAM.
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Network Links */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {/* Tap hint */}
+      <p style={{ textAlign: 'center', fontSize: '0.75rem', color: '#94a3b8', margin: '-0.25rem 0 0' }}>
+        Tap card to flip
+      </p>
+
+      {/* Network quick links */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
         <a
           href={cardData.networks.careington.memberUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+          style={{
+            padding: '1rem',
+            border: '1px solid #e2e8f0',
+            borderRadius: '12px',
+            textDecoration: 'none',
+            background: '#fff',
+            transition: 'border-color 0.2s',
+          }}
         >
-          <p className="font-semibold text-slate-900 text-sm">{cardData.networks.careington.name}</p>
-          <p className="text-slate-600 text-xs mt-1">Dental discounts & network access</p>
+          <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.875rem', lineHeight: 1.3 }}>
+            {cardData.networks.careington.name}
+          </div>
+          <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.375rem', lineHeight: 1.4 }}>
+            Dental discounts &amp; network access
+          </div>
         </a>
 
         <a
           href={cardData.networks.dialCare.memberUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+          style={{
+            padding: '1rem',
+            border: '1px solid #e2e8f0',
+            borderRadius: '12px',
+            textDecoration: 'none',
+            background: '#fff',
+            transition: 'border-color 0.2s',
+          }}
         >
-          <p className="font-semibold text-slate-900 text-sm">{cardData.networks.dialCare.name}</p>
-          <p className="text-slate-600 text-xs mt-1">Teledentistry & consultations</p>
+          <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.875rem', lineHeight: 1.3 }}>
+            {cardData.networks.dialCare.name}
+          </div>
+          <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.375rem', lineHeight: 1.4 }}>
+            Teledentistry &amp; consultations
+          </div>
         </a>
 
         <a
           href={cardData.networks.toothlens.memberUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+          style={{
+            padding: '1rem',
+            border: '1px solid #e2e8f0',
+            borderRadius: '12px',
+            textDecoration: 'none',
+            background: '#fff',
+            transition: 'border-color 0.2s',
+          }}
         >
-          <p className="font-semibold text-slate-900 text-sm">AI Oral Scanning</p>
-          <p className="text-slate-600 text-xs mt-1">AI-powered smile analysis</p>
+          <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.875rem', lineHeight: 1.3 }}>
+            AI Oral Scanning
+          </div>
+          <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.375rem', lineHeight: 1.4 }}>
+            AI-powered smile analysis
+          </div>
         </a>
       </div>
     </div>

@@ -148,7 +148,7 @@ export default function ProviderSearchTab({ onClose }: ProviderSearchTabProps) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
       {/* ── Hero banner ───────────────────────────────────────────────── */}
       <div style={{
-        background: 'linear-gradient(135deg, #0055b3 0%, #0077e6 60%, #00a3ff 100%)',
+        background: 'linear-gradient(135deg, #D68910 0%, #F39C12 60%, #f5a42a 100%)',
         borderRadius: '16px 16px 0 0',
         padding: '2rem 2rem 1.75rem',
         color: '#fff',
@@ -264,10 +264,10 @@ export default function ProviderSearchTab({ onClose }: ProviderSearchTabProps) {
               style={{
                 display:'inline-flex', alignItems:'center', gap:'0.5rem',
                 padding:'0.75rem 2rem', borderRadius:'10px',
-                background: isLoadingData ? '#94a3b8' : 'linear-gradient(135deg, #0066CC, #0055b3)',
+                background: isLoadingData ? '#94a3b8' : 'linear-gradient(135deg, #F39C12, #D68910)',
                 color:'#fff', border:'none', cursor: isLoadingData ? 'not-allowed' : 'pointer',
                 fontSize:'0.9375rem', fontWeight:700, letterSpacing:'-0.01em',
-                boxShadow:'0 4px 14px rgba(0,102,204,0.3)',
+                boxShadow:'0 4px 14px rgba(243,156,18,0.3)',
                 whiteSpace:'nowrap',
               }}
             >
@@ -283,9 +283,9 @@ export default function ProviderSearchTab({ onClose }: ProviderSearchTabProps) {
         marginTop:'1rem', fontSize:'0.72rem', color:'#b0bec5', lineHeight:1.6, padding:'0 0.25rem',
       }}>
         <strong style={{ color:'#90a4ae' }}>THIS PLAN IS NOT INSURANCE</strong> and is not intended to replace health insurance. This plan does not meet the minimum creditable coverage requirements under M.G.L. c.111M and 956 CMR 5.00. This plan is not a Qualified Health Plan under the Affordable Care Act. The range of discounts will vary depending on the type of provider and service. The plan does not pay providers directly. Plan members must pay for all services but will receive a discount from participating providers. You may cancel within the first 30 days after effective date or receipt of membership materials (whichever is later) and receive a full refund, less a nominal processing fee. Discount Plan Organization and administrator: Careington International Corporation, 7400 Gaylord Parkway, Frisco, TX 75034; phone 800-441-0380. This plan is not available in Vermont or Washington.{' '}
-        <a href="https://www1.careington.com/help/privacy-statement/" target="_blank" rel="noopener noreferrer" style={{ color:'#0066CC' }}>Privacy</a>
+        <a href="https://www1.careington.com/help/privacy-statement/" target="_blank" rel="noopener noreferrer" style={{ color:'#D68910' }}>Privacy</a>
         {' · '}
-        <a href="https://www1.careington.com/help/terms-of-use" target="_blank" rel="noopener noreferrer" style={{ color:'#0066CC' }}>Terms</a>
+        <a href="https://www1.careington.com/help/terms-of-use" target="_blank" rel="noopener noreferrer" style={{ color:'#D68910' }}>Terms</a>
       </p>
     </div>
   );
@@ -297,7 +297,7 @@ function SectionLabel({ number, text, hint }: { number: number; text: string; hi
     <div style={{ display:'flex', alignItems:'center', gap:'0.625rem' }}>
       <span style={{
         width:'22px', height:'22px', borderRadius:'50%', flexShrink:0,
-        background:'linear-gradient(135deg, #0066CC, #0055b3)',
+        background:'linear-gradient(135deg, #F39C12, #D68910)',
         color:'#fff', display:'flex', alignItems:'center', justifyContent:'center',
         fontSize:'0.7rem', fontWeight:800,
       }}>{number}</span>
@@ -325,9 +325,9 @@ function PagBtn({ onClick, disabled, children }: {
       style={{
         display:'inline-flex', alignItems:'center', justifyContent:'center',
         width:'34px', height:'34px', borderRadius:'8px',
-        border:'1.5px solid', borderColor: disabled ? '#e2e8f0' : '#0066CC',
+        border:'1.5px solid', borderColor: disabled ? '#e2e8f0' : '#F39C12',
         background: disabled ? '#f8fafc' : '#fff',
-        color: disabled ? '#cbd5e1' : '#0066CC',
+        color: disabled ? '#cbd5e1' : '#D68910',
         cursor: disabled ? 'default' : 'pointer',
         fontSize:'0.75rem', fontWeight:600,
       }}
@@ -364,7 +364,7 @@ function ProviderSearchResults({ view, onBack }: { view: ShowResultsState; onBac
             display:'inline-flex', alignItems:'center', gap:'0.375rem',
             padding:'0.5rem 0.875rem', borderRadius:'8px',
             border:'1.5px solid #e2e8f0', background:'#fff',
-            color:'#0066CC', cursor:'pointer', fontSize:'0.875rem', fontWeight:600,
+            color:'#D68910', cursor:'pointer', fontSize:'0.875rem', fontWeight:600,
           }}
         >
           <ChevronLeft size={16} />
@@ -399,8 +399,8 @@ function ProviderSearchResults({ view, onBack }: { view: ShowResultsState; onBac
       <div style={{
         display:'flex', alignItems:'flex-start', gap:'0.625rem',
         padding:'0.75rem 1rem', borderRadius:'10px',
-        background:'#eff6ff', border:'1px solid #bfdbfe',
-        fontSize:'0.8rem', color:'#2563eb', lineHeight:1.5,
+        background:'#fff7ed', border:'1px solid #fed7aa',
+        fontSize:'0.8rem', color:'#c2590a', lineHeight:1.5,
       }}>
         <MapPin size={15} style={{ flexShrink:0, marginTop:'0.1rem' }} />
         <span>
@@ -429,8 +429,8 @@ function ProviderSearchResults({ view, onBack }: { view: ShowResultsState; onBac
             <PagBtn onClick={() => goTo(page - 1)} disabled={page === 1}><ChevronLeft size={14} /></PagBtn>
             <span style={{
               padding:'0 0.875rem', height:'34px', display:'inline-flex', alignItems:'center',
-              fontSize:'0.8rem', fontWeight:600, color:'#0066CC',
-              background:'#eff6ff', border:'1.5px solid #bfdbfe', borderRadius:'8px',
+              fontSize:'0.8rem', fontWeight:600, color:'#D68910',
+              background:'#fff7ed', border:'1.5px solid #fed7aa', borderRadius:'8px',
             }}>
               Page {page} of {totalPages}
             </span>
@@ -459,7 +459,7 @@ function ProviderCard({ provider }: { provider: Provider }) {
       background: '#fff',
       borderRadius: '12px',
       border: '1.5px solid #e2e8f0',
-      borderLeft: '4px solid #0066CC',
+      borderLeft: '4px solid #F39C12',
       padding: '1rem 1.25rem',
       display: 'grid',
       gridTemplateColumns: '1fr auto',
@@ -474,7 +474,7 @@ function ProviderCard({ provider }: { provider: Provider }) {
             target="_blank"
             rel="noopener noreferrer"
             style={{
-              fontSize: '0.9375rem', fontWeight: 700, color: '#0066CC',
+              fontSize: '0.9375rem', fontWeight: 700, color: '#D68910',
               textDecoration: 'none', lineHeight: 1.3,
             }}
           >
@@ -482,8 +482,8 @@ function ProviderCard({ provider }: { provider: Provider }) {
           </a>
           <span style={{
             padding:'0.15rem 0.55rem', borderRadius:'9999px',
-            background:'#f0f9ff', border:'1px solid #bae6fd',
-            fontSize:'0.7rem', fontWeight:600, color:'#0369a1', whiteSpace:'nowrap',
+            background:'#fff7ed', border:'1px solid #fed7aa',
+            fontSize:'0.7rem', fontWeight:600, color:'#c2590a', whiteSpace:'nowrap',
           }}>
             {provider.specialty}
           </span>
@@ -507,7 +507,7 @@ function ProviderCard({ provider }: { provider: Provider }) {
         <span style={{
           padding:'0.2rem 0.6rem', borderRadius:'9999px',
           background: inArea ? '#f0fdf4' : '#f8fafc',
-          border:`1px solid ${inArea ? '#bbf7d0' : '#e2e8f0'}`,
+            border:`1.5px solid ${inArea ? '#bbf7d0' : '#e2e8f0'}`,
           fontSize:'0.72rem', fontWeight:700,
           color: inArea ? '#15803d' : '#64748b',
           whiteSpace:'nowrap',
@@ -521,7 +521,7 @@ function ProviderCard({ provider }: { provider: Provider }) {
           style={{
             display:'inline-flex', alignItems:'center', gap:'0.35rem',
             padding:'0.4rem 0.75rem', borderRadius:'8px',
-            border:'1.5px solid #0066CC', color:'#0066CC',
+            border:'1.5px solid #F39C12', color:'#D68910',
             fontSize:'0.78rem', fontWeight:600, textDecoration:'none',
             background:'#fff', whiteSpace:'nowrap',
           }}

@@ -41,7 +41,7 @@ export default function TeledentistryPage() {
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
           overflow: "hidden",
-          background: "linear-gradient(135deg, #0a8b8a 0%, #0d9b9a 100%)",
+          background: "linear-gradient(135deg, #3498DB 0%, #2980B9 100%)",
         }}
       >
         {/* Left panel — text */}
@@ -134,7 +134,7 @@ export default function TeledentistryPage() {
             style={{
               position: "absolute",
               inset: 0,
-              background: "linear-gradient(to right, #0a8b8a 0%, transparent 35%)",
+              background: "linear-gradient(to right, #3498DB 0%, transparent 35%)",
             }}
           />
         </div>
@@ -153,12 +153,12 @@ export default function TeledentistryPage() {
         }}
       >
         <svg width="100%" height="60" viewBox="0 0 100 60" preserveAspectRatio="none" style={{ display: "block" }}>
-          <path d="M 0,30 Q 25,10 50,30 T 100,30 L 100,60 L 0,60 Z" fill="#0a8b8a" />
+          <path d="M 0,30 Q 25,10 50,30 T 100,30 L 100,60 L 0,60 Z" fill="#3498DB" />
         </svg>
       </div>
 
       {/* ── WHAT WE CAN HELP WITH ──────────────────────────────────────── */}
-      <section id="services" style={{ background: "#f0fffe", padding: "4rem 0" }}>
+      <section id="services" style={{ background: "#eff6ff", padding: "4rem 0" }}>
         <div className="container">
           <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
             <p
@@ -167,7 +167,7 @@ export default function TeledentistryPage() {
                 letterSpacing: "0.1em",
                 fontSize: "0.75rem",
                 fontWeight: 700,
-                color: "#0a8b8a",
+                color: "#2980B9",
                 marginBottom: "0.5rem",
               }}
             >
@@ -205,7 +205,7 @@ export default function TeledentistryPage() {
                     width: "28px",
                     height: "28px",
                     borderRadius: "50%",
-                    background: "linear-gradient(135deg, #0a8b8a, #14b8a6)",
+                    background: "linear-gradient(135deg, #3498DB, #2980B9)",
                     color: "#fff",
                     display: "flex",
                     alignItems: "center",
@@ -216,7 +216,7 @@ export default function TeledentistryPage() {
                 >
                   {idx + 1}
                 </div>
-                <h4 style={{ margin: "0.75rem 0 0.5rem", color: "#0a8b8a", fontSize: "1rem" }}>{item.title}</h4>
+                <h4 style={{ margin: "0.75rem 0 0.5rem", color: "#2980B9", fontSize: "1rem" }}>{item.title}</h4>
                 <p style={{ margin: 0, fontSize: "0.875rem", color: "#475569", lineHeight: 1.6 }}>{item.desc}</p>
               </div>
             ))}
@@ -235,7 +235,7 @@ export default function TeledentistryPage() {
                   letterSpacing: "0.1em",
                   fontSize: "0.75rem",
                   fontWeight: 700,
-                  color: "#0a8b8a",
+                  color: "#2980B9",
                   marginBottom: "0.75rem",
                 }}
               >
@@ -256,9 +256,9 @@ export default function TeledentistryPage() {
                     gap: "1rem",
                     alignItems: "flex-start",
                     padding: "1rem",
-                    background: "rgba(10,139,138,0.05)",
+                    background: "rgba(52,152,219,0.05)",
                     borderRadius: "10px",
-                    border: "1px solid rgba(10,139,138,0.1)",
+                    border: "1px solid rgba(52,152,219,0.1)",
                   }}
                 >
                   <span
@@ -267,7 +267,7 @@ export default function TeledentistryPage() {
                       width: "20px",
                       height: "20px",
                       borderRadius: "50%",
-                      background: "#0a8b8a",
+                      background: "#3498DB",
                       color: "#fff",
                       display: "flex",
                       alignItems: "center",
@@ -300,12 +300,12 @@ export default function TeledentistryPage() {
         }}
       >
         <svg width="100%" height="60" viewBox="0 0 100 60" preserveAspectRatio="none" style={{ display: "block" }}>
-          <path d="M 0,30 Q 25,50 50,30 T 100,30 L 100,0 L 0,0 Z" fill="#0a8b8a" />
+          <path d="M 0,30 Q 25,50 50,30 T 100,30 L 100,0 L 0,0 Z" fill="#3498DB" />
         </svg>
       </div>
 
       {/* ── LIVE VIDEO CONSULTATIONS ───────────────────────────────────── */}
-      <section style={{ background: "linear-gradient(135deg, #0a8b8a, #0d9b9a)", padding: "4rem 0" }}>
+      <section style={{ background: "linear-gradient(135deg, #3498DB, #2980B9)", padding: "4rem 0" }}>
         <div className="container">
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4rem", alignItems: "center" }}>
             <div>
@@ -335,7 +335,7 @@ export default function TeledentistryPage() {
                   "Prescriptions when clinically appropriate",
                 ].map((item) => (
                   <li key={item} style={{ display: "flex", gap: "0.625rem", alignItems: "flex-start", fontSize: "0.9375rem", color: "rgba(255,255,255,0.85)" }}>
-                    <span style={{ fontWeight: 700, color: "#14b8a6", flexShrink: 0, marginTop: "1px" }}>✓</span>
+                    <span style={{ fontWeight: 700, color: "#5dade2", flexShrink: 0, marginTop: "1px" }}>✓</span>
                     {item}
                   </li>
                 ))}
@@ -381,7 +381,7 @@ export default function TeledentistryPage() {
       </section>
 
       {/* ── DISCLOSURE ──────────────────────────────────────────────────── */}
-      <section style={{ background: "#f0fffe", padding: "2.5rem 0", borderTop: "1px solid rgba(10,139,138,0.15)" }}>
+      <section style={{ background: "#eff6ff", padding: "2.5rem 0", borderTop: "1px solid rgba(52,152,219,0.15)" }}>
         <div className="container">
           <p
             style={{

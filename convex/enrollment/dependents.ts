@@ -12,10 +12,11 @@
  *   4. Access checks fan out to the primary's entitlements so no duplicate billing rows
  */
 
-import { mutation, query, internalMutation } from "../_generated/server";
+import { mutation, query, internalMutation, internalAction } from "../_generated/server";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { v } from "convex/values";
 import { requireAuth } from "../lib/authGuards";
+import { internal } from "../_generated/api";
 
 // ---------------------------------------------------------------------------
 // Helpers (mirrors members.ts utilities)
@@ -31,6 +32,86 @@ function generateBarcode(siteSlug: string): string {
   const random = Math.random().toString(36).substring(2, 8).toUpperCase();
   return `${sitePrefix}${year}${random}`;
 }
+
+// ---------------------------------------------------------------------------
+// Internal Actions
+// ---------------------------------------------------------------------------
+
+/**
+ * Send a dependent invite email via Resend.
+ * Scheduled from addDependent and resendDependentInvite mutations.
+ */
+export const sendDependentInviteEmail = internalAction({
+  args: {
+    dependentFirstName: v.string(),
+    dependentEmail: v.string(),
+    primaryMemberName: v.string(),
+    planName: v.string(),
+    inviteToken: v.string(),
+  },
+  handler: async (_ctx, args) => {
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getidealoh.com";
+    const claimUrl = `${baseUrl}/health/claim-invite?token=${args.inviteToken}`;
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+        <div style="background: linear-gradient(135deg, #0066CC 0%, #14b8a6 100%); color: white; padding: 24px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1 style="margin: 0; font-size: 24px;">You&apos;re Invited!</h1>
+          <p style="margin: 10px 0 0 0; font-size: 15px; opacity: 0.9;">Family plan access from Ideal Oral Health</p>
+        </div>
+        <div style="padding: 32px; background: #f9fafb; border-radius: 0 0 8px 8px;">
+          <p style="font-size: 16px;">Hi ${args.dependentFirstName},</p>
+          <p style="font-size: 15px; line-height: 1.6;">
+            <strong>${args.primaryMemberName}</strong> has added you to their
+            <strong>${args.planName}</strong> plan. As a family member on this plan, you&apos;ll get
+            full access to all plan benefits &mdash; with no separate billing.
+          </p>
+          <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin: 24px 0; text-align: center;">
+            <p style="font-size: 15px; color: #374151; margin: 0 0 16px 0;">
+              Click the button below to create your account and activate your access.
+            </p>
+            <a href="${claimUrl}"
+              style="display: inline-block; padding: 14px 32px; background: #0066CC; color: white; font-weight: 700; font-size: 16px; text-decoration: none; border-radius: 8px;">
+              Accept &amp; Get Access
+            </a>
+            <p style="font-size: 12px; color: #9ca3af; margin: 16px 0 0 0;">This link expires in 30 days.</p>
+          </div>
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+          <p style="font-size: 13px; color: #6b7280; line-height: 1.5;">
+            If you don&apos;t want to be added to this plan, you can simply ignore this email.
+            Questions? Contact us at
+            <a href="mailto:info@getidealoh.com" style="color: #0066CC;">info@getidealoh.com</a>
+            or <a href="tel:801-820-0010" style="color: #0066CC;">801-820-0010</a>.
+          </p>
+        </div>
+      </div>`;
+
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: "Ideal Oral Health <noreply@getidealoh.com>",
+        to: args.dependentEmail,
+        subject: `${args.primaryMemberName} added you to their Ideal Oral Health plan`,
+        html,
+        tags: [{ name: "category", value: "dependent-invite" }],
+      }),
+    });
+
+    const resData = await res.json();
+
+    if (!res.ok) {
+      // resData.message is the Resend error description
+      throw new Error(`Resend error ${res.status}: ${resData.message ?? JSON.stringify(resData)}`);
+    }
+
+    console.log(`[dependentInvite] Email sent. Resend ID: ${resData.id} → ${args.dependentEmail}`);
+  },
+});
 
 // ---------------------------------------------------------------------------
 // Queries
@@ -221,8 +302,8 @@ export const addDependent = mutation({
       inviteToken,
       inviteStatus: "pending" as any,
       invitedEmail: args.email as any,
-      // Inherit primary's active status
-      memberType: (primaryProfile.memberType === "active" ? "active" : "enrolling") as any,
+      // Dependent starts as "enrolling" until they claim their account
+      memberType: "enrolling" as any,
       status: "active",
       communicationPrefs: {
         emailOptIn: true,
@@ -244,6 +325,15 @@ export const addDependent = mutation({
       actorType: "member",
       actorId: identity.clerkUserId,
       createdAt: now,
+    });
+
+    // Schedule invite email (fires immediately after the mutation commits)
+    await ctx.scheduler.runAfter(0, internal.enrollment.dependents.sendDependentInviteEmail, {
+      dependentFirstName: args.firstName,
+      dependentEmail: args.email,
+      primaryMemberName: `${primaryProfile.firstName} ${primaryProfile.lastName}`,
+      planName: "Ideal Oral Health",
+      inviteToken,
     });
 
     return { dependentId, inviteToken };
@@ -298,12 +388,13 @@ export const internalAddDependent = internalMutation({
       inviteToken,
       inviteStatus: "pending" as any,
       invitedEmail: args.email as any,
-      memberType: (primaryProfile.memberType === "active" ? "active" : "enrolling") as any,
+      // Dependent starts as "enrolling" until they claim their account
+      memberType: "enrolling" as any,
       status: "active",
       communicationPrefs: {
         emailOptIn: true,
         smsOptIn: true,
-        callOptIn: true,
+        callOutIn: true,
       },
       createdAt: now,
       updatedAt: now,
@@ -412,6 +503,7 @@ export const claimDependentProfile = mutation({
       customerId: identity.clerkUserId,
       inviteStatus: "claimed" as any,
       inviteToken: undefined as any, // Consume the token
+      memberType: "active" as any, // Promote from "enrolling" → "active" on claim
       updatedAt: now,
     });
 
@@ -478,6 +570,15 @@ export const resendDependentInvite = mutation({
       actorType: "member",
       actorId: identity.clerkUserId,
       createdAt: now,
+    });
+
+    // Schedule resend email
+    await ctx.scheduler.runAfter(0, internal.enrollment.dependents.sendDependentInviteEmail, {
+      dependentFirstName: dependentProfile.firstName,
+      dependentEmail: (dependentProfile as any).invitedEmail ?? dependentProfile.email ?? "",
+      primaryMemberName: `${primaryProfile.firstName} ${primaryProfile.lastName}`,
+      planName: "Ideal Oral Health",
+      inviteToken: newToken,
     });
 
     return { newToken };

@@ -352,6 +352,20 @@ function WelcomePage({ data }: { data: FulfillmentPacketData }) {
         <Bullet key={item} text={item} />
       ))}
 
+      {/* How to Use Your Membership */}
+      <Text style={{ ...s.h4, marginTop: 10, marginBottom: 4, color: GREEN }}>
+        How to Use Your Membership — 3 Easy Steps
+      </Text>
+      <View style={{ backgroundColor: LIGHT_GREEN, padding: 8, marginBottom: 8, borderRadius: 4 }}>
+        {[
+          { n: 1, text: `Find a participating dentist near you — visit ${website} and enter your zip code to search 140,000+ providers nationwide.` },
+          { n: 2, text: "At your appointment, present your digital or printed member ID card. Let the front desk know you are a Careington discount plan member." },
+          { n: 3, text: "Pay the member-discounted rate directly to the provider at the time of service. No claims to file, no reimbursement required." },
+        ].map((item) => (
+          <Numbered key={item.n} n={item.n} text={item.text} />
+        ))}
+      </View>
+
       {/* Member Summary */}
       <Text style={{ ...s.h4, marginTop: 10, marginBottom: 6 }}>Member Summary</Text>
       {[
@@ -430,7 +444,7 @@ function ProgramSummaryPage({ data }: { data: FulfillmentPacketData }) {
       <Text style={s.h3}>Program Details</Text>
       {[
         `Dental — Ideal Oral Health Dental Savings Program (powered by the Careington network): Members save on many common dental services, including preventive care and select major procedures, through participating providers.`,
-        `Provider Search: To locate a participating provider, call ${phone} or visit ${website}.`,
+        `Provider Search: To locate a participating provider near you, enter your zip code at ${website} or call ${phone}. The network includes 140,000+ participating dental specialists nationwide.`,
         `Member Reminder: This plan is not insurance. Members are responsible for payment at the time of service and receive access to negotiated discounts through participating providers.`,
       ].map((item) => (
         <Bullet key={item.slice(0, 40)} text={item} />
@@ -623,6 +637,347 @@ function SchedulePage({ data }: { data: FulfillmentPacketData }) {
   );
 }
 
+// ─── Member Card Styles ────────────────────────────────────────────────────────
+const cardStyles = StyleSheet.create({
+  // Title Page
+  titlePage: {
+    fontFamily: "Helvetica",
+    fontSize: 12,
+    color: DARK,
+    padding: 40,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  titleContainer: {
+    textAlign: "center",
+  },
+  titleLogo: {
+    width: 100,
+    height: 100,
+    marginBottom: 20,
+    marginLeft: "auto",
+    marginRight: "auto",
+  },
+  titleMain: {
+    fontSize: 28,
+    fontFamily: "Helvetica-Bold",
+    color: BLUE,
+    marginBottom: 10,
+  },
+  titleSub: {
+    fontSize: 14,
+    fontFamily: "Helvetica-Bold",
+    color: DARK,
+    marginBottom: 30,
+  },
+  titleField: {
+    marginBottom: 20,
+  },
+  titleLabel: {
+    fontSize: 10,
+    fontFamily: "Helvetica-Bold",
+    color: GRAY,
+    marginBottom: 5,
+  },
+  titleValue: {
+    fontSize: 20,
+    fontFamily: "Helvetica-Bold",
+    color: BLUE,
+  },
+  // Card Pages - designed for 8.5x11 printing with card in center
+  cardPage: {
+    padding: 40,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+  },
+  bleedContainer: {
+    width: "3.75in",
+    height: "2.375in",
+    backgroundColor: "#ffffff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "0.125in",
+  },
+  cardContainer: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    border: "1px solid #cbd5e1",
+    padding: 18,
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
+    overflow: "hidden",
+    position: "relative",
+  },
+  topBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+    background: "linear-gradient(90deg, #0066CC, #14b8a6)",
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 8,
+  },
+  headerLeft: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+    flex: 1,
+  },
+  logo: {
+    width: 40,
+    height: 40,
+  },
+  headerText: {
+    flex: 1,
+  },
+  brandName: {
+    fontSize: 10.5,
+    fontWeight: "bold",
+    color: "#0f172a",
+    marginBottom: 1,
+  },
+  cardType: {
+    fontSize: 7,
+    color: "#64748b",
+  },
+  headerRight: {
+    fontSize: 6.5,
+    color: "#94a3b8",
+    textAlign: "right",
+  },
+  headerRightLine: {
+    marginBottom: 2,
+  },
+  fieldsGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "6 12",
+    marginTop: 2,
+  },
+  field: {
+    marginBottom: 6,
+  },
+  fieldLabel: {
+    fontSize: 5.5,
+    fontWeight: "bold",
+    color: "#94a3b8",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 1,
+  },
+  fieldValue: {
+    fontSize: 8.5,
+    fontWeight: "bold",
+    color: "#0f172a",
+  },
+  memberId: {
+    fontFamily: "Courier",
+  },
+  footer: {
+    borderTopWidth: 1,
+    borderTopColor: "#e2e8f0",
+    paddingTop: 6,
+    marginTop: 4,
+    textAlign: "center",
+  },
+  footerMain: {
+    fontSize: 7,
+    fontWeight: "bold",
+    color: "#0f172a",
+    letterSpacing: 0.4,
+  },
+  footerSub: {
+    fontSize: 5.5,
+    color: "#94a3b8",
+    marginTop: 1,
+  },
+  // Back side
+  backContent: {
+    flex: 1,
+    justifyContent: "flex-start",
+  },
+  backSection: {
+    marginBottom: 8,
+  },
+  backSectionTitle: {
+    fontSize: 7,
+    fontWeight: "bold",
+    color: BLUE,
+    marginBottom: 3,
+    textTransform: "uppercase",
+  },
+  backText: {
+    fontSize: 6.5,
+    color: DARK,
+    lineHeight: 1.3,
+    marginBottom: 2,
+  },
+});
+
+interface MemberCardField {
+  label: string;
+  value: string;
+}
+
+// Title page with member name and ID
+function MemberCardTitlePage({ data }: { data: FulfillmentPacketData }) {
+  return (
+    <Page style={cardStyles.titlePage} size="LETTER">
+      <View style={cardStyles.titleContainer}>
+        {data.logoDataUri && (
+          <Image
+            src={data.logoDataUri}
+            style={cardStyles.titleLogo}
+          />
+        )}
+        <Text style={cardStyles.titleMain}>Member ID Card</Text>
+        <Text style={cardStyles.titleSub}>Ideal Oral Health</Text>
+
+        <View style={cardStyles.titleField}>
+          <Text style={cardStyles.titleLabel}>Member Name</Text>
+          <Text style={cardStyles.titleValue}>{data.memberName}</Text>
+        </View>
+
+        <View style={cardStyles.titleField}>
+          <Text style={cardStyles.titleLabel}>Member ID</Text>
+          <Text style={cardStyles.titleValue}>{data.memberId}</Text>
+        </View>
+      </View>
+    </Page>
+  );
+}
+
+// Front of card
+function MemberCardFrontPage({ data }: { data: FulfillmentPacketData }) {
+  const fields: MemberCardField[] = [
+    { label: "Member", value: data.memberName },
+    { label: "Member ID", value: data.memberId },
+    { label: "Group Code", value: data.groupCode || "IOH-DTC" },
+    { label: "Effective", value: data.effectiveDate },
+  ];
+
+  return (
+    <Page style={cardStyles.cardPage} size="LETTER">
+      <View style={cardStyles.bleedContainer}>
+        <View style={cardStyles.cardContainer}>
+          <View style={cardStyles.topBar} />
+
+          {/* Header with logo and contact info */}
+          <View style={cardStyles.header}>
+            <View style={cardStyles.headerLeft}>
+              {data.logoDataUri && (
+                <Image
+                  src={data.logoDataUri}
+                  style={cardStyles.logo}
+                />
+              )}
+              <View style={cardStyles.headerText}>
+                <Text style={cardStyles.brandName}>Ideal Health Oral Care</Text>
+                <Text style={cardStyles.cardType}>Member ID Card</Text>
+              </View>
+            </View>
+            <View style={cardStyles.headerRight}>
+              <Text style={cardStyles.headerRightLine}>{data.memberWebsite}</Text>
+              <Text style={cardStyles.headerRightLine}>{data.memberServicesPhone}</Text>
+            </View>
+          </View>
+
+          {/* Fields grid */}
+          <View style={cardStyles.fieldsGrid}>
+            {fields.map((field, idx) => (
+              <View key={idx} style={cardStyles.field}>
+                <Text style={cardStyles.fieldLabel}>{field.label}</Text>
+                <Text style={[cardStyles.fieldValue, field.label === "Member ID" && cardStyles.memberId]}>
+                  {field.value}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Footer */}
+          <View style={cardStyles.footer}>
+            <Text style={cardStyles.footerMain}>THIS IS NOT INSURANCE.</Text>
+            <Text style={cardStyles.footerSub}>This is a discount program. Savings vary by provider.</Text>
+          </View>
+        </View>
+      </View>
+    </Page>
+  );
+}
+
+// Back of card
+function MemberCardBackPage({ data }: { data: FulfillmentPacketData }) {
+  return (
+    <Page style={cardStyles.cardPage} size="LETTER">
+      <View style={cardStyles.bleedContainer}>
+        <View style={cardStyles.cardContainer}>
+          <View style={cardStyles.topBar} />
+
+          {/* Header */}
+          <View style={cardStyles.header}>
+            <View style={cardStyles.headerLeft}>
+              {data.logoDataUri && (
+                <Image
+                  src={data.logoDataUri}
+                  style={cardStyles.logo}
+                />
+              )}
+              <View style={cardStyles.headerText}>
+                <Text style={cardStyles.brandName}>Ideal Health Oral Care</Text>
+                <Text style={cardStyles.cardType}>Important Information</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Back content */}
+          <View style={cardStyles.backContent}>
+            {/* Networks section */}
+            <View style={cardStyles.backSection}>
+              <Text style={cardStyles.backSectionTitle}>Provider Networks</Text>
+              <Text style={cardStyles.backText}>• Careington International</Text>
+              <Text style={cardStyles.backText}>• Dialcare Network</Text>
+              <Text style={cardStyles.backText}>• Toothlens</Text>
+            </View>
+
+            {/* How to use */}
+            <View style={cardStyles.backSection}>
+              <Text style={cardStyles.backSectionTitle}>How to Use Your Card</Text>
+              <Text style={cardStyles.backText}>1. Present card at participating provider</Text>
+              <Text style={cardStyles.backText}>2. Ask about member discounts</Text>
+              <Text style={cardStyles.backText}>3. Enjoy discounted rates</Text>
+            </View>
+
+            {/* Contact */}
+            <View style={cardStyles.backSection}>
+              <Text style={cardStyles.backSectionTitle}>Member Services</Text>
+              <Text style={cardStyles.backText}>Phone: {data.memberServicesPhone}</Text>
+              <Text style={cardStyles.backText}>Website: {data.memberWebsite}</Text>
+              <Text style={cardStyles.backText}>Email: support@getidealoh.com</Text>
+            </View>
+          </View>
+
+          {/* Footer */}
+          <View style={cardStyles.footer}>
+            <Text style={cardStyles.footerSub}>Questions? Visit {data.memberWebsite}</Text>
+          </View>
+        </View>
+      </View>
+    </Page>
+  );
+}
+
 // ─── Root document ────────────────────────────────────────────────────────────
 export function FulfillmentPacketPdf({ data }: { data: FulfillmentPacketData }) {
   return (
@@ -635,6 +990,20 @@ export function FulfillmentPacketPdf({ data }: { data: FulfillmentPacketData }) 
       <ProgramSummaryPage data={data} />
       <MembershipAgreementPage data={data} />
       <SchedulePage data={data} />
+    </Document>
+  );
+}
+
+export function MemberCardPdf({ data }: { data: FulfillmentPacketData }) {
+  return (
+    <Document
+      title={`Ideal Oral Health Member Card - ${data.memberName}`}
+      author="Ideal Oral Health"
+      subject="Member Card"
+    >
+      <MemberCardTitlePage data={data} />
+      <MemberCardFrontPage data={data} />
+      <MemberCardBackPage data={data} />
     </Document>
   );
 }

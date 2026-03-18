@@ -13,12 +13,12 @@ export default function OralHealthScanPage() {
       <HealthHeader />
 
       {/* Hero - Bold Split Design */}
-      <section className="section" style={{ padding: "4rem 0", background: "linear-gradient(135deg, #0066CC 0%, #0047A3 100%)" }}>
+      <section className="section" style={{ padding: "4rem 0", background: "linear-gradient(135deg, #2ECC71 0%, #27AE60 100%)" }}>
         <div className="container">
           <div className="row" style={{ alignItems: "center" }}>
             <div className="col-6">
               <div style={{ paddingRight: "2rem" }}>
-                <div style={{ fontSize: "0.875rem", fontWeight: 700, color: "#14b8a6", letterSpacing: "0.1em", marginBottom: "1rem" }}>
+                <div style={{ fontSize: "0.875rem", fontWeight: 700, color: "#f0fdf4", letterSpacing: "0.1em", marginBottom: "1rem" }}>
                   ORAL HEALTH AI SCAN
                 </div>
                 <h1 style={{ fontSize: "3rem", lineHeight: 1.1, fontWeight: 800, color: "#fff", marginBottom: "1.5rem" }}>
@@ -52,7 +52,7 @@ export default function OralHealthScanPage() {
       <section className="section" style={{ padding: "4rem 0", background: "#f8f9fa" }}>
         <div className="container">
           <div className="heading-block" style={{ textAlign: "center", marginBottom: "3rem" }}>
-            <p style={{ fontSize: "0.875rem", fontWeight: 700, color: "#14b8a6", letterSpacing: "0.08em", marginBottom: "0.5rem" }}>
+            <p style={{ fontSize: "0.875rem", fontWeight: 700, color: "#27AE60", letterSpacing: "0.08em", marginBottom: "0.5rem" }}>
               THE MOUTH-BODY CONNECTION
             </p>
             <h2 style={{ fontSize: "2.25rem" }}>Your Mouth Tells Your Health Story</h2>
@@ -80,7 +80,7 @@ export default function OralHealthScanPage() {
                 transition: all 0.3s ease;
               }
               .health-condition-card:hover {
-                box-shadow: 0 8px 24px rgba(0,102,204,0.15);
+                box-shadow: 0 8px 24px rgba(46,204,113,0.15);
                 transform: translateY(-4px);
               }
             `}</style>
@@ -131,7 +131,7 @@ export default function OralHealthScanPage() {
                 key={item.condition}
                 className="health-condition-card"
               >
-                <h3 style={{ fontSize: "1.25rem", color: "#0066CC", marginBottom: "1rem", fontWeight: 700 }}>
+                <h3 style={{ fontSize: "1.25rem", color: "#27AE60", marginBottom: "1rem", fontWeight: 700 }}>
                   {item.condition}
                 </h3>
                 <ul style={{ margin: 0, paddingLeft: "1.25rem", color: "#475569", fontSize: "0.95rem", lineHeight: 1.7 }}>
@@ -155,7 +155,7 @@ export default function OralHealthScanPage() {
       <section className="section" id="how-it-works" style={{ padding: "4rem 0" }}>
         <div className="container">
           <div className="heading-block" style={{ textAlign: "center", marginBottom: "3rem" }}>
-            <p style={{ fontSize: "0.875rem", fontWeight: 700, color: "#14b8a6", letterSpacing: "0.08em", marginBottom: "0.5rem" }}>
+            <p style={{ fontSize: "0.875rem", fontWeight: 700, color: "#27AE60", letterSpacing: "0.08em", marginBottom: "0.5rem" }}>
               NEXT-GENERATION TECHNOLOGY
             </p>
             <h2 style={{ fontSize: "2.25rem" }}>How Your AI Oral Health Scan Works</h2>
@@ -165,7 +165,7 @@ export default function OralHealthScanPage() {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "2rem", marginTop: "2rem" }}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
-              <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "60px", height: "60px", borderRadius: "50%", background: "linear-gradient(135deg, #0066CC, #0047A3)", color: "#fff", fontSize: "1.75rem", fontWeight: 700, marginBottom: "1.5rem" }}>1</div>
+              <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "60px", height: "60px", borderRadius: "50%", background: "linear-gradient(135deg, #2ECC71, #27AE60)", color: "#fff", fontSize: "1.75rem", fontWeight: 700, marginBottom: "1.5rem" }}>1</div>
               <h4 style={{ fontWeight: 700, fontSize: "1.25rem", marginBottom: "1rem" }}>Snap a Photo</h4>
               <p style={{ color: "#64748b", marginBottom: "1.5rem" }}>
                 Use your smartphone camera to capture images of your teeth. No special equipment needed — the tool guides you through the process for the clearest results.
@@ -173,14 +173,14 @@ export default function OralHealthScanPage() {
               <img src="/health-assets/scan-result-demo.png" alt="Smartphone camera capturing a photo of teeth for oral health scan" style={{ width: "100%", maxWidth: "280px", borderRadius: "12px", boxShadow: "0 8px 24px rgba(0,0,0,0.1)" }} />
             </div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
-              <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "60px", height: "60px", borderRadius: "50%", background: "linear-gradient(135deg, #0066CC, #0047A3)", color: "#fff", fontSize: "1.75rem", fontWeight: 700, marginBottom: "1.5rem" }}>2</div>
+              <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "60px", height: "60px", borderRadius: "50%", background: "linear-gradient(135deg, #2ECC71, #27AE60)", color: "#fff", fontSize: "1.75rem", fontWeight: 700, marginBottom: "1.5rem" }}>2</div>
               <h4 style={{ fontWeight: 700, fontSize: "1.25rem", marginBottom: "1rem" }}>AI Analysis</h4>
               <p style={{ color: "#64748b" }}>
                 Our advanced AI engine instantly analyzes your images, identifying potential issues such as cavities, gum concerns, surface staining, and oral health patterns.
               </p>
             </div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
-              <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "60px", height: "60px", borderRadius: "50%", background: "linear-gradient(135deg, #0066CC, #0047A3)", color: "#fff", fontSize: "1.75rem", fontWeight: 700, marginBottom: "1.5rem" }}>3</div>
+              <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "60px", height: "60px", borderRadius: "50%", background: "linear-gradient(135deg, #2ECC71, #27AE60)", color: "#fff", fontSize: "1.75rem", fontWeight: 700, marginBottom: "1.5rem" }}>3</div>
               <h4 style={{ fontWeight: 700, fontSize: "1.25rem", marginBottom: "1rem" }}>Actionable Report</h4>
               <p style={{ color: "#64748b", marginBottom: "1.5rem" }}>
                 Receive a detailed oral health report with clear, actionable insights with no appointment required. Share with your dentist anytime.
@@ -191,7 +191,7 @@ export default function OralHealthScanPage() {
       </section>
 
       {/* Why It Matters */}
-      <section className="section" style={{ padding: "4rem 0", background: "linear-gradient(135deg, #0066CC 0%, #0047A3 100%)" }}>
+      <section className="section" style={{ padding: "4rem 0", background: "linear-gradient(135deg, #2ECC71 0%, #27AE60 100%)" }}>
         <div className="container">
           <div className="row" style={{ alignItems: "center" }}>
             <div className="col-6">
@@ -238,7 +238,7 @@ export default function OralHealthScanPage() {
             <Link className="button button--primary" href="/health/plans">
               Start Your Scan
             </Link>
-            <Link className="button" href="/health/teledentistry" style={{ background: "#fff", color: "#0066CC", border: "2px solid #0066CC" }}>
+            <Link className="button" href="/health/teledentistry" style={{ background: "#fff", color: "#27AE60", border: "2px solid #27AE60" }}>
               Schedule a Consultation
             </Link>
           </div>

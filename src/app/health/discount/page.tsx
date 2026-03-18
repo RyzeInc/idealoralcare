@@ -63,7 +63,7 @@ export default function DentalDiscountNetworkPage() {
         {/* Left — deep blue panel */}
         <div
           style={{
-            background: "linear-gradient(145deg, #003d7a 0%, #0066CC 100%)",
+            background: "linear-gradient(145deg, #D68910 0%, #F39C12 100%)",
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
@@ -95,7 +95,7 @@ export default function DentalDiscountNetworkPage() {
               width: "180px",
               height: "180px",
               borderRadius: "50%",
-              border: "2px solid rgba(20,184,166,0.15)",
+              border: "2px solid rgba(243,156,18,0.15)",
               pointerEvents: "none",
             }}
           />
@@ -106,7 +106,7 @@ export default function DentalDiscountNetworkPage() {
               letterSpacing: "0.12em",
               fontSize: "0.75rem",
               fontWeight: 700,
-              color: "rgba(20,184,166,1)",
+              color: "rgba(243,156,18,1)",
               marginBottom: "1rem",
             }}
           >
@@ -122,7 +122,7 @@ export default function DentalDiscountNetworkPage() {
             }}
           >
             Save Up to<br />
-            <span style={{ color: "#14b8a6" }}>58%</span> on Dental<br />
+            <span style={{ color: "#F39C12" }}>58%</span> on Dental<br />
             Procedures
           </h1>
           <p
@@ -182,7 +182,7 @@ export default function DentalDiscountNetworkPage() {
             style={{
               position: "absolute",
               inset: 0,
-              background: "linear-gradient(to right, #003d7a 0%, transparent 30%)",
+              background: "linear-gradient(to right, #D68910 0%, transparent 30%)",
             }}
           />
           {/* Floating badge */}
@@ -200,7 +200,7 @@ export default function DentalDiscountNetworkPage() {
               minWidth: "130px",
             }}
           >
-            <p style={{ margin: 0, fontSize: "2.25rem", fontWeight: 900, color: "#0066CC", lineHeight: 1 }}>
+            <p style={{ margin: 0, fontSize: "2.25rem", fontWeight: 900, color: "#F39C12", lineHeight: 1 }}>
               58%
             </p>
             <p style={{ margin: "4px 0 0", fontSize: "0.75rem", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.06em" }}>
@@ -213,7 +213,7 @@ export default function DentalDiscountNetworkPage() {
       {/* ── QUICK STATS BAR ─────────────────────────────────────────────── */}
       <section
         style={{
-          background: "linear-gradient(90deg, #0066CC, #14b8a6)",
+          background: "linear-gradient(90deg, #F39C12, #D68910)",
           padding: "0",
         }}
       >
@@ -260,7 +260,7 @@ export default function DentalDiscountNetworkPage() {
                 letterSpacing: "0.1em",
                 fontSize: "0.75rem",
                 fontWeight: 700,
-                color: "var(--accent-teal, #14b8a6)",
+                color: "var(--accent-orange, #F39C12)",
                 marginBottom: "0.5rem",
               }}
             >
@@ -276,8 +276,8 @@ export default function DentalDiscountNetworkPage() {
             style={{
               borderRadius: "16px",
               overflow: "hidden",
-              boxShadow: "0 4px 40px rgba(0,102,204,0.12)",
-              border: "1px solid rgba(0,102,204,0.12)",
+              boxShadow: "0 4px 40px rgba(243,156,18,0.12)",
+              border: "1px solid rgba(243,156,18,0.12)",
             }}
           >
             {/* Table header */}
@@ -285,7 +285,7 @@ export default function DentalDiscountNetworkPage() {
               style={{
                 display: "grid",
                 gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr",
-                background: "linear-gradient(90deg, #003d7a, #0066CC)",
+                background: "linear-gradient(90deg, #D68910, #F39C12)",
                 padding: "0.875rem 1.25rem",
               }}
             >
@@ -314,8 +314,8 @@ export default function DentalDiscountNetworkPage() {
                   gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr",
                   padding: "1rem 1.25rem",
                   alignItems: "center",
-                  background: i % 2 === 0 ? "#fff" : "rgba(0,102,204,0.03)",
-                  borderBottom: i < SAVINGS_DATA.length - 1 ? "1px solid rgba(0,102,204,0.08)" : "none",
+                  background: i % 2 === 0 ? "#fff" : "rgba(243,156,18,0.03)",
+                  borderBottom: i < SAVINGS_DATA.length - 1 ? "1px solid rgba(243,156,18,0.08)" : "none",
                   transition: "background 0.15s",
                 }}
               >
@@ -325,7 +325,7 @@ export default function DentalDiscountNetworkPage() {
                 <span style={{ fontSize: "0.9375rem", color: "#64748b", textDecoration: "line-through" }}>
                   ${row.regular.toLocaleString()}
                 </span>
-                <span style={{ fontSize: "1.0625rem", fontWeight: 700, color: "#0066CC" }}>
+                <span style={{ fontSize: "1.0625rem", fontWeight: 700, color: "#F39C12" }}>
                   ${row.plan.toLocaleString()}
                 </span>
                 <span style={{ fontWeight: 600, color: "#10b981", fontSize: "0.9375rem" }}>
@@ -335,7 +335,7 @@ export default function DentalDiscountNetworkPage() {
                   <span
                     style={{
                       display: "inline-block",
-                      background: "linear-gradient(135deg, #14b8a6, #10b981)",
+                      background: "linear-gradient(135deg, #F39C12, #D68910)",
                       color: "#fff",
                       borderRadius: "20px",
                       padding: "3px 12px",
@@ -368,7 +368,7 @@ export default function DentalDiscountNetworkPage() {
                 letterSpacing: "0.1em",
                 fontSize: "0.75rem",
                 fontWeight: 700,
-                color: "rgba(20,184,166,1)",
+                color: "rgba(243,156,18,1)",
                 marginBottom: "0.5rem",
               }}
             >
@@ -399,7 +399,7 @@ export default function DentalDiscountNetworkPage() {
                     padding: "1rem 1.5rem",
                   }}
                 >
-                  <h4 style={{ margin: 0, fontSize: "1rem", color: "#14b8a6", fontWeight: 700 }}>{f.title}</h4>
+                  <h4 style={{ margin: 0, fontSize: "1rem", color: "#F39C12", fontWeight: 700 }}>{f.title}</h4>
                 </div>
                 <div style={{ padding: "1.25rem 1.5rem" }}>
                   <p style={{ margin: 0, fontSize: "0.875rem", opacity: 0.85, lineHeight: 1.6 }}>{f.desc}</p>
@@ -429,7 +429,7 @@ export default function DentalDiscountNetworkPage() {
                   width: "100%",
                   borderRadius: "16px",
                   display: "block",
-                  boxShadow: "0 16px 64px rgba(0,102,204,0.18)",
+                  boxShadow: "0 16px 64px rgba(243,156,18,0.18)",
                 }}
               />
               {/* Inline callout */}
@@ -438,11 +438,11 @@ export default function DentalDiscountNetworkPage() {
                   position: "absolute",
                   top: "1.5rem",
                   left: "-1.5rem",
-                  background: "linear-gradient(135deg, #0066CC, #14b8a6)",
+                  background: "linear-gradient(135deg, #F39C12, #D68910)",
                   color: "#fff",
                   borderRadius: "12px",
                   padding: "0.875rem 1.25rem",
-                  boxShadow: "0 8px 24px rgba(0,102,204,0.3)",
+                  boxShadow: "0 8px 24px rgba(243,156,18,0.3)",
                   maxWidth: "180px",
                 }}
               >
@@ -465,7 +465,7 @@ export default function DentalDiscountNetworkPage() {
                   letterSpacing: "0.1em",
                   fontSize: "0.75rem",
                   fontWeight: 700,
-                  color: "var(--accent-teal, #14b8a6)",
+                  color: "var(--accent-orange, #F39C12)",
                   marginBottom: "0.75rem",
                 }}
               >
@@ -487,7 +487,7 @@ export default function DentalDiscountNetworkPage() {
                   "Change providers at any time, no referral needed",
                 ].map((item) => (
                   <li key={item} style={{ display: "flex", gap: "0.625rem", alignItems: "flex-start", fontSize: "0.9375rem", color: "#334155" }}>
-                    <span style={{ color: "#14b8a6", fontWeight: 700, flexShrink: 0, marginTop: "1px" }}>✓</span>
+                    <span style={{ color: "#F39C12", fontWeight: 700, flexShrink: 0, marginTop: "1px" }}>✓</span>
                     {item}
                   </li>
                 ))}

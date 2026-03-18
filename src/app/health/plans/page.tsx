@@ -183,7 +183,7 @@ function PlanCard({ product }: { product: CatalogProduct }) {
               color: 'var(--text-muted)',
               marginTop: '4px'
             }}>
-              or ${(product.pricing.monthlyACHCents / 100).toFixed(2)} via ACH
+              or ${(product.pricing.monthlyACHCents / 100).toFixed(2)}/mo via bank transfer
             </div>
           </div>
 
@@ -213,7 +213,7 @@ function PlanCard({ product }: { product: CatalogProduct }) {
               marginTop: '4px',
               fontWeight: '600'
             }}>
-              Save ~17%
+              1 Month Free
             </div>
           </div>
         </div>
@@ -469,7 +469,7 @@ function CadenceToggle() {
           fontSize: '0.6875rem',
           fontWeight: '700'
         }}>
-          Save 17%
+          Save 1 Month Free
         </span>
       </button>
     </div>
@@ -483,14 +483,11 @@ function PlansContent() {
   const products = useQuery(api.catalog.queries.list, {});
   const isLoading = products === undefined;
   
-  // Filter to show only dental/oral health plan
-  // Target: monthly $15.00/$13.00, annual $150.00/$130.00
-  const oralHealthPlan = useMemo(() => {
-    if (!products) return null;
-    return products.find((p: any) =>
-      p.category === "dental" &&
-      p.pricing.monthlyCardCents === 1500  // $15.00
-    ) || products[0]; // Fallback to first product
+  // Find all dental/oral health plans from catalog
+  const oralHealthPlans = useMemo(() => {
+    if (!products) return [];
+    const dental = (products as any[]).filter((p) => p.category === 'dental');
+    return dental.length > 0 ? dental : (products as any[]).slice(0, 1);
   }, [products]);
 
   return (
@@ -538,14 +535,18 @@ function PlansContent() {
               <Loader size={24} style={{ marginRight: '12px', animation: 'spin 1s linear infinite' }} />
               Loading plan...
             </div>
-          ) : oralHealthPlan ? (
+          ) : oralHealthPlans.length > 0 ? (
             <div style={{
               display: 'grid',
               gridTemplateColumns: '1fr 400px',
               gap: '3rem',
               alignItems: 'start'
             }}>
-              <PlanCard product={oralHealthPlan} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                {oralHealthPlans.map((plan: any) => (
+                  <PlanCard key={plan._id} product={plan} />
+                ))}
+              </div>
               
               {/* Sidebar */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>

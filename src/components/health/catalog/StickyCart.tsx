@@ -84,10 +84,6 @@ export function StickyCart() {
           >
             <Building2 size={16} style={{ marginBottom: 4 }} />
             <div className={styles.stickyCartPaymentOptionLabel}>Bank</div>
-            <div className={styles.stickyCartPaymentOptionSavings}>
-              Save {formatPrice(achSavingsCents > 0 ? achSavingsCents : 200)}
-              {cart.cadence === "monthly" ? "/mo" : "/yr"}
-            </div>
           </button>
         </div>
       </div>

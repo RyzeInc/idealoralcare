@@ -18,7 +18,7 @@ import "@/app/health/health.css";
 export default async function DashboardPage() {
   const user = await currentUser();
 
-  // Fetch subscription data from Convex
+  // Fetch subscription and member profile data from Convex
   let hasSubscriptions = false;
   let subscriptions: Array<{
     id: string;
@@ -29,26 +29,61 @@ export default async function DashboardPage() {
     renewDate: string;
     status: string;
   }> = [];
+  let memberCardData: {
+    memberName: string;
+    memberId: string;
+    planName: string;
+    effectiveDate: string;
+    barcode: string;
+    networks: {
+      careington: { name: string; memberUrl: string };
+      dialCare: { name: string; memberUrl: string };
+      toothlens: { name: string; memberUrl: string };
+    };
+    supportPhone: string;
+    supportEmail: string;
+  } | null = null;
 
   if (user?.id) {
     try {
       const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || "");
-      
-      // TODO: Re-enable after Convex API types are regenerated with getCustomerDashboard query
-      // Fetch dashboard data using the Clerk user ID
-      // const dashboardData = await convex.query(api.subscriptions.queries.getCustomerDashboard, {
-      //   customerId: user.id,
-      // });
-      // 
-      // if (dashboardData?.entitlements && dashboardData.entitlements.length > 0) {
-      //   hasSubscriptions = true;
-      //   subscriptions = dashboardData.entitlements.map((ent: any) => ({...}));
-      // }
-      
-      // For now, render empty state while API types are being updated
-      hasSubscriptions = false;
+
+      // Fetch member card profile data (safe public query — server-side Clerk userId verified above)
+      const profileData = await convex.query(
+        api.subscriptions.queries.getMemberCardDataPublic as any,
+        { customerId: user.id }
+      );
+      if (profileData) memberCardData = profileData;
+
+      // Fetch bundle status for subscription indicator
+      const bundleData = await convex.query(
+        api.subscriptions.queries.getCustomerBundlePublic,
+        { customerId: user.id }
+      );
+      if (bundleData?.status && bundleData.status !== "cancelled") {
+        hasSubscriptions = true;
+        const renewDate = bundleData.currentPeriodEnd
+          ? new Date(bundleData.currentPeriodEnd).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })
+          : "—";
+        const totalCents = bundleData.pricingSnapshot?.totalCents ?? 0;
+        subscriptions = [
+          {
+            id: String(bundleData._id),
+            name: memberCardData?.planName ?? "Ideal Oral Health Plan",
+            category: "Oral Health",
+            price: totalCents,
+            cadence: totalCents > 2000 ? "annual" : "monthly",
+            renewDate,
+            status: bundleData.status,
+          },
+        ];
+      }
     } catch (error) {
-      // Fail gracefully - show empty state
+      // Fail gracefully — show empty state
     }
   }
 
@@ -93,6 +128,7 @@ export default async function DashboardPage() {
             hasSubscriptions={hasSubscriptions}
             subscriptions={subscriptions}
             userId={user?.id ?? null}
+            memberCardData={memberCardData}
           />
         </div>
       </section>

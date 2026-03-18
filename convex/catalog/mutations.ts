@@ -26,7 +26,7 @@ export const seedInitialData = mutation({
 
     const initialProducts = [
       {
-        slug: "oral-health-plan",
+        slug: "oral-health-individual",
         name: "Ideal Oral Health Plan",
         category: "dental",
         description:
@@ -49,9 +49,9 @@ export const seedInitialData = mutation({
         activationBehavior: "immediate",
         pricing: {
           monthlyCardCents: 1499,
-          monthlyACHCents: 1299,
-          annualCardCents: 14999,
-          annualACHCents: 12999,
+          monthlyACHCents: 1499,
+          annualCardCents: 16489,
+          annualACHCents: 16489,
         },
         stripeProducts: {
           monthlyCardId: "prod_U3no15TNX9iTj1",
@@ -61,11 +61,53 @@ export const seedInitialData = mutation({
         },
         metadata: {
           icon: "Heart",
-          bestFor: ["Individuals", "Families"],
+          bestFor: ["Individuals"],
         },
         isVisible: true,
         isFeatured: true,
         order: 0,
+      },
+      {
+        slug: "oral-health-family",
+        name: "Ideal Oral Health Plan \u2014 Family",
+        category: "dental",
+        description:
+          "Comprehensive oral health coverage for the whole family with AI Oral Scanning, 24/7 teledentistry, and the Dental Discount Network.",
+        longDescription:
+          "Everything in the Individual plan, extended to your entire family.",
+        inclusions: [
+          "Everything in Individual Plan",
+          "Unlimited Dependents Covered",
+          "AI Oral Scanning for Family",
+          "24/7 Teledentistry Program",
+          "Dental Discount Network Access",
+          "Family Member ID Cards",
+        ],
+        exclusions: ["Not traditional dental insurance", "Savings-based discount plan"],
+        eligibilityRules: {
+          requiresVerification: false,
+          disclosureText: "This is a savings-based discount plan, not insurance.",
+        },
+        activationBehavior: "immediate",
+        pricing: {
+          monthlyCardCents: 2499,
+          monthlyACHCents: 2499,
+          annualCardCents: 27489,
+          annualACHCents: 27489,
+        },
+        stripeProducts: {
+          monthlyCardId: "prod_FAMILY_MONTHLY_CARD_TBD",
+          monthlyACHId: "prod_FAMILY_MONTHLY_ACH_TBD",
+          annualCardId: "prod_FAMILY_ANNUAL_CARD_TBD",
+          annualACHId: "prod_FAMILY_ANNUAL_ACH_TBD",
+        },
+        metadata: {
+          icon: "Users",
+          bestFor: ["Families"],
+        },
+        isVisible: true,
+        isFeatured: true,
+        order: 1,
       },
     ];
 
@@ -106,7 +148,7 @@ export const reseedData = mutation({
 
     const initialProducts = [
       {
-        slug: "oral-health-plan",
+        slug: "oral-health-individual",
         name: "Ideal Oral Health Plan",
         category: "dental",
         description:
@@ -129,9 +171,9 @@ export const reseedData = mutation({
         activationBehavior: "immediate",
         pricing: {
           monthlyCardCents: 1499,
-          monthlyACHCents: 1299,
-          annualCardCents: 14999,
-          annualACHCents: 12999,
+          monthlyACHCents: 1499,
+          annualCardCents: 16489,
+          annualACHCents: 16489,
         },
         stripeProducts: {
           monthlyCardId: "prod_U3no15TNX9iTj1",
@@ -141,11 +183,53 @@ export const reseedData = mutation({
         },
         metadata: {
           icon: "Heart",
-          bestFor: ["Individuals", "Families"],
+          bestFor: ["Individuals"],
         },
         isVisible: true,
         isFeatured: true,
         order: 0,
+      },
+      {
+        slug: "oral-health-family",
+        name: "Ideal Oral Health Plan \u2014 Family",
+        category: "dental",
+        description:
+          "Comprehensive oral health coverage for the whole family with AI Oral Scanning, 24/7 teledentistry, and the Dental Discount Network.",
+        longDescription:
+          "Everything in the Individual plan, extended to your entire family.",
+        inclusions: [
+          "Everything in Individual Plan",
+          "Unlimited Dependents Covered",
+          "AI Oral Scanning for Family",
+          "24/7 Teledentistry Program",
+          "Dental Discount Network Access",
+          "Family Member ID Cards",
+        ],
+        exclusions: ["Not traditional dental insurance", "Savings-based discount plan"],
+        eligibilityRules: {
+          requiresVerification: false,
+          disclosureText: "This is a savings-based discount plan, not insurance.",
+        },
+        activationBehavior: "immediate",
+        pricing: {
+          monthlyCardCents: 2499,
+          monthlyACHCents: 2499,
+          annualCardCents: 27489,
+          annualACHCents: 27489,
+        },
+        stripeProducts: {
+          monthlyCardId: "prod_FAMILY_MONTHLY_CARD_TBD",
+          monthlyACHId: "prod_FAMILY_MONTHLY_ACH_TBD",
+          annualCardId: "prod_FAMILY_ANNUAL_CARD_TBD",
+          annualACHId: "prod_FAMILY_ANNUAL_ACH_TBD",
+        },
+        metadata: {
+          icon: "Users",
+          bestFor: ["Families"],
+        },
+        isVisible: true,
+        isFeatured: true,
+        order: 1,
       },
     ];
 
@@ -179,7 +263,7 @@ export const reseedInternal = internalMutation({
     }
 
     const product = {
-      slug: "oral-health-plan",
+      slug: "oral-health-individual",
       name: "Ideal Oral Health Plan",
       category: "dental",
       description:
@@ -202,9 +286,9 @@ export const reseedInternal = internalMutation({
       activationBehavior: "immediate" as const,
       pricing: {
         monthlyCardCents: 1499,
-        monthlyACHCents: 1299,
-        annualCardCents: 14999,
-        annualACHCents: 12999,
+        monthlyACHCents: 1499,
+        annualCardCents: 16489,
+        annualACHCents: 16489,
       },
       stripeProducts: {
         monthlyCardId: "prod_U3no15TNX9iTj1",
@@ -214,20 +298,144 @@ export const reseedInternal = internalMutation({
       },
       metadata: {
         icon: "Heart",
-        bestFor: ["Individuals", "Families"],
+        bestFor: ["Individuals"],
       },
       isVisible: true,
       isFeatured: true,
       order: 0,
     };
 
+    const familyProduct = {
+      slug: "oral-health-family",
+      name: "Ideal Oral Health Plan \u2014 Family",
+      category: "dental",
+      description:
+        "Comprehensive oral health coverage for the whole family with AI Oral Scanning, 24/7 teledentistry, and the Dental Discount Network.",
+      longDescription:
+        "Everything in the Individual plan, extended to your entire family. Add unlimited dependents and enjoy AI Oral Scanning, teledentistry, and dental discount network access.",
+      inclusions: [
+        "Everything in Individual Plan",
+        "Unlimited Dependents Covered",
+        "AI Oral Scanning for Family",
+        "24/7 Teledentistry Program",
+        "Dental Discount Network Access",
+        "Family Member ID Cards",
+      ],
+      exclusions: ["Not traditional dental insurance", "Savings-based discount plan"],
+      eligibilityRules: {
+        requiresVerification: false,
+        disclosureText: "This is a savings-based discount plan, not insurance.",
+      },
+      activationBehavior: "immediate" as const,
+      pricing: {
+        monthlyCardCents: 2499,
+        monthlyACHCents: 2499,
+        annualCardCents: 27489,
+        annualACHCents: 27489,
+      },
+      stripeProducts: {
+        monthlyCardId: "prod_FAMILY_MONTHLY_CARD_TBD",
+        monthlyACHId: "prod_FAMILY_MONTHLY_ACH_TBD",
+        annualCardId: "prod_FAMILY_ANNUAL_CARD_TBD",
+        annualACHId: "prod_FAMILY_ANNUAL_ACH_TBD",
+      },
+      metadata: {
+        icon: "Users",
+        bestFor: ["Families"],
+      },
+      isVisible: true,
+      isFeatured: true,
+      order: 1,
+    };
+
     const now = Date.now();
     const id = await ctx.db.insert("catalogProducts", { ...product, createdAt: now, updatedAt: now });
+    const familyId = await ctx.db.insert("catalogProducts", { ...familyProduct, createdAt: now, updatedAt: now });
 
     return {
       success: true,
-      message: `Reseeded 1 product (cleared ${existing.length} old)`,
-      id,
+      message: `Reseeded 2 products (cleared ${existing.length} old)`,
+      ids: [id, familyId],
+    };
+  },
+});
+
+/**
+ * v0.7 upsert: updates individual plan pricing and adds family tier without clearing data.
+ * Run via: npx convex run catalog/mutations:upsertV07Products
+ */
+export const upsertV07Products = internalMutation({
+  args: {},
+  handler: async (ctx: any) => {
+    const now = Date.now();
+    const existing = await ctx.db.query("catalogProducts").collect();
+
+    // Update existing individual plan pricing
+    for (const p of existing) {
+      if (p.slug === "oral-health-plan" || p.slug === "oral-health-individual") {
+        await ctx.db.patch(p._id, {
+          slug: "oral-health-individual",
+          pricing: {
+            monthlyCardCents: 1499,
+            monthlyACHCents: 1499,
+            annualCardCents: 16489,
+            annualACHCents: 16489,
+          },
+          metadata: { icon: "Heart", bestFor: ["Individuals"] },
+          updatedAt: now,
+        });
+      }
+    }
+
+    // Add family tier if it doesn't exist
+    const familyExists = existing.some((p: any) => p.slug === "oral-health-family");
+    let familyId = null;
+    if (!familyExists) {
+      familyId = await ctx.db.insert("catalogProducts", {
+        slug: "oral-health-family",
+        name: "Ideal Oral Health Plan \u2014 Family",
+        category: "dental",
+        description: "Comprehensive oral health coverage for the whole family.",
+        longDescription: "Everything in the Individual plan, extended to your entire family.",
+        inclusions: [
+          "Everything in Individual Plan",
+          "Unlimited Dependents Covered",
+          "AI Oral Scanning for Family",
+          "24/7 Teledentistry Program",
+          "Dental Discount Network Access",
+          "Family Member ID Cards",
+        ],
+        exclusions: ["Not traditional dental insurance", "Savings-based discount plan"],
+        eligibilityRules: {
+          requiresVerification: false,
+          disclosureText: "This is a savings-based discount plan, not insurance.",
+        },
+        activationBehavior: "immediate",
+        pricing: {
+          monthlyCardCents: 2499,
+          monthlyACHCents: 2499,
+          annualCardCents: 27489,
+          annualACHCents: 27489,
+        },
+        stripeProducts: {
+          monthlyCardId: "prod_FAMILY_MONTHLY_CARD_TBD",
+          monthlyACHId: "prod_FAMILY_MONTHLY_ACH_TBD",
+          annualCardId: "prod_FAMILY_ANNUAL_CARD_TBD",
+          annualACHId: "prod_FAMILY_ANNUAL_ACH_TBD",
+        },
+        metadata: { icon: "Users", bestFor: ["Families"] },
+        isVisible: true,
+        isFeatured: true,
+        order: 1,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    return {
+      success: true,
+      message: `v0.7 upsert complete. Family tier ${familyExists ? "already existed" : "created"}.`,
+      familyId,
     };
   },
 });

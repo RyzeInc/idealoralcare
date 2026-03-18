@@ -10,7 +10,7 @@ export default function TeledentistryTab() {
         className="glass-card"
         style={{
           padding: '2rem',
-          background: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)',
+          background: 'linear-gradient(135deg, #3498DB 0%, #2980B9 100%)',
           color: '#fff',
           overflow: 'hidden',
           position: 'relative',
@@ -89,7 +89,7 @@ export default function TeledentistryTab() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#f0fdf4',
+          background: '#eff6ff',
         }}
       >
         <img
@@ -147,9 +147,9 @@ export default function TeledentistryTab() {
               key={step}
               style={{
                 padding: '1.5rem',
-                background: 'linear-gradient(135deg, #f0fdf4, #ecfdf5)',
+                background: 'linear-gradient(135deg, #eff6ff, #e8f4fd)',
                 borderRadius: '14px',
-                border: '1px solid #bbf7d0',
+                border: '1px solid #bfdbfe',
                 textAlign: 'center',
               }}
             >
@@ -158,7 +158,7 @@ export default function TeledentistryTab() {
                 style={{
                   display: 'inline-block',
                   padding: '0.2rem 0.6rem',
-                  background: 'linear-gradient(135deg, #0d9488, #0f766e)',
+                  background: 'linear-gradient(135deg, #3498DB, #2980B9)',
                   color: '#fff',
                   borderRadius: '9999px',
                   fontSize: '0.75rem',
@@ -245,7 +245,7 @@ export default function TeledentistryTab() {
                   flexShrink: 0,
                   width: '40px',
                   height: '40px',
-                  background: '#f0fdf4',
+                  background: '#eff6ff',
                   borderRadius: '10px',
                   display: 'flex',
                   alignItems: 'center',
@@ -279,9 +279,9 @@ export default function TeledentistryTab() {
         style={{
           textAlign: 'center',
           padding: '2.5rem',
-          background: 'linear-gradient(135deg, #f0fdf4, #ecfdf5)',
+          background: 'linear-gradient(135deg, #eff6ff, #e8f4fd)',
           borderRadius: '16px',
-          border: '1px solid #bbf7d0',
+          border: '1px solid #bfdbfe',
         }}
       >
         <h3
@@ -304,7 +304,7 @@ export default function TeledentistryTab() {
             display: 'inline-flex',
             alignItems: 'center',
             gap: '0.5rem',
-            background: '#0d9488',
+            background: '#3498DB',
             color: '#fff',
             padding: '0.75rem 1.5rem',
             borderRadius: '10px',

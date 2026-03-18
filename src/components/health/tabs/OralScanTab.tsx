@@ -166,14 +166,14 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
                   width: '44px',
                   height: '44px',
                   borderRadius: '12px',
-                  background: 'linear-gradient(135deg, #0f172a, #1e293b)',
+                  background: 'linear-gradient(135deg, #1a4731, #1e3a2f)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexShrink: 0,
                 }}
               >
-                <Scan size={22} color="#60a5fa" />
+                <Scan size={22} color="#2ECC71" />
               </div>
               <div>
                 <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
@@ -233,9 +233,8 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
               <button
                 onClick={() => setShowMobileOverlay(true)}
                 style={{
-                  fontSize: '0.8rem',
-                  color: '#0066CC',
-                  textDecoration: 'underline',
+                color: '#2ECC71',
+                textDecoration: 'underline',
                   textAlign: 'center',
                   cursor: 'pointer',
                   background: 'none',
@@ -282,8 +281,8 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
                       style={{
                         display: 'inline-block',
                         padding: '0.2rem 0.6rem',
-                        background: '#f0f9ff',
-                        color: '#0369a1',
+                      background: '#f0fdf4',
+                      color: '#15803d',
                         borderRadius: '9999px',
                         fontSize: '0.75rem',
                         fontWeight: 700,
@@ -327,7 +326,7 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
             <button
               onClick={() => closeScan(true)}
               style={{
-                background: 'linear-gradient(135deg, #0066CC, #0052a3)',
+                background: 'linear-gradient(135deg, #2ECC71, #27AE60)',
                 color: '#fff',
                 border: 'none',
                 borderRadius: '10px',
@@ -380,7 +379,7 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden' }}>
-                <Scan size={18} color="#60a5fa" style={{ flexShrink: 0 }} />
+                <Scan size={18} color="#2ECC71" style={{ flexShrink: 0 }} />
                 <span
                   style={{
                     color: '#fff',
@@ -478,8 +477,7 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
             className="glass-card"
             style={{
               padding: '2rem',
-              background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-              color: '#fff',
+              background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',              color: '#fff',
               overflow: 'hidden',
               position: 'relative',
             }}
@@ -492,7 +490,7 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
                 width: '200px',
                 height: '200px',
                 borderRadius: '50%',
-                background: 'radial-gradient(circle, rgba(0,102,204,0.3), transparent 70%)',
+                background: 'radial-gradient(circle, rgba(46,204,113,0.3), transparent 70%)',
                 pointerEvents: 'none',
               }}
             />
@@ -502,14 +500,14 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
                   width: '48px',
                   height: '48px',
                   borderRadius: '12px',
-                  background: 'rgba(0,102,204,0.35)',
+                  background: 'rgba(46,204,113,0.35)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexShrink: 0,
                 }}
               >
-                <Scan size={24} color="#60a5fa" />
+                <Scan size={24} color="#2ECC71" />
               </div>
               <div>
                 <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>
@@ -531,7 +529,7 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '0.5rem',
-                background: isRegistering ? '#94a3b8' : '#0066CC',
+                background: isRegistering ? '#94a3b8' : '#2ECC71',
                 color: '#fff',
                 padding: '0.75rem 1.5rem',
                 borderRadius: '10px',
@@ -627,7 +625,7 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
                     style={{
                       display: 'inline-block',
                       padding: '0.2rem 0.6rem',
-                      background: 'linear-gradient(135deg, #0066CC, #0052a3)',
+                      background: 'linear-gradient(135deg, #2ECC71, #27AE60)',
                       color: '#fff',
                       borderRadius: '9999px',
                       fontSize: '0.75rem',
@@ -680,15 +678,15 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
                     key={item}
                     style={{
                       padding: '0.875rem',
-                      background: '#f0f9ff',
+                      background: '#f0fdf4',
                       borderRadius: '10px',
-                      border: '1px solid #bae6fd',
+                      border: '1px solid #bbf7d0',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '0.5rem',
                       fontSize: '0.875rem',
                       fontWeight: 600,
-                      color: '#0369a1',
+                      color: '#15803d',
                     }}
                   >
                     {item}
@@ -703,9 +701,9 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
             style={{
               textAlign: 'center',
               padding: '2.5rem',
-              background: 'linear-gradient(135deg, #f8fafc, #eff6ff)',
+              background: 'linear-gradient(135deg, #f8fafc, #f0fdf4)',
               borderRadius: '16px',
-              border: '1px solid #bfdbfe',
+              border: '1px solid #bbf7d0',
             }}
           >
             <h3
@@ -811,7 +809,7 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: '200px' }}>
-                    <Scan size={18} color="#0066CC" />
+                    <Scan size={18} color="#2ECC71" />
                     <div style={{ minWidth: 0 }}>
                       <p
                         style={{
@@ -847,7 +845,7 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
                         disabled={forwardingIds.has(scan._id as string)}
                         style={{
                           padding: '0.5rem 0.875rem',
-                          background: forwardingIds.has(scan._id as string) ? '#f1f5f9' : '#0066CC',
+                          background: forwardingIds.has(scan._id as string) ? '#f1f5f9' : '#2ECC71',
                           color: forwardingIds.has(scan._id as string) ? '#94a3b8' : '#fff',
                           border: 'none',
                           borderRadius: '8px',

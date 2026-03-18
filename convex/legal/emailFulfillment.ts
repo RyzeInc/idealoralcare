@@ -103,7 +103,7 @@ export const sendFulfillmentPacketEmail = action({
       body: JSON.stringify({
         from: "Ideal Oral Health <noreply@getidealoh.com>",
         to: args.memberEmail,
-        subject: "Your Ideal Oral Health Membership Packet",
+        subject: "Your Ideal Oral Health Membership Packet & Program Guide",
         html: generateFulfillmentEmailHTML({
           memberFirstName: args.memberFirstName,
           memberId: args.memberId,
@@ -111,6 +111,7 @@ export const sendFulfillmentPacketEmail = action({
           effectiveDate: args.effectiveDate,
           groupCode: args.groupCode,
           memberServicesPhone: args.memberServicesPhone ?? "801-820-0010",
+          portalUrl: baseUrl,
         }),
         attachments: [
           {
@@ -514,17 +515,22 @@ interface FulfillmentEmailData {
   effectiveDate: string;
   groupCode: string;
   memberServicesPhone: string;
+  portalUrl: string;
 }
 
 function generateFulfillmentEmailHTML(data: FulfillmentEmailData): string {
+  const BLUE = "#0066CC";
+  const TEAL = "#14b8a6";
+  const CYAN = "#0d9de0";
   return `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-      <div style="background: linear-gradient(135deg, #1E88E5 0%, #35C48A 100%); color: white; padding: 24px 20px; text-align: center; border-radius: 8px 8px 0 0;">
-        <h1 style="margin: 0; font-size: 22px;">Your Membership Packet Is Here</h1>
-        <p style="margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;">Ideal Oral Health — Careington Dental Savings Program</p>
+    <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; color: #333; background: #f9fafb;">
+      <!-- Header -->
+      <div style="background: linear-gradient(135deg, #1E88E5 0%, #35C48A 100%); color: white; padding: 28px 24px; text-align: center; border-radius: 8px 8px 0 0;">
+        <h1 style="margin: 0; font-size: 22px;">Your Membership Packet &amp; Program Guide</h1>
+        <p style="margin: 8px 0 0; font-size: 14px; opacity: 0.9;">Ideal Oral Health — Careington Dental Savings Program</p>
       </div>
 
-      <div style="padding: 32px; background: #f9fafb; border-radius: 0 0 8px 8px;">
+      <div style="padding: 28px 24px;">
         <p style="font-size: 16px; margin-bottom: 8px;">Hi ${data.memberFirstName},</p>
 
         <p style="font-size: 14px; line-height: 1.7;">
@@ -532,6 +538,7 @@ function generateFulfillmentEmailHTML(data: FulfillmentEmailData): string {
           Your complete member fulfillment packet is attached to this email as a PDF.
         </p>
 
+        <!-- Membership Snapshot -->
         <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 18px; margin: 20px 0;">
           <h3 style="margin-top: 0; color: #1E88E5; font-size: 14px;">Your Membership Snapshot</h3>
           <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
@@ -562,22 +569,98 @@ function generateFulfillmentEmailHTML(data: FulfillmentEmailData): string {
           <li>Sample schedule of dental services and member-pay amounts</li>
         </ul>
 
-        <h3 style="color: #1E88E5; font-size: 14px;">Using your plan:</h3>
-        <ol style="font-size: 13px; line-height: 2.0; color: #374151; padding-left: 20px;">
-          <li>Confirm the provider participates before scheduling.</li>
-          <li>Identify yourself as an Ideal Oral Health / Careington member.</li>
-          <li>Show your Member ID card at the appointment.</li>
-          <li>Pay the discounted member amount directly at time of service.</li>
-        </ol>
-
-        <div style="background: #EAF4FD; border-radius: 6px; padding: 14px; margin: 20px 0; font-size: 13px;">
-          <strong>Need help?</strong> Call Member Services at
-          <a href="tel:${data.memberServicesPhone}" style="color: #1E88E5; text-decoration: none;">${data.memberServicesPhone}</a>
-          or email
-          <a href="mailto:info@getidealoh.com" style="color: #1E88E5; text-decoration: none;">info@getidealoh.com</a>.
+        <!-- ─── How to Use Your Program ───────────────────────────────── -->
+        <div style="border-top: 2px solid #e2e8f0; margin: 28px 0 20px; padding-top: 24px;">
+          <h2 style="margin: 0 0 6px; font-size: 18px; color: #0f172a;">How to Use Your Program</h2>
+          <p style="margin: 0 0 16px; font-size: 13px; color: #6b7280;">Your membership includes 3 core benefits — here's how to get started.</p>
         </div>
 
-        <p style="font-size: 11px; color: #9ca3af; line-height: 1.5; margin-top: 20px;">
+        <!-- Benefit 1: AI Dental Scan -->
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px;">
+          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${BLUE};">1. AI Dental Scan</h3>
+          <ol style="margin: 0; padding: 0 0 0 20px; font-size: 13px; line-height: 2.0; color: #374151;">
+            <li>Log in to your <a href="${data.portalUrl}/health/dashboard" style="color: ${BLUE}; text-decoration: none;">Member Portal</a> and open the <strong>Oral Scan</strong> tab.</li>
+            <li>Upload or take a clear photo of your teeth.</li>
+            <li>Review your results and any recommended next steps.</li>
+          </ol>
+          <p style="font-size: 12px; color: #6b7280; margin: 10px 0 0; line-height: 1.5;">
+            <strong>Best for:</strong> Spotting possible problem areas, monitoring visible changes, and knowing when to seek follow-up care.
+          </p>
+          <p style="font-size: 11px; color: #9ca3af; margin: 6px 0 0;">Note: The AI scan is a screening tool — not a clinical diagnosis. Always consult a licensed dentist.</p>
+        </div>
+
+        <!-- Benefit 2: Teledentistry -->
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px;">
+          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${CYAN};">2. Teledentistry (DialCare)</h3>
+          <ol style="margin: 0; padding: 0 0 0 20px; font-size: 13px; line-height: 2.0; color: #374151;">
+            <li>Open the <strong>Teledentistry</strong> tab in your portal, or visit <a href="https://www.dialcare.com" style="color: ${CYAN}; text-decoration: none;">dialcare.com</a>.</li>
+            <li>Request or schedule a virtual consultation (available 24/7).</li>
+            <li>Share your concern, scan results, or symptoms with the dentist.</li>
+            <li>Receive professional guidance on what to do next.</li>
+          </ol>
+          <p style="font-size: 12px; color: #6b7280; margin: 10px 0 0; line-height: 1.5;">
+            <strong>Best for:</strong> Questions about dental concerns, guidance after an AI scan, and deciding if in-person care is needed.
+          </p>
+        </div>
+
+        <!-- Benefit 3: Dental Discount Network -->
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px;">
+          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${TEAL};">3. Dental Discount Network (Careington)</h3>
+          <ol style="margin: 0; padding: 0 0 0 20px; font-size: 13px; line-height: 2.0; color: #374151;">
+            <li>Search for a participating provider at <a href="https://www.careington.com" style="color: ${TEAL}; text-decoration: none;">careington.com</a> or call (800) 290-0523.</li>
+            <li>Confirm the provider accepts the Careington discount program <strong>before</strong> your visit.</li>
+            <li>Present your Member ID card at your appointment.</li>
+            <li>Pay the discounted member amount directly at time of service.</li>
+          </ol>
+          <p style="font-size: 12px; color: #6b7280; margin: 10px 0 0; line-height: 1.5;">
+            <strong>Best for:</strong> Routine dental care, savings on eligible services, and finding participating providers.
+          </p>
+        </div>
+
+        <!-- Recommended order -->
+        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 20px; margin-bottom: 16px;">
+          <h3 style="margin: 0 0 10px; font-size: 14px; color: ${BLUE};">Recommended Order</h3>
+          <p style="font-size: 13px; line-height: 1.7; color: #374151; margin: 0;">
+            For the best results: <strong>Start with an AI Scan</strong> to understand any visible areas of concern,
+            then <strong>use Teledentistry</strong> if you have questions, and
+            <strong>use the Discount Network</strong> when you're ready for in-person care.
+          </p>
+        </div>
+
+        <!-- FAQ -->
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px;">
+          <h3 style="margin: 0 0 14px; font-size: 14px; color: #0f172a;">Frequently Asked Questions</h3>
+
+          <p style="font-size: 13px; font-weight: 700; color: #374151; margin: 0 0 4px;">Do I need my member ID at my appointment?</p>
+          <p style="font-size: 13px; color: #6b7280; margin: 0 0 14px; line-height: 1.5;">Yes. Present your member ID card (or the digital card from your dashboard) so the provider can apply your discounts.</p>
+
+          <p style="font-size: 13px; font-weight: 700; color: #374151; margin: 0 0 4px;">When do my benefits begin?</p>
+          <p style="font-size: 13px; color: #6b7280; margin: 0 0 14px; line-height: 1.5;">Benefits are activated within 24 hours of enrollment.</p>
+
+          <p style="font-size: 13px; font-weight: 700; color: #374151; margin: 0 0 4px;">Is the AI scan a diagnosis?</p>
+          <p style="font-size: 13px; color: #6b7280; margin: 0 0 14px; line-height: 1.5;">No. It is a screening tool. Always consult a licensed dentist for professional evaluation.</p>
+
+          <p style="font-size: 13px; font-weight: 700; color: #374151; margin: 0 0 4px;">How do I know what services are eligible for savings?</p>
+          <p style="font-size: 13px; color: #6b7280; margin: 0 0 0; line-height: 1.5;">Your attached packet includes a sample schedule. You can also ask any participating provider for a discounted treatment plan.</p>
+        </div>
+
+        <!-- CTA -->
+        <div style="text-align: center; margin: 24px 0 16px;">
+          <a href="${data.portalUrl}/health/dashboard" style="display: inline-block; padding: 14px 36px; background: ${BLUE}; color: white; font-weight: 700; font-size: 15px; text-decoration: none; border-radius: 8px;">
+            Go to Your Member Portal
+          </a>
+        </div>
+
+        <!-- Support -->
+        <div style="background: #EAF4FD; border-radius: 6px; padding: 14px; margin-bottom: 12px; font-size: 13px;">
+          <strong>Need help?</strong> Call Member Services at
+          <a href="tel:${data.memberServicesPhone}" style="color: #1E88E5; text-decoration: none;">${data.memberServicesPhone}</a>
+          or email <a href="mailto:support@getidealoh.com" style="color: #1E88E5; text-decoration: none;">support@getidealoh.com</a>.
+          Mon–Fri, 8am–6pm CT.
+        </div>
+
+        <!-- Disclaimer -->
+        <p style="font-size: 11px; color: #9ca3af; line-height: 1.5; margin: 0;">
           This plan is not insurance. Members are responsible for payment at the time of service
           and receive access to negotiated discounts through participating providers.
           The range of discounts varies by provider and service.

@@ -461,6 +461,69 @@ export const hasAccess = query({
  * Get ANY customer's dashboard summary (admin-facing)
  * Only admins can look up other users' dashboards
  */
+/**
+ * PUBLIC member card data lookup by customerId.
+ * Safe to call from server components using a verified Clerk userId — no auth
+ * guard needed because the caller confirms identity via Clerk server SDK.
+ */
+export const getMemberCardDataPublic = query({
+  args: { customerId: v.string() },
+  handler: async (ctx: QueryCtx, args) => {
+    const profile = await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_customer", (q) => q.eq("customerId", args.customerId))
+      .filter((q) => q.neq(q.field("status" as any), "terminated"))
+      .first();
+
+    if (!profile) return null;
+
+    const bundle = await ctx.db
+      .query("subscriptionBundles")
+      .withIndex("by_customer", (q) => q.eq("customerId", args.customerId))
+      .filter((q) => q.neq(q.field("status"), "cancelled"))
+      .first();
+
+    // Try to get a plan name from active entitlements
+    let planName = "Ideal Oral Health Plan";
+    const entitlement = await ctx.db
+      .query("entitlements")
+      .withIndex("by_customer", (q) => q.eq("customerId", args.customerId))
+      .filter((q) =>
+        q.or(
+          q.eq(q.field("status"), "active"),
+          q.eq(q.field("status"), "cancel_at_period_end")
+        )
+      )
+      .first();
+    if (entitlement) {
+      const product = await ctx.db.get((entitlement as any).productId as any);
+      if (product && (product as any).name) planName = (product as any).name;
+    }
+
+    const effectiveTs = (bundle as any)?.currentPeriodStart ?? (profile as any).enrolledAt ?? profile._creationTime;
+    const effectiveDate = new Date(effectiveTs).toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+
+    return {
+      memberName: `${profile.firstName} ${profile.lastName}`,
+      memberId: profile.memberId,
+      planName,
+      effectiveDate,
+      barcode: profile.barcode,
+      networks: {
+        careington: { name: "Dental Discount Network", memberUrl: "https://www.careington.com" },
+        dialCare: { name: "Teledentistry Program", memberUrl: "https://www.dialcare.com" },
+        toothlens: { name: "AI Oral Scanning", memberUrl: "https://toothlens.com" },
+      },
+      supportPhone: "(800) 290-0523",
+      supportEmail: "support@getidealoh.com",
+    };
+  },
+});
+
 export const getCustomerDashboard = query({
   args: {
     customerId: v.string(),

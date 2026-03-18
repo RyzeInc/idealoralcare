@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useConvexAuth } from 'convex/react';
 import { api } from '@/convex/_generated/api';
-import { Users, UserPlus, Mail, Trash2, RefreshCw, CheckCircle, Clock } from 'lucide-react';
+import { Users, UserPlus, Mail, Trash2, RefreshCw, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 
 type Relationship = 'spouse' | 'child' | 'domestic_partner' | 'other';
+type Toast = { id: number; type: 'success' | 'error'; message: string };
 
 const RELATIONSHIP_LABELS: Record<Relationship, string> = {
   spouse: 'Spouse',
@@ -57,6 +58,14 @@ export default function FamilySection() {
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const [queryError, setQueryError] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const toastIdRef = useRef(0);
+
+  const showToast = (type: 'success' | 'error', message: string) => {
+    const id = ++toastIdRef.current;
+    setToasts(prev => [...prev, { id, type, message }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000);
+  };
 
   const validate = (): boolean => {
     const errs: Partial<typeof form> = {};
@@ -78,11 +87,15 @@ export default function FamilySection() {
         email: form.email.trim(),
         relationship: form.relationship,
       });
+      const invitedEmail = form.email.trim();
       setForm({ firstName: '', lastName: '', email: '', relationship: 'spouse' });
       setErrors({});
       setShowForm(false);
+      showToast('success', `Invite sent to ${invitedEmail}`);
     } catch (err) {
-      setAddError(err instanceof Error ? err.message : 'Failed to add family member');
+      const msg = err instanceof Error ? err.message : 'Failed to add family member';
+      setAddError(msg);
+      showToast('error', msg);
     } finally {
       setAdding(false);
     }
@@ -98,17 +111,45 @@ export default function FamilySection() {
     }
   };
 
-  const handleResend = async (dependentId: string) => {
+  const handleResend = async (dependentId: string, email: string) => {
     setResendingId(dependentId);
     try {
       await resendInvite({ dependentProfileId: dependentId as any });
+      showToast('success', `Invite resent to ${email}`);
+    } catch (err) {
+      showToast('error', err instanceof Error ? err.message : 'Failed to resend invite');
     } finally {
       setResendingId(null);
     }
   };
 
   return (
-    <div className="glass-card" style={{ padding: '2rem' }}>
+    <>
+      {/* Toast notifications */}
+      <div style={{ position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 9999, display: 'flex', flexDirection: 'column', gap: '0.5rem', pointerEvents: 'none' }}>
+        {toasts.map(t => (
+          <div key={t.id} style={{
+            display: 'flex', alignItems: 'center', gap: '0.625rem',
+            padding: '0.75rem 1.125rem',
+            borderRadius: '10px',
+            background: t.type === 'success' ? '#16a34a' : '#dc2626',
+            color: 'white',
+            fontSize: '0.875rem',
+            fontWeight: 500,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            maxWidth: '340px',
+            opacity: 1,
+            transition: 'opacity 0.3s ease',
+          }}>
+            {t.type === 'success'
+              ? <CheckCircle size={16} style={{ flexShrink: 0 }} />
+              : <AlertCircle size={16} style={{ flexShrink: 0 }} />}
+            {t.message}
+          </div>
+        ))}
+      </div>
+
+      <div className="glass-card" style={{ padding: '2rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
         <h2 style={{ fontSize: '1.375rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.75rem', margin: 0 }}>
           <Users size={24} color="#0066CC" />
@@ -163,7 +204,7 @@ export default function FamilySection() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 {dep.inviteStatus !== 'claimed' && (
                   <button
-                    onClick={() => handleResend(dep._id)}
+                    onClick={() => handleResend(dep._id, dep.invitedEmail ?? dep.email ?? '')}
                     disabled={resendingId === dep._id}
                     title="Resend invite email"
                     style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.375rem 0.625rem', background: 'transparent', border: '1px solid #d1d5db', borderRadius: '6px', color: '#6b7280', fontSize: '0.78rem', cursor: 'pointer' }}
@@ -277,5 +318,6 @@ export default function FamilySection() {
         </div>
       )}
     </div>
+    </>
   );
 }

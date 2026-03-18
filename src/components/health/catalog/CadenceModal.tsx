@@ -56,7 +56,7 @@ export function CadenceModal() {
           >
             <div className={styles.cadenceModalOptionHeader}>
               <span className={styles.cadenceModalOptionTitle}>Annual</span>
-              <span className={styles.cadenceModalOptionSavings}>Save 15%</span>
+              <span className={styles.cadenceModalOptionSavings}>1 Month Free</span>
             </div>
             <p className={styles.cadenceModalOptionDescription}>
               Pay once per year and save on every plan

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import {
   ChevronRight,
@@ -7,13 +8,15 @@ import {
   Settings,
   CreditCard,
   FileText,
-  RefreshCw,
   Search,
   Scan,
   Video,
   ShieldCheck,
+  LayoutDashboard,
 } from 'lucide-react';
 import FamilySection from '../FamilySection';
+import MemberIdCard, { type MemberCardData } from '../MemberIdCard';
+import HowItWorksModal from '../HowItWorksModal';
 
 interface Subscription {
   id: string;
@@ -33,6 +36,7 @@ interface OverviewTabProps {
   hasSubscriptions: boolean;
   subscriptions: Subscription[];
   onTabChange: (tabId: 'overview' | 'provider-search' | 'oral-scan' | 'teledentistry') => void;
+  memberCardData?: MemberCardData | null;
 }
 
 export default function OverviewTab({
@@ -43,7 +47,30 @@ export default function OverviewTab({
   hasSubscriptions,
   subscriptions,
   onTabChange,
+  memberCardData,
 }: OverviewTabProps) {
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
+
+  // Build card data from available props when full profile not yet loaded from Convex
+  const cardData: MemberCardData = memberCardData ?? {
+    memberName: fullName ?? 'Member',
+    memberId: subscriptions[0]?.id?.slice(-9) ?? '—',
+    planName: subscriptions[0]?.name ?? 'Ideal Oral Health Plan',
+    effectiveDate: subscriptions[0]?.renewDate ?? '—',
+    barcode: '',
+    networks: {
+      careington: { name: 'Dental Discount Network', memberUrl: 'https://www.careington.com' },
+      dialCare: { name: 'Teledentistry Program', memberUrl: 'https://www.dialcare.com' },
+      toothlens: { name: 'AI Oral Scanning', memberUrl: 'https://toothlens.com' },
+    },
+    supportPhone: '(800) 290-0523',
+    supportEmail: 'support@getidealoh.com',
+  };
+
+  const handleDownloadCard = () => {
+    window.open('/api/member-card-pdf', '_blank');
+  };
+
   return (
     <div
       style={{
@@ -76,10 +103,10 @@ export default function OverviewTab({
               }}
             >
               <HeartPulse size={24} color="#0066CC" />
-              Your Active Plans
+              Your Membership Card
             </h2>
             <Link
-              href="/health/plans"
+              href="/health/manage-plans"
               style={{
                 color: '#0066CC',
                 fontSize: '0.9375rem',
@@ -90,84 +117,12 @@ export default function OverviewTab({
                 gap: '0.25rem',
               }}
             >
-              Browse More <ChevronRight size={18} />
+              Manage Plans <ChevronRight size={18} />
             </Link>
           </div>
 
           {hasSubscriptions ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {subscriptions.map((sub) => (
-                <div
-                  key={sub.id}
-                  style={{
-                    padding: '1.25rem',
-                    background: '#f8fafc',
-                    borderRadius: '12px',
-                    border: '1px solid #e2e8f0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <div>
-                    <span
-                      style={{
-                        display: 'block',
-                        fontSize: '0.75rem',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em',
-                        color: '#0066CC',
-                        marginBottom: '0.25rem',
-                      }}
-                    >
-                      {sub.category}
-                    </span>
-                    <span style={{ fontWeight: 600, color: '#0f172a' }}>{sub.name}</span>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        marginTop: '0.5rem',
-                        fontSize: '0.875rem',
-                        color: '#64748b',
-                      }}
-                    >
-                      <span>🕐</span>
-                      Renews {sub.renewDate}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <span
-                      style={{
-                        fontWeight: 700,
-                        color: '#0f172a',
-                        fontSize: '1.125rem',
-                      }}
-                    >
-                      ${(sub.price / 100).toFixed(2)}
-                    </span>
-                    <span style={{ color: '#64748b', fontSize: '0.875rem' }}>
-                      /{sub.cadence === 'monthly' ? 'mo' : 'yr'}
-                    </span>
-                    <span
-                      style={{
-                        display: 'block',
-                        marginTop: '0.5rem',
-                        padding: '0.25rem 0.75rem',
-                        background: '#dcfce7',
-                        color: '#15803d',
-                        borderRadius: '9999px',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                      }}
-                    >
-                      {sub.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <MemberIdCard cardData={cardData} onDownload={handleDownloadCard} />
           ) : (
             <div
               style={{
@@ -183,7 +138,7 @@ export default function OverviewTab({
                   width: '64px',
                   height: '64px',
                   borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #0066CC20, #14b8a620)',
+                  background: 'linear-gradient(135deg, #2ECC7120, #3498DB20)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -197,8 +152,8 @@ export default function OverviewTab({
                 <br />
                 Start saving on healthcare today!
               </p>
-              <Link href="/health/plans" className="button button--primary">
-                Browse Plans
+              <Link href="/health/manage-plans" className="button button--primary">
+                Get Started
               </Link>
             </div>
           )}
@@ -319,7 +274,7 @@ export default function OverviewTab({
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <Link
-              href="/health/plans"
+              href="/health/manage-plans"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -333,12 +288,12 @@ export default function OverviewTab({
                 transition: 'all 0.2s',
               }}
             >
-              <HeartPulse size={18} color="#0066CC" />
-              Browse Plans
+              <LayoutDashboard size={18} color="#0066CC" />
+              Manage Plans
               <ChevronRight size={16} color="#94a3b8" style={{ marginLeft: 'auto' }} />
             </Link>
-            <Link
-              href="/health/how-it-works"
+            <button
+              onClick={() => setShowHowItWorks(true)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -346,35 +301,19 @@ export default function OverviewTab({
                 padding: '0.875rem 1rem',
                 background: '#f8fafc',
                 borderRadius: '10px',
-                textDecoration: 'none',
                 color: '#0f172a',
                 fontWeight: 500,
+                border: 'none',
+                cursor: 'pointer',
                 transition: 'all 0.2s',
+                width: '100%',
+                textAlign: 'left',
               }}
             >
               <FileText size={18} color="#0066CC" />
               How It Works
               <ChevronRight size={16} color="#94a3b8" style={{ marginLeft: 'auto' }} />
-            </Link>
-            <Link
-              href="/health/compare"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                padding: '0.875rem 1rem',
-                background: '#f8fafc',
-                borderRadius: '10px',
-                textDecoration: 'none',
-                color: '#0f172a',
-                fontWeight: 500,
-                transition: 'all 0.2s',
-              }}
-            >
-              <RefreshCw size={18} color="#0066CC" />
-              Compare Plans
-              <ChevronRight size={16} color="#94a3b8" style={{ marginLeft: 'auto' }} />
-            </Link>
+            </button>
             {/* Tab shortcuts */}
             <button
               onClick={() => onTabChange('provider-search')}
@@ -395,7 +334,7 @@ export default function OverviewTab({
                 textAlign: 'left',
               }}
             >
-              <Search size={18} color="#0066CC" />
+              <Search size={18} color="#F39C12" />
               Find a Dentist
               <ChevronRight size={16} color="#94a3b8" style={{ marginLeft: 'auto' }} />
             </button>
@@ -418,7 +357,7 @@ export default function OverviewTab({
                 textAlign: 'left',
               }}
             >
-              <Scan size={18} color="#0066CC" />
+              <Scan size={18} color="#2ECC71" />
               Start Oral Scan
               <ChevronRight size={16} color="#94a3b8" style={{ marginLeft: 'auto' }} />
             </button>
@@ -441,7 +380,7 @@ export default function OverviewTab({
                 textAlign: 'left',
               }}
             >
-              <Video size={18} color="#0066CC" />
+              <Video size={18} color="#3498DB" />
               Teledentistry
               <ChevronRight size={16} color="#94a3b8" style={{ marginLeft: 'auto' }} />
             </button>
@@ -520,6 +459,11 @@ export default function OverviewTab({
           </div>
         </div>
       </div>
+      <HowItWorksModal
+        isOpen={showHowItWorks}
+        onClose={() => setShowHowItWorks(false)}
+        onTabChange={onTabChange}
+      />
     </div>
   );
 }

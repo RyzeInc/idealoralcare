@@ -1289,4 +1289,92 @@ export default defineSchema({
     .index("by_email", ["email"])
     .index("by_status", ["status"])
     .index("by_date", ["createdAt"]),
+
+  // ============================================
+  // CAREINGTON ENROLLMENT RECORDS
+  // Source of truth for who is enrolled with Careington,
+  // directly mirrors the fields in Careington's eligibility file format.
+  // ============================================
+
+  careingtonEnrollments: defineTable({
+    // HIERARCHY LINKS
+    memberProfileId: v.optional(v.id("memberProfiles")), // Our internal member record
+    siteId: v.optional(v.id("sites")),
+    accountId: v.optional(v.id("accounts")),
+    groupId: v.optional(v.id("groups")),
+
+    // CAREINGTON IDENTITY FIELDS (from eligibility file)
+    title: v.optional(v.string()),            // e.g., "Mr.", "Dr."
+    firstName: v.string(),
+    middleName: v.optional(v.string()),
+    lastName: v.string(),
+    postName: v.optional(v.string()),         // e.g., "Jr.", "Sr.", "II"
+    careingtonUniqueId: v.optional(v.string()), // Careington-assigned unique member ID
+    sequenceNumber: v.optional(v.string()),   // Sequence within household
+
+    // ADDRESS
+    addressLine1: v.optional(v.string()),
+    addressLine2: v.optional(v.string()),
+    city: v.optional(v.string()),
+    state: v.optional(v.string()),
+    zip: v.optional(v.string()),
+    zipPlus4: v.optional(v.string()),
+
+    // CONTACT
+    homePhone: v.optional(v.string()),
+    workPhone: v.optional(v.string()),
+    email: v.optional(v.string()),
+
+    // PLAN & GROUP
+    coverage: v.optional(v.string()),         // Careington plan/coverage code
+    groupCode: v.string(),                    // Careington group code
+
+    // DATES
+    effectiveDate: v.string(),                // YYYY-MM-DD — when coverage begins
+    terminationDate: v.optional(v.string()),  // YYYY-MM-DD — when coverage ends (null = active)
+    dateOfBirth: v.optional(v.string()),      // YYYY-MM-DD
+
+    // DEMOGRAPHICS
+    gender: v.optional(v.string()),           // "M", "F", etc.
+    relation: v.optional(v.string()),         // Relationship to subscriber: "01"=self, "02"=spouse, etc.
+    studentStatus: v.optional(v.string()),    // Full-time, part-time, etc.
+    guardian: v.optional(v.string()),         // Guardian name if minor
+
+    // REPORTING
+    reportingSegment: v.optional(v.string()), // Careington reporting segment code
+
+    // ENROLLMENT STATUS (our tracking, separate from Careington's file)
+    enrollmentStatus: v.union(
+      v.literal("pending"),          // Written but not yet delivered via SFTP
+      v.literal("submitted"),        // Delivered to Careington via SFTP
+      v.literal("active"),           // Confirmed active at Careington
+      v.literal("pending_termination"), // Termination queued for next SFTP run
+      v.literal("terminated"),       // Termination delivered and confirmed
+      v.literal("rejected")          // Careington rejected this record
+    ),
+
+    // SFTP DELIVERY TRACKING
+    sftpDeliveredAt: v.optional(v.number()),  // When last sent via SFTP
+    sftpBatchId: v.optional(v.string()),      // Batch/file identifier
+    sftpError: v.optional(v.string()),        // Error message if delivery failed
+
+    // LEGAL AGREEMENT LINK
+    membershipAgreementId: v.optional(v.id("membershipAgreements")), // The signed agreement doc
+
+    // AUDIT
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    createdBy: v.optional(v.string()),  // Clerk user ID
+    updatedBy: v.optional(v.string()),
+  })
+    .index("by_member_profile", ["memberProfileId"])
+    .index("by_group_code", ["groupCode"])
+    .index("by_careington_unique_id", ["careingtonUniqueId"])
+    .index("by_enrollment_status", ["enrollmentStatus"])
+    .index("by_email", ["email"])
+    .index("by_site", ["siteId"])
+    .index("by_group", ["groupId"])
+    .index("by_effective_date", ["effectiveDate"])
+    .index("by_termination_date", ["terminationDate"])
+    .index("by_sftp_batch", ["sftpBatchId"]),
 });
