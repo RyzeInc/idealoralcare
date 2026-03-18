@@ -36,7 +36,7 @@ export default function HowItWorks() {
             style={{
               fontSize: "0.875rem",
               fontWeight: 600,
-              color: "#0066CC",
+              color: "#64748b",
               textTransform: "uppercase",
               letterSpacing: "0.05em",
               marginBottom: "1rem",

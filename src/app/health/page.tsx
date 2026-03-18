@@ -83,32 +83,32 @@ export default function HealthLanding() {
             </div>
             <div className="benefit-tiles" style={{ flex: 1 }}>
               <div className="benefit-tile">
-                <div className="benefit-tile__icon"><Zap size={28} color="#0066CC" /></div>
+                <div className="benefit-tile__icon"><Zap size={28} color="#2ECC71" /></div>
                 <h4 className="benefit-tile__title">AI Oral Scanning</h4>
                 <p className="benefit-tile__description">AI Oral Scanning analyzes photos of your teeth using AI to detect potential issues early.</p>
               </div>
               <div className="benefit-tile">
-                <div className="benefit-tile__icon"><Clock size={28} color="#0066CC" /></div>
+                <div className="benefit-tile__icon"><Clock size={28} color="#3498DB" /></div>
                 <h4 className="benefit-tile__title">24/7 Teledentistry</h4>
                 <p className="benefit-tile__description">Connect with licensed dentists anytime via our Teledentistry Program for consultations and guidance.</p>
               </div>
               <div className="benefit-tile">
-                <div className="benefit-tile__icon"><Smile size={28} color="#0066CC" /></div>
+                <div className="benefit-tile__icon"><Smile size={28} color="#F39C12" /></div>
                 <h4 className="benefit-tile__title">Network Discounts</h4>
                 <p className="benefit-tile__description">Access thousands of dentists nationwide through the Dental Discount Network with negotiated discount rates.</p>
               </div>
               <div className="benefit-tile">
-                <div className="benefit-tile__icon"><Heart size={28} color="#0066CC" /></div>
+                <div className="benefit-tile__icon"><Heart size={28} color="#64748b" /></div>
                 <h4 className="benefit-tile__title">Preventive Focus</h4>
                 <p className="benefit-tile__description">Emphasis on preventive care and early detection to reduce costly treatments down the road.</p>
               </div>
               <div className="benefit-tile">
-                <div className="benefit-tile__icon"><Shield size={28} color="#0066CC" /></div>
+                <div className="benefit-tile__icon"><Shield size={28} color="#64748b" /></div>
                 <h4 className="benefit-tile__title">Emergency Support</h4>
                 <p className="benefit-tile__description">Immediate access to emergency dental support when pain or urgent concerns arise.</p>
               </div>
               <div className="benefit-tile">
-                <div className="benefit-tile__icon"><Shield size={28} color="#14B8A6" /></div>
+                <div className="benefit-tile__icon"><Shield size={28} color="#64748b" /></div>
                 <h4 className="benefit-tile__title">Flexible Options</h4>
                 <p className="benefit-tile__description">Choose between teledentistry, in-network discounts, or a combination—whatever works best for you.</p>
               </div>
@@ -146,7 +146,7 @@ export default function HealthLanding() {
             </div>
             {/* Steps — right */}
             <div className="how-it-works-section__content" style={{ flex: 1 }}>
-              <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#0066CC", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "1rem" }}>
+              <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "1rem" }}>
                 Simple Process
               </p>
               <h2 style={{ marginBottom: "1rem" }}>Getting Started Takes 4 Easy Steps</h2>
