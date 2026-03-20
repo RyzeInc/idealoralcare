@@ -721,7 +721,7 @@ const cardStyles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 4,
-    background: "linear-gradient(90deg, #0066CC, #14b8a6)",
+    backgroundColor: "#0066CC",
   },
   header: {
     flexDirection: "row",
@@ -761,13 +761,14 @@ const cardStyles = StyleSheet.create({
     marginBottom: 2,
   },
   fieldsGrid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "6 12",
+    flexDirection: "row",
+    flexWrap: "wrap",
     marginTop: 2,
   },
   field: {
+    width: "50%",
     marginBottom: 6,
+    paddingRight: 6,
   },
   fieldLabel: {
     fontSize: 5.5,
@@ -899,7 +900,7 @@ function MemberCardFrontPage({ data }: { data: FulfillmentPacketData }) {
             {fields.map((field, idx) => (
               <View key={idx} style={cardStyles.field}>
                 <Text style={cardStyles.fieldLabel}>{field.label}</Text>
-                <Text style={[cardStyles.fieldValue, field.label === "Member ID" && cardStyles.memberId]}>
+                <Text style={[cardStyles.fieldValue, field.label === "Member ID" ? cardStyles.memberId : {}]}>
                   {field.value}
                 </Text>
               </View>

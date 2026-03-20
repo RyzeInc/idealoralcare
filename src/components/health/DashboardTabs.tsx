@@ -28,6 +28,20 @@ interface DashboardTabsProps {
   hasSubscriptions: boolean;
   subscriptions: Subscription[];
   userId: string | null;
+  memberCardData: {
+    memberName: string;
+    memberId: string;
+    planName: string;
+    effectiveDate: string;
+    barcode: string;
+    networks: {
+      careington: { name: string; memberUrl: string };
+      dialCare: { name: string; memberUrl: string };
+      toothlens: { name: string; memberUrl: string };
+    };
+    supportPhone: string;
+    supportEmail: string;
+  } | null;
 }
 
 type TabId = 'overview' | 'provider-search' | 'oral-scan' | 'teledentistry';
@@ -62,6 +76,7 @@ export default function DashboardTabs({
   hasSubscriptions,
   subscriptions,
   userId,
+  memberCardData,
 }: DashboardTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
 
