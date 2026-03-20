@@ -1,6 +1,7 @@
 import { internalMutation, mutation, query } from "../_generated/server";
 import { v } from "convex/values";
 import { requireAdmin, requireAuth } from "../lib/authGuards";
+import { autoGrantFreeAccess } from "./grantFreeAccess";
 
 // Check if user is admin
 export const isAdmin = query({
@@ -93,7 +94,7 @@ export const add = mutation({
       return existing._id;
     }
 
-    return await ctx.db.insert("adminUsers", {
+    const id = await ctx.db.insert("adminUsers", {
       clerkUserId: args.clerkUserId,
       email: args.email,
       name: args.name,
@@ -103,6 +104,15 @@ export const add = mutation({
       commissionRate: args.commissionRate,
       createdAt: Date.now(),
     });
+
+    // Automatically grant free platform access to all new team members
+    await autoGrantFreeAccess(
+      ctx,
+      args.clerkUserId,
+      `Auto-granted on team member addition (${args.departments.join(", ")})`
+    );
+
+    return id;
   },
 });
 

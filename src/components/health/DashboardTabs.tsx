@@ -20,21 +20,6 @@ interface Subscription {
   status: string;
 }
 
-interface MemberCardData {
-  memberName: string;
-  memberId: string;
-  planName: string;
-  effectiveDate: string;
-  barcode: string;
-  networks: {
-    careington: { name: string; memberUrl: string };
-    dialCare: { name: string; memberUrl: string };
-    toothlens: { name: string; memberUrl: string };
-  };
-  supportPhone: string;
-  supportEmail: string;
-}
-
 interface DashboardTabsProps {
   firstName: string | null;
   email: string | null;
@@ -43,7 +28,6 @@ interface DashboardTabsProps {
   hasSubscriptions: boolean;
   subscriptions: Subscription[];
   userId: string | null;
-  memberCardData?: MemberCardData | null;
 }
 
 type TabId = 'overview' | 'provider-search' | 'oral-scan' | 'teledentistry';
@@ -78,27 +62,19 @@ export default function DashboardTabs({
   hasSubscriptions,
   subscriptions,
   userId,
-  memberCardData,
 }: DashboardTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
 
   return (
     <>
-      {/* Dashboard Header with Logo — click to return to Overview tab */}
-      <button
-        onClick={() => setActiveTab('overview')}
+      {/* Dashboard Header with Logo */}
+      <div
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: '1rem',
           marginBottom: '2rem',
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          padding: 0,
-          textAlign: 'left',
         }}
-        aria-label="Go to Overview"
       >
         <div
           style={{
@@ -107,10 +83,10 @@ export default function DashboardTabs({
             flexShrink: 0,
           }}
         >
-          <img src="/logo192x192.png" alt="Ideal Health" style={{ width: '100%', height: '100%' }} />
+          <img src="/health-assets/IdealLogo.png" alt="Ideal Health" style={{ width: '100%', height: '100%' }} />
         </div>
         <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>Dashboard</h2>
-      </button>
+      </div>
 
       {/* Tab Bar */}
       <div
@@ -167,7 +143,6 @@ export default function DashboardTabs({
             hasSubscriptions={hasSubscriptions}
             subscriptions={subscriptions}
             onTabChange={setActiveTab}
-            memberCardData={memberCardData}
           />
         )}
 
