@@ -36,7 +36,7 @@ const INDIVIDUAL_PLAN = {
   name: "Individual Plan",
   tier: "individual",
   monthlyCents: 1499,
-  annualCents: 16489, // 11 months × $14.99
+  annualCents: 16499,
   description: "Full membership benefits for one adult.",
   inclusions: [
     "AI Dental Scan",
@@ -53,7 +53,7 @@ const FAMILY_PLAN = {
   name: "Family Plan",
   tier: "family",
   monthlyCents: 2499,
-  annualCents: 27489, // 11 months × $24.99
+  annualCents: 27499,
   description: "Unlimited household members under one flat rate.",
   inclusions: [
     "All Individual Plan benefits",
@@ -67,7 +67,7 @@ const FAMILY_PLAN = {
 
 const COMPARISON_ROWS = [
   { label: "Monthly Price", individual: "$14.99/mo", family: "$24.99/mo" },
-  { label: "Annual Price", individual: "$164.89/yr", family: "$274.89/yr" },
+  { label: "Annual Price", individual: "$164.99/yr", family: "$274.99/yr" },
   { label: "AI Dental Scan", individual: true, family: true },
   { label: "Teledentistry (24/7)", individual: true, family: true },
   { label: "Dental Discount Network", individual: true, family: true },

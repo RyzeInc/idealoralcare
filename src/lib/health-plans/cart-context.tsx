@@ -56,6 +56,9 @@ interface CartContextType {
   itemCount: number;
   subtotalCents: number;
   achSavingsCents: number;
+  
+  // Sync
+  syncProductPricing: (freshProducts: CatalogProduct[]) => void;
 }
 
 const defaultCart: CartState = {

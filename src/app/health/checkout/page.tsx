@@ -725,17 +725,12 @@ function CheckoutContent() {
     year: "numeric",
   });
   
-  // Calculate ACH savings
+  // Calculate total (always use card pricing — no ACH discount)
   const cardTotal = cart.items.reduce((sum, item) => {
     return sum + getPrice(item.product, cart.cadence, "card");
   }, 0);
-  const achTotal = cart.items.reduce((sum, item) => {
-    return sum + getPrice(item.product, cart.cadence, "ach");
-  }, 0);
-  const achSavings = cardTotal - achTotal;
-  
-  // Calculate actual total (subtotal is always card price, then apply ACH discount if applicable)
-  const totalDueToday = cart.paymentMethod === "ach" ? achTotal : cardTotal;
+  const achSavings = 0;
+  const totalDueToday = cardTotal;
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   
   const handleCheckout = async () => {
@@ -871,7 +866,7 @@ function CheckoutContent() {
                 {/* Order Items */}
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                   {cart.items.map((item) => {
-                    const itemPrice = getPrice(item.product, cart.cadence, cart.paymentMethod);
+                    const itemPrice = getPrice(item.product, cart.cadence, "card");
                     return (
                       <div key={item.productId} style={{
                         display: "flex",
@@ -1333,7 +1328,7 @@ function CheckoutContent() {
                   borderBottom: "1px solid #e2e8f0"
                 }}>
                   {cart.items.map((item) => {
-                    const itemPrice = getPrice(item.product, cart.cadence, cart.paymentMethod);
+                    const itemPrice = getPrice(item.product, cart.cadence, "card");
                     return (
                       <div key={item.productId} style={{
                         display: "flex",
@@ -1349,22 +1344,7 @@ function CheckoutContent() {
                   })}
                 </div>
                 
-                {/* ACH Savings Banner */}
-                {cart.paymentMethod === "ach" && achSavings > 0 && (
-                  <div style={{
-                    margin: "1rem 0",
-                    padding: "0.75rem 1rem",
-                    background: "linear-gradient(135deg, #f0fdfa, #ecfdf5)",
-                    borderRadius: "10px",
-                    border: "1px solid #99f6e4",
-                    textAlign: "center",
-                    fontSize: "0.9375rem",
-                    color: "#0d9488",
-                    fontWeight: 600
-                  }}>
-                    ACH discount: You're saving {formatPrice(achSavings)}{periodShort}!
-                  </div>
-                )}
+                {/* ACH Savings Banner — removed */}
                 
                 {/* Totals */}
                 <div style={{ marginTop: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
@@ -1372,12 +1352,6 @@ function CheckoutContent() {
                     <span style={{ color: "#64748b" }}>Subtotal</span>
                     <span style={{ color: "#0f172a" }}>{formatPrice(subtotalCents)}</span>
                   </div>
-                  {cart.paymentMethod === "ach" && achSavings > 0 && (
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span style={{ color: "#16a34a" }}>ACH Discount</span>
-                      <span style={{ color: "#16a34a" }}>-{formatPrice(achSavings)}</span>
-                    </div>
-                  )}
                   <div style={{ 
                     display: "flex", 
                     justifyContent: "space-between",

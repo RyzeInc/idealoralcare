@@ -763,6 +763,10 @@ export default defineSchema({
     ),
     effectiveDate: v.optional(v.number()),
     terminationDate: v.optional(v.number()),
+
+    // BROKER ATTRIBUTION (Scenario B: broker sells to company/group)
+    brokerId: v.optional(v.string()), // Clerk user ID of broker who owns this group account
+    brokerTrackingCode: v.optional(v.string()), // Broker's tracking code tied to this group deal
     
     // AUDIT
     createdAt: v.number(),
@@ -772,7 +776,8 @@ export default defineSchema({
     .index("by_site", ["siteId"])
     .index("by_account", ["accountId"])
     .index("by_group_code", ["groupCode"]) // For signup resolution
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .index("by_broker", ["brokerId"]),
 
   // ============================================
   // ENROLLMENT SYSTEM - MEMBER PROFILES & CRM
@@ -1061,6 +1066,10 @@ export default defineSchema({
     signupSource: v.optional(v.string()),
     referredByMemberId: v.optional(v.id("memberProfiles")),
     assistedBy: v.optional(v.string()), // Staff user ID
+
+    // BROKER ATTRIBUTION (Scenario A: broker sells directly to individual)
+    brokerId: v.optional(v.string()), // Clerk user ID of attributed broker
+    brokerTrackingCode: v.optional(v.string()), // Broker's unique tracking code used at signup
     
     // AUDIT
     createdAt: v.number(),
@@ -1072,7 +1081,8 @@ export default defineSchema({
     .index("by_member", ["memberId"])
     .index("by_site", ["siteId"])
     .index("by_status", ["status"])
-    .index("by_created", ["createdAt"]),
+    .index("by_created", ["createdAt"])
+    .index("by_broker", ["brokerId"]),
 
   // ELIGIBILITY FILES (Uploaded member lists)
   eligibilityFiles: defineTable({
@@ -1134,6 +1144,41 @@ export default defineSchema({
   // COMMISSION SYSTEM
   // ============================================
 
+  // BROKER TRACKING CODES (Unique codes for URL-based attribution)
+  brokerTrackingCodes: defineTable({
+    // BROKER IDENTITY
+    brokerId: v.string(), // Clerk user ID of the broker
+    agencyId: v.optional(v.string()),
+
+    // CODE
+    code: v.string(), // Unique short code, e.g. "BRK-SMITH-01" — used in ?ref= URLs
+
+    // OPTIONAL SCOPE (if nil, code applies to all sales by this broker)
+    groupId: v.optional(v.id("groups")), // Pin code to a specific group/company deal
+    siteId: v.optional(v.id("sites")),
+
+    // USAGE TRACKING
+    usageCount: v.number(), // Incremented each time code is used at enrollment
+    lastUsedAt: v.optional(v.number()),
+
+    // STATUS
+    status: v.union(
+      v.literal("active"),
+      v.literal("inactive"),
+      v.literal("revoked")
+    ),
+
+    // AUDIT
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    createdBy: v.optional(v.string()), // Admin who generated the code
+    notes: v.optional(v.string()),
+  })
+    .index("by_broker", ["brokerId"])
+    .index("by_code", ["code"]) // Primary lookup — must be unique
+    .index("by_group", ["groupId"])
+    .index("by_status", ["status"]),
+
   // COMMISSION RATES (Broker rates and overrides)
   commissionRates: defineTable({
     // BROKER IDENTITY
@@ -1142,6 +1187,7 @@ export default defineSchema({
     
     // RATE CONFIG
     siteId: v.optional(v.id("sites")), // Optional: site-specific rate
+    groupId: v.optional(v.id("groups")), // Optional: group-specific rate (broker+group deal override)
     ratePercentage: v.number(), // Base rate as decimal (e.g., 0.25 for 25%)
     overridePercentage: v.optional(v.number()), // Agency-level override per Feb 27 meeting
     
@@ -1163,6 +1209,7 @@ export default defineSchema({
   })
     .index("by_broker", ["brokerId"])
     .index("by_agency", ["agencyId"])
+    .index("by_group", ["groupId"])
     .index("by_status", ["status"])
     .index("by_date_range", ["effectiveFrom", "effectiveTo"]),
 
@@ -1175,6 +1222,7 @@ export default defineSchema({
     // ENROLLMENT REFERENCE
     enrollmentSessionId: v.optional(v.id("enrollmentSessions")),
     memberId: v.optional(v.id("memberProfiles")),
+    groupId: v.optional(v.id("groups")), // Group/company this commission belongs to (Scenario B)
     
     // RATE APPLIED
     rateApplied: v.number(), // Base rate as decimal
@@ -1201,6 +1249,7 @@ export default defineSchema({
   })
     .index("by_broker", ["brokerId"])
     .index("by_agency", ["agencyId"])
+    .index("by_group", ["groupId"])
     .index("by_period", ["period"])
     .index("by_status", ["status"])
     .index("by_enrollment", ["enrollmentSessionId"]),

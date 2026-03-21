@@ -69,51 +69,58 @@ export async function POST(req: NextRequest) {
       relationship: string;
     }> = Array.isArray(dependents) ? dependents : [];
 
-    // Map cadence + paymentMethod to Stripe product ID
-    const productIdMap: Record<string, string> = {
+    // Map cadence + paymentMethod to Stripe product ID (individual plan defaults)
+    const defaultProductIdMap: Record<string, string> = {
       "monthly_card": "prod_U3no15TNX9iTj1",  // Oral Health Plan Monthly Card
       "monthly_ach": "prod_U3nrt0liKgXRmq",   // Oral Health Plan Monthly ACH
       "annual_card": "prod_U3nsR7DN8AVcL9",   // Oral Health Plan Annual Card
       "annual_ach": "prod_U3ns1IYNVgNwGM",    // Oral Health Plan Annual ACH
     };
 
-    // Determine pricing based on cadence + paymentMethod
-    const pricingMap: Record<string, number> = {
-      "monthly_card": 1499,     // $14.99/mo for card
-      "monthly_ach": 1299,      // $12.99/mo for ACH
-      "annual_card": 16499,     // $164.99/year for card
-      "annual_ach": 14999,      // $149.99/year for ACH
-    };
-
-    // Per-dependent add-on pricing (each additional family member)
-    const dependentPricingMap: Record<string, number> = {
-      "monthly_card": 999,    // $9.99/mo per dependent (card)
-      "monthly_ach": 899,     // $8.99/mo per dependent (ACH)
-      "annual_card": 9999,    // $99.99/yr per dependent (card)
-      "annual_ach": 8999,     // $89.99/yr per dependent (ACH)
-    };
-
-    const priceKey = `${cadence}_${paymentMethod}`;
-    const stripeProductId = productIdMap[priceKey];
-    const amount = pricingMap[priceKey];
-    const dependentAmount = dependentPricingMap[priceKey];
-    
-    if (!stripeProductId || !amount) {
-      return NextResponse.json({ error: "Invalid pricing configuration" }, { status: 500 });
-    }
-
-    // Fetch product details from Convex (optional, for display)
+    // Fetch product details from Convex — pricing comes from DB
     const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || "");
     let productName = "Oral Health Plan";
+    let amount: number | undefined;
+    let stripeProductId: string | undefined;
 
     try {
       // @ts-ignore - Avoid deep type instantiation issue with api.catalog.queries
       const product = await convex.query(api.catalog.queries.getById, { id: planId });
       if (product) {
         productName = product.name;
+        const pricing = product.pricing;
+        // Resolve amount from DB pricing based on cadence (card/ach same price)
+        if (cadence === "monthly") {
+          amount = paymentMethod === "ach" ? pricing.monthlyACHCents : pricing.monthlyCardCents;
+        } else {
+          amount = paymentMethod === "ach" ? pricing.annualACHCents : pricing.annualCardCents;
+        }
+        // Use Stripe product IDs from DB if available
+        const sp = product.stripeProducts;
+        const spKey = `${cadence === "monthly" ? "monthly" : "annual"}${paymentMethod === "ach" ? "ACH" : "Card"}Id` as keyof typeof sp;
+        if (sp && sp[spKey]) {
+          stripeProductId = sp[spKey];
+        }
       }
     } catch (error) {
-      // Fall back to default product name
+      // Fall back to hardcoded individual pricing
+    }
+
+    // Fallback to hardcoded individual pricing if DB fetch failed
+    const priceKey = `${cadence}_${paymentMethod}`;
+    if (!amount) {
+      const fallbackPricingMap: Record<string, number> = {
+        "monthly_card": 1499, "monthly_ach": 1499,
+        "annual_card": 16499, "annual_ach": 16499,
+      };
+      amount = fallbackPricingMap[priceKey];
+    }
+    if (!stripeProductId) {
+      stripeProductId = defaultProductIdMap[priceKey];
+    }
+    
+    if (!stripeProductId || !amount) {
+      return NextResponse.json({ error: "Invalid pricing configuration" }, { status: 500 });
     }
 
     // Create or get Stripe customer
@@ -154,6 +161,8 @@ export async function POST(req: NextRequest) {
 
     // Add dependent line item if any dependents are being enrolled
     if (dependentList.length > 0) {
+      // Per-dependent add-on pricing (legacy flow — family plan is now flat-rate)
+      const dependentAmount = cadence === "monthly" ? 999 : 9999;
       lineItems.push({
         price_data: {
           currency: "usd",

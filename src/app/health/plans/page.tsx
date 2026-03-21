@@ -11,7 +11,7 @@
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ShoppingCart, Check, Loader, Heart, ArrowRight, Lock, Zap, RotateCcw, MessageCircle } from "lucide-react";
+import { ShoppingCart, Check, Loader, Heart, ArrowRight, Lock, Zap, RotateCcw, MessageCircle, Users } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import HealthHeader from "@/components/health/HealthHeader";
@@ -470,8 +470,67 @@ function CadenceToggle() {
   );
 }
 
+function TierToggle({ tier, setTier }: { tier: "individual" | "family"; setTier: (t: "individual" | "family") => void }) {
+  return (
+    <div style={{
+      display: 'inline-flex',
+      background: 'var(--glass-bg)',
+      backdropFilter: 'blur(12px)',
+      border: '1px solid var(--glass-border)',
+      borderRadius: 'var(--radius-md)',
+      padding: '4px'
+    }}>
+      <button
+        onClick={() => setTier("individual")}
+        style={{
+          padding: '10px 20px',
+          borderRadius: 'calc(var(--radius-md) - 4px)',
+          border: 'none',
+          background: tier === "individual"
+            ? 'linear-gradient(135deg, var(--primary-blue), var(--primary-light))'
+            : 'transparent',
+          color: tier === "individual" ? 'white' : 'var(--text-secondary)',
+          fontWeight: '600',
+          fontSize: '0.875rem',
+          cursor: 'pointer',
+          transition: 'var(--transition)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px'
+        }}
+      >
+        <Heart size={14} />
+        Individual
+      </button>
+      <button
+        onClick={() => setTier("family")}
+        style={{
+          padding: '10px 20px',
+          borderRadius: 'calc(var(--radius-md) - 4px)',
+          border: 'none',
+          background: tier === "family"
+            ? 'linear-gradient(135deg, var(--primary-blue), var(--primary-light))'
+            : 'transparent',
+          color: tier === "family" ? 'white' : 'var(--text-secondary)',
+          fontWeight: '600',
+          fontSize: '0.875rem',
+          cursor: 'pointer',
+          transition: 'var(--transition)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px'
+        }}
+      >
+        <Users size={14} />
+        Family
+      </button>
+    </div>
+  );
+}
+
 function PlansContent() {
-  const { itemCount, syncProductPricing } = useCart();
+  const { itemCount, syncProductPricing, cart, addItem, removeItem, isInCart } = useCart();
+  const [tier, setTier] = useState<"individual" | "family">("individual");
   
   // Fetch products from Convex catalog
   const products = useQuery(api.catalog.queries.list, {});
@@ -483,6 +542,27 @@ function PlansContent() {
     const dental = (products as any[]).filter((p) => p.category === 'dental');
     return dental.length > 0 ? dental : (products as any[]).slice(0, 1);
   }, [products]);
+
+  // Pick the plan matching the selected tier
+  const selectedPlan = useMemo(() => {
+    if (oralHealthPlans.length === 0) return null;
+    const familyPlan = oralHealthPlans.find((p: any) => p.slug?.includes("family"));
+    const individualPlan = oralHealthPlans.find((p: any) => !p.slug?.includes("family"));
+    return tier === "family" ? (familyPlan || oralHealthPlans[0]) : (individualPlan || oralHealthPlans[0]);
+  }, [oralHealthPlans, tier]);
+
+  // When tier changes, swap the cart item to the correct plan
+  useEffect(() => {
+    if (!selectedPlan) return;
+    // If there's an item in cart from the other tier, swap it
+    const otherTierPlan = oralHealthPlans.find((p: any) => 
+      tier === "family" ? !p.slug?.includes("family") : p.slug?.includes("family")
+    );
+    if (otherTierPlan && isInCart(otherTierPlan._id)) {
+      removeItem(otherTierPlan._id);
+      addItem(selectedPlan);
+    }
+  }, [tier, selectedPlan, oralHealthPlans, isInCart, removeItem, addItem]);
 
   // Keep cart item pricing in sync with live Convex data
   useEffect(() => {
@@ -521,7 +601,10 @@ function PlansContent() {
             }}>
               Access dental savings, teledentistry, and AI oral scanning. Cancel anytime.
             </p>
-            <CadenceToggle />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
+              <TierToggle tier={tier} setTier={setTier} />
+              <CadenceToggle />
+            </div>
           </div>
           
           {/* Plan Card */}
@@ -536,7 +619,7 @@ function PlansContent() {
               <Loader size={24} style={{ marginRight: '12px', animation: 'spin 1s linear infinite' }} />
               Loading plan...
             </div>
-          ) : oralHealthPlans.length > 0 ? (
+          ) : selectedPlan ? (
             <div style={{
               display: 'grid',
               gridTemplateColumns: '1fr 400px',
@@ -544,9 +627,7 @@ function PlansContent() {
               alignItems: 'start'
             }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                {oralHealthPlans.map((plan: any) => (
-                  <PlanCard key={plan._id} product={plan} />
-                ))}
+                <PlanCard key={selectedPlan._id} product={selectedPlan} />
               </div>
               
               {/* Sidebar */}

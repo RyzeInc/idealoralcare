@@ -50,8 +50,8 @@ export const seedInitialData = mutation({
         pricing: {
           monthlyCardCents: 1499,
           monthlyACHCents: 1499,
-          annualCardCents: 14999,
-          annualACHCents: 14999,
+          annualCardCents: 16499,
+          annualACHCents: 16499,
         },
         stripeProducts: {
           monthlyCardId: "prod_U3no15TNX9iTj1",
@@ -92,8 +92,8 @@ export const seedInitialData = mutation({
         pricing: {
           monthlyCardCents: 2499,
           monthlyACHCents: 2499,
-          annualCardCents: 24999,
-          annualACHCents: 24999,
+          annualCardCents: 27499,
+          annualACHCents: 27499,
         },
         stripeProducts: {
           monthlyCardId: "prod_FAMILY_MONTHLY_CARD_TBD",
@@ -172,8 +172,8 @@ export const reseedData = mutation({
         pricing: {
           monthlyCardCents: 1499,
           monthlyACHCents: 1499,
-          annualCardCents: 14999,
-          annualACHCents: 14999,
+          annualCardCents: 16499,
+          annualACHCents: 16499,
         },
         stripeProducts: {
           monthlyCardId: "prod_U3no15TNX9iTj1",
@@ -214,8 +214,8 @@ export const reseedData = mutation({
         pricing: {
           monthlyCardCents: 2499,
           monthlyACHCents: 2499,
-          annualCardCents: 24999,
-          annualACHCents: 24999,
+          annualCardCents: 27499,
+          annualACHCents: 27499,
         },
         stripeProducts: {
           monthlyCardId: "prod_FAMILY_MONTHLY_CARD_TBD",
@@ -287,8 +287,8 @@ export const reseedInternal = internalMutation({
       pricing: {
         monthlyCardCents: 1499,
         monthlyACHCents: 1499,
-        annualCardCents: 14999,
-        annualACHCents: 14999,
+        annualCardCents: 16499,
+        annualACHCents: 16499,
       },
       stripeProducts: {
         monthlyCardId: "prod_U3no15TNX9iTj1",
@@ -330,8 +330,8 @@ export const reseedInternal = internalMutation({
       pricing: {
         monthlyCardCents: 2499,
         monthlyACHCents: 2499,
-        annualCardCents: 24999,
-        annualACHCents: 24999,
+        annualCardCents: 27499,
+        annualACHCents: 27499,
       },
       stripeProducts: {
         monthlyCardId: "prod_FAMILY_MONTHLY_CARD_TBD",
@@ -378,8 +378,8 @@ export const upsertV07Products = internalMutation({
           pricing: {
             monthlyCardCents: 1499,
             monthlyACHCents: 1499,
-            annualCardCents: 14999,
-            annualACHCents: 14999,
+            annualCardCents: 16499,
+            annualACHCents: 16499,
           },
           metadata: { icon: "Heart", bestFor: ["Individuals"] },
           updatedAt: now,
@@ -414,8 +414,8 @@ export const upsertV07Products = internalMutation({
         pricing: {
           monthlyCardCents: 2499,
           monthlyACHCents: 2499,
-          annualCardCents: 24999,
-          annualACHCents: 24999,
+          annualCardCents: 27499,
+          annualACHCents: 27499,
         },
         stripeProducts: {
           monthlyCardId: "prod_FAMILY_MONTHLY_CARD_TBD",
@@ -440,7 +440,7 @@ export const upsertV07Products = internalMutation({
   },
 });
 
-/** Fix annual pricing: individual $149.99, family $249.99 (save ~17%).
+/** Fix pricing: individual $14.99/$164.99, family $24.99/$274.99.
  *  Run via: npx convex run catalog/mutations:fixPricingV1
  */
 export const fixPricingV1 = internalMutation({
@@ -457,7 +457,7 @@ export const fixPricingV1 = internalMutation({
             monthlyCardCents: 1499,
             monthlyACHCents: 1499,
             annualCardCents: 16499,
-            annualACHCents: 14999,
+            annualACHCents: 16499,
           },
           updatedAt: now,
         });
@@ -468,8 +468,8 @@ export const fixPricingV1 = internalMutation({
           pricing: {
             monthlyCardCents: 2499,
             monthlyACHCents: 2499,
-            annualCardCents: 27489,
-            annualACHCents: 24999,
+            annualCardCents: 27499,
+            annualACHCents: 27499,
           },
           updatedAt: now,
         });

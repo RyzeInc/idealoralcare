@@ -55,9 +55,9 @@ export function PlanSelectionStep() {
       category: "oral_health",
       pricing: {
         monthlyCardCents: 1499,  // $14.99
-        monthlyACHCents: 1299,   // $12.99
+        monthlyACHCents: 1499,   // $14.99
         annualCardCents: 16499,  // $164.99
-        annualACHCents: 14999,   // $149.99
+        annualACHCents: 16499,   // $164.99
       },
       inclusions: [
         "Preventive care (cleanings, exams)",

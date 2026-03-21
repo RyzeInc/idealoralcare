@@ -170,7 +170,7 @@ const MOCK_PRODUCTS: Record<string, DetailProduct> = {
     ],
     eligibilityRules: { requiresVerification: false, disclosureText: "Discount program." },
     activationBehavior: "immediate",
-    pricing: { monthlyCardCents: 1499, monthlyACHCents: 1299, annualCardCents: 14999, annualACHCents: 12999 },
+    pricing: { monthlyCardCents: 1499, monthlyACHCents: 1499, annualCardCents: 16499, annualACHCents: 16499 },
     metadata: { icon: "Eye", bestFor: ["Individuals", "Families"], image: "/health-assets/talk-live_1086x1024.jpg" },
     faqs: [
       { q: "Which brands are included?", a: "Most major frame and lens brands are available through participating providers." },
