@@ -63,7 +63,7 @@ export default function DentalDiscountNetworkPage() {
         {/* Left — deep blue panel */}
         <div
           style={{
-            background: "linear-gradient(145deg, #D68910 0%, #F39C12 100%)",
+            background: "linear-gradient(145deg, #92400e 0%, #b45309 100%)",
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
@@ -106,12 +106,12 @@ export default function DentalDiscountNetworkPage() {
               letterSpacing: "0.12em",
               fontSize: "0.75rem",
               fontWeight: 700,
-              color: "rgba(243,156,18,1)",
-              marginBottom: "1rem",
-            }}
-          >
-            Ideal Health Dental Discount Network
-          </p>
+            color: "rgba(255,255,255,0.65)",
+            marginBottom: "1rem",
+          }}
+        >
+          Ideal Health Dental Discount Network
+        </p>
           <h1
             style={{
               fontSize: "clamp(2rem, 3.5vw, 3rem)",
@@ -122,7 +122,7 @@ export default function DentalDiscountNetworkPage() {
             }}
           >
             Save Up to<br />
-            <span style={{ color: "#F39C12" }}>58%</span> on Dental<br />
+            <span style={{ color: "#fde68a" }}>58%</span> on Dental<br />
             Procedures
           </h1>
           <p
@@ -182,7 +182,7 @@ export default function DentalDiscountNetworkPage() {
             style={{
               position: "absolute",
               inset: 0,
-              background: "linear-gradient(to right, #D68910 0%, transparent 30%)",
+              background: "linear-gradient(to right, #92400e 0%, transparent 30%)",
             }}
           />
           {/* Floating badge */}
@@ -213,7 +213,7 @@ export default function DentalDiscountNetworkPage() {
       {/* ── QUICK STATS BAR ─────────────────────────────────────────────── */}
       <section
         style={{
-          background: "linear-gradient(90deg, #F39C12, #D68910)",
+          background: "#7c2d12",
           padding: "0",
         }}
       >

@@ -984,7 +984,7 @@ function CheckoutContent() {
                           fontSize: "0.6875rem",
                           fontWeight: "700"
                         }}>
-                          Save 17%
+                          1 Month Free
                         </span>
                       </button>
                     </div>
@@ -1109,9 +1109,6 @@ function CheckoutContent() {
                     <div style={{ flex: 1 }}>
                       <span style={{ display: "block", fontWeight: 600, color: "#0f172a" }}>
                         Bank Transfer (ACH)
-                      </span>
-                      <span style={{ fontSize: "0.875rem", color: "#14b8a6", fontWeight: 600 }}>
-                        ACH Discount: Save {formatPrice(achSavings)}{periodShort}
                       </span>
                     </div>
                     {cart.paymentMethod === "ach" && (

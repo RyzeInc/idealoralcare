@@ -477,9 +477,11 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
             className="glass-card"
             style={{
               padding: '2rem',
-              background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',              color: '#fff',
+              background: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
+              color: '#14532d',
               overflow: 'hidden',
               position: 'relative',
+              border: '1px solid #86efac',
             }}
           >
             <div
@@ -490,7 +492,7 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
                 width: '200px',
                 height: '200px',
                 borderRadius: '50%',
-                background: 'radial-gradient(circle, rgba(46,204,113,0.3), transparent 70%)',
+                background: 'radial-gradient(circle, rgba(46,204,113,0.2), transparent 70%)',
                 pointerEvents: 'none',
               }}
             />
@@ -500,7 +502,7 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
                   width: '48px',
                   height: '48px',
                   borderRadius: '12px',
-                  background: 'rgba(46,204,113,0.35)',
+                  background: 'rgba(22,163,74,0.15)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -510,13 +512,13 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
                 <Scan size={24} color="#2ECC71" />
               </div>
               <div>
-                <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem', color: '#14532d' }}>
                   AI-Powered Oral Scan
                 </h2>
-                <p style={{ opacity: 0.75, fontSize: '0.9375rem' }}>AI Oral Scanning SmileScan Technology</p>
+                <p style={{ color: '#166534', fontSize: '0.9375rem', opacity: 0.8 }}>AI Oral Scanning SmileScan Technology</p>
               </div>
             </div>
-            <p style={{ opacity: 0.9, lineHeight: 1.7, marginBottom: '1.5rem', maxWidth: '600px' }}>
+            <p style={{ color: '#166534', lineHeight: 1.7, marginBottom: '1.5rem', maxWidth: '600px' }}>
               Start a SmileScan. Take a few photos and let our AI give you a detailed report in minutes — highlighting
               concerns, tartar buildup, gum health, and alignment issues, helping you catch problems early and stay
               healthy.

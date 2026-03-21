@@ -41,7 +41,7 @@ export default function TeledentistryPage() {
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
           overflow: "hidden",
-          background: "linear-gradient(135deg, #3498DB 0%, #2980B9 100%)",
+          background: "linear-gradient(135deg, #1e3a5f 0%, #1b4a7a 100%)",
         }}
       >
         {/* Left panel — text */}
@@ -134,7 +134,7 @@ export default function TeledentistryPage() {
             style={{
               position: "absolute",
               inset: 0,
-              background: "linear-gradient(to right, #3498DB 0%, transparent 35%)",
+              background: "linear-gradient(to right, #1e3a5f 0%, transparent 35%)",
             }}
           />
         </div>
@@ -153,7 +153,7 @@ export default function TeledentistryPage() {
         }}
       >
         <svg width="100%" height="60" viewBox="0 0 100 60" preserveAspectRatio="none" style={{ display: "block" }}>
-          <path d="M 0,30 Q 25,10 50,30 T 100,30 L 100,60 L 0,60 Z" fill="#3498DB" />
+          <path d="M 0,30 Q 25,10 50,30 T 100,30 L 100,60 L 0,60 Z" fill="#1e3a5f" />
         </svg>
       </div>
 
@@ -300,12 +300,12 @@ export default function TeledentistryPage() {
         }}
       >
         <svg width="100%" height="60" viewBox="0 0 100 60" preserveAspectRatio="none" style={{ display: "block" }}>
-          <path d="M 0,30 Q 25,50 50,30 T 100,30 L 100,0 L 0,0 Z" fill="#3498DB" />
+          <path d="M 0,30 Q 25,50 50,30 T 100,30 L 100,0 L 0,0 Z" fill="#1e3a5f" />
         </svg>
       </div>
 
       {/* ── LIVE VIDEO CONSULTATIONS ───────────────────────────────────── */}
-      <section style={{ background: "linear-gradient(135deg, #3498DB, #2980B9)", padding: "4rem 0" }}>
+      <section style={{ background: "linear-gradient(135deg, #1e3a5f 0%, #1b4a7a 100%)", padding: "4rem 0" }}>
         <div className="container">
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4rem", alignItems: "center" }}>
             <div>

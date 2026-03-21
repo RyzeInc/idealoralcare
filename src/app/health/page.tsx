@@ -27,7 +27,7 @@ export default function HealthLanding() {
           <div className="row">
             <div className="col-12">
               <div className="hero-home__heading">
-                <div className="hero-home__subtitle">IDEAL ORAL HEALTH PLAN</div>
+                <div className="hero-home__subtitle">Ideal Oral Health Plan</div>
                 <h1>Oral Health Care That Works Around Your Life — Not the Other Way Around.</h1>
                 <p className="hero-home__descr">
                   AI Oral Scanning from home, licensed dentists available 24/7, and a
@@ -49,8 +49,8 @@ export default function HealthLanding() {
       {/* ── Feature Preview Cards ───────────────────────────────── */}
       <section className="related-posts section">
         <div className="container">
-          <h2 style={{ textAlign: "center", marginBottom: "1rem" }}>Start Smiling More</h2>
-          <p style={{ textAlign: "center", color: "#475569", fontSize: "1.125rem", marginBottom: "3rem", maxWidth: "560px", margin: "0 auto 3rem" }}>A smarter dental experience: AI oral imaging, comfortable consults from home, and direct savings on care.</p>
+          <h2 style={{ textAlign: "center", marginBottom: "1rem" }}>Three Ways to Take Care of Your Smile</h2>
+          <p style={{ textAlign: "center", color: "#475569", fontSize: "1.125rem", marginBottom: "3rem", maxWidth: "560px", margin: "0 auto 3rem" }}>AI imaging from home, a dentist whenever you need one, and real savings when you visit in person.</p>
           <div className="related-posts__grid">
             <Link href="/health/oral-health-scan" className="related-posts__card">
               <img src="/health-assets/toothlensscan_1086x1024.png" alt="AI Oral Scanning" />
@@ -120,14 +120,14 @@ export default function HealthLanding() {
       {/* ── Why It Works Better ─────────────────────────────────── */}
       <section className="benefits section bg--white">
         <div className="container">
-          <h2>Why Ideal Oral Health Works Better</h2>
+          <h2>Built Around How You Actually Live</h2>
           <ul className="benefits__list">
-            <li><strong>Advanced AI Technology</strong>: AI Oral Scanning detects issues early and provides detailed analysis without the cost of frequent in-person visits.</li>
-            <li><strong>Expert Network</strong>: Access to a carefully selected network of trusted dentists nationwide, all vetted for quality care.</li>
-            <li><strong>Transparent Pricing</strong>: Know upfront what procedures cost with our nationwide provider network discounts. No surprise bills.</li>
-            <li><strong>Preventative Focus</strong>: AI scanning and coaching help catch problems early, reducing costly treatments down the road.</li>
-            <li><strong>Always Available</strong>: 24/7 access to dentists and oral health coaches means you can address concerns at any time, including outside standard office hours.</li>
-            <li><strong>Comprehensive Support</strong>: From emergency care to routine coaching, we&apos;re here for every aspect of your oral health journey.</li>
+            <li>Catch problems before they get costly — AI scans your mouth at home, so small issues don&apos;t turn into big ones.</li>
+            <li>50,000+ providers nationwide, already vetted — so you spend time getting care, not searching for it.</li>
+            <li>See exactly what you&apos;ll pay before you go. No mid-chair surprises, no mystery bills.</li>
+            <li>Prevention is always cheaper than treatment — and we&apos;ve made it easy to actually do it.</li>
+            <li>Toothache at 2am? A licensed dentist is available any time you need one.</li>
+            <li>Whether it&apos;s a routine check-in or an urgent concern, you&apos;ll always have someone in your corner.</li>
           </ul>
         </div>
       </section>
@@ -182,9 +182,9 @@ export default function HealthLanding() {
             <div className="for-organization__col">
               <h2>Oral Health Plan for Your Team</h2>
               <p>
-                Offer your employees a modern oral health plan that actually works. AI-powered
-                scanning, 24/7 teledentistry, and nationwide provider discounts reduce costs,
-                improve preventative care, and boost employee satisfaction.
+                Give your team a real edge in oral health. AI scanning, 24/7 dentist access,
+                and nationwide provider discounts help employees stay on top of their health
+                without the hassle — and that makes a difference in how they show up every day.
               </p>
               <div className="for-organization__btn_w">
                 <a className="button button--accent" href="/contact">Schedule a Demo</a>
@@ -200,23 +200,23 @@ export default function HealthLanding() {
       {/* ── FAQ ─────────────────────────────────────────────────── */}
       <section className="faq section">
         <div className="container">
-          <h2>Oral Health Plan Questions?</h2>
+          <h2>Questions You Might Have</h2>
           <div className="faq__list">
             <div className="accordion">
-              <h4>What is the Ideal Oral Health Plan?</h4>
-              <div>The Ideal Oral Health Plan is a comprehensive oral care solution featuring advanced AI Oral Scanning technology for oral health scanning, 24/7 teledentistry access with experienced specialists, and a nationwide network of providers with discounted rates. It is designed to make oral care accessible, affordable, and preventative.</div>
+              <h4>Is this real dental insurance?</h4>
+              <div>No — and that&apos;s actually a good thing. The Ideal Oral Health Plan is a membership, not an insurance plan. That means no deductibles, no waiting periods, no claim forms, and no annual coverage caps. You get AI scanning, 24/7 dentist access, and a nationwide discount network — starting the day after you enroll.</div>
             </div>
             <div className="accordion">
-              <h4>How does AI Oral Scanning work?</h4>
-              <div>AI Oral Scanning analyzes photos of your teeth and gums. Simply take clear photos and our AI provides a detailed oral health report identifying potential issues, calculating your oral health score, and recommending next steps. It is a convenient way to track your health between in-person visits.</div>
+              <h4>How does the AI scanning work — do I need any equipment?</h4>
+              <div>No special equipment needed — just your smartphone. You&apos;ll take a few guided photos of your teeth and gums, and our AI analyzes them to give you an oral health score, identify areas of concern, and suggest next steps. Most scans take under five minutes.</div>
             </div>
             <div className="accordion">
-              <h4>Can I use the Oral Health Plan for emergency care?</h4>
-              <div>Yes! The Oral Health Plan includes 24/7 emergency support. If you&apos;re experiencing pain or have urgent concerns, you can connect with a specialist immediately via teledentistry to get guidance and relief recommendations.</div>
+              <h4>What if I have a dental emergency?</h4>
+              <div>Call or message through the app any time — 24/7. You&apos;ll be connected with a licensed dentist who can assess your situation, provide pain management guidance, write a prescription if needed, and refer you to an in-person provider. You don&apos;t have to wait until Monday morning.</div>
             </div>
             <div className="accordion">
-              <h4>How do the nationwide dentist discounts work?</h4>
-              <div>Ideal Health has partnerships with a nationwide network of licensed dentists. Plan members receive negotiated discount rates on procedures like cleanings, fillings, root canals, and more. You can search our network to find nearby dentists and see their discount rates before scheduling.</div>
+              <h4>How much can I actually save on dental procedures?</h4>
+              <div>Members typically save 25–50% on common procedures like cleanings, fillings, and root canals. You can search our provider network before your appointment to see exact member pricing — no surprises at checkout. For a cleaning that normally runs $150, you might pay $75–$100.</div>
             </div>
           </div>
         </div>

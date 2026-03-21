@@ -178,13 +178,7 @@ function PlanCard({ product }: { product: CatalogProduct }) {
             }}>
               ${(product.pricing.monthlyCardCents / 100).toFixed(2)}
             </div>
-            <div style={{
-              fontSize: '0.75rem',
-              color: 'var(--text-muted)',
-              marginTop: '4px'
-            }}>
-              or ${(product.pricing.monthlyACHCents / 100).toFixed(2)}/mo via bank transfer
-            </div>
+
           </div>
 
           {/* Annual Pricing */}

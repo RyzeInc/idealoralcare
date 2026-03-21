@@ -5,23 +5,23 @@ import { Shield, Users, Award, Zap } from "lucide-react";
 const TRUST_ITEMS = [
   {
     icon: Shield,
-    title: "256-Bit SSL Encryption",
-    text: "Your information is protected with enterprise-grade security.",
+    title: "Private & Secure",
+    text: "Your health data is encrypted and never shared with third parties.",
   },
   {
     icon: Users,
     title: "Real Licensed Dentists",
-    text: "All teledentistry providers are licensed dental professionals with real expertise.",
+    text: "Every teledentistry provider on our platform is board-licensed and independently verified.",
   },
   {
     icon: Award,
     title: "Month-to-Month Flexibility",
-    text: "No surprises. Transparent month-to-month membership with full control.",
+    text: "No long-term commitment. Cancel any time, no questions asked.",
   },
   {
     icon: Zap,
     title: "Access Within 24 Hours",
-    text: "Your benefits are activated within 24 hours of enrollment.",
+    text: "Your benefits are active the day after you enroll. No waiting period.",
   },
 ];
 
@@ -34,7 +34,7 @@ export default function TrustAnchors() {
             style={{
               fontSize: "0.875rem",
               fontWeight: 600,
-              color: "#0066CC",
+              color: "#64748b",
               textTransform: "uppercase",
               letterSpacing: "0.05em",
               marginBottom: "1rem",
@@ -51,7 +51,7 @@ export default function TrustAnchors() {
             return (
               <div key={idx} className="trust-anchor">
                 <div className="trust-anchor__icon">
-                  <IconComponent size={40} color="#0066CC" />
+                  <IconComponent size={40} color="#475569" />
                 </div>
                 <h4 className="trust-anchor__title">{item.title}</h4>
                 <p className="trust-anchor__text">{item.text}</p>

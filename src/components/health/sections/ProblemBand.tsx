@@ -3,18 +3,18 @@ import { Calendar, HelpCircle, DollarSign } from "lucide-react";
 const problems = [
   {
     Icon: Calendar,
-    title: "Appointments Take Too Long",
-    body: "Most people wait weeks to get seen — and delay care until a small problem becomes an expensive one.",
+    title: "Weeks to Get Seen",
+    body: "Most people delay care because getting an appointment takes too long. By the time you go, a small problem has become a bigger one.",
   },
   {
     Icon: HelpCircle,
-    title: "No One Knows the Price",
-    body: "Dental offices rarely publish costs. Patients get estimates mid-chair and leave with bills they didn't expect.",
+    title: "No One Tells You the Price",
+    body: "You shouldn't find out what something costs while you're in the chair. Dental care should be transparent before you ever book.",
   },
   {
     Icon: DollarSign,
-    title: "Insurance Covers Less Than You Think",
-    body: "77 million Americans have no dental coverage. Those who do still pay 40–50% of major procedure costs out of pocket.",
+    title: "Coverage That Falls Short",
+    body: "Even people with dental insurance still pay 40–50% out of pocket on major work. And tens of millions have no coverage at all.",
   },
 ];
 
@@ -43,7 +43,7 @@ export default function ProblemBand() {
               lineHeight: 1.2,
             }}
           >
-            Stop Overpaying For Dental Care.
+            Better Care Deserves a Better System.
           </h2>
           <p
             style={{
@@ -54,7 +54,7 @@ export default function ProblemBand() {
               lineHeight: 1.65,
             }}
           >
-            Access, affordability, and transparency haven't kept pace with what patients actually need.
+            Most people put off dental care because of the wait, the cost, or not knowing where to start. It shouldn&apos;t be that hard.
           </p>
         </div>
 

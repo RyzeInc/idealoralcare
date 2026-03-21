@@ -13,7 +13,7 @@ export default function OralHealthScanPage() {
       <HealthHeader />
 
       {/* Hero - Bold Split Design */}
-      <section className="section" style={{ padding: "4rem 0", background: "linear-gradient(135deg, #2ECC71 0%, #27AE60 100%)" }}>
+      <section className="section" style={{ padding: "4rem 0", background: "linear-gradient(135deg, #166534 0%, #064e3b 100%)" }}>
         <div className="container">
           <div className="row" style={{ alignItems: "center" }}>
             <div className="col-6">
@@ -28,7 +28,7 @@ export default function OralHealthScanPage() {
                   Advanced AI-powered scanning reveals the mouth-body connection instantly. Detect early warning signs of systemic health conditions and take control of your wellness right from your phone.
                 </p>
                 <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-                  <Link className="button button--primary" href="/health/plans">
+                  <Link className="button button--primary" href="/health/plans" style={{ background: "#fff", color: "#166534", border: "none", boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}>
                     Get Started
                   </Link>
                   <Link className="button" href="#how-it-works" style={{ background: "rgba(255,255,255,0.15)", color: "#fff", borderColor: "rgba(255,255,255,0.3)" }}>
@@ -37,11 +37,23 @@ export default function OralHealthScanPage() {
                 </div>
               </div>
             </div>
-            <div className="col-6">
+            <div className="col-6" style={{ position: "relative", display: "flex", justifyContent: "center", alignItems: "center" }}>
+              <div
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  width: "380px",
+                  height: "380px",
+                  borderRadius: "50%",
+                  background: "radial-gradient(circle at 35% 35%, rgba(46,204,113,0.25), rgba(22,101,52,0.05))",
+                  zIndex: 0,
+                  pointerEvents: "none",
+                }}
+              />
               <img
                 src="/health-assets/scan-photo-ex.png"
                 alt="Example scan photo on phone"
-                style={{ width: "100%", maxWidth: "400px", borderRadius: "12px" }}
+                style={{ width: "100%", maxWidth: "400px", borderRadius: "12px", position: "relative", zIndex: 1 }}
               />
             </div>
           </div>
@@ -191,7 +203,7 @@ export default function OralHealthScanPage() {
       </section>
 
       {/* Why It Matters */}
-      <section className="section" style={{ padding: "4rem 0", background: "linear-gradient(135deg, #2ECC71 0%, #27AE60 100%)" }}>
+      <section className="section" style={{ padding: "4rem 0", background: "linear-gradient(135deg, #166534 0%, #064e3b 100%)" }}>
         <div className="container">
           <div className="row" style={{ alignItems: "center" }}>
             <div className="col-6">
@@ -209,7 +221,7 @@ export default function OralHealthScanPage() {
                 <li>Stay informed about changes throughout the year</li>
               </ul>
               <div style={{ marginTop: "2rem" }}>
-                <Link className="button button--primary" href="/health/teledentistry">
+                <Link className="button button--primary" href="/health/teledentistry" style={{ background: "rgba(255,255,255,0.15)", color: "#fff", border: "1.5px solid rgba(255,255,255,0.4)", boxShadow: "none" }}>
                   Follow Up With Teledentistry
                 </Link>
               </div>
