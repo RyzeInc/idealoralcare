@@ -6,8 +6,70 @@
  */
 
 import { mutation, query, internalMutation } from "../_generated/server";
+import type { MutationCtx } from "../_generated/server";
 import { v } from "convex/values";
 import { requireAdmin } from "../lib/authGuards";
+
+/**
+ * Shared helper — call from within any mutation to auto-grant free full access.
+ * Skips silently if an active bundle already exists for this user.
+ */
+export async function autoGrantFreeAccess(
+  ctx: MutationCtx,
+  clerkUserId: string,
+  reason?: string
+) {
+  const now = Date.now();
+  const periodEnd = now + 365 * 24 * 60 * 60 * 1000; // 1 year
+
+  // Skip if already has an active bundle (e.g. paid subscriber added as staff)
+  const existing = (await ctx.db.query("subscriptionBundles").collect()).find(
+    (b) => b.customerId === clerkUserId && b.status === "active"
+  );
+  if (existing) return { skipped: true, bundleId: existing._id };
+
+  const allProducts = await ctx.db.query("catalogProducts").collect();
+
+  const bundleId = await ctx.db.insert("subscriptionBundles", {
+    customerId: clerkUserId,
+    cadence: "annual",
+    paymentMethod: "card",
+    stripeCustomerId: `free_local_${clerkUserId}`,
+    stripeSubscriptionId: `free_${now}`,
+    status: "active",
+    currentPeriodStart: now,
+    currentPeriodEnd: periodEnd,
+    pricingSnapshot: {
+      cadence: "annual",
+      paymentMethod: "card",
+      totalCents: 0,
+      planCount: allProducts.length,
+      capturedAt: now,
+    },
+    createdAt: now,
+    updatedAt: now,
+    activatedAt: now,
+  });
+
+  for (const product of allProducts) {
+    await ctx.db.insert("entitlements", {
+      customerId: clerkUserId,
+      bundleId,
+      productId: product._id,
+      periodStart: now,
+      periodEnd,
+      status: "active",
+      endCondition: "expire",
+      createdAt: now,
+      activatedAt: now,
+      expiresAt: periodEnd,
+      createdVia: "admin_action",
+      notes: reason ?? `Free access auto-granted on team member addition`,
+    });
+  }
+
+  return { skipped: false, bundleId };
+}
 import { api } from "../_generated/api";
 
 /**

@@ -328,6 +328,7 @@ export const addDependent = mutation({
     });
 
     // Schedule invite email (fires immediately after the mutation commits)
+    // @ts-ignore — Convex circular self-reference causes deep type instantiation
     await ctx.scheduler.runAfter(0, internal.enrollment.dependents.sendDependentInviteEmail, {
       dependentFirstName: args.firstName,
       dependentEmail: args.email,
@@ -573,6 +574,7 @@ export const resendDependentInvite = mutation({
     });
 
     // Schedule resend email
+    // @ts-ignore — Convex circular self-reference causes deep type instantiation
     await ctx.scheduler.runAfter(0, internal.enrollment.dependents.sendDependentInviteEmail, {
       dependentFirstName: dependentProfile.firstName,
       dependentEmail: (dependentProfile as any).invitedEmail ?? dependentProfile.email ?? "",

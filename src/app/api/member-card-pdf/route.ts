@@ -71,7 +71,12 @@ export async function GET() {
     ) as unknown as ReactElement<DocumentProps>;
 
     const pdfInstance = pdf(document);
-    const buffer = await pdfInstance.toBuffer();
+    const stream = await pdfInstance.toBuffer();
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream as AsyncIterable<Buffer>) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    const buffer = Buffer.concat(chunks);
 
     // Generate filename: IdealOralHealthCard-membername-memberid.pdf
     const sanitizedName = data.memberName.replace(/[^a-zA-Z0-9-]/g, "").replace(/\s+/g, "");
