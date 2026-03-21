@@ -7,11 +7,7 @@ export const metadata: Metadata = {
   title: "Ideal Health | Modern Health Plans Made Simple",
   description:
     "Ideal Health - Comprehensive oral health plan with AI Oral Scanning, 24/7 teledentistry, and Dental Discount Network dental network access.",
-  icons: {
-    icon: "/health-assets/IdealLogo.png",
-    shortcut: "/health-assets/IdealLogo.png",
-    apple: "/health-assets/IdealLogo.png",
-  },
+
 };
 
 export default function RootLayout({

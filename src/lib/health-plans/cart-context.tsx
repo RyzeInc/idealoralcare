@@ -236,7 +236,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const setPaymentMethod = useCallback((method: PaymentMethod) => {
     setCart((prev) => ({ ...prev, paymentMethod: method }));
   }, []);
-  
+
+  // Refresh cart item pricing from fresh Convex product data (fixes stale localStorage)
+  const syncProductPricing = useCallback((freshProducts: CatalogProduct[]) => {
+    setCart((prev) => {
+      const updated = prev.items.map((item) => {
+        const fresh = freshProducts.find((p) => p._id === item.productId);
+        if (fresh && fresh.pricing) {
+          return { ...item, product: { ...item.product, pricing: fresh.pricing } };
+        }
+        return item;
+      });
+      if (updated.every((u, i) => u === prev.items[i])) return prev;
+      return { ...prev, items: updated };
+    });
+  }, []);
+
   // Compare list management
   const addToCompare = useCallback((productId: string) => {
     setCart((prev) => {
@@ -307,6 +322,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         confirmCadence,
         requestCadenceChange,
         setPaymentMethod,
+        syncProductPricing,
         addToCompare,
         removeFromCompare,
         clearCompare,

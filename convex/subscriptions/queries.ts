@@ -501,8 +501,9 @@ export const getMemberCardDataPublic = query({
     }
 
     const effectiveTs = (bundle as any)?.currentPeriodStart ?? (profile as any).enrolledAt ?? profile._creationTime;
-    const effectiveDate = new Date(effectiveTs).toLocaleDateString("en-US", {
-      month: "long",
+    const _baseDate = new Date(effectiveTs);
+    const effectiveDate = new Date(_baseDate.getFullYear(), _baseDate.getMonth() + 1, 1).toLocaleDateString("en-US", {
+      month: "short",
       day: "numeric",
       year: "numeric",
     });

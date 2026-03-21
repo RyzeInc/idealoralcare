@@ -3,6 +3,16 @@ import { v } from "convex/values";
 import { api } from "../_generated/api";
 import { requireAdminAction } from "../lib/authGuards";
 
+/** Returns the 1st of the month following the given timestamp (defaults to now). */
+function firstOfNextMonth(ts?: number): string {
+  const base = new Date(ts ?? Date.now());
+  return new Date(base.getFullYear(), base.getMonth() + 1, 1).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 /**
  * MEMBER ID CARD GENERATION
  *
@@ -33,7 +43,7 @@ export const generateMemberIdCardPdf: any = action({
       memberName: `${member.firstName} ${member.lastName}`,
       memberId: member.memberId || "MBR-2026-00001",
       planName: "Oral Health Plan",
-      effectiveDate: member.createdAt ? new Date(member.createdAt).toLocaleDateString() : new Date().toLocaleDateString(),
+      effectiveDate: firstOfNextMonth(member.createdAt),
       networks: [
         "Dental Discount Network",
         "Teledentistry Program",
@@ -119,7 +129,7 @@ export const getMemberCardData: any = action({
       memberId: member.memberId || "MBR-2026-00001",
       email: member.email,
       planName: "Oral Health Plan",
-      effectiveDate: member.createdAt ? new Date(member.createdAt).toLocaleDateString() : new Date().toLocaleDateString(),
+      effectiveDate: firstOfNextMonth(member.createdAt),
       barcode: member.barcode,
       networks: {
         careington: {
@@ -158,7 +168,7 @@ export const generateMemberCardWithQr: any = action({
       memberId: member.memberId || "MBR-2026-00001",
       email: member.email,
       planName: "Oral Health Plan",
-      effectiveDate: member.createdAt ? new Date(member.createdAt).toLocaleDateString() : new Date().toLocaleDateString(),
+      effectiveDate: firstOfNextMonth(member.createdAt),
       barcode: member.barcode,
     };
 

@@ -125,9 +125,6 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
                   style={{ height: '36px', width: 'auto', objectFit: 'contain' }}
                 />
                 <div>
-                  <div style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>
-                    Ideal Health Oral Care
-                  </div>
                   <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
                     Member ID Card
                   </div>
@@ -153,7 +150,7 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
                 <div style={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   Member ID
                 </div>
-                <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', marginTop: '1px' }}>
+                <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', marginTop: '1px', textTransform: 'uppercase' }}>
                   {cardData.memberId}
                 </div>
               </div>
@@ -285,71 +282,6 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
         Tap card to flip
       </p>
 
-      {/* Network quick links */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
-        <a
-          href={cardData.networks.careington.memberUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            padding: '1rem',
-            border: '1px solid #e2e8f0',
-            borderRadius: '12px',
-            textDecoration: 'none',
-            background: '#fff',
-            transition: 'border-color 0.2s',
-          }}
-        >
-          <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.875rem', lineHeight: 1.3 }}>
-            {cardData.networks.careington.name}
-          </div>
-          <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.375rem', lineHeight: 1.4 }}>
-            Dental discounts &amp; network access
-          </div>
-        </a>
-
-        <a
-          href={cardData.networks.dialCare.memberUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            padding: '1rem',
-            border: '1px solid #e2e8f0',
-            borderRadius: '12px',
-            textDecoration: 'none',
-            background: '#fff',
-            transition: 'border-color 0.2s',
-          }}
-        >
-          <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.875rem', lineHeight: 1.3 }}>
-            {cardData.networks.dialCare.name}
-          </div>
-          <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.375rem', lineHeight: 1.4 }}>
-            Teledentistry &amp; consultations
-          </div>
-        </a>
-
-        <a
-          href={cardData.networks.toothlens.memberUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            padding: '1rem',
-            border: '1px solid #e2e8f0',
-            borderRadius: '12px',
-            textDecoration: 'none',
-            background: '#fff',
-            transition: 'border-color 0.2s',
-          }}
-        >
-          <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.875rem', lineHeight: 1.3 }}>
-            AI Oral Scanning
-          </div>
-          <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.375rem', lineHeight: 1.4 }}>
-            AI-powered smile analysis
-          </div>
-        </a>
-      </div>
     </div>
   );
 }

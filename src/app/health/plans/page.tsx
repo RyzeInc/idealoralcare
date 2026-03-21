@@ -8,7 +8,7 @@
  * Uses health.css classes for consistent glassmorphism
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ShoppingCart, Check, Loader, Heart, ArrowRight, Lock, Zap, RotateCcw, MessageCircle } from "lucide-react";
@@ -471,7 +471,7 @@ function CadenceToggle() {
 }
 
 function PlansContent() {
-  const { itemCount } = useCart();
+  const { itemCount, syncProductPricing } = useCart();
   
   // Fetch products from Convex catalog
   const products = useQuery(api.catalog.queries.list, {});
@@ -483,6 +483,13 @@ function PlansContent() {
     const dental = (products as any[]).filter((p) => p.category === 'dental');
     return dental.length > 0 ? dental : (products as any[]).slice(0, 1);
   }, [products]);
+
+  // Keep cart item pricing in sync with live Convex data
+  useEffect(() => {
+    if (products && (products as any[]).length > 0) {
+      syncProductPricing(products as any[]);
+    }
+  }, [products, syncProductPricing]);
 
   return (
     <div className="health-landing">
