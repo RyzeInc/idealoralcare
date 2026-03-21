@@ -81,8 +81,8 @@ export async function POST(req: NextRequest) {
     const pricingMap: Record<string, number> = {
       "monthly_card": 1499,     // $14.99/mo for card
       "monthly_ach": 1299,      // $12.99/mo for ACH
-      "annual_card": 14999,     // $149.99/year for card
-      "annual_ach": 12999,      // $129.99/year for ACH
+      "annual_card": 16499,     // $164.99/year for card
+      "annual_ach": 14999,      // $149.99/year for ACH
     };
 
     // Per-dependent add-on pricing (each additional family member)
@@ -178,7 +178,8 @@ export async function POST(req: NextRequest) {
 
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
-      payment_method_types: paymentMethod === "ach" ? ["us_bank_account"] : ["card"],
+      payment_method_types: paymentMethod === "ach" ? ["us_bank_account"] : ["card", "link"],
+      ...(paymentMethod === "ach" ? { payment_method_options: { us_bank_account: { financial_connections: { permissions: ["payment_method"] } } } } : {}),
       mode: "subscription",
       line_items: lineItems,
       metadata: {

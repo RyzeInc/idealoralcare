@@ -42,8 +42,8 @@ export async function POST(req: NextRequest) {
     const pricingMap: Record<string, number> = {
       "monthly_card": 1499,
       "monthly_ach":  1299,
-      "annual_card":  14999,
-      "annual_ach":   12999,
+      "annual_card":  16499,
+      "annual_ach":   14999,
     };
     const productIdMap: Record<string, string> = {
       "monthly_card": "prod_U3no15TNX9iTj1",

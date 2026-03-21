@@ -14,15 +14,23 @@
  * "Frontend API URL"), e.g. "https://clerk.getidealoh.com".
  */
 const providers: { domain: string; applicationID: string }[] = [
+  // Dev Clerk instance (local development)
   {
     domain: "https://fast-molly-5.clerk.accounts.dev",
     applicationID: "convex",
   },
+  // Production Clerk instance (getidealoh.com)
+  // Frontend API URL from Clerk Dashboard → Configure → Domains → Frontend API URL
+  {
+    domain: "https://clerk.getidealoh.com",
+    applicationID: "convex",
+  },
 ];
 
-// In production Convex deployments, add the production Clerk domain so that
-// ctx.auth.getUserIdentity() works for production users.
-if (process.env.CLERK_JWT_ISSUER_DOMAIN) {
+// Optional override via env var (e.g. if the production domain changes)
+// NOTE: process.env here is read from your LOCAL environment at `npx convex deploy` time,
+// NOT from the Convex dashboard. Set it in .env.local if needed.
+if (process.env.CLERK_JWT_ISSUER_DOMAIN && !providers.some(p => p.domain === process.env.CLERK_JWT_ISSUER_DOMAIN)) {
   providers.push({
     domain: process.env.CLERK_JWT_ISSUER_DOMAIN,
     applicationID: "convex",

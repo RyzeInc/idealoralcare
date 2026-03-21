@@ -456,7 +456,7 @@ export const fixPricingV1 = internalMutation({
           pricing: {
             monthlyCardCents: 1499,
             monthlyACHCents: 1499,
-            annualCardCents: 14999,
+            annualCardCents: 16499,
             annualACHCents: 14999,
           },
           updatedAt: now,
@@ -468,7 +468,7 @@ export const fixPricingV1 = internalMutation({
           pricing: {
             monthlyCardCents: 2499,
             monthlyACHCents: 2499,
-            annualCardCents: 24999,
+            annualCardCents: 27489,
             annualACHCents: 24999,
           },
           updatedAt: now,

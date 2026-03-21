@@ -1025,56 +1025,6 @@ function CheckoutContent() {
                 
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                   {/* Card Option */}
-                  <button
-                    onClick={() => setPaymentMethod("card")}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "1rem",
-                      padding: "1rem 1.25rem",
-                      borderRadius: "12px",
-                      border: cart.paymentMethod === "card" 
-                        ? "2px solid #0066CC" 
-                        : "1px solid #e2e8f0",
-                      background: cart.paymentMethod === "card" 
-                        ? "linear-gradient(135deg, #0066CC08, #14b8a608)" 
-                        : "#fff",
-                      cursor: "pointer",
-                      transition: "all 0.2s",
-                      textAlign: "left"
-                    }}
-                  >
-                    <div style={{
-                      width: "44px",
-                      height: "44px",
-                      borderRadius: "10px",
-                      background: "#f1f5f9",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center"
-                    }}>
-                      <CreditCard size={22} color="#64748b" />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <span style={{ display: "block", fontWeight: 600, color: "#0f172a" }}>
-                        Credit/Debit Card
-                      </span>
-                    </div>
-                    {cart.paymentMethod === "card" && (
-                      <div style={{
-                        width: "24px",
-                        height: "24px",
-                        borderRadius: "50%",
-                        background: "#0066CC",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center"
-                      }}>
-                        <Check size={14} color="#fff" />
-                      </div>
-                    )}
-                  </button>
-                  
                   {/* ACH Option */}
                   <button
                     onClick={() => setPaymentMethod("ach")}
@@ -1125,6 +1075,58 @@ function CheckoutContent() {
                       </div>
                     )}
                   </button>
+
+                  {/* Card Option */}
+                  <button
+                    onClick={() => setPaymentMethod("card")}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "1rem",
+                      padding: "1rem 1.25rem",
+                      borderRadius: "12px",
+                      border: cart.paymentMethod === "card" 
+                        ? "2px solid #0066CC" 
+                        : "1px solid #e2e8f0",
+                      background: cart.paymentMethod === "card" 
+                        ? "linear-gradient(135deg, #0066CC08, #14b8a608)" 
+                        : "#fff",
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                      textAlign: "left"
+                    }}
+                  >
+                    <div style={{
+                      width: "44px",
+                      height: "44px",
+                      borderRadius: "10px",
+                      background: "#f1f5f9",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center"
+                    }}>
+                      <CreditCard size={22} color="#64748b" />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <span style={{ display: "block", fontWeight: 600, color: "#0f172a" }}>
+                        Credit/Debit Card
+                      </span>
+                    </div>
+                    {cart.paymentMethod === "card" && (
+                      <div style={{
+                        width: "24px",
+                        height: "24px",
+                        borderRadius: "50%",
+                        background: "#0066CC",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center"
+                      }}>
+                        <Check size={14} color="#fff" />
+                      </div>
+                    )}
+                  </button>
+                  
                 </div>
               </div>
               
