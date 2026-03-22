@@ -159,6 +159,7 @@ export const getCustomerBundlePublic = query({
           _id: bundle._id,
           customerId: bundle.customerId,
           status: bundle.status,
+          cadence: (bundle as any).cadence as "monthly" | "annual" | undefined,
           currentPeriodEnd: (bundle as any).currentPeriodEnd,
           pricingSnapshot: (bundle as any).pricingSnapshot,
           pastDueAt: (bundle as any).pastDueAt,
@@ -485,6 +486,7 @@ export const getMemberCardDataPublic = query({
 
     // Try to get a plan name from active entitlements
     let planName = "Ideal Oral Health Plan";
+    let productSlug: string | null = null;
     const entitlement = await ctx.db
       .query("entitlements")
       .withIndex("by_customer", (q) => q.eq("customerId", args.customerId))
@@ -496,8 +498,26 @@ export const getMemberCardDataPublic = query({
       )
       .first();
     if (entitlement) {
-      const product = await ctx.db.get((entitlement as any).productId as any);
+      let product: any = await ctx.db.get((entitlement as any).productId as any);
+      // Historical fallback: entitlements created before the webhook fix may have
+      // a Stripe product ID (prod_xxx) stored instead of a Convex document ID.
+      if (!product) {
+        const rawId = String((entitlement as any).productId);
+        if (rawId.startsWith("prod_")) {
+          const allProducts = await ctx.db.query("catalogProducts").collect();
+          product = (allProducts.find((p: any) => {
+            const sp = p.stripeProducts;
+            return sp && (
+              sp.monthlyCardId === rawId ||
+              sp.monthlyACHId === rawId ||
+              sp.annualCardId === rawId ||
+              sp.annualACHId === rawId
+            );
+          }) ?? null);
+        }
+      }
       if (product && (product as any).name) planName = (product as any).name;
+      if (product && (product as any).slug) productSlug = (product as any).slug;
     }
 
     const effectiveTs = (bundle as any)?.currentPeriodStart ?? (profile as any).enrolledAt ?? profile._creationTime;
@@ -512,6 +532,7 @@ export const getMemberCardDataPublic = query({
       memberName: `${profile.firstName} ${profile.lastName}`,
       memberId: profile.memberId,
       planName,
+      productSlug,
       effectiveDate,
       barcode: profile.barcode,
       networks: {

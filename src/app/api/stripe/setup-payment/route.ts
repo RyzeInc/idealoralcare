@@ -38,35 +38,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Pricing map (cents)
-    const pricingMap: Record<string, number> = {
-      "monthly_card": 1499,
-      "monthly_ach":  1499,
-      "annual_card":  16499,
-      "annual_ach":   16499,
-    };
-    const productIdMap: Record<string, string> = {
-      "monthly_card": "prod_U3no15TNX9iTj1",
-      "monthly_ach":  "prod_U3nrt0liKgXRmq",
-      "annual_card":  "prod_U3nsR7DN8AVcL9",
-      "annual_ach":   "prod_U3ns1IYNVgNwGM",
-    };
-
-    const priceKey = `${cadence}_${paymentMethod}`;
-    const amount = pricingMap[priceKey];
-    const stripeProductId = productIdMap[priceKey];
-
-    if (!amount || !stripeProductId) {
-      return NextResponse.json({ error: "Invalid pricing configuration" }, { status: 400 });
-    }
-
-    // Fetch product name from Convex
+    // Fetch product details from Convex — pricing and Stripe product IDs come from DB
     const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || "");
     let productName = "Ideal Oral Health Plan";
+    let amount: number | undefined;
+    let stripeProductId: string | undefined;
+
     try {
+      // @ts-ignore - avoid deep type instantiation issue with api.catalog.queries
       const product = await convex.query(api.catalog.queries.getById, { id: planId });
-      if (product?.name) productName = product.name;
-    } catch { /* use default */ }
+      if (product) {
+        productName = product.name;
+        const pricing = product.pricing;
+        if (cadence === "monthly") {
+          amount = paymentMethod === "ach" ? pricing.monthlyACHCents : pricing.monthlyCardCents;
+        } else {
+          amount = paymentMethod === "ach" ? pricing.annualACHCents : pricing.annualCardCents;
+        }
+        const sp = product.stripeProducts;
+        const spKey = `${cadence === "monthly" ? "monthly" : "annual"}${paymentMethod === "ach" ? "ACH" : "Card"}Id` as keyof typeof sp;
+        if (sp && sp[spKey]) stripeProductId = sp[spKey];
+      }
+    } catch (error) {
+      console.error("[setup-payment] Failed to fetch product from Convex:", error);
+    }
+
+    if (!amount || !stripeProductId) {
+      return NextResponse.json({ error: "Could not resolve plan pricing. Please try again or contact support." }, { status: 400 });
+    }
 
     // Create or retrieve Stripe customer
     let stripeCustomerId: string;

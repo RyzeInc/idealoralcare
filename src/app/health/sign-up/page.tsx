@@ -334,42 +334,6 @@ function GetStartedPage() {
     <div className="health-landing">
       <HealthHeader />
 
-      {/* ── Hero ── */}
-      <section className="section bg--blue" style={{ paddingTop: "7rem", paddingBottom: "2.5rem" }}>
-        <div className="container" style={{ textAlign: "center" }}>
-          <Link href="/health/plans"
-            style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", color: "#0f172a", textDecoration: "none", marginBottom: "1.5rem", fontSize: "0.9375rem", transition: "color 0.2s" }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "#0066CC")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "#0f172a")}>
-            <ArrowLeft size={18} /> View Plans
-          </Link>
-          <h1 style={{ fontSize: "clamp(2rem,5vw,2.75rem)", fontWeight: 700, color: "#0f172a", marginBottom: "0.75rem" }}>
-            Get Started with Ideal Health
-          </h1>
-          <p style={{ color: "#475569", fontSize: "1.125rem", maxWidth: "540px", margin: "0 auto 2rem" }}>
-            Select your plan and create your account in one seamless enrollment — no separate sign-up required.
-          </p>
-
-          {/* Enrollment step strip — Crunch-style visual stepper */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0", flexWrap: "wrap", maxWidth: "720px", margin: "0 auto" }}>
-            {ENROLL_STEPS.map((s, i) => (
-              <div key={s.num} style={{ display: "flex", alignItems: "center" }}>
-                <div style={{ textAlign: "center", padding: "0 0.5rem" }}>
-                  <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: s.num === 5 ? "#14b8a6" : "#0066CC", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.875rem", margin: "0 auto 4px" }}>
-                    {s.num}
-                  </div>
-                  <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#0f172a", whiteSpace: "nowrap" }}>{s.label}</div>
-                  <div style={{ fontSize: "0.6875rem", color: "#64748b", whiteSpace: "nowrap" }}>{s.sub}</div>
-                </div>
-                {i < ENROLL_STEPS.length - 1 && (
-                  <div style={{ width: "32px", height: "2px", background: "#e2e8f0", flexShrink: 0 }} />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ── Primary CTA ── */}
       <section className="section bg--white" style={{ paddingTop: "3rem", paddingBottom: "1.5rem" }}>
         <div className="container" style={{ maxWidth: "560px" }}>

@@ -886,7 +886,7 @@ function CheckoutContent() {
                             color: "#0066CC",
                             marginBottom: "0.25rem"
                           }}>
-                            {item.product.category}
+                            {item.product.slug?.includes("family") ? "Family Plan" : "Individual Plan"}
                           </span>
                           <span style={{ fontWeight: 600, color: "#0f172a" }}>
                             {item.product.name}
@@ -1335,7 +1335,9 @@ function CheckoutContent() {
                         justifyContent: "space-between",
                         alignItems: "center"
                       }}>
-                        <span style={{ color: "#475569" }}>{item.product.name}</span>
+                        <span style={{ color: "#475569" }}>
+                          {item.product.name}
+                        </span>
                         <span style={{ fontWeight: 600, color: "#0f172a" }}>
                           {formatPrice(itemPrice)}
                         </span>

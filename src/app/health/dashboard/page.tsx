@@ -33,8 +33,8 @@ export default async function DashboardPage() {
     memberName: string;
     memberId: string;
     planName: string;
+    productSlug?: string | null;
     effectiveDate: string;
-    barcode: string;
     networks: {
       careington: { name: string; memberUrl: string };
       dialCare: { name: string; memberUrl: string };
@@ -76,7 +76,7 @@ export default async function DashboardPage() {
             name: memberCardData?.planName ?? "Ideal Oral Health Plan",
             category: "Oral Health",
             price: totalCents,
-            cadence: totalCents > 2000 ? "annual" : "monthly",
+            cadence: bundleData.cadence ?? (totalCents > 16000 ? "annual" : "monthly"),
             renewDate,
             status: bundleData.status,
           },
@@ -86,6 +86,8 @@ export default async function DashboardPage() {
       // Fail gracefully — show empty state
     }
   }
+
+  const isFamily = memberCardData?.productSlug?.includes("family") ?? false;
 
   const memberSince = user?.createdAt
     ? new Date(user.createdAt).toLocaleDateString("en-US", {
@@ -97,25 +99,6 @@ export default async function DashboardPage() {
   return (
     <div className="health-landing">
       <HealthHeader />
-
-      {/* Hero Section */}
-      <section className="section bg--blue" style={{ paddingTop: "7rem", paddingBottom: "2.5rem" }}>
-        <div className="container">
-          <h1
-            style={{
-              fontSize: "clamp(2rem, 5vw, 2.75rem)",
-              fontWeight: 700,
-              color: "#0f172a",
-              marginBottom: "0.5rem",
-            }}
-          >
-            Welcome back, {user?.firstName || "Member"}!
-          </h1>
-          <p style={{ color: "#475569", fontSize: "1.125rem" }}>
-            Manage your health plans and account settings
-          </p>
-        </div>
-      </section>
 
       {/* Main Dashboard Content */}
       <section className="section bg--white" style={{ paddingTop: "3rem", paddingBottom: "4rem" }}>
@@ -129,6 +112,7 @@ export default async function DashboardPage() {
             subscriptions={subscriptions}
             userId={user?.id ?? null}
             memberCardData={memberCardData}
+            isFamily={isFamily}
           />
         </div>
       </section>

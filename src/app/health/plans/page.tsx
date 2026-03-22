@@ -8,7 +8,8 @@
  * Uses health.css classes for consistent glassmorphism
  */
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { ShoppingCart, Check, Loader, Heart, ArrowRight, Lock, Zap, RotateCcw, MessageCircle, Users } from "lucide-react";
@@ -56,6 +57,7 @@ interface CatalogProduct {
 function PlanCard({ product }: { product: CatalogProduct }) {
   const { cart, addItem, removeItem, isInCart } = useCart();
   const inCart = isInCart(product._id);
+  const isFamily = product.slug?.includes('family');
   const price = getPrice(product, cart.cadence, cart.paymentMethod);
   const periodLabel = cart.cadence === "monthly" ? "/mo" : "/yr";
 
@@ -75,16 +77,19 @@ function PlanCard({ product }: { product: CatalogProduct }) {
             gap: '8px',
             fontSize: '0.8125rem',
             fontWeight: '700',
-            color: 'var(--accent-teal)',
+            color: isFamily ? 'var(--primary-blue)' : 'var(--accent-teal)',
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
             marginBottom: '12px',
-            background: 'rgba(20, 184, 166, 0.1)',
+            background: isFamily ? 'rgba(0, 102, 204, 0.08)' : 'rgba(20, 184, 166, 0.1)',
             padding: '6px 12px',
             borderRadius: '100px'
           }}>
-            <Heart size={14} style={{ color: 'var(--accent-teal)' }} />
-            Oral Health
+            {isFamily
+              ? <Users size={14} style={{ color: 'var(--primary-blue)' }} />
+              : <Heart size={14} style={{ color: 'var(--accent-teal)' }} />
+            }
+            {isFamily ? 'Family Plan' : 'Individual Plan'}
           </div>
           <h2 style={{
             fontSize: '1.875rem',
@@ -159,11 +164,17 @@ function PlanCard({ product }: { product: CatalogProduct }) {
           marginBottom: '20px'
         }}>
           {/* Monthly Pricing */}
-          <div>
+          <div style={{
+            padding: '12px 16px',
+            borderRadius: 'var(--radius-sm)',
+            background: cart.cadence === 'monthly' ? 'rgba(0, 102, 204, 0.06)' : 'transparent',
+            border: cart.cadence === 'monthly' ? '1.5px solid rgba(0, 102, 204, 0.2)' : '1.5px solid transparent',
+            transition: 'all 0.2s',
+          }}>
             <div style={{
               fontSize: '0.75rem',
               fontWeight: '600',
-              color: 'var(--text-muted)',
+              color: cart.cadence === 'monthly' ? 'var(--primary-blue)' : 'var(--text-muted)',
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
               marginBottom: '6px'
@@ -173,20 +184,30 @@ function PlanCard({ product }: { product: CatalogProduct }) {
             <div style={{
               fontSize: '1.5rem',
               fontWeight: '700',
-              color: 'var(--primary-blue)',
+              color: cart.cadence === 'monthly' ? 'var(--primary-blue)' : '#64748b',
               lineHeight: 1
             }}>
               ${(product.pricing.monthlyCardCents / 100).toFixed(2)}
             </div>
-
+            {isFamily && (
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                Primary + 4 dependents
+              </div>
+            )}
           </div>
 
           {/* Annual Pricing */}
-          <div>
+          <div style={{
+            padding: '12px 16px',
+            borderRadius: 'var(--radius-sm)',
+            background: cart.cadence === 'annual' ? 'rgba(20, 184, 166, 0.06)' : 'transparent',
+            border: cart.cadence === 'annual' ? '1.5px solid rgba(20, 184, 166, 0.25)' : '1.5px solid transparent',
+            transition: 'all 0.2s',
+          }}>
             <div style={{
               fontSize: '0.75rem',
               fontWeight: '600',
-              color: 'var(--text-muted)',
+              color: cart.cadence === 'annual' ? 'var(--accent-teal)' : 'var(--text-muted)',
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
               marginBottom: '6px'
@@ -196,7 +217,7 @@ function PlanCard({ product }: { product: CatalogProduct }) {
             <div style={{
               fontSize: '1.5rem',
               fontWeight: '700',
-              color: 'var(--primary-blue)',
+              color: cart.cadence === 'annual' ? 'var(--accent-teal)' : '#64748b',
               lineHeight: 1
             }}>
               ${(product.pricing.annualCardCents / 100).toFixed(2)}
@@ -209,6 +230,11 @@ function PlanCard({ product }: { product: CatalogProduct }) {
             }}>
               1 Month Free
             </div>
+            {isFamily && (
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                Primary + 4 dependents
+              </div>
+            )}
           </div>
         </div>
 
@@ -530,7 +556,10 @@ function TierToggle({ tier, setTier }: { tier: "individual" | "family"; setTier:
 
 function PlansContent() {
   const { itemCount, syncProductPricing, cart, addItem, removeItem, isInCart } = useCart();
-  const [tier, setTier] = useState<"individual" | "family">("individual");
+  const searchParams = useSearchParams();
+  const initialTier = searchParams.get("tier") === "family" ? "family" : "individual";
+  const [tier, setTier] = useState<"individual" | "family">(initialTier);
+  const prevTierRef = useRef<"individual" | "family" | null>(null);
   
   // Fetch products from Convex catalog
   const products = useQuery(api.catalog.queries.list, {});
@@ -553,8 +582,13 @@ function PlansContent() {
 
   // When tier changes, swap the cart item to the correct plan
   useEffect(() => {
+    // Guard: only execute the swap when tier *actually* changed.
+    // Without this, the effect re-fires whenever isInCart/removeItem/addItem
+    // get new references (after every cart state update), creating an infinite loop.
+    if (prevTierRef.current === tier) return;
+    prevTierRef.current = tier;
+
     if (!selectedPlan) return;
-    // If there's an item in cart from the other tier, swap it
     const otherTierPlan = oralHealthPlans.find((p: any) => 
       tier === "family" ? !p.slug?.includes("family") : p.slug?.includes("family")
     );
@@ -746,7 +780,9 @@ function PlansContent() {
 export default function PlansPage() {
   return (
     <CartProvider>
-      <PlansContent />
+      <Suspense>
+        <PlansContent />
+      </Suspense>
     </CartProvider>
   );
 }

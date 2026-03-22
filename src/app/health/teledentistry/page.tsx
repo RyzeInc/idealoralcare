@@ -33,110 +33,39 @@ export default function TeledentistryPage() {
     <div className="health-landing">
       <HealthHeader />
 
-      {/* ── BOLD TEAL HERO ──────────────────────────────────────────────── */}
-      <section
-        style={{
-          position: "relative",
-          minHeight: "520px",
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          overflow: "hidden",
-          background: "linear-gradient(135deg, #1e3a5f 0%, #1b4a7a 100%)",
-        }}
-      >
-        {/* Left panel — text */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            padding: "5rem 3.5rem 5rem 4rem",
-            position: "relative",
-            zIndex: 1,
-          }}
-        >
-          <p
-            style={{
-              textTransform: "uppercase",
-              letterSpacing: "0.12em",
-              fontSize: "0.75rem",
-              fontWeight: 700,
-              color: "rgba(255,255,255,0.75)",
-              marginBottom: "1rem",
-            }}
-          >
-            Ideal Health Teledentistry
-          </p>
-          <h1
-            style={{
-              fontSize: "clamp(2rem, 3.5vw, 3rem)",
-              fontWeight: 900,
-              lineHeight: 1.1,
-              color: "#fff",
-              marginBottom: "1.25rem",
-            }}
-          >
-            Expert Dental<br />
-            Care — 24/7/365
-          </h1>
-          <p
-            style={{
-              color: "rgba(255,255,255,0.9)",
-              fontSize: "1rem",
-              lineHeight: 1.6,
-              maxWidth: "360px",
-              marginBottom: "2rem",
-            }}
-          >
-            Virtual consultations with licensed dentists via phone or video chat. Get answers to your dental questions and guidance on oral health concerns — anytime, anywhere.
-          </p>
-          <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-            <Link
-              className="button button--accent"
-              href="/health/plans"
-              style={{ padding: "12px 28px", fontSize: "0.9375rem" }}
-            >
-              Explore Plans
-            </Link>
-            <a
-              href="#services"
-              style={{
-                padding: "12px 28px",
-                fontSize: "0.9375rem",
-                fontWeight: 600,
-                color: "#fff",
-                border: "2px solid rgba(255,255,255,0.35)",
-                borderRadius: "8px",
-                textDecoration: "none",
-                transition: "border-color 0.2s",
-              }}
-            >
-              Learn More ↓
-            </a>
+      {/* Hero - Bold Split Design */}
+      <section className="section" style={{ padding: "4rem 0", background: "linear-gradient(135deg, #1e3a5f 0%, #1b4a7a 100%)" }}>
+        <div className="container">
+          <div className="row" style={{ alignItems: "center" }}>
+            <div className="col-6">
+              <div style={{ paddingRight: "2rem" }}>
+                <div style={{ fontSize: "0.875rem", fontWeight: 700, color: "rgba(255,255,255,0.75)", letterSpacing: "0.1em", marginBottom: "1rem" }}>
+                  IDEAL HEALTH TELEDENTISTRY
+                </div>
+                <h1 style={{ fontSize: "3rem", lineHeight: 1.1, fontWeight: 800, color: "#fff", marginBottom: "1.5rem" }}>
+                  Expert Dental Care — 24/7/365
+                </h1>
+                <p style={{ fontSize: "1.125rem", color: "rgba(255,255,255,0.95)", marginBottom: "2rem", lineHeight: 1.6 }}>
+                  Virtual consultations with licensed dentists via phone or video chat. Get answers to your dental questions and guidance on oral health concerns — anytime, anywhere.
+                </p>
+                <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+                  <Link className="button button--accent" href="/health/plans" style={{ padding: "12px 28px", fontSize: "0.9375rem" }}>
+                    Explore Plans
+                  </Link>
+                  <a href="#services" style={{ padding: "12px 28px", fontSize: "0.9375rem", fontWeight: 600, color: "#fff", border: "2px solid rgba(255,255,255,0.35)", borderRadius: "8px", textDecoration: "none", transition: "border-color 0.2s" }}>
+                    Learn More ↓
+                  </a>
+                </div>
+              </div>
+            </div>
+            <div className="col-6" style={{ position: "relative", display: "flex", justifyContent: "center", alignItems: "center" }}>
+              <img
+                src="/health-assets/teledentistry-video-call.png"
+                alt="Teledentistry virtual consultation"
+                style={{ width: "75%", maxWidth: "400px", borderRadius: "12px", position: "relative", zIndex: 1, objectFit: "contain" }}
+              />
+            </div>
           </div>
-        </div>
-
-        {/* Right panel — photo */}
-        <div style={{ position: "relative", overflow: "hidden" }}>
-          <img
-            src="/health-assets/teledentistry-video-call.png"
-            alt="Teledentistry virtual consultation"
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              objectPosition: "center",
-              display: "block",
-            }}
-          />
-          <div
-            aria-hidden
-            style={{
-              position: "absolute",
-              inset: 0,
-              background: "linear-gradient(to right, #1e3a5f 0%, transparent 35%)",
-            }}
-          />
         </div>
       </section>
 

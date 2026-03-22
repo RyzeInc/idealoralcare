@@ -26,6 +26,7 @@ import {
   AlertTriangle,
   ChevronRight,
   Crown,
+  CreditCard,
   RefreshCw,
 } from "lucide-react";
 import "@/app/health/health.css";
@@ -271,6 +272,36 @@ function ManagePlansContent() {
                     </Link>
                   </div>
                 )}
+              </div>
+
+              {/* ── Manage Payment Methods ───────────────────────── */}
+              <div className="glass-card" style={{ padding: "2rem" }}>
+                <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "#0f172a", marginBottom: "1.25rem", display: "flex", alignItems: "center", gap: "0.625rem" }}>
+                  <CreditCard size={22} color="#0066CC" /> Billing &amp; Payment
+                </h2>
+                <div
+                  style={{
+                    padding: "1.5rem",
+                    background: "#f8fafc",
+                    borderRadius: "12px",
+                    border: "1px solid #e2e8f0",
+                    textAlign: "center",
+                  }}
+                >
+                  <p style={{ color: "#64748b", marginBottom: "1rem" }}>
+                    Manage your payment methods and view billing history.
+                  </p>
+                  <button
+                    className="button button--glass"
+                    disabled
+                    style={{ opacity: 0.5, cursor: "not-allowed" }}
+                  >
+                    Manage Payment Methods
+                  </button>
+                  <p style={{ color: "#94a3b8", fontSize: "0.8125rem", marginTop: "0.75rem", margin: "0.75rem 0 0" }}>
+                    Coming soon — Stripe billing portal integration.
+                  </p>
+                </div>
               </div>
 
               {/* ── Upgrade / Downgrade ──────────────────────────── */}

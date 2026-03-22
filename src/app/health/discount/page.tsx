@@ -54,7 +54,7 @@ export default function DentalDiscountNetworkPage() {
       <section
         style={{
           position: "relative",
-          minHeight: "520px",
+          height: "500px",
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
           overflow: "hidden",
@@ -67,7 +67,7 @@ export default function DentalDiscountNetworkPage() {
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
-            padding: "5rem 3.5rem 5rem 4rem",
+            padding: "4rem 3.5rem 4rem 4rem",
             position: "relative",
             zIndex: 1,
           }}
@@ -164,7 +164,7 @@ export default function DentalDiscountNetworkPage() {
         </div>
 
         {/* Right — photo with overlay */}
-        <div style={{ position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "relative", overflow: "hidden", height: "500px" }}>
           <img
             src="/health-assets/dentist-network-discount_1536x1024.png"
             alt="Parent helping child brush teeth"

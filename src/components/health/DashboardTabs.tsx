@@ -33,7 +33,6 @@ interface DashboardTabsProps {
     memberId: string;
     planName: string;
     effectiveDate: string;
-    barcode: string;
     networks: {
       careington: { name: string; memberUrl: string };
       dialCare: { name: string; memberUrl: string };
@@ -42,6 +41,7 @@ interface DashboardTabsProps {
     supportPhone: string;
     supportEmail: string;
   } | null;
+  isFamily?: boolean;
 }
 
 type TabId = 'overview' | 'provider-search' | 'oral-scan' | 'teledentistry';
@@ -77,6 +77,7 @@ export default function DashboardTabs({
   subscriptions,
   userId,
   memberCardData,
+  isFamily = false,
 }: DashboardTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
 
@@ -87,20 +88,33 @@ export default function DashboardTabs({
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '1rem',
+          justifyContent: 'space-between',
           marginBottom: '2rem',
         }}
       >
-        <div
-          style={{
-            width: '40px',
-            height: '40px',
-            flexShrink: 0,
-          }}
+        <button
+          onClick={() => setActiveTab('overview')}
+          style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
         >
-          <img src="/health-assets/IdealLogo.png" alt="Ideal Health" style={{ width: '100%', height: '100%' }} />
+          <div
+            style={{
+              width: '40px',
+              height: '40px',
+              flexShrink: 0,
+            }}
+          >
+            <img src="/health-assets/IdealLogo.png" alt="Ideal Health" style={{ width: '100%', height: '100%' }} />
+          </div>
+          <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>Dashboard</h2>
+        </button>
+        <div style={{ textAlign: 'right' }}>
+          <p style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: '#0f172a' }}>
+            Welcome back, {firstName || 'Member'}!
+          </p>
+          <p style={{ margin: 0, fontSize: '0.8125rem', color: '#64748b' }}>
+            Manage your health plans and account settings
+          </p>
         </div>
-        <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>Dashboard</h2>
       </div>
 
       {/* Tab Bar */}
@@ -158,6 +172,7 @@ export default function DashboardTabs({
             hasSubscriptions={hasSubscriptions}
             subscriptions={subscriptions}
             onTabChange={setActiveTab}
+            isFamily={isFamily}
           />
         )}
 

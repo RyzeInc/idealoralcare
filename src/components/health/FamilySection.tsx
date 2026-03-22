@@ -30,7 +30,7 @@ function InviteStatusBadge({ status }: { status: string | undefined }) {
   );
 }
 
-export default function FamilySection() {
+export default function FamilySection({ isFamily = true }: { isFamily?: boolean }) {
   // useConvexAuth reflects when the Convex client actually has the JWT token
   // ready — not just when Clerk has loaded. This prevents premature authenticated queries.
   const { isAuthenticated } = useConvexAuth();
@@ -50,6 +50,7 @@ export default function FamilySection() {
   const resendInvite = useMutation(convexApi.enrollment.dependents.resendDependentInvite);
 
   const [showForm, setShowForm] = useState(false);
+  const [showUpgradeCta, setShowUpgradeCta] = useState(false);
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', relationship: 'spouse' as Relationship });
   const [errors, setErrors] = useState<Partial<typeof form>>({});
   const [adding, setAdding] = useState(false);
@@ -155,9 +156,9 @@ export default function FamilySection() {
           <Users size={24} color="#0066CC" />
           Family Members
         </h2>
-        {!showForm && (
+        {!showForm && !showUpgradeCta && (
           <button
-            onClick={() => setShowForm(true)}
+            onClick={() => isFamily ? setShowForm(true) : setShowUpgradeCta(true)}
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.875rem', background: '#0066CC', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}
           >
             <UserPlus size={15} /> Add Member
@@ -165,17 +166,42 @@ export default function FamilySection() {
         )}
       </div>
 
+      {/* Upgrade CTA for individual plan users */}
+      {showUpgradeCta && (
+        <div style={{ padding: '1.5rem', background: 'linear-gradient(135deg, #eff6ff, #f0fdf4)', borderRadius: '12px', border: '1px solid #bfdbfe', textAlign: 'center' }}>
+          <Users size={28} color="#0066CC" style={{ marginBottom: '0.75rem' }} />
+          <p style={{ color: '#0f172a', fontWeight: 600, marginBottom: '0.5rem', fontSize: '1rem' }}>Upgrade to the Family Plan</p>
+          <p style={{ color: '#475569', marginBottom: '1.25rem', fontSize: '0.875rem', lineHeight: 1.5 }}>
+            Your current Individual Plan covers only you. Upgrade to the Family Plan ($24.99/mo) to add a spouse, children, or dependents.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <a
+              href="/health/plans?tier=family"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.625rem 1.25rem', background: '#0066CC', color: 'white', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, textDecoration: 'none' }}
+            >
+              <Users size={15} /> Upgrade to Family Plan
+            </a>
+            <button
+              onClick={() => setShowUpgradeCta(false)}
+              style={{ padding: '0.625rem 1.25rem', background: 'transparent', border: '1px solid #cbd5e1', color: '#64748b', borderRadius: '8px', fontSize: '0.875rem', cursor: 'pointer' }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Existing dependents */}
       {dependents === undefined ? (
         <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Loading…</p>
-      ) : dependents.length === 0 && !showForm ? (
+      ) : dependents.length === 0 && !showForm && !showUpgradeCta ? (
         <div style={{ textAlign: 'center', padding: '2rem 1rem', background: '#f8fafc', borderRadius: '10px', border: '1px dashed #cbd5e1' }}>
           <Users size={28} color="#94a3b8" style={{ marginBottom: '0.75rem' }} />
           <p style={{ color: '#64748b', marginBottom: '1rem', fontSize: '0.9rem' }}>
             No family members added yet. Add a spouse, child, or dependent to share your plan benefits.
           </p>
           <button
-            onClick={() => setShowForm(true)}
+            onClick={() => isFamily ? setShowForm(true) : setShowUpgradeCta(true)}
             style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.625rem 1.25rem', background: '#0066CC', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}
           >
             <UserPlus size={15} /> Add Family Member

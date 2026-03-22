@@ -6,7 +6,6 @@ import {
   ChevronRight,
   HeartPulse,
   Settings,
-  CreditCard,
   FileText,
   Search,
   Scan,
@@ -37,6 +36,7 @@ interface OverviewTabProps {
   subscriptions: Subscription[];
   onTabChange: (tabId: 'overview' | 'provider-search' | 'oral-scan' | 'teledentistry') => void;
   memberCardData?: MemberCardData | null;
+  isFamily?: boolean;
 }
 
 export default function OverviewTab({
@@ -48,6 +48,7 @@ export default function OverviewTab({
   subscriptions,
   onTabChange,
   memberCardData,
+  isFamily = false,
 }: OverviewTabProps) {
   const [showHowItWorks, setShowHowItWorks] = useState(false);
 
@@ -57,7 +58,6 @@ export default function OverviewTab({
     memberId: subscriptions[0]?.id?.slice(-9) ?? '—',
     planName: subscriptions[0]?.name ?? 'Ideal Oral Health Plan',
     effectiveDate: subscriptions[0]?.renewDate ?? '—',
-    barcode: '',
     networks: {
       careington: { name: 'Dental Discount Network', memberUrl: 'https://www.careington.com' },
       dialCare: { name: 'Teledentistry Program', memberUrl: 'https://www.dialcare.com' },
@@ -215,45 +215,7 @@ export default function OverviewTab({
         </div>
 
         {/* Family Members */}
-        <FamilySection />
-
-        {/* Billing & Payment */}
-        <div className="glass-card" style={{ padding: '2rem' }}>
-          <h2
-            style={{
-              fontSize: '1.375rem',
-              fontWeight: 700,
-              color: '#0f172a',
-              marginBottom: '1.5rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-            }}
-          >
-            <CreditCard size={24} color="#0066CC" />
-            Billing &amp; Payment
-          </h2>
-          <div
-            style={{
-              padding: '1.5rem',
-              background: '#f8fafc',
-              borderRadius: '12px',
-              border: '1px solid #e2e8f0',
-              textAlign: 'center',
-            }}
-          >
-            <p style={{ color: '#64748b', marginBottom: '1rem' }}>
-              Payment methods and billing history will appear here once you have active plans.
-            </p>
-            <button
-              className="button button--glass"
-              disabled
-              style={{ opacity: 0.5, cursor: 'not-allowed' }}
-            >
-              Manage Payment Methods
-            </button>
-          </div>
-        </div>
+        <FamilySection isFamily={isFamily} />
       </div>
 
       {/* Sidebar */}

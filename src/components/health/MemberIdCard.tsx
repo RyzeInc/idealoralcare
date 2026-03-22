@@ -15,7 +15,6 @@ export interface MemberCardData {
   memberId: string;
   planName: string;
   effectiveDate: string;
-  barcode: string;
   groupCode?: string;
   subscriberId?: string;
   networks: {
@@ -250,15 +249,6 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
                 </div>
               </div>
             </div>
-
-            {/* Member ID barcode placeholder */}
-            {cardData.barcode && (
-              <div style={{ textAlign: 'center', marginTop: '0.25rem' }}>
-                <div style={{ fontSize: '0.6875rem', fontFamily: 'monospace', color: '#94a3b8', letterSpacing: '0.15em' }}>
-                  {cardData.barcode}
-                </div>
-              </div>
-            )}
 
             {/* Footer */}
             <div

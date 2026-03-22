@@ -108,3 +108,28 @@ export const getRecommendations = query({
     return recommendations.filter((r: any) => r && r.isVisible);
   },
 });
+
+/**
+ * Reverse-lookup: find a catalogProduct by any of its Stripe product IDs.
+ * Used by the webhook to convert a Stripe product ID → Convex product._id.
+ */
+export const getByStripeProductId = query({
+  args: {
+    stripeProductId: v.string(),
+  },
+  handler: async (ctx: any, args: any) => {
+    const all = await ctx.db.query("catalogProducts").collect();
+    return (
+      all.find((p: any) => {
+        const sp = p.stripeProducts;
+        if (!sp) return false;
+        return (
+          sp.monthlyCardId === args.stripeProductId ||
+          sp.monthlyACHId === args.stripeProductId ||
+          sp.annualCardId === args.stripeProductId ||
+          sp.annualACHId === args.stripeProductId
+        );
+      }) ?? null
+    );
+  },
+});

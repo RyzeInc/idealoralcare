@@ -69,15 +69,7 @@ export async function POST(req: NextRequest) {
       relationship: string;
     }> = Array.isArray(dependents) ? dependents : [];
 
-    // Map cadence + paymentMethod to Stripe product ID (individual plan defaults)
-    const defaultProductIdMap: Record<string, string> = {
-      "monthly_card": "prod_U3no15TNX9iTj1",  // Oral Health Plan Monthly Card
-      "monthly_ach": "prod_U3nrt0liKgXRmq",   // Oral Health Plan Monthly ACH
-      "annual_card": "prod_U3nsR7DN8AVcL9",   // Oral Health Plan Annual Card
-      "annual_ach": "prod_U3ns1IYNVgNwGM",    // Oral Health Plan Annual ACH
-    };
-
-    // Fetch product details from Convex — pricing comes from DB
+    // Fetch product details from Convex — pricing and Stripe product IDs come from DB
     const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || "");
     let productName = "Oral Health Plan";
     let amount: number | undefined;
@@ -103,24 +95,15 @@ export async function POST(req: NextRequest) {
         }
       }
     } catch (error) {
-      // Fall back to hardcoded individual pricing
+      console.error("[checkout] Failed to fetch product from Convex:", error);
     }
 
-    // Fallback to hardcoded individual pricing if DB fetch failed
-    const priceKey = `${cadence}_${paymentMethod}`;
-    if (!amount) {
-      const fallbackPricingMap: Record<string, number> = {
-        "monthly_card": 1499, "monthly_ach": 1499,
-        "annual_card": 16499, "annual_ach": 16499,
-      };
-      amount = fallbackPricingMap[priceKey];
-    }
-    if (!stripeProductId) {
-      stripeProductId = defaultProductIdMap[priceKey];
-    }
-    
-    if (!stripeProductId || !amount) {
-      return NextResponse.json({ error: "Invalid pricing configuration" }, { status: 500 });
+    // If DB lookup failed, reject — never silently charge individual pricing for an unknown plan
+    if (!amount || !stripeProductId) {
+      return NextResponse.json(
+        { error: "Could not resolve plan pricing. Please try again or contact support." },
+        { status: 400 }
+      );
     }
 
     // Create or get Stripe customer
@@ -159,10 +142,10 @@ export async function POST(req: NextRequest) {
       },
     ];
 
-    // Add dependent line item if any dependents are being enrolled
-    if (dependentList.length > 0) {
-      // Per-dependent add-on pricing (legacy flow — family plan is now flat-rate)
-      const dependentAmount = cadence === "monthly" ? 999 : 9999;
+    // Family plan is flat-rate — no per-dependent add-on line items.
+    // Dependents are collected post-enrollment via the dashboard.
+    if (false && dependentList.length > 0) {
+      // Legacy per-dependent code — disabled
       lineItems.push({
         price_data: {
           currency: "usd",
@@ -171,7 +154,7 @@ export async function POST(req: NextRequest) {
             description: `Family plan add-on for ${dependentList.length} dependent${dependentList.length > 1 ? "s" : ""}`,
             metadata: { planId, type: "dependent" },
           },
-          unit_amount: dependentAmount,
+          unit_amount: 0,
           recurring: {
             interval: cadence === "monthly" ? "month" : "year",
             interval_count: 1,

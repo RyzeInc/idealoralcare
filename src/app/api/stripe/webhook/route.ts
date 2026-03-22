@@ -122,11 +122,24 @@ export async function POST(req: NextRequest) {
             const stripeProductId = typeof item.plan.product === "string" 
               ? item.plan.product 
               : (item.plan.product as any)?.id || "";
-              
+
+            // Resolve Stripe product ID → Convex catalogProducts._id
+            // @ts-ignore - avoid deep type instantiation issue
+            const catalogProduct = await convex.query(api.catalog.queries.getByStripeProductId, {
+              stripeProductId,
+            });
+
+            if (!catalogProduct) {
+              console.error(
+                `[webhook] Could not resolve Stripe product ${stripeProductId} to a Convex catalogProduct. Skipping entitlement.`
+              );
+              continue;
+            }
+
             await convex.mutation(api.subscriptions.mutations.webhookActivateEntitlement, {
               customerId: clerkUserId,
               bundleId,
-              productId: stripeProductId,
+              productId: catalogProduct._id,  // ✅ Convex document ID, not Stripe product ID
               stripeSubscriptionItemId: item.id,
               periodStart: currentPeriodStart * 1000,
               periodEnd: currentPeriodEnd * 1000,

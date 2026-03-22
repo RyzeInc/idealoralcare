@@ -96,10 +96,10 @@ export const seedInitialData = mutation({
           annualACHCents: 27499,
         },
         stripeProducts: {
-          monthlyCardId: "prod_FAMILY_MONTHLY_CARD_TBD",
-          monthlyACHId: "prod_FAMILY_MONTHLY_ACH_TBD",
-          annualCardId: "prod_FAMILY_ANNUAL_CARD_TBD",
-          annualACHId: "prod_FAMILY_ANNUAL_ACH_TBD",
+          monthlyCardId: "prod_UATZaCDHuecUAU",
+          monthlyACHId: "prod_UATZtpSjiCDdA8",
+          annualCardId: "prod_UATbPjQGVypcuM",
+          annualACHId: "prod_UATaKRi9t60PVO",
         },
         metadata: {
           icon: "Users",
@@ -218,10 +218,10 @@ export const reseedData = mutation({
           annualACHCents: 27499,
         },
         stripeProducts: {
-          monthlyCardId: "prod_FAMILY_MONTHLY_CARD_TBD",
-          monthlyACHId: "prod_FAMILY_MONTHLY_ACH_TBD",
-          annualCardId: "prod_FAMILY_ANNUAL_CARD_TBD",
-          annualACHId: "prod_FAMILY_ANNUAL_ACH_TBD",
+          monthlyCardId: "prod_UATZaCDHuecUAU",
+          monthlyACHId: "prod_UATZtpSjiCDdA8",
+          annualCardId: "prod_UATbPjQGVypcuM",
+          annualACHId: "prod_UATaKRi9t60PVO",
         },
         metadata: {
           icon: "Users",
@@ -334,10 +334,10 @@ export const reseedInternal = internalMutation({
         annualACHCents: 27499,
       },
       stripeProducts: {
-        monthlyCardId: "prod_FAMILY_MONTHLY_CARD_TBD",
-        monthlyACHId: "prod_FAMILY_MONTHLY_ACH_TBD",
-        annualCardId: "prod_FAMILY_ANNUAL_CARD_TBD",
-        annualACHId: "prod_FAMILY_ANNUAL_ACH_TBD",
+        monthlyCardId: "prod_UATZaCDHuecUAU",
+        monthlyACHId: "prod_UATZtpSjiCDdA8",
+        annualCardId: "prod_UATbPjQGVypcuM",
+        annualACHId: "prod_UATaKRi9t60PVO",
       },
       metadata: {
         icon: "Users",
@@ -418,10 +418,10 @@ export const upsertV07Products = internalMutation({
           annualACHCents: 27499,
         },
         stripeProducts: {
-          monthlyCardId: "prod_FAMILY_MONTHLY_CARD_TBD",
-          monthlyACHId: "prod_FAMILY_MONTHLY_ACH_TBD",
-          annualCardId: "prod_FAMILY_ANNUAL_CARD_TBD",
-          annualACHId: "prod_FAMILY_ANNUAL_ACH_TBD",
+          monthlyCardId: "prod_UATZaCDHuecUAU",
+          monthlyACHId: "prod_UATZtpSjiCDdA8",
+          annualCardId: "prod_UATbPjQGVypcuM",
+          annualACHId: "prod_UATaKRi9t60PVO",
         },
         metadata: { icon: "Users", bestFor: ["Families"] },
         isVisible: true,
@@ -480,6 +480,38 @@ export const fixPricingV1 = internalMutation({
     return {
       success: true,
       message: `Pricing fixed on ${updated} product(s).`,
+    };
+  },
+});
+
+/** Patch the live family plan product with real Stripe product IDs.
+ *  Run via: npx convex run catalog/mutations:fixFamilyStripeIds
+ */
+export const fixFamilyStripeIds = internalMutation({
+  args: {},
+  handler: async (ctx: any) => {
+    const now = Date.now();
+    const existing = await ctx.db.query("catalogProducts").collect();
+    let updated = 0;
+
+    for (const p of existing) {
+      if (p.slug === "oral-health-family") {
+        await ctx.db.patch(p._id, {
+          stripeProducts: {
+            monthlyCardId: "prod_UATZaCDHuecUAU",
+            monthlyACHId: "prod_UATZtpSjiCDdA8",
+            annualCardId: "prod_UATbPjQGVypcuM",
+            annualACHId: "prod_UATaKRi9t60PVO",
+          },
+          updatedAt: now,
+        });
+        updated++;
+      }
+    }
+
+    return {
+      success: true,
+      message: `Family Stripe product IDs updated on ${updated} product(s).`,
     };
   },
 });
