@@ -253,3 +253,37 @@ export const webhookCreateDependentProfiles = mutation({
     return { created: results.length, results };
   },
 });
+
+/**
+ * Mark a bundle as cancel_at_period_end (user requested cancellation).
+ * Access continues through the current billing period.
+ * When Stripe fires customer.subscription.deleted, the webhook handler
+ * will flip status to "cancelled" and revoke entitlements.
+ */
+export const markCancelAtPeriodEnd = mutation({
+  args: {
+    bundleId: v.id("subscriptionBundles"),
+    cancelAtPeriodEnd: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const bundle = await ctx.db.get(args.bundleId);
+    if (!bundle) {
+      throw new Error(`Bundle not found: ${args.bundleId}`);
+    }
+
+    if (args.cancelAtPeriodEnd) {
+      await ctx.db.patch(args.bundleId, {
+        status: "cancel_at_period_end",
+        updatedAt: Date.now(),
+      });
+    } else {
+      // Re-enable: undo cancel_at_period_end
+      await ctx.db.patch(args.bundleId, {
+        status: "active",
+        updatedAt: Date.now(),
+      });
+    }
+
+    return bundle._id;
+  },
+});

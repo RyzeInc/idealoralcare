@@ -82,7 +82,7 @@ function formatCents(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-function CancelModal({ onConfirm, onClose }: { onConfirm: () => void; onClose: () => void }) {
+function CancelModal({ onConfirm, onClose, isLoading, error }: { onConfirm: () => void; onClose: () => void; isLoading?: boolean; error?: string | null }) {
   const [confirmed, setConfirmed] = useState(false);
   return (
     <div
@@ -126,23 +126,29 @@ function CancelModal({ onConfirm, onClose }: { onConfirm: () => void; onClose: (
             onClick={onClose}
             className="button button--glass"
             style={{ flex: 1 }}
+            disabled={isLoading}
           >
             Keep My Membership
           </button>
           <button
             onClick={onConfirm}
-            disabled={!confirmed}
+            disabled={!confirmed || isLoading}
             style={{
               flex: 1, padding: "0.75rem", borderRadius: "10px",
-              background: confirmed ? "#dc2626" : "#e2e8f0",
-              color: confirmed ? "#fff" : "#94a3b8",
+              background: confirmed && !isLoading ? "#dc2626" : "#e2e8f0",
+              color: confirmed && !isLoading ? "#fff" : "#94a3b8",
               border: "none", fontWeight: 600, fontSize: "0.9375rem",
-              cursor: confirmed ? "pointer" : "not-allowed", transition: "all 0.2s",
+              cursor: confirmed && !isLoading ? "pointer" : "not-allowed", transition: "all 0.2s",
             }}
           >
-            Cancel Membership
+            {isLoading ? "Processing…" : "Confirm Cancellation"}
           </button>
         </div>
+        {error && (
+          <p style={{ color: "#dc2626", fontSize: "0.8125rem", marginTop: "0.75rem", textAlign: "center" }}>
+            {error}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -152,6 +158,9 @@ function ManagePlansContent() {
   const { user } = useUser();
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelSubmitted, setCancelSubmitted] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [billingLoading, setBillingLoading] = useState(false);
 
   // Fetch current bundle from Convex
   const bundle = useQuery(api.subscriptions.queries.getMyBundle);
@@ -160,10 +169,39 @@ function ManagePlansContent() {
   const hasActive = !!bundle && bundle.status !== "cancelled";
   const isCancelPeriodEnd = bundle?.status === "cancel_at_period_end";
 
-  const handleCancelConfirm = () => {
-    // TODO: wire to Stripe cancel subscription endpoint
-    setCancelSubmitted(true);
-    setShowCancelModal(false);
+  const handleCancelConfirm = async () => {
+    setCancelLoading(true);
+    setCancelError(null);
+    try {
+      const res = await fetch("/api/stripe/cancel", { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to cancel subscription");
+      }
+      setCancelSubmitted(true);
+      setShowCancelModal(false);
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
+  const handleBillingPortal = async () => {
+    setBillingLoading(true);
+    try {
+      const res = await fetch("/api/stripe/billing-portal", { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to open billing portal");
+      }
+      const { url } = await res.json();
+      window.location.href = url;
+    } catch (err) {
+      console.error("Billing portal error:", err);
+    } finally {
+      setBillingLoading(false);
+    }
   };
 
   return (
@@ -247,18 +285,6 @@ function ManagePlansContent() {
                             : ""}
                         </p>
                       </div>
-                      {!isCancelPeriodEnd && (
-                        <button
-                          onClick={() => setShowCancelModal(true)}
-                          style={{
-                            padding: "0.5rem 1rem", borderRadius: "8px",
-                            border: "1px solid #fca5a5", background: "#fff5f5",
-                            color: "#dc2626", fontWeight: 600, fontSize: "0.875rem", cursor: "pointer",
-                          }}
-                        >
-                          Cancel Membership
-                        </button>
-                      )}
                     </div>
                   </div>
                 ) : (
@@ -293,14 +319,20 @@ function ManagePlansContent() {
                   </p>
                   <button
                     className="button button--glass"
-                    disabled
-                    style={{ opacity: 0.5, cursor: "not-allowed" }}
+                    onClick={handleBillingPortal}
+                    disabled={!hasActive || billingLoading}
+                    style={{
+                      opacity: hasActive ? 1 : 0.5,
+                      cursor: hasActive ? "pointer" : "not-allowed",
+                    }}
                   >
-                    Manage Payment Methods
+                    {billingLoading ? "Opening…" : "Manage Payment Methods"}
                   </button>
-                  <p style={{ color: "#94a3b8", fontSize: "0.8125rem", marginTop: "0.75rem", margin: "0.75rem 0 0" }}>
-                    Coming soon — Stripe billing portal integration.
-                  </p>
+                  {!hasActive && (
+                    <p style={{ color: "#94a3b8", fontSize: "0.8125rem", marginTop: "0.75rem", margin: "0.75rem 0 0" }}>
+                      Billing portal is available once you have an active plan.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -402,13 +434,34 @@ function ManagePlansContent() {
                 Cancel anytime; access continues through your current billing period end.
                 Savings vary by provider and service.
               </p>
+
+              {/* ── Cancel link — present but not prominent ────── */}
+              {hasActive && !isCancelPeriodEnd && !cancelSubmitted && (
+                <p style={{ textAlign: "center", marginTop: "0.5rem" }}>
+                  <button
+                    onClick={() => setShowCancelModal(true)}
+                    style={{
+                      background: "none", border: "none", padding: 0,
+                      color: "#94a3b8", fontSize: "0.8125rem", cursor: "pointer",
+                      textDecoration: "underline", textUnderlineOffset: "2px",
+                    }}
+                  >
+                    Need to cancel? Click here.
+                  </button>
+                </p>
+              )}
             </div>
           )}
         </div>
       </section>
 
       {showCancelModal && (
-        <CancelModal onConfirm={handleCancelConfirm} onClose={() => setShowCancelModal(false)} />
+        <CancelModal
+          onConfirm={handleCancelConfirm}
+          onClose={() => { setShowCancelModal(false); setCancelError(null); }}
+          isLoading={cancelLoading}
+          error={cancelError}
+        />
       )}
     </div>
   );

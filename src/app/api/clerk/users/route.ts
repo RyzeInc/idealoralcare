@@ -31,10 +31,14 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Call Clerk API to get users
-    // Note: Clerk's user list endpoint has pagination, we'll get first batch
-    const clerkUrl = 'https://api.clerk.com/v1/users';
-    const clerkResponse = await fetch(clerkUrl, {
+    // Call Clerk API to get users, forwarding search and limit
+    const clerkUrl = new URL('https://api.clerk.com/v1/users');
+    clerkUrl.searchParams.set('limit', String(Math.min(limit, 100)));
+    if (search) {
+      clerkUrl.searchParams.set('query', search);
+    }
+
+    const clerkResponse = await fetch(clerkUrl.toString(), {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}`,
@@ -51,21 +55,7 @@ export async function GET(req: NextRequest) {
     }
 
     const data = await clerkResponse.json();
-    let users = data.data || [];
-
-    // Filter by search term if provided
-    if (search) {
-      const searchLower = search.toLowerCase();
-      users = users.filter(
-        (user: any) =>
-          (user.email_addresses?.[0]?.email_address?.toLowerCase() || '').includes(searchLower) ||
-          (user.first_name?.toLowerCase() || '').includes(searchLower) ||
-          (user.last_name?.toLowerCase() || '').includes(searchLower)
-      );
-    }
-
-    // Limit results
-    users = users.slice(0, limit);
+    const users = data.data || [];
 
     // Transform to clean format
     const formattedUsers = users.map((user: any) => ({

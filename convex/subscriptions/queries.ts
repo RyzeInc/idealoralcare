@@ -169,6 +169,36 @@ export const getCustomerBundlePublic = query({
 });
 
 /**
+ * Get a customer's full bundle including Stripe IDs.
+ * Used by server-side API routes (cancel, billing portal) that need to
+ * interact with Stripe. These routes authenticate via Clerk before calling.
+ */
+export const getCustomerBundleWithStripeIds = query({
+  args: {
+    customerId: v.string(),
+  },
+  handler: async (ctx: QueryCtx, args) => {
+    const bundle = await ctx.db
+      .query("subscriptionBundles")
+      .withIndex("by_customer", (q) =>
+        q.eq("customerId", args.customerId)
+      )
+      .filter((q) => q.neq(q.field("status"), "cancelled"))
+      .first();
+
+    return bundle
+      ? {
+          _id: bundle._id,
+          customerId: bundle.customerId,
+          status: bundle.status,
+          stripeSubscriptionId: bundle.stripeSubscriptionId,
+          stripeCustomerId: bundle.stripeCustomerId,
+        }
+      : null;
+  },
+});
+
+/**
  * Get CURRENT USER's active entitlements (member-facing).
  * Dependents inherit entitlements from their primary member.
  * customerId is derived from auth — no IDOR possible.

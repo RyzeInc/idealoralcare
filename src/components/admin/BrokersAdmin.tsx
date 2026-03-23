@@ -30,8 +30,8 @@ export function BrokersAdmin() {
   });
 
   // Fetch all admin users (we'll filter to brokers)
-  const allAdmins = useQuery(api.admin.adminUsers.getAll) || [];
-  const brokers = allAdmins.filter((admin) =>
+  const allAdmins = useQuery(api.admin.adminUsers.getAll);
+  const brokers = (allAdmins ?? []).filter((admin) =>
     (admin.departments ?? []).includes('broker')
   );
 
