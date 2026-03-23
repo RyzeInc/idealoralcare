@@ -46,6 +46,9 @@ interface CartContextType {
   // Payment method
   setPaymentMethod: (method: PaymentMethod) => void;
   
+  // Referral
+  setReferralCode: (code: string) => void;
+  
   // Compare actions
   addToCompare: (productId: string) => void;
   removeFromCompare: (productId: string) => void;
@@ -240,6 +243,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setCart((prev) => ({ ...prev, paymentMethod: method }));
   }, []);
 
+  // Set referral code
+  const setReferralCode = useCallback((code: string) => {
+    setCart((prev) => ({ ...prev, referralCode: code || undefined }));
+  }, []);
+  
   // Refresh cart item pricing from fresh Convex product data (fixes stale localStorage)
   const syncProductPricing = useCallback((freshProducts: CatalogProduct[]) => {
     setCart((prev) => {
@@ -325,6 +333,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         confirmCadence,
         requestCadenceChange,
         setPaymentMethod,
+        setReferralCode,
         syncProductPricing,
         addToCompare,
         removeFromCompare,

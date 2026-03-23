@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import {
   ChevronRight,
@@ -15,7 +16,7 @@ import {
 } from 'lucide-react';
 import FamilySection from '../FamilySection';
 import MemberIdCard, { type MemberCardData } from '../MemberIdCard';
-import HowItWorksModal from '../HowItWorksModal';
+import HowToUseProgram from '../HowToUseProgram';
 
 interface Subscription {
   id: string;
@@ -52,6 +53,11 @@ export default function OverviewTab({
 }: OverviewTabProps) {
   const [showHowItWorks, setShowHowItWorks] = useState(false);
 
+  useEffect(() => {
+    document.body.style.overflow = showHowItWorks ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [showHowItWorks]);
+
   // Build card data from available props when full profile not yet loaded from Convex
   const cardData: MemberCardData = memberCardData ?? {
     memberName: fullName ?? 'Member',
@@ -71,7 +77,7 @@ export default function OverviewTab({
     window.open('/api/member-card-pdf', '_blank');
   };
 
-  return (
+  const grid = (
     <div
       style={{
         display: 'grid',
@@ -296,29 +302,6 @@ export default function OverviewTab({
                 textAlign: 'left',
               }}
             >
-              <Search size={18} color="#F39C12" />
-              Find a Dentist
-              <ChevronRight size={16} color="#94a3b8" style={{ marginLeft: 'auto' }} />
-            </button>
-            <button
-              onClick={() => onTabChange('oral-scan')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                padding: '0.875rem 1rem',
-                background: '#f8fafc',
-                borderRadius: '10px',
-                textDecoration: 'none',
-                color: '#0f172a',
-                fontWeight: 500,
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                width: '100%',
-                textAlign: 'left',
-              }}
-            >
               <Scan size={18} color="#2ECC71" />
               Start Oral Scan
               <ChevronRight size={16} color="#94a3b8" style={{ marginLeft: 'auto' }} />
@@ -344,6 +327,29 @@ export default function OverviewTab({
             >
               <Video size={18} color="#3498DB" />
               Teledentistry
+              <ChevronRight size={16} color="#94a3b8" style={{ marginLeft: 'auto' }} />
+            </button>
+            <button
+              onClick={() => onTabChange('provider-search')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.875rem 1rem',
+                background: '#f8fafc',
+                borderRadius: '10px',
+                textDecoration: 'none',
+                color: '#0f172a',
+                fontWeight: 500,
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                width: '100%',
+                textAlign: 'left',
+              }}
+            >
+              <Search size={18} color="#F39C12" />
+              Find a Dentist
               <ChevronRight size={16} color="#94a3b8" style={{ marginLeft: 'auto' }} />
             </button>
           </div>
@@ -421,11 +427,74 @@ export default function OverviewTab({
           </div>
         </div>
       </div>
-      <HowItWorksModal
-        isOpen={showHowItWorks}
-        onClose={() => setShowHowItWorks(false)}
-        onTabChange={onTabChange}
-      />
     </div>
+  );
+
+  const modal = showHowItWorks
+    ? createPortal(
+        <div
+          onClick={() => setShowHowItWorks(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            background: 'rgba(15, 23, 42, 0.5)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'relative',
+              background: '#fff',
+              borderRadius: '16px',
+              width: 'min(90vw, 1200px)',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 25px 60px rgba(0,0,0,0.18)',
+            }}
+          >
+            <button
+              onClick={() => setShowHowItWorks(false)}
+              aria-label="Close"
+              style={{
+                position: 'sticky',
+                top: '12px',
+                float: 'right',
+                marginRight: '12px',
+                marginTop: '12px',
+                zIndex: 10,
+                background: '#f1f5f9',
+                border: '1px solid #e2e8f0',
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: '#64748b',
+                fontSize: '1.25rem',
+                lineHeight: 1,
+              }}
+            >
+              ✕
+            </button>
+            <HowToUseProgram />
+          </div>
+        </div>,
+        document.body,
+      )
+    : null;
+
+  return (
+    <>
+      {grid}
+      {modal}
+    </>
   );
 }

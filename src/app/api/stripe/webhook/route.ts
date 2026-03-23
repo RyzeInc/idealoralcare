@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ received: true });
         }
 
-        const { clerkUserId, enrollmentSessionId, brokerCode, brokerClerkUserId } = metadata;
+        const { clerkUserId, enrollmentSessionId, brokerCode, brokerClerkUserId, referralCode } = metadata;
 
         try {
           // Fetch enrollment session to get site/account/group context
@@ -98,7 +98,9 @@ export async function POST(req: NextRequest) {
               email: session.customer_email || "",
               customerId: clerkUserId, // Link to the Clerk user who completed checkout
               memberType: "active",
-              signupSource: `stripe:${enrollmentSessionId}`,
+              signupSource: referralCode
+                ? `referral:${referralCode}`
+                : `stripe:${enrollmentSessionId}`,
               enrollmentSessionId: enrollmentSession._id,
             }
           );
@@ -155,10 +157,11 @@ export async function POST(req: NextRequest) {
           });
 
           // 5. Create commission record if broker attribution
-          if (brokerCode) {
+          const effectiveBrokerCode = brokerCode || referralCode;
+          if (effectiveBrokerCode) {
             try {
               await convex.mutation(api.subscriptions.commissions.createCommissionPayable, {
-                brokerId: brokerCode,
+                brokerId: effectiveBrokerCode,
                 enrollmentSessionId: enrollmentSession._id,
                 memberId: memberProfileId,
                 rateApplied: 0.15, // Default 15% - will be overridden by commissionRates
@@ -191,7 +194,7 @@ export async function POST(req: NextRequest) {
             bundleId,
             stripeEventId: event.id,
             stripeObjectId: session.id,
-            payload: { enrollmentSessionId, brokerCode, memberProfileId },
+            payload: { enrollmentSessionId, brokerCode: effectiveBrokerCode, referralCode, memberProfileId },
             success: true,
             idempotencyKey: event.id,
           });

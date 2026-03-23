@@ -197,7 +197,14 @@ export default function HealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
 
               {/* Member Portal (Mobile) - Always visible */}
               <div className={styles.mobileMenuSection} style={{ borderTop: "1px solid #e2e8f0", paddingTop: "1rem" }}>
-                <MemberPortalButton />
+                <Link
+                  href={isSignedIn ? "/health/dashboard" : "/health/sign-in"}
+                  onClick={closeMenu}
+                  className={styles.mobileMenuToggle}
+                  style={{ color: "#14b8a6", fontWeight: "600", textDecoration: "none" }}
+                >
+                  {isSignedIn ? "My Dashboard" : "Member Portal"}
+                </Link>
               </div>
             </div>
           </div>

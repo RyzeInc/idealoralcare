@@ -555,11 +555,19 @@ function TierToggle({ tier, setTier }: { tier: "individual" | "family"; setTier:
 }
 
 function PlansContent() {
-  const { itemCount, syncProductPricing, cart, addItem, removeItem, isInCart } = useCart();
+  const { itemCount, syncProductPricing, cart, addItem, removeItem, isInCart, setReferralCode } = useCart();
   const searchParams = useSearchParams();
   const initialTier = searchParams.get("tier") === "family" ? "family" : "individual";
   const [tier, setTier] = useState<"individual" | "family">(initialTier);
   const prevTierRef = useRef<"individual" | "family" | null>(null);
+  
+  // Capture ?ref= referral code from URL (e.g. /health/plans?ref=SMITH2026)
+  useEffect(() => {
+    const ref = searchParams.get("ref");
+    if (ref) {
+      setReferralCode(ref);
+    }
+  }, [searchParams, setReferralCode]);
   
   // Fetch products from Convex catalog
   const products = useQuery(api.catalog.queries.list, {});

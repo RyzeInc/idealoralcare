@@ -702,7 +702,8 @@ function CheckoutContent() {
     subtotalCents, 
     setPaymentMethod,
     setCadence,
-    removeItem 
+    removeItem,
+    setReferralCode 
   } = useCart();
   
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -751,6 +752,7 @@ function CheckoutContent() {
           planId: primaryItem.product._id,
           cadence: cart.cadence,
           paymentMethod: cart.paymentMethod,
+          referralCode: cart.referralCode || undefined,
         }),
       });
 
@@ -1195,6 +1197,69 @@ function CheckoutContent() {
                   </div>
                 ) : (
                   <InlineAuth />
+                )}
+              </div>
+              
+              {/* Referral Code */}
+              <div className="glass-card" style={{ padding: "1.25rem 2rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: cart.referralCode ? "1rem" : 0 }}>
+                  <Heart size={18} color="#0066CC" />
+                  <span style={{ fontSize: "0.9375rem", fontWeight: 500, color: "#374151" }}>
+                    Rep Code
+                  </span>
+                </div>
+                {cart.referralCode ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                    <div style={{
+                      flex: 1,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                      padding: "0.625rem 0.875rem",
+                      background: "#f0f9ff",
+                      border: "1px solid #bae6fd",
+                      borderRadius: "0.5rem",
+                      fontSize: "0.875rem",
+                      color: "#0369a1",
+                      fontWeight: 500,
+                    }}>
+                      <Check size={14} color="#0284c7" />
+                      Code: {cart.referralCode}
+                    </div>
+                    <button
+                      onClick={() => setReferralCode("")}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: "4px" }}
+                      aria-label="Remove referral code"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ marginTop: "0.75rem" }}>
+                    <input
+                      type="text"
+                      placeholder="Enter your rep's code"
+                      onBlur={(e) => {
+                        const val = e.target.value.trim();
+                        if (val) setReferralCode(val);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          const val = (e.target as HTMLInputElement).value.trim();
+                          if (val) setReferralCode(val);
+                        }
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "0.625rem 0.875rem",
+                        border: "1px solid #d1d5db",
+                        borderRadius: "0.5rem",
+                        fontSize: "0.875rem",
+                        boxSizing: "border-box",
+                        outline: "none",
+                      }}
+                    />
+                  </div>
                 )}
               </div>
               

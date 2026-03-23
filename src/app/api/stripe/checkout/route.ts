@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     const userEmail = user.emailAddresses[0].emailAddress;
 
     const body = await req.json();
-    const { planId, cadence, paymentMethod, enrollmentSessionId, brokerCode, groupId, brokerClerkUserId, dependents } = body;
+    const { planId, cadence, paymentMethod, enrollmentSessionId, brokerCode, groupId, brokerClerkUserId, dependents, referralCode } = body;
 
     // Validate required fields
     if (!planId || !cadence || !paymentMethod) {
@@ -177,9 +177,10 @@ export async function POST(req: NextRequest) {
       metadata: {
         clerkUserId: userId,
         enrollmentSessionId: enrollmentSessionId || "",  // Optional — may be empty from /health/checkout
-        brokerCode: brokerCode || "",
+        brokerCode: brokerCode || referralCode || "",
         brokerClerkUserId: brokerClerkUserId || "",
         groupId: groupId || "",
+        referralCode: referralCode || "",
         dependentCount: String(dependentList.length),
         // Truncate to 500 chars if needed (Stripe metadata limit per value)
         dependents: dependentsMeta.slice(0, 500),
