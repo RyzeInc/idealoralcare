@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation } from 'convex/react';
+import { useQuery, useMutation, useAction } from 'convex/react';
 import { useUser } from '@clerk/nextjs';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
-import { UserPlus, Trash2, Shield, Users, Crown, AlertCircle, CheckCircle, Loader } from 'lucide-react';
+import { UserPlus, Trash2, Shield, Users, Crown, AlertCircle, CheckCircle, Loader, Mail, RotateCw, XCircle, Clock } from 'lucide-react';
 
 type Role = 'owner' | 'editor';
 
@@ -18,26 +18,29 @@ export default function UsersAdmin() {
   const { user: clerkUser, isLoaded: clerkLoaded } = useUser();
   const [authTimeout, setAuthTimeout] = useState(false);
   
-  // Call all hooks unconditionally (before any early returns)
   const admins = useQuery(api.admin.adminUsers.getAll) ?? [];
+  const invites = useQuery(api.admin.adminUsers.getAllInvites) ?? [];
 
-  // Failsafe: if Clerk doesn't load within 5s, proceed anyway
   useEffect(() => {
     const t = setTimeout(() => setAuthTimeout(true), 5000);
     return () => clearTimeout(t);
   }, []);
-  const addAdmin = useMutation(api.admin.adminUsers.add);
+
   const updateRole = useMutation(api.admin.adminUsers.updateRole);
   const removeAdmin = useMutation(api.admin.adminUsers.remove);
   const initFirstAdmin = useMutation(api.admin.adminUsers.initializeFirstAdmin);
+  const inviteAdmin = useAction(api.admin.adminUsers.inviteAdmin);
+  const resendInvite = useAction(api.admin.adminUsers.resendAdminInvite);
+  const cancelInvite = useMutation(api.admin.adminUsers.cancelAdminInvite);
 
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showInviteForm, setShowInviteForm] = useState(false);
   const [showBootstrap, setShowBootstrap] = useState(false);
   const [notification, setNotification] = useState<Notification | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [resendingId, setResendingId] = useState<string | null>(null);
 
-  // Add form state
-  const [form, setForm] = useState({ clerkUserId: '', email: '', name: '', role: 'editor' as Role, departments: [] as string[] });
+  // Invite form state (no Clerk ID needed!)
+  const [form, setForm] = useState({ email: '', name: '', role: 'editor' as Role, departments: [] as string[] });
 
   const DEPT_OPTIONS = [
     { value: 'admin', label: 'Admin' },
@@ -49,10 +52,8 @@ export default function UsersAdmin() {
     { value: 'executive', label: 'Executive' },
   ];
 
-  // Bootstrap form state
   const [bootstrapForm, setBootstrapForm] = useState({ clerkUserId: '', email: '', name: '' });
 
-  // Show loading state while Clerk loads (with 5s timeout failsafe)
   if (!clerkLoaded && !authTimeout) {
     return (
       <div className="space-y-6">
@@ -64,7 +65,6 @@ export default function UsersAdmin() {
     );
   }
 
-  // Show error if not authenticated (skip if Clerk timed out — server layout already verified admin)
   if (!clerkUser && !authTimeout) {
     return (
       <div className="space-y-6">
@@ -81,25 +81,54 @@ export default function UsersAdmin() {
     setTimeout(() => setNotification(null), 4000);
   }
 
-  async function handleAdd(e: React.FormEvent) {
+  async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.clerkUserId.trim() || !form.email.trim() || !form.name.trim()) return;
+    if (!form.email.trim() || !form.name.trim()) return;
     setSubmitting(true);
     try {
-      await addAdmin({
-        clerkUserId: form.clerkUserId.trim(),
+      const result = await inviteAdmin({
         email: form.email.trim(),
         name: form.name.trim(),
         role: form.role,
         departments: form.departments.length > 0 ? form.departments as any[] : ["admin"],
       });
-      setForm({ clerkUserId: '', email: '', name: '', role: 'editor', departments: [] });
-      setShowAddForm(false);
-      notify('success', `${form.name} added as ${form.role}`);
+      if (result.inviteSent) {
+        notify('success', `Invitation sent to ${form.email}`);
+      } else {
+        notify('error', `Invite created but email failed: ${result.inviteError ?? 'Unknown error'}`);
+      }
+      setForm({ email: '', name: '', role: 'editor', departments: [] });
+      setShowInviteForm(false);
     } catch (err: any) {
-      notify('error', err?.message ?? 'Failed to add admin');
+      notify('error', err?.message ?? 'Failed to send invite');
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleResendInvite(inviteId: Id<'adminInvites'>) {
+    setResendingId(inviteId);
+    try {
+      const result = await resendInvite({ inviteId });
+      if (result.success) {
+        notify('success', 'Invite resent successfully');
+      } else {
+        notify('error', result.error ?? 'Failed to resend invite');
+      }
+    } catch (err: any) {
+      notify('error', err?.message ?? 'Failed to resend invite');
+    } finally {
+      setResendingId(null);
+    }
+  }
+
+  async function handleCancelInvite(inviteId: Id<'adminInvites'>, name: string) {
+    if (!confirm(`Cancel the invitation for ${name}? They will no longer be able to use the invite link.`)) return;
+    try {
+      await cancelInvite({ inviteId });
+      notify('success', `Invitation for ${name} cancelled`);
+    } catch (err: any) {
+      notify('error', err?.message ?? 'Failed to cancel invite');
     }
   }
 
@@ -133,7 +162,7 @@ export default function UsersAdmin() {
         name: bootstrapForm.name.trim(),
       });
       if (result === null) {
-        notify('error', 'Admins already exist — use Add Admin instead');
+        notify('error', 'Admins already exist — use Invite Admin instead');
       } else {
         setBootstrapForm({ clerkUserId: '', email: '', name: '' });
         setShowBootstrap(false);
@@ -154,6 +183,9 @@ export default function UsersAdmin() {
       ? 'bg-amber-50 text-amber-700 border border-amber-200'
       : 'bg-blue-50 text-blue-700 border border-blue-200';
 
+  const pendingInvites = invites.filter((i) => i.inviteStatus === 'pending');
+  const claimedInvites = invites.filter((i) => i.inviteStatus === 'claimed');
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -173,11 +205,11 @@ export default function UsersAdmin() {
             </button>
           )}
           <button
-            onClick={() => setShowAddForm(true)}
+            onClick={() => setShowInviteForm(true)}
             className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
           >
             <UserPlus size={16} />
-            Add Admin
+            Invite Admin
           </button>
         </div>
       </div>
@@ -226,7 +258,7 @@ export default function UsersAdmin() {
           <div className="px-6 py-12 text-center">
             <Users size={36} className="text-slate-300 mx-auto mb-3" />
             <p className="text-slate-500 font-medium">No admin users yet</p>
-            <p className="text-slate-400 text-sm mt-1">Use "Initialize First Admin" to bootstrap your first owner account</p>
+            <p className="text-slate-400 text-sm mt-1">Use &quot;Initialize First Admin&quot; to bootstrap your first owner account, or invite someone via email</p>
           </div>
         ) : (
           <table className="w-full">
@@ -234,7 +266,6 @@ export default function UsersAdmin() {
               <tr className="bg-slate-50 border-b border-slate-100">
                 <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Name</th>
                 <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Email</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Clerk ID</th>
                 <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Role</th>
                 <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Actions</th>
               </tr>
@@ -251,11 +282,6 @@ export default function UsersAdmin() {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-600">{admin.email}</td>
-                  <td className="px-6 py-4">
-                    <code className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded font-mono">
-                      {admin.clerkUserId.length > 20 ? `${admin.clerkUserId.slice(0, 20)}…` : admin.clerkUserId}
-                    </code>
-                  </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${roleBadge(admin.role)}`}>
@@ -288,39 +314,99 @@ export default function UsersAdmin() {
         )}
       </div>
 
-      {/* How to Find Clerk ID Help */}
+      {/* Pending Invites */}
+      {pendingInvites.length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
+            <Mail size={18} className="text-amber-500" />
+            <h2 className="font-semibold text-slate-900">Pending Invitations</h2>
+            <span className="ml-auto text-sm text-slate-400">{pendingInvites.length} pending</span>
+          </div>
+          <table className="w-full">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-100">
+                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Name</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Email</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Role</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Expires</th>
+                <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {pendingInvites.map((invite) => {
+                const isExpired = invite.inviteExpiry < Date.now();
+                const expiresIn = Math.ceil((invite.inviteExpiry - Date.now()) / (1000 * 60 * 60 * 24));
+                return (
+                  <tr key={invite._id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-xs font-bold text-amber-600">
+                          {invite.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="font-medium text-slate-900 text-sm">{invite.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-600">{invite.email}</td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${roleBadge(invite.role)}`}>
+                        {roleIcon(invite.role)}
+                        {invite.role.charAt(0).toUpperCase() + invite.role.slice(1)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center gap-1 text-xs ${isExpired ? 'text-red-500' : 'text-slate-500'}`}>
+                        <Clock size={12} />
+                        {isExpired ? 'Expired' : `${expiresIn} days`}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center gap-2 justify-end">
+                        <button
+                          onClick={() => handleResendInvite(invite._id)}
+                          disabled={resendingId === invite._id}
+                          className="flex items-center gap-1.5 text-sm text-blue-500 hover:text-blue-700 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          <RotateCw size={14} className={resendingId === invite._id ? 'animate-spin' : ''} />
+                          Resend
+                        </button>
+                        <button
+                          onClick={() => handleCancelInvite(invite._id, invite.name)}
+                          className="flex items-center gap-1.5 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors"
+                        >
+                          <XCircle size={14} />
+                          Cancel
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* How It Works */}
       <div className="bg-blue-50 border border-blue-100 rounded-xl p-5">
         <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
-          <AlertCircle size={16} />
-          How to find a user's Clerk ID
+          <Mail size={16} />
+          How Admin Invitations Work
         </h3>
         <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-          <li>Go to your <strong>Clerk Dashboard</strong> at <a href="https://dashboard.clerk.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-600">dashboard.clerk.com</a></li>
-          <li>Click <strong>Users</strong> in the left sidebar</li>
-          <li>Find the user by email and click their name</li>
-          <li>Copy the <strong>User ID</strong> shown at the top (it starts with <code className="bg-blue-100 px-1 rounded">user_</code>)</li>
-          <li>Paste it into the Clerk User ID field below</li>
+          <li>Click <strong>Invite Admin</strong> and enter the person&apos;s name, email, and role</li>
+          <li>They&apos;ll receive an email with a secure invite link</li>
+          <li>They click the link and create their account (or sign in if they already have one)</li>
+          <li>Their admin access is automatically activated — no manual Clerk ID entry needed</li>
         </ol>
       </div>
 
-      {/* Add Admin Modal */}
-      {showAddForm && (
+      {/* Invite Admin Modal */}
+      {showInviteForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
-            <h2 className="text-xl font-bold text-slate-900 mb-1">Add Admin User</h2>
-            <p className="text-sm text-slate-500 mb-6">The user must already have a Clerk account before adding them here.</p>
-            <form onSubmit={handleAdd} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Clerk User ID</label>
-                <input
-                  type="text"
-                  placeholder="user_2abc123..."
-                  value={form.clerkUserId}
-                  onChange={(e) => setForm((f) => ({ ...f, clerkUserId: e.target.value }))}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
-                  required
-                />
-              </div>
+            <h2 className="text-xl font-bold text-slate-900 mb-1">Invite Admin User</h2>
+            <p className="text-sm text-slate-500 mb-6">Send an email invitation. They&apos;ll create their account when they accept.</p>
+            <form onSubmit={handleInvite} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">Full Name</label>
                 <input
@@ -380,7 +466,7 @@ export default function UsersAdmin() {
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowAddForm(false)}
+                  onClick={() => setShowInviteForm(false)}
                   className="flex-1 px-4 py-2.5 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
                   disabled={submitting}
                 >
@@ -388,10 +474,20 @@ export default function UsersAdmin() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   disabled={submitting}
                 >
-                  {submitting ? 'Adding…' : 'Add Admin'}
+                  {submitting ? (
+                    <>
+                      <Loader size={14} className="animate-spin" />
+                      Sending…
+                    </>
+                  ) : (
+                    <>
+                      <Mail size={14} />
+                      Send Invitation
+                    </>
+                  )}
                 </button>
               </div>
             </form>

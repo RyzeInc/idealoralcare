@@ -81,7 +81,6 @@ export function DistributionAdmin() {
 
   // Invite status tracking
   const [invitingLeaderId, setInvitingLeaderId] = useState<string | null>(null);
-  const [leaderInviteResult, setLeaderInviteResult] = useState<Record<string, 'sent' | 'error'>>({});
   const [addingPartner, setAddingPartner] = useState(false);
 
   const allPartners = useQuery(api.admin.distributionPartners.getAllWithStats) as
@@ -128,10 +127,8 @@ export function DistributionAdmin() {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await sendLeaderInviteAction({ leaderId: leader._id as any });
-      setLeaderInviteResult((prev) => ({ ...prev, [leader._id]: result.success ? 'sent' : 'error' }));
       if (!result.success) alert(`Failed to send invite: ${result.error}`);
     } catch {
-      setLeaderInviteResult((prev) => ({ ...prev, [leader._id]: 'error' }));
       alert('Error sending invite. Please try again.');
     } finally {
       setInvitingLeaderId(null);
@@ -227,8 +224,8 @@ export function DistributionAdmin() {
       return;
     }
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await addLeaderAction({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         partnerId: partnerId as any,
         name: leaderForm.name,
         email: leaderForm.email,
@@ -535,7 +532,6 @@ export function DistributionAdmin() {
               onDeleteLeader={handleDeleteLeader}
               onEditLeader={startEditLeader}
               invitingLeaderId={invitingLeaderId}
-              leaderInviteResult={leaderInviteResult}
             />
           ))}
         </div>
@@ -565,7 +561,6 @@ interface PartnerCardProps {
   onDeleteLeader: (leader: PartnerLeader) => void;
   onEditLeader: (leader: PartnerLeader) => void;
   invitingLeaderId: string | null;
-  leaderInviteResult: Record<string, 'sent' | 'error'>;
 }
 
 function PartnerCard({
@@ -575,7 +570,7 @@ function PartnerCard({
   onLeaderFormChange, onAddLeader, onUpdateLeader,
   onStartAddLeader, onCancelLeaderForm,
   onSendLeaderInvite, onDeleteLeader, onEditLeader,
-  invitingLeaderId, leaderInviteResult,
+  invitingLeaderId,
 }: PartnerCardProps) {
   const leaders = useQuery(api.admin.distributionPartners.getLeadersByPartner, {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

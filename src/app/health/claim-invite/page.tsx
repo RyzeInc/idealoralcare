@@ -31,28 +31,37 @@ function ClaimInviteContent() {
   const { isLoaded, isSignedIn } = useUser();
 
   const token = searchParams.get('token') ?? '';
-  const source = searchParams.get('source'); // 'partner' for distribution partner invites
+  const source = searchParams.get('source'); // 'partner' | 'admin' | null (dependent)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const convexApi = api as any;
 
+  const isPartner = source === 'partner';
+  const isAdmin = source === 'admin';
+
   // Dependent invite lookup
   const dependentInvite = useQuery(
     convexApi.enrollment.dependents.getProfileByInviteToken,
-    token && source !== 'partner' ? { token } : 'skip'
+    token && !isPartner && !isAdmin ? { token } : 'skip'
   ) as any;
 
   // Partner invite lookup
   const partnerInvite = useQuery(
     convexApi.admin.distributionPartners.getByInviteToken,
-    token && source === 'partner' ? { token } : 'skip'
+    token && isPartner ? { token } : 'skip'
+  ) as any;
+
+  // Admin invite lookup
+  const adminInvite = useQuery(
+    api.admin.adminUsers.getInviteByToken,
+    token && isAdmin ? { token } : 'skip'
   ) as any;
 
   const claimDependentProfile = useMutation(convexApi.enrollment.dependents.claimDependentProfile);
   const claimPartnerInvite = useMutation(convexApi.admin.distributionPartners.claimInvite);
+  const claimAdminInvite = useMutation(api.admin.adminUsers.claimAdminInvite);
 
-  const isPartner = source === 'partner';
-  const invite = isPartner ? partnerInvite : dependentInvite;
+  const invite = isAdmin ? adminInvite : isPartner ? partnerInvite : dependentInvite;
 
   const [claimState, setClaimState] = useState<ClaimState>('loading');
   const [errorMessage, setErrorMessage] = useState('');
@@ -64,6 +73,7 @@ function ClaimInviteContent() {
     if (invite === undefined) return;
     if (invite === null) { setClaimState('invalid-token'); return; }
     if (invite.inviteStatus === 'claimed') { setClaimState('success'); return; }
+    if (invite.inviteStatus === 'cancelled') { setClaimState('invalid-token'); return; }
     setClaimState('ready');
   }, [isLoaded, token, invite]);
 
@@ -84,27 +94,43 @@ function ClaimInviteContent() {
     if (claimState === 'claiming' || claimState === 'success') return;
     setClaimState('claiming');
     try {
-      if (isPartner) {
+      if (isAdmin) {
+        await claimAdminInvite({ token });
+      } else if (isPartner) {
         await claimPartnerInvite({ token });
       } else {
         await claimDependentProfile({ inviteToken: token });
       }
       setClaimState('success');
-      setTimeout(() => router.push('/health/dashboard'), 2000);
+      // Admin invites redirect to admin portal instead of member dashboard
+      const redirectPath = isAdmin ? '/admin' : '/health/dashboard';
+      setTimeout(() => router.push(redirectPath), 2000);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Failed to claim invite. Please try again.');
       setClaimState('error');
     }
   };
 
-  const displayName = isPartner ? invite?.name : invite?.primaryMemberName;
-  const inviteDescription = isPartner
-    ? `You've been invited to access Ideal Oral Health as a partner — ${invite?.name ?? ''}.`
-    : `${displayName} has invited you to join their plan as a family member.`;
-  const ctaTitle = isPartner ? 'Activate Your Partner Access' : 'Accept Family Invite';
-  const successMessage = isPartner
-    ? 'Your complimentary member access is now active. Redirecting to your dashboard…'
-    : 'Your account is now linked to the plan. Redirecting to your dashboard…';
+  const displayName = isAdmin
+    ? invite?.name
+    : isPartner
+      ? invite?.name
+      : invite?.primaryMemberName;
+  const inviteDescription = isAdmin
+    ? `You've been invited to join the Ideal Health Admin Portal as ${invite?.role === 'owner' ? 'an Owner' : 'an Editor'}.`
+    : isPartner
+      ? `You've been invited to access Ideal Oral Health as a partner — ${invite?.name ?? ''}.`
+      : `${displayName} has invited you to join their plan as a family member.`;
+  const ctaTitle = isAdmin
+    ? 'Accept Admin Invite'
+    : isPartner
+      ? 'Activate Your Partner Access'
+      : 'Accept Family Invite';
+  const successMessage = isAdmin
+    ? 'Your admin access is now active. Redirecting to the admin portal…'
+    : isPartner
+      ? 'Your complimentary member access is now active. Redirecting to your dashboard…'
+      : 'Your account is now linked to the plan. Redirecting to your dashboard…';
 
   return (
     <PageShell>
@@ -154,9 +180,11 @@ function ClaimInviteContent() {
             </button>
           )}
           <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '1.25rem', marginBottom: 0 }}>
-            {isPartner
-              ? 'This will activate your complimentary membership to the Ideal Oral Health platform.'
-              : "By accepting, you'll gain access to the plan benefits as a dependent member. This won't create a separate billing account."}
+            {isAdmin
+              ? 'This will create your account and grant you admin portal access.'
+              : isPartner
+                ? 'This will activate your complimentary membership to the Ideal Oral Health platform.'
+                : "By accepting, you'll gain access to the plan benefits as a dependent member. This won't create a separate billing account."}
           </p>
         </div>
       )}

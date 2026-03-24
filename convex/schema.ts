@@ -132,6 +132,34 @@ export default defineSchema({
     .index("by_clerk_id", ["clerkUserId"])
     .index("by_departments", ["departments"]),
 
+  // Admin invitations (invite-first flow — no Clerk account required up front)
+  adminInvites: defineTable({
+    email: v.string(),
+    name: v.string(),
+    role: v.union(v.literal("owner"), v.literal("editor")),
+    departments: v.optional(v.array(
+      v.union(
+        v.literal("program_manager"),
+        v.literal("fmo"),
+        v.literal("broker"),
+        v.literal("sales"),
+        v.literal("hr"),
+        v.literal("executive"),
+        v.literal("admin")
+      )
+    )),
+    commissionRate: v.optional(v.number()),
+    inviteToken: v.string(),
+    inviteStatus: v.union(v.literal("pending"), v.literal("claimed"), v.literal("cancelled")),
+    inviteExpiry: v.number(),
+    invitedBy: v.string(), // clerkUserId of the admin who sent the invite
+    clerkUserId: v.optional(v.string()), // populated when the invite is claimed
+    createdAt: v.number(),
+  })
+    .index("by_token", ["inviteToken"])
+    .index("by_email", ["email"])
+    .index("by_status", ["inviteStatus"]),
+
   // ============================================
   // DISTRIBUTION PARTNERS (Program Managers, FMOs, Agencies)
   // Top-down pay chain: Carrier → Program Manager → FMO/Agency → Broker/Agent

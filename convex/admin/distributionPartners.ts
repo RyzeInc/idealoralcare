@@ -1,5 +1,6 @@
 import { action, internalMutation, mutation, query } from "../_generated/server";
 import { v } from "convex/values";
+import { api, internal } from "../_generated/api";
 import { requireAdmin, requireAuth } from "../lib/authGuards";
 import { getBaseUrl } from "../lib/env";
 import { autoGrantFreeAccess } from "./grantFreeAccess";
@@ -36,14 +37,18 @@ export const getAllWithStats = query({
     return partners.map((p) => {
       const clerkId = p.clerkUserId;
       const completedSessions = clerkId
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ? sessions.filter((s: any) => s.brokerId === clerkId && s.status === "completed")
         : [];
       const activeMembers = clerkId
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ? members.filter((m: any) => m.assignedStaffId === clerkId || sessions.some(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (s: any) => s.brokerId === clerkId && s.memberId === m._id
           ))
         : [];
       const partnerCodes = clerkId
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ? codes.filter((c: any) => c.brokerId === clerkId)
         : [];
 
@@ -52,6 +57,7 @@ export const getAllWithStats = query({
         completedEnrollments: completedSessions.length,
         activeMemberCount: activeMembers.length,
         repCodeCount: partnerCodes.length,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         totalUsage: partnerCodes.reduce((s: number, c: any) => s + c.usageCount, 0),
       };
     });
@@ -414,17 +420,15 @@ export const add = action({
     inviteSent: boolean;
     inviteError?: string;
   }> => {
-    // @ts-ignore — avoid deep type instantiation
-    await ctx.runMutation(require("../_generated/api").internal.admin.distributionPartners._verifyAdmin, {});
+    await ctx.runMutation(internal.admin.distributionPartners._verifyAdmin, {});
 
     const token = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
     const expiry = Date.now() + 30 * 24 * 60 * 60 * 1000; // 30 days
     const baseUrl = getBaseUrl();
     const claimUrl = `${baseUrl}/health/claim-invite?token=${token}&source=partner`;
 
-    // @ts-ignore
-    const partnerId: string = await ctx.runMutation(
-      require("../_generated/api").internal.admin.distributionPartners._createPartner,
+    const partnerId = await ctx.runMutation(
+      internal.admin.distributionPartners._createPartner,
       {
         name: args.name,
         type: args.type,
@@ -438,9 +442,8 @@ export const add = action({
       }
     );
 
-    // @ts-ignore
-    const leaderId: string = await ctx.runMutation(
-      require("../_generated/api").internal.admin.distributionPartners._createLeader,
+    const leaderId = await ctx.runMutation(
+      internal.admin.distributionPartners._createLeader,
       {
         partnerId,
         name: args.contactName,
@@ -488,24 +491,21 @@ export const addLeader = action({
     inviteSent: boolean;
     inviteError?: string;
   }> => {
-    // @ts-ignore
-    await ctx.runMutation(require("../_generated/api").internal.admin.distributionPartners._verifyAdmin, {});
+    await ctx.runMutation(internal.admin.distributionPartners._verifyAdmin, {});
 
     const token = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
     const expiry = Date.now() + 30 * 24 * 60 * 60 * 1000;
     const baseUrl = getBaseUrl();
     const claimUrl = `${baseUrl}/health/claim-invite?token=${token}&source=partner`;
 
-    const partners = await ctx.runQuery(
-      // @ts-ignore
-      require("../_generated/api").api.admin.distributionPartners.getAll, {}
-    ) as any[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const partners = await ctx.runQuery(api.admin.distributionPartners.getAll, {}) as any[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const partner = partners.find((p: any) => p._id === args.partnerId);
     if (!partner) throw new Error("Partner not found");
 
-    // @ts-ignore
-    const leaderId: string = await ctx.runMutation(
-      require("../_generated/api").internal.admin.distributionPartners._createLeader,
+    const leaderId = await ctx.runMutation(
+      internal.admin.distributionPartners._createLeader,
       {
         partnerId: args.partnerId,
         name: args.name,
@@ -542,25 +542,15 @@ export const addLeader = action({
 export const sendLeaderInvite = action({
   args: { leaderId: v.id("partnerLeaders") },
   handler: async (ctx, args): Promise<{ success: boolean; error?: string }> => {
-    // @ts-ignore
-    await ctx.runMutation(require("../_generated/api").internal.admin.distributionPartners._verifyAdmin, {});
+    await ctx.runMutation(internal.admin.distributionPartners._verifyAdmin, {});
 
-    const leaders = await ctx.runQuery(
-      // @ts-ignore
-      require("../_generated/api").api.admin.distributionPartners.getAll, {}
-    ) as any[];
-
-    // Fetch the leader by scanning (no direct getById query needed — use internal pattern)
-    const allPartners = leaders;
-    // We need to find the leader — use a separate query fetching by partnerId is not efficient here,
-    // so we expose a helper query to find by leaderId
-    const leaderData = await ctx.runQuery(
-      // @ts-ignore
-      require("../_generated/api").api.admin.distributionPartners.getLeaderById,
-      { leaderId: args.leaderId }
-    ) as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const allPartners = await ctx.runQuery(api.admin.distributionPartners.getAll, {}) as any[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const leaderData = await ctx.runQuery(api.admin.distributionPartners.getLeaderById, { leaderId: args.leaderId }) as any;
 
     if (!leaderData) throw new Error("Leader not found");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const partner = allPartners.find((p: any) => p._id === leaderData.partnerId);
     if (!partner) throw new Error("Partner not found");
 
@@ -569,8 +559,7 @@ export const sendLeaderInvite = action({
     const baseUrl = getBaseUrl();
     const claimUrl = `${baseUrl}/health/claim-invite?token=${token}&source=partner`;
 
-    // @ts-ignore
-    await ctx.runMutation(require("../_generated/api").internal.admin.distributionPartners._setLeaderInviteToken, {
+    await ctx.runMutation(internal.admin.distributionPartners._setLeaderInviteToken, {
       leaderId: args.leaderId,
       token,
       expiry,
@@ -603,22 +592,16 @@ export const getLeaderById = query({
 export const sendInvite = action({
   args: { partnerId: v.id("distributionPartners") },
   handler: async (ctx, args): Promise<{ success: boolean; error?: string }> => {
-    // @ts-ignore — avoid deep type instantiation
-    await ctx.runMutation(require("../_generated/api").api.admin.distributionPartners._verifyAdminForInvite, { partnerId: args.partnerId });
+    await ctx.runMutation(api.admin.distributionPartners._verifyAdminForInvite, { partnerId: args.partnerId });
 
-    const partner = await ctx.runQuery(
-      // @ts-ignore
-      require("../_generated/api").api.admin.distributionPartners.getAll,
-      {}
-    ).then((all: any[]) => all.find((p: any) => p._id === args.partnerId));
-
-    if (!partner) throw new Error("Partner not found");
+    const partner = await ctx.runQuery(api.admin.distributionPartners.getAll, {})
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((all: any[]) => all.find((p: any) => p._id === args.partnerId));
 
     const token = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
     const expiry = Date.now() + 30 * 24 * 60 * 60 * 1000;
 
-    // @ts-ignore
-    await ctx.runMutation(require("../_generated/api").api.admin.distributionPartners._setInviteToken, {
+    await ctx.runMutation(api.admin.distributionPartners._setInviteToken, {
       partnerId: args.partnerId,
       token,
       expiry,
