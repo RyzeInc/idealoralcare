@@ -188,7 +188,7 @@ function AccountsList({ accounts, sites }: { accounts: any[]; sites: any[] }) {
 function GroupsList({ groups, accounts, sites }: { groups: any[]; accounts: any[]; sites: any[] }) {
   const removeGroup = useMutation(api.admin.hierarchy.removeGroup);
   const acctMap = Object.fromEntries(accounts.map(a => [a._id, a.slug]));
-  const memberCounts = useQuery(api.admin.members.getMemberCountsByGroup) || {};
+  const memberCounts = useQuery(api.admin.members.getMemberCountsByGroup, {}) || {};
   const [editingGroup, setEditingGroup] = useState<any | null>(null);
   const [search, setSearch] = useState('');
 
