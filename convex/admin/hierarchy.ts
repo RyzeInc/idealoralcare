@@ -125,6 +125,20 @@ export const removeSite = mutation({
   },
 });
 
+// Get all accounts across all sites
+export const getAllAccounts = query({
+  handler: async (ctx) => {
+    return await ctx.db.query("accounts").order("asc").collect();
+  },
+});
+
+// Get all groups across all accounts
+export const getAllGroups = query({
+  handler: async (ctx) => {
+    return await ctx.db.query("groups").order("asc").collect();
+  },
+});
+
 // ============================================================================
 // ACCOUNTS
 // ============================================================================

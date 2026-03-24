@@ -500,3 +500,72 @@ export const assignMemberToStaff = mutation({
     };
   },
 });
+
+/**
+ * Dashboard statistics — counts by status plus recent activity
+ */
+export const getDashboardStats = query({
+  handler: async (ctx) => {
+    const allMembers = await ctx.db.query("memberProfiles").collect();
+    const eligFiles = await ctx.db.query("eligibilityFiles").collect();
+
+    const active = allMembers.filter((m) => m.memberType === "active").length;
+    const enrolling = allMembers.filter((m) => m.memberType === "enrolling").length;
+    const pending = allMembers.filter((m) => ["lead", "eligible", "enrolling"].includes(m.memberType)).length;
+
+    return {
+      activeMembers: active,
+      pendingEnrollments: pending,
+      eligibilityFiles: eligFiles.length,
+      totalMembers: allMembers.length,
+    };
+  },
+});
+
+/**
+ * Get recent activity across all members (for dashboard)
+ */
+export const getRecentActivity = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("memberActivities")
+      .order("desc")
+      .take(args.limit ?? 20);
+  },
+});
+
+/**
+ * Remove a member profile (admin soft-delete pattern — sets status to terminated)
+ */
+export const removeMember = mutation({
+  args: {
+    memberId: v.id("memberProfiles"),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const member = await ctx.db.get(args.memberId);
+    if (!member) throw new Error("Member not found");
+
+    await ctx.db.patch(args.memberId, {
+      memberType: "terminated",
+      status: "terminated",
+      updatedAt: Date.now(),
+    });
+
+    await ctx.db.insert("memberActivities", {
+      memberProfileId: args.memberId,
+      siteId: member.siteId,
+      groupId: member.groupId,
+      activityType: "status_changed",
+      title: "Member terminated by admin",
+      description: args.reason ?? "Removed via admin panel",
+      metadata: { oldStatus: member.memberType, newStatus: "terminated", reason: args.reason },
+      actorType: "admin",
+      createdAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});

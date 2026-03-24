@@ -2,26 +2,34 @@
 
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
-import { Download, FileDown } from 'lucide-react';
-
-/**
- * BILLING SUMMARY PAGE
- * 
- * Monthly member counts and amounts for E123 import
- */
+import { Download } from 'lucide-react';
 
 export default function BillingPage() {
-  // Query real data from Convex
   const billingGroups = useQuery(api.admin.billing.getAllGroupBillingSummaries) || [];
 
   const totalMembers = billingGroups.reduce((sum: number, g: any) => sum + g.memberCount, 0);
   const totalAmount = billingGroups.reduce((sum: number, g: any) => sum + g.totalAmount, 0);
+  const avgRate = totalMembers > 0 ? totalAmount / totalMembers : 0;
 
   const currentDate = new Date();
   const billingPeriodStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
   const billingPeriodEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-
   const formatDate = (date: Date) => date.toISOString().split('T')[0];
+
+  const handleExportCsv = () => {
+    const header = 'group_code,group_name,member_count,rate_per_member,total_amount,period_start,period_end\n';
+    const rows = billingGroups.map((g: any) =>
+      `"${g.groupCode}","${g.groupName}",${g.memberCount},${g.ratePerMember.toFixed(2)},${g.totalAmount.toFixed(2)},"${formatDate(billingPeriodStart)}","${formatDate(billingPeriodEnd)}"`
+    ).join('\n');
+    const csv = header + rows;
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `billing_${formatDate(billingPeriodStart)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-6">
@@ -46,7 +54,7 @@ export default function BillingPage() {
         </div>
         <div className="bg-white rounded-lg shadow p-6">
           <p className="text-slate-600 text-sm">Average Rate</p>
-          <p className="text-4xl font-bold text-slate-900 mt-2">$15.00</p>
+          <p className="text-4xl font-bold text-slate-900 mt-2">${avgRate.toFixed(2)}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-6">
           <p className="text-slate-600 text-sm">Total Amount Due</p>
@@ -56,13 +64,13 @@ export default function BillingPage() {
 
       {/* Actions */}
       <div className="flex gap-2">
-        <button className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+        <button
+          onClick={handleExportCsv}
+          disabled={billingGroups.length === 0}
+          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+        >
           <Download size={18} />
           Export CSV for E123
-        </button>
-        <button className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded hover:bg-slate-700">
-          <FileDown size={18} />
-          Export PDF Report
         </button>
       </div>
 

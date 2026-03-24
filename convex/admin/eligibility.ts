@@ -13,6 +13,16 @@ import { requireAdmin, requireAdminAction } from "../lib/authGuards";
  */
 
 /**
+ * Generate a short-lived upload URL for Convex file storage
+ */
+export const generateUploadUrl = mutation({
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+/**
  * Get all eligibility files across all groups
  */
 export const getAllEligibilityFiles = query({

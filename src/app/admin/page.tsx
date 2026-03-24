@@ -1,8 +1,8 @@
 'use client';
 
 import Link from "next/link";
-import { ArrowRight, Users, FileUp, BarChart3, AlertCircle, Gift } from "lucide-react";
-import { useMutation } from "convex/react";
+import { ArrowRight, Users, FileUp, BarChart3, AlertCircle, Gift, Activity, Clock } from "lucide-react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useState } from "react";
 
@@ -10,6 +10,13 @@ export default function AdminDashboard() {
   const grantAccess = useMutation(api.admin.grantFreeAccess.grantMeFullAccess);
   const [isGranting, setIsGranting] = useState(false);
   const [grantStatus, setGrantStatus] = useState<null | { success: boolean; message: string }>(null);
+
+  // Real data from Convex
+  const stats = useQuery(api.admin.members.getDashboardStats);
+  const billingGroups = useQuery(api.admin.billing.getAllGroupBillingSummaries) || [];
+  const recentActivity = useQuery(api.admin.members.getRecentActivity, { limit: 10 });
+
+  const totalBilling = billingGroups.reduce((sum: number, g: any) => sum + g.totalAmount, 0);
 
   const handleGrantAccess = async () => {
     setIsGranting(true);
@@ -38,28 +45,28 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard
           title="Active Members"
-          value="—"
+          value={stats?.activeMembers?.toString() ?? "—"}
           icon={<Users size={22} className="text-blue-600" />}
           href="/admin/members"
           color="blue"
         />
         <StatCard
           title="Pending Enrollments"
-          value="—"
+          value={stats?.pendingEnrollments?.toString() ?? "—"}
           icon={<AlertCircle size={22} className="text-amber-600" />}
           href="/admin/members"
           color="amber"
         />
         <StatCard
           title="Eligibility Files"
-          value="—"
+          value={stats?.eligibilityFiles?.toString() ?? "—"}
           icon={<FileUp size={22} className="text-emerald-600" />}
           href="/admin/eligibility"
           color="emerald"
         />
         <StatCard
           title="Monthly Billing"
-          value="—"
+          value={totalBilling > 0 ? `$${totalBilling.toFixed(2)}` : "—"}
           icon={<BarChart3 size={22} className="text-violet-600" />}
           href="/admin/billing"
           color="violet"
@@ -119,9 +126,31 @@ export default function AdminDashboard() {
         <div className="px-6 py-4 border-b border-slate-100">
           <h2 className="text-lg font-semibold text-slate-900">Recent Activity</h2>
         </div>
-        <div className="px-6 py-10 text-center">
-          <p className="text-slate-400 text-sm">Activity log coming soon</p>
-        </div>
+        {!recentActivity || recentActivity.length === 0 ? (
+          <div className="px-6 py-10 text-center">
+            <p className="text-slate-400 text-sm">No activity recorded yet</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {recentActivity.map((activity: any) => (
+              <div key={activity._id} className="px-6 py-3 flex items-start gap-3">
+                <div className="mt-0.5">
+                  <Activity size={14} className="text-slate-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-900 truncate">{activity.title}</p>
+                  {activity.description && (
+                    <p className="text-xs text-slate-500 truncate">{activity.description}</p>
+                  )}
+                </div>
+                <div className="text-xs text-slate-400 flex items-center gap-1 flex-shrink-0">
+                  <Clock size={12} />
+                  {new Date(activity.createdAt).toLocaleDateString()}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

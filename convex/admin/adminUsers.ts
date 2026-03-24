@@ -73,6 +73,8 @@ export const add = mutation({
     role: v.union(v.literal("owner"), v.literal("editor")),
     departments: v.array(
       v.union(
+        v.literal("program_manager"),
+        v.literal("fmo"),
         v.literal("broker"),
         v.literal("sales"),
         v.literal("hr"),
@@ -138,6 +140,8 @@ export const updateAdmin = mutation({
     departments: v.optional(
       v.array(
         v.union(
+          v.literal("program_manager"),
+          v.literal("fmo"),
           v.literal("broker"),
           v.literal("sales"),
           v.literal("hr"),

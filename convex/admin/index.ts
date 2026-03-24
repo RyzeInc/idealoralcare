@@ -6,3 +6,5 @@ export * as navigation from "./navigation";
 export * as siteSettings from "./siteSettings";
 export * as adminUsers from "./adminUsers";
 export * as commissions from "./commissions";
+export * as distributionPartners from "./distributionPartners";
+export * as repCodes from "./repCodes";

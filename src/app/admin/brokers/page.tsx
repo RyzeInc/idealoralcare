@@ -1,9 +1,9 @@
-import { BrokersAdmin } from '@/components/admin/BrokersAdmin';
+import { DistributionAdmin } from '@/components/admin/DistributionAdmin';
 
-export default function BrokersAdminPage() {
+export default function DistributionPage() {
   return (
     <div>
-      <BrokersAdmin />
+      <DistributionAdmin />
     </div>
   );
 }

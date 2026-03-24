@@ -199,6 +199,38 @@ export const getCustomerBundleWithStripeIds = query({
 });
 
 /**
+ * Get active entitlements for a bundle, enriched with product data.
+ * Used by server-side API routes (change-plan) to determine current tier.
+ * Caller (API route) handles authentication.
+ */
+export const getEntitlementsByBundle = query({
+  args: {
+    bundleId: v.id("subscriptionBundles"),
+  },
+  handler: async (ctx: QueryCtx, args) => {
+    const entitlements = await ctx.db
+      .query("entitlements")
+      .withIndex("by_bundle", (q) => q.eq("bundleId", args.bundleId))
+      .filter((q) =>
+        q.or(
+          q.eq(q.field("status"), "active"),
+          q.eq(q.field("status"), "cancel_at_period_end")
+        )
+      )
+      .collect();
+
+    const enriched = await Promise.all(
+      entitlements.map(async (e) => {
+        const product = await ctx.db.get(e.productId);
+        return { ...e, product };
+      })
+    );
+
+    return enriched;
+  },
+});
+
+/**
  * Get CURRENT USER's active entitlements (member-facing).
  * Dependents inherit entitlements from their primary member.
  * customerId is derived from auth — no IDOR possible.

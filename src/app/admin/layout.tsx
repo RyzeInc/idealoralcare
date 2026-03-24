@@ -9,7 +9,10 @@ import {
   DollarSign,
   ArrowLeft,
   ShieldCheck,
-  Briefcase,
+  Network,
+  Tag,
+  FileOutput,
+  Settings,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -17,10 +20,13 @@ const ADMIN_NAVIGATION = [
   { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { label: "Sites & Accounts", href: "/admin/hierarchy", icon: Building2 },
   { label: "Members", href: "/admin/members", icon: Users },
-  { label: "Brokers", href: "/admin/brokers", icon: Briefcase },
+  { label: "Distribution", href: "/admin/brokers", icon: Network },
+  { label: "Rep Codes", href: "/admin/rep-codes", icon: Tag },
   { label: "Eligibility Files", href: "/admin/eligibility", icon: FileText },
   { label: "Billing", href: "/admin/billing", icon: DollarSign },
+  { label: "Vendor Files", href: "/admin/vendor-files", icon: FileOutput },
   { label: "Admin Users", href: "/admin/users", icon: ShieldCheck },
+  { label: "Site Settings", href: "/admin/settings", icon: Settings },
 ];
 
 function AdminSidebar() {

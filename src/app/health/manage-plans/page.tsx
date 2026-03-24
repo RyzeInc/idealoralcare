@@ -28,6 +28,9 @@ import {
   Crown,
   CreditCard,
   RefreshCw,
+  ArrowUpCircle,
+  ArrowDownCircle,
+  Loader2,
 } from "lucide-react";
 import "@/app/health/health.css";
 
@@ -161,13 +164,27 @@ function ManagePlansContent() {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [billingLoading, setBillingLoading] = useState(false);
+  const [tierChangeLoading, setTierChangeLoading] = useState<string | null>(null);
+  const [tierChangeResult, setTierChangeResult] = useState<{ direction: string; newTier: string; effective: string; effectiveDate?: string } | null>(null);
+  const [tierChangeError, setTierChangeError] = useState<string | null>(null);
+  const [showUpgradeConfirm, setShowUpgradeConfirm] = useState(false);
 
   // Fetch current bundle from Convex
   const bundle = useQuery(api.subscriptions.queries.getMyBundle);
+  const entitlements = useQuery(api.subscriptions.queries.getMyEntitlements, {});
   const isLoading = bundle === undefined;
 
   const hasActive = !!bundle && bundle.status !== "cancelled";
   const isCancelPeriodEnd = bundle?.status === "cancel_at_period_end";
+  const pendingDowngrade = (bundle as any)?.pendingDowngrade;
+
+  // Determine current tier from entitlements
+  const currentTier: "individual" | "family" | null = (() => {
+    if (!entitlements || entitlements.length === 0) return null;
+    const productSlug = (entitlements[0] as any)?.product?.slug;
+    if (!productSlug) return null;
+    return productSlug.includes("family") ? "family" : "individual";
+  })();
 
   const handleCancelConfirm = async () => {
     setCancelLoading(true);
@@ -201,6 +218,29 @@ function ManagePlansContent() {
       console.error("Billing portal error:", err);
     } finally {
       setBillingLoading(false);
+    }
+  };
+
+  const handleTierChange = async (targetTier: "individual" | "family") => {
+    setTierChangeLoading(targetTier);
+    setTierChangeError(null);
+    setTierChangeResult(null);
+    try {
+      const res = await fetch("/api/stripe/change-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetTier }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to change plan");
+      }
+      setTierChangeResult(data);
+      setShowUpgradeConfirm(false);
+    } catch (err) {
+      setTierChangeError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setTierChangeLoading(null);
     }
   };
 
@@ -342,54 +382,260 @@ function ManagePlansContent() {
                   <RefreshCw size={22} color="#0066CC" /> Change Your Tier
                 </h2>
                 <p style={{ color: "#64748b", fontSize: "0.9rem", marginBottom: "1.5rem" }}>
-                  Switch between Individual and Family at any time. Changes take effect on your next billing cycle.
+                  {currentTier === "individual"
+                    ? "Upgrade to Family for a one-time $10 fee — get immediate access."
+                    : currentTier === "family"
+                      ? "You can switch to Individual for free. The change takes effect at the end of your current billing period."
+                      : "Switch between Individual and Family at any time."}
                 </p>
+
+                {/* Tier change result banner */}
+                {tierChangeResult && (
+                  <div style={{
+                    padding: "1rem 1.25rem", borderRadius: "10px", marginBottom: "1.25rem",
+                    background: tierChangeResult.direction === "upgrade" ? "#ecfdf5" : "#f0f9ff",
+                    border: `1px solid ${tierChangeResult.direction === "upgrade" ? "#a7f3d0" : "#bfdbfe"}`,
+                    display: "flex", alignItems: "center", gap: "0.75rem",
+                  }}>
+                    {tierChangeResult.direction === "upgrade"
+                      ? <ArrowUpCircle size={20} color="#059669" />
+                      : <ArrowDownCircle size={20} color="#2563eb" />}
+                    <div>
+                      <div style={{ fontWeight: 600, color: "#0f172a", fontSize: "0.9rem" }}>
+                        {tierChangeResult.direction === "upgrade"
+                          ? `Upgraded to ${tierChangeResult.newTier}! You now have full access.`
+                          : `Downgrade to ${tierChangeResult.newTier} scheduled.`}
+                      </div>
+                      {tierChangeResult.effectiveDate && (
+                        <div style={{ fontSize: "0.8125rem", color: "#64748b", marginTop: "0.25rem" }}>
+                          Takes effect {tierChangeResult.effectiveDate}.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tier change error */}
+                {tierChangeError && (
+                  <div style={{
+                    padding: "0.75rem 1rem", borderRadius: "8px", marginBottom: "1.25rem",
+                    background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b",
+                    fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "0.5rem",
+                  }}>
+                    <AlertTriangle size={16} /> {tierChangeError}
+                  </div>
+                )}
+
+                {/* Pending downgrade banner */}
+                {pendingDowngrade && !tierChangeResult && (
+                  <div style={{
+                    padding: "1rem 1.25rem", borderRadius: "10px", marginBottom: "1.25rem",
+                    background: "#fffbeb", border: "1px solid #fde68a",
+                    display: "flex", alignItems: "center", gap: "0.75rem",
+                  }}>
+                    <ArrowDownCircle size={20} color="#d97706" />
+                    <div>
+                      <div style={{ fontWeight: 600, color: "#0f172a", fontSize: "0.9rem" }}>
+                        Downgrade to Individual scheduled
+                      </div>
+                      <div style={{ fontSize: "0.8125rem", color: "#64748b", marginTop: "0.25rem" }}>
+                        Takes effect {new Date(pendingDowngrade.effectiveDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}. You keep Family access until then.
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1rem" }}>
-                  {[INDIVIDUAL_PLAN, FAMILY_PLAN].map((plan) => (
-                    <div
-                      key={plan.slug}
-                      style={{
-                        border: "1px solid #e2e8f0", borderRadius: "14px",
-                        padding: "1.5rem", background: "#f8fafc",
-                        display: "flex", flexDirection: "column", gap: "1rem",
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-                        {plan.tier === "family" ? <Users size={20} color="#0066CC" /> : <HeartPulse size={20} color="#0066CC" />}
-                        <h3 style={{ margin: 0, fontWeight: 700, color: "#0f172a", fontSize: "1rem" }}>{plan.name}</h3>
-                      </div>
-                      <p style={{ margin: 0, color: "#64748b", fontSize: "0.875rem" }}>{plan.description}</p>
-                      <div>
-                        <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "#0066CC" }}>
-                          {formatCents(plan.monthlyCents)}<span style={{ fontSize: "0.875rem", fontWeight: 500, color: "#64748b" }}>/mo</span>
-                        </div>
-                        <div style={{ fontSize: "0.8125rem", color: "#14b8a6", fontWeight: 600 }}>
-                          {formatCents(plan.annualCents)}/yr · 1 Month Free
-                        </div>
-                      </div>
-                      <ul style={{ margin: 0, padding: "0 0 0 0", listStyle: "none", display: "flex", flexDirection: "column", gap: "0.375rem" }}>
-                        {plan.inclusions.slice(0, 4).map((item) => (
-                          <li key={item} style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem", color: "#475569" }}>
-                            <Check size={14} color="#14b8a6" />
-                            {item}
-                          </li>
-                        ))}
-                      </ul>
-                      <Link
-                        href="/health/plans"
+                  {[INDIVIDUAL_PLAN, FAMILY_PLAN].map((plan) => {
+                    const isCurrentPlan = currentTier === plan.tier;
+                    const isUpgrade = currentTier === "individual" && plan.tier === "family";
+                    const isDowngrade = currentTier === "family" && plan.tier === "individual";
+                    return (
+                      <div
+                        key={plan.slug}
                         style={{
-                          display: "flex", alignItems: "center", justifyContent: "center", gap: "0.375rem",
-                          padding: "0.625rem 1rem", borderRadius: "8px",
-                          background: "linear-gradient(135deg, #0066CC, #0052a3)",
-                          color: "#fff", textDecoration: "none", fontWeight: 600, fontSize: "0.875rem",
+                          border: isCurrentPlan ? "2px solid #0066CC" : "1px solid #e2e8f0",
+                          borderRadius: "14px",
+                          padding: "1.5rem", background: isCurrentPlan ? "#f0f7ff" : "#f8fafc",
+                          display: "flex", flexDirection: "column", gap: "1rem",
+                          position: "relative",
                         }}
                       >
-                        Select This Plan <ChevronRight size={15} />
-                      </Link>
-                    </div>
-                  ))}
+                        {isCurrentPlan && (
+                          <div style={{
+                            position: "absolute", top: "-12px", right: "16px",
+                            background: "#0066CC", color: "#fff", fontSize: "0.75rem",
+                            fontWeight: 700, padding: "3px 12px", borderRadius: "20px",
+                          }}>
+                            Current Plan
+                          </div>
+                        )}
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+                          {plan.tier === "family" ? <Users size={20} color="#0066CC" /> : <HeartPulse size={20} color="#0066CC" />}
+                          <h3 style={{ margin: 0, fontWeight: 700, color: "#0f172a", fontSize: "1rem" }}>{plan.name}</h3>
+                        </div>
+                        <p style={{ margin: 0, color: "#64748b", fontSize: "0.875rem" }}>{plan.description}</p>
+                        <div>
+                          <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "#0066CC" }}>
+                            {formatCents(plan.monthlyCents)}<span style={{ fontSize: "0.875rem", fontWeight: 500, color: "#64748b" }}>/mo</span>
+                          </div>
+                          <div style={{ fontSize: "0.8125rem", color: "#14b8a6", fontWeight: 600 }}>
+                            {formatCents(plan.annualCents)}/yr · 1 Month Free
+                          </div>
+                        </div>
+                        <ul style={{ margin: 0, padding: "0 0 0 0", listStyle: "none", display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+                          {plan.inclusions.slice(0, 4).map((item) => (
+                            <li key={item} style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem", color: "#475569" }}>
+                              <Check size={14} color="#14b8a6" />
+                              {item}
+                            </li>
+                          ))}
+                        </ul>
+
+                        {/* Smart action button */}
+                        {isCurrentPlan ? (
+                          <div style={{
+                            display: "flex", alignItems: "center", justifyContent: "center", gap: "0.375rem",
+                            padding: "0.625rem 1rem", borderRadius: "8px",
+                            background: "#e2e8f0", color: "#64748b",
+                            fontWeight: 600, fontSize: "0.875rem",
+                          }}>
+                            <Crown size={15} /> Your Current Plan
+                          </div>
+                        ) : isUpgrade ? (
+                          <button
+                            onClick={() => setShowUpgradeConfirm(true)}
+                            disabled={!!tierChangeLoading || isCancelPeriodEnd}
+                            style={{
+                              display: "flex", alignItems: "center", justifyContent: "center", gap: "0.375rem",
+                              padding: "0.625rem 1rem", borderRadius: "8px", border: "none", cursor: "pointer",
+                              background: isCancelPeriodEnd ? "#e2e8f0" : "linear-gradient(135deg, #059669, #047857)",
+                              color: isCancelPeriodEnd ? "#94a3b8" : "#fff",
+                              fontWeight: 600, fontSize: "0.875rem",
+                              opacity: tierChangeLoading ? 0.7 : 1,
+                            }}
+                          >
+                            {tierChangeLoading === "family"
+                              ? <><Loader2 size={15} className="animate-spin" /> Processing...</>
+                              : <><ArrowUpCircle size={15} /> Upgrade to Family — $10</>}
+                          </button>
+                        ) : isDowngrade ? (
+                          <button
+                            onClick={() => handleTierChange("individual")}
+                            disabled={!!tierChangeLoading || isCancelPeriodEnd || !!pendingDowngrade}
+                            style={{
+                              display: "flex", alignItems: "center", justifyContent: "center", gap: "0.375rem",
+                              padding: "0.625rem 1rem", borderRadius: "8px", border: "1px solid #e2e8f0",
+                              cursor: (isCancelPeriodEnd || pendingDowngrade) ? "not-allowed" : "pointer",
+                              background: "#fff", color: (isCancelPeriodEnd || pendingDowngrade) ? "#94a3b8" : "#475569",
+                              fontWeight: 600, fontSize: "0.875rem",
+                              opacity: tierChangeLoading ? 0.7 : 1,
+                            }}
+                          >
+                            {tierChangeLoading === "individual"
+                              ? <><Loader2 size={15} className="animate-spin" /> Processing...</>
+                              : pendingDowngrade
+                                ? <><ArrowDownCircle size={15} /> Downgrade Scheduled</>
+                                : <><ArrowDownCircle size={15} /> Switch to Individual (free)</>}
+                          </button>
+                        ) : (
+                          <Link
+                            href="/health/plans"
+                            style={{
+                              display: "flex", alignItems: "center", justifyContent: "center", gap: "0.375rem",
+                              padding: "0.625rem 1rem", borderRadius: "8px",
+                              background: "linear-gradient(135deg, #0066CC, #0052a3)",
+                              color: "#fff", textDecoration: "none", fontWeight: 600, fontSize: "0.875rem",
+                            }}
+                          >
+                            Select This Plan <ChevronRight size={15} />
+                          </Link>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
+
+              {/* ── Upgrade Confirmation Modal ───────────────────── */}
+              {showUpgradeConfirm && (
+                <div
+                  style={{
+                    position: "fixed", inset: 0, zIndex: 1000,
+                    background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    padding: "1rem",
+                  }}
+                  onClick={() => setShowUpgradeConfirm(false)}
+                >
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      background: "#fff", borderRadius: "16px", maxWidth: "420px",
+                      width: "100%", padding: "2rem", boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
+                      <div style={{
+                        width: 44, height: 44, borderRadius: "12px",
+                        background: "linear-gradient(135deg, #059669, #047857)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}>
+                        <ArrowUpCircle size={22} color="#fff" />
+                      </div>
+                      <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700, color: "#0f172a" }}>
+                        Upgrade to Family Plan
+                      </h3>
+                    </div>
+                    <div style={{ color: "#475569", fontSize: "0.9rem", lineHeight: 1.6, marginBottom: "1.5rem" }}>
+                      <p style={{ margin: "0 0 0.75rem" }}>
+                        A one-time <strong>$10 upgrade fee</strong> will be added to your next invoice.
+                      </p>
+                      <ul style={{ margin: 0, paddingLeft: "1.25rem", display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+                        <li>Immediate access to Family plan features</li>
+                        <li>Add up to 9 dependents</li>
+                        <li>Your billing cycle stays the same</li>
+                        <li>New rate: $24.99/mo or $274.99/yr</li>
+                      </ul>
+                    </div>
+                    {tierChangeError && (
+                      <div style={{
+                        padding: "0.5rem 0.75rem", borderRadius: "6px", marginBottom: "1rem",
+                        background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b",
+                        fontSize: "0.8125rem",
+                      }}>
+                        {tierChangeError}
+                      </div>
+                    )}
+                    <div style={{ display: "flex", gap: "0.75rem" }}>
+                      <button
+                        onClick={() => { setShowUpgradeConfirm(false); setTierChangeError(null); }}
+                        style={{
+                          flex: 1, padding: "0.625rem 1rem", borderRadius: "8px",
+                          border: "1px solid #e2e8f0", background: "#fff",
+                          color: "#475569", fontWeight: 600, fontSize: "0.875rem", cursor: "pointer",
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => handleTierChange("family")}
+                        disabled={!!tierChangeLoading}
+                        style={{
+                          flex: 1, padding: "0.625rem 1rem", borderRadius: "8px",
+                          border: "none",
+                          background: tierChangeLoading ? "#a7f3d0" : "linear-gradient(135deg, #059669, #047857)",
+                          color: "#fff", fontWeight: 600, fontSize: "0.875rem", cursor: "pointer",
+                        }}
+                      >
+                        {tierChangeLoading === "family"
+                          ? "Processing..."
+                          : "Confirm Upgrade — $10"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* ── Compare Table ────────────────────────────────── */}
               <div className="glass-card" style={{ padding: "2rem" }}>

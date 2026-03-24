@@ -310,6 +310,90 @@ export async function POST(req: NextRequest) {
         break;
       }
 
+      case "customer.subscription.updated": {
+        // Handles tier changes (upgrade/downgrade) and other subscription modifications
+        const subscription = event.data.object as Stripe.Subscription;
+        const stripeSubscriptionId = subscription.id;
+        const previousAttributes = (event.data as any).previous_attributes || {};
+
+        try {
+          const bundle = await convex.query(
+            api.subscriptions.webhookActions.getBundleByStripeSubscription,
+            { stripeSubscriptionId }
+          );
+
+          if (bundle) {
+            // If there was a pending downgrade and the subscription items changed,
+            // the scheduled phase has taken effect — process the entitlement swap
+            const pendingDowngrade = (bundle as any).pendingDowngrade;
+            if (pendingDowngrade && previousAttributes.items) {
+              const items = (subscription as any).items?.data || [];
+              const newItem = items[0];
+
+              if (newItem) {
+                // Resolve the new Stripe product to a Convex catalog product
+                const stripeProductId = typeof newItem.plan.product === "string"
+                  ? newItem.plan.product
+                  : (newItem.plan.product as any)?.id || "";
+
+                // @ts-ignore - avoid deep type instantiation issue
+                const newCatalogProduct = await convex.query(api.catalog.queries.getByStripeProductId, {
+                  stripeProductId,
+                });
+
+                if (newCatalogProduct) {
+                  // Get current active entitlements to find the old product
+                  // @ts-ignore - avoid deep type instantiation issue
+                  const entitlements = await convex.query(api.subscriptions.queries.getEntitlementsByBundle, {
+                    bundleId: bundle._id,
+                  });
+
+                  const activeEntitlement = entitlements?.find((e: any) =>
+                    e.status === "active" || e.status === "cancel_at_period_end"
+                  );
+
+                  if (activeEntitlement) {
+                    await convex.mutation(api.subscriptions.webhookActions.processTierChange, {
+                      bundleId: bundle._id,
+                      customerId: bundle.customerId,
+                      oldProductId: activeEntitlement.productId,
+                      newProductId: newCatalogProduct._id,
+                      newTotalCents: pendingDowngrade.targetTotalCents,
+                      direction: "downgrade",
+                      stripeSubscriptionItemId: newItem.id,
+                    });
+                  }
+                }
+              }
+
+              // Clear the pending downgrade
+              await convex.mutation(api.subscriptions.webhookActions.clearPendingDowngrade, {
+                bundleId: bundle._id,
+              });
+            }
+
+            // Log the subscription update event
+            await convex.mutation(api.subscriptions.mutations.webhookLogEvent, {
+              eventType: "customer.subscription.updated",
+              actor: "stripe",
+              customerId: bundle.customerId,
+              bundleId: bundle._id,
+              stripeEventId: event.id,
+              stripeObjectId: subscription.id,
+              payload: {
+                previousAttributes: Object.keys(previousAttributes),
+                hasPendingDowngrade: !!pendingDowngrade,
+              },
+              success: true,
+              idempotencyKey: event.id,
+            });
+          }
+        } catch (error) {
+          console.error("[webhook] Error processing customer.subscription.updated:", error);
+        }
+        break;
+      }
+
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
         const stripeSubscriptionId = subscription.id;

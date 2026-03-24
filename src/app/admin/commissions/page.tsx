@@ -27,7 +27,7 @@ export default function CommissionsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-slate-900">Commission Reporting</h1>
-        <p className="text-slate-600">Broker commission tracking and payroll exports</p>
+        <p className="text-slate-600">Distribution chain commission tracking and payroll exports</p>
       </div>
 
       {/* Dependency Note */}
@@ -36,8 +36,7 @@ export default function CommissionsPage() {
         <div>
           <p className="text-sm font-semibold text-blue-900">Commission Tracking — Coming Soon</p>
           <p className="text-sm text-blue-800 mt-1">
-            Broker commission tracking and payroll exports will be available in a future update.
-            For commission inquiries, contact your account representative.
+            Full distribution chain commission tracking (Program Manager overrides, FMO overrides, and agent street-level commissions) will be available in a future update.
           </p>
         </div>
       </div>
@@ -45,7 +44,7 @@ export default function CommissionsPage() {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-lg shadow p-6">
-          <p className="text-slate-600 text-sm">Total Brokers</p>
+          <p className="text-slate-600 text-sm">Total Partners</p>
           <p className="text-4xl font-bold text-slate-900 mt-2">{commissions.length}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-6">
@@ -77,13 +76,13 @@ export default function CommissionsPage() {
       {/* Commission Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="p-6 border-b border-slate-200">
-          <h2 className="text-lg font-semibold text-slate-900">Broker Commissions ({currentMonth})</h2>
+          <h2 className="text-lg font-semibold text-slate-900">Distribution Chain Commissions ({currentMonth})</h2>
         </div>
 
         <table className="w-full">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Broker / Agency</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Partner / Agency</th>
               <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">Active Enrollments</th>
               <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">Rate</th>
               <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">Calculated Payout</th>
@@ -131,14 +130,16 @@ export default function CommissionsPage() {
 
       {/* Notes on Tiered Commissions */}
       <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-        <p className="text-sm font-semibold text-slate-900 mb-2">Tiered Commission Structures</p>
+        <p className="text-sm font-semibold text-slate-900 mb-2">Tiered Commission Structures (Top-Down)</p>
         <p className="text-sm text-slate-600 mb-3">
-          The system supports tiered commission rates (agent rate + agency override), per the Feb 27 meeting discussion 
-          on American Fidelity commission requirements.
+          Carrier keeps the premium (Ryze Nexus) → Program Manager takes a management fee (Ideal Health) →
+          FMO/Agency takes an override for managing agents → Broker/Agent earns the street-level commission
+          tracked via Rep Codes.
         </p>
         <ul className="text-sm text-slate-600 space-y-1">
-          <li>• Agent commission rates set at broker onboarding</li>
-          <li>• Agency-level overrides override agent rates when configured</li>
+          <li>• Program Manager override rates set at partner onboarding under Distribution</li>
+          <li>• FMO/Agency override rates set per distribution partner</li>
+          <li>• Agent (Rep) commission rates set when assigning Rep Codes</li>
           <li>• Commission calculations update in real-time as new enrollments complete</li>
           <li>• Export for payroll integration via CSV</li>
         </ul>

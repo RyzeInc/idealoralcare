@@ -117,6 +117,8 @@ export default defineSchema({
     role: v.union(v.literal("owner"), v.literal("editor")),
     departments: v.optional(v.array(
       v.union(
+        v.literal("program_manager"),
+        v.literal("fmo"),
         v.literal("broker"),
         v.literal("sales"),
         v.literal("hr"),
@@ -129,6 +131,41 @@ export default defineSchema({
   })
     .index("by_clerk_id", ["clerkUserId"])
     .index("by_departments", ["departments"]),
+
+  // ============================================
+  // DISTRIBUTION PARTNERS (Program Managers, FMOs, Agencies)
+  // Top-down pay chain: Carrier → Program Manager → FMO/Agency → Broker/Agent
+  // ============================================
+  distributionPartners: defineTable({
+    name: v.string(),
+    type: v.union(
+      v.literal("program_manager"), // Ideal Health's direct PM partners (underwriting/management fee)
+      v.literal("fmo"),             // Field Marketing Organizations (manage agents, get override)
+      v.literal("agency"),          // Agencies under an FMO
+    ),
+    parentId: v.optional(v.id("distributionPartners")), // FMO/Agency → parent PM
+    // Primary contact
+    contactName: v.string(),
+    contactEmail: v.string(),
+    contactPhone: v.optional(v.string()),
+    // If set, this contact has /admin portal access (adminUsers entry auto-created)
+    clerkUserId: v.optional(v.string()),
+    // Commission override rate (e.g. 5 for 5%)
+    overrideRate: v.optional(v.number()),
+    status: v.union(
+      v.literal("active"),
+      v.literal("inactive"),
+      v.literal("suspended"),
+    ),
+    notes: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    createdBy: v.optional(v.string()),
+  })
+    .index("by_type", ["type"])
+    .index("by_parent", ["parentId"])
+    .index("by_clerk_id", ["clerkUserId"])
+    .index("by_status", ["status"]),
 
   // ============================================
   // FORM SUBMISSIONS (existing)
@@ -387,6 +424,14 @@ export default defineSchema({
     cancelledAt: v.optional(v.number()), // When bundle was cancelled
     cancellationReason: v.optional(v.string()), // Reason for cancellation
     pastDueAt: v.optional(v.number()), // When bundle entered past_due status (payment failed)
+    
+    // PENDING TIER CHANGE (downgrade scheduled for period end)
+    pendingDowngrade: v.optional(v.object({
+      targetProductId: v.id("catalogProducts"),
+      targetTotalCents: v.number(),
+      effectiveDate: v.number(), // Unix ms — when the downgrade takes effect
+      scheduledAt: v.number(), // When the user requested the downgrade
+    })),
   })
     .index("by_customer", ["customerId"])
     .index("by_status", ["status"])

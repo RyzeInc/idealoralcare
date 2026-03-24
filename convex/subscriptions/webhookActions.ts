@@ -287,3 +287,128 @@ export const markCancelAtPeriodEnd = mutation({
     return bundle._id;
   },
 });
+
+/**
+ * Process an immediate tier change (upgrade).
+ * Expires the old entitlement, creates a new one for the target product,
+ * and updates the bundle's pricing snapshot.
+ */
+export const processTierChange = mutation({
+  args: {
+    bundleId: v.id("subscriptionBundles"),
+    customerId: v.string(),
+    oldProductId: v.id("catalogProducts"),
+    newProductId: v.id("catalogProducts"),
+    newTotalCents: v.number(),
+    direction: v.union(v.literal("upgrade"), v.literal("downgrade")),
+    stripeSubscriptionItemId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const bundle = await ctx.db.get(args.bundleId);
+    if (!bundle) throw new Error(`Bundle not found: ${args.bundleId}`);
+
+    // 1. Expire old entitlements for the old product
+    const oldEntitlements = await ctx.db
+      .query("entitlements")
+      .withIndex("by_bundle", (q) => q.eq("bundleId", args.bundleId))
+      .collect();
+
+    for (const ent of oldEntitlements) {
+      if (
+        ent.productId === args.oldProductId &&
+        (ent.status === "active" || ent.status === "cancel_at_period_end")
+      ) {
+        await ctx.db.patch(ent._id, {
+          status: "expired",
+          revokedAt: now,
+          notes: `Tier ${args.direction}: replaced by new plan`,
+        });
+      }
+    }
+
+    // 2. Create new entitlement for the target product
+    await ctx.db.insert("entitlements", {
+      customerId: args.customerId,
+      bundleId: args.bundleId,
+      productId: args.newProductId,
+      periodStart: bundle.currentPeriodStart,
+      periodEnd: bundle.currentPeriodEnd,
+      status: "active",
+      endCondition: "renew",
+      stripeSubscriptionItemId: args.stripeSubscriptionItemId,
+      createdAt: now,
+      activatedAt: now,
+      expiresAt: bundle.currentPeriodEnd,
+      createdVia: "plan_addition",
+      notes: `Tier ${args.direction} from previous plan`,
+    });
+
+    // 3. Update bundle pricing snapshot
+    await ctx.db.patch(args.bundleId, {
+      updatedAt: now,
+      pricingSnapshot: {
+        cadence: bundle.cadence,
+        paymentMethod: bundle.paymentMethod,
+        totalCents: args.newTotalCents,
+        planCount: bundle.pricingSnapshot.planCount,
+        capturedAt: now,
+      },
+    });
+
+    return { success: true, direction: args.direction };
+  },
+});
+
+/**
+ * Schedule a tier downgrade to take effect at period end.
+ * Records the pending downgrade on the bundle so the UI can show it.
+ * The actual swap happens when Stripe fires subscription.updated at renewal.
+ */
+export const scheduleTierDowngrade = mutation({
+  args: {
+    bundleId: v.id("subscriptionBundles"),
+    customerId: v.string(),
+    targetProductId: v.id("catalogProducts"),
+    targetTotalCents: v.number(),
+    effectiveDate: v.number(), // Unix ms
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const bundle = await ctx.db.get(args.bundleId);
+    if (!bundle) throw new Error(`Bundle not found: ${args.bundleId}`);
+
+    // Store pending downgrade info on the bundle
+    await ctx.db.patch(args.bundleId, {
+      updatedAt: now,
+      pendingDowngrade: {
+        targetProductId: args.targetProductId,
+        targetTotalCents: args.targetTotalCents,
+        effectiveDate: args.effectiveDate,
+        scheduledAt: now,
+      },
+    });
+
+    return { success: true, effectiveDate: args.effectiveDate };
+  },
+});
+
+/**
+ * Clear the pendingDowngrade field after a scheduled downgrade has been applied.
+ */
+export const clearPendingDowngrade = mutation({
+  args: {
+    bundleId: v.id("subscriptionBundles"),
+  },
+  handler: async (ctx, args) => {
+    const bundle = await ctx.db.get(args.bundleId);
+    if (!bundle) throw new Error(`Bundle not found: ${args.bundleId}`);
+
+    await ctx.db.patch(args.bundleId, {
+      updatedAt: Date.now(),
+      pendingDowngrade: undefined,
+    });
+
+    return { success: true };
+  },
+});
