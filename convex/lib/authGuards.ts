@@ -68,7 +68,14 @@ export async function requireAdmin(ctx: AnyCtx): Promise<AuthIdentity> {
     .first();
 
   if (!admin) {
-    throw new Error("Unauthorized: Admin role required");
+    // Program Managers, FMOs, and Agencies with portal access also count as admins
+    const partner = await (ctx as QueryCtx).db
+      .query("distributionPartners")
+      .withIndex("by_clerk_id", (q: any) => q.eq("clerkUserId", identity.clerkUserId))
+      .first();
+    if (!partner || partner.status !== "active") {
+      throw new Error("Unauthorized: Admin role required");
+    }
   }
 
   return identity;
@@ -83,14 +90,20 @@ export async function requireSelf(ctx: AnyCtx, customerId: string): Promise<Auth
   const identity = await requireAuth(ctx);
 
   if (identity.clerkUserId !== customerId) {
-    // Check if admin — admins can access any user's data
+    // Check if admin (or active distribution partner) — they can access any user's data
     const admin = await (ctx as QueryCtx).db
       .query("adminUsers")
       .withIndex("by_clerk_id", (q: any) => q.eq("clerkUserId", identity.clerkUserId))
       .first();
 
     if (!admin) {
-      throw new Error("Unauthorized: You can only access your own data");
+      const partner = await (ctx as QueryCtx).db
+        .query("distributionPartners")
+        .withIndex("by_clerk_id", (q: any) => q.eq("clerkUserId", identity.clerkUserId))
+        .first();
+      if (!partner || partner.status !== "active") {
+        throw new Error("Unauthorized: You can only access your own data");
+      }
     }
   }
 

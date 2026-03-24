@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
-import { Upload, FileUp, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { FunctionReference } from 'convex/server';
+import { Upload, FileUp, AlertCircle, CheckCircle, Clock, ChevronDown, ChevronRight, Download } from 'lucide-react';
 
 export default function EligibilityUploadPage() {
   const [isDragging, setIsDragging] = useState(false);
@@ -12,6 +13,8 @@ export default function EligibilityUploadPage() {
   const [fileAction, setFileAction] = useState<'full_replace' | 'additions' | 'terminations' | 'delta'>('full_replace');
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [uploading, setUploading] = useState(false);
+
+  const [expandedFile, setExpandedFile] = useState<string | null>(null);
 
   const eligibilityFiles = useQuery(api.admin.eligibility.getAllEligibilityFiles) || [];
   const groups = useQuery(api.admin.hierarchy.getAllGroups) || [];
@@ -86,6 +89,22 @@ export default function EligibilityUploadPage() {
     }
   };
 
+  const handleDownloadTemplate = () => {
+    const csv = [
+      'first_name,last_name,email,date_of_birth,employee_id,group_code,action',
+      'Jane,Smith,jane.smith@example.com,1985-03-15,EMP-001,ACME-2026,add',
+      'John,Doe,john.doe@example.com,1990-07-22,EMP-002,ACME-2026,add',
+      'Mary,Jones,mary.jones@example.com,1978-11-30,EMP-003,ACME-2026,terminate',
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'eligibility_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed': return <CheckCircle className="text-green-600" size={20} />;
@@ -107,9 +126,18 @@ export default function EligibilityUploadPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900">Eligibility Files</h1>
-        <p className="text-slate-600">Upload CSV files to batch import or update member records</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Eligibility Files</h1>
+          <p className="text-slate-600">Upload CSV files to batch import or update member records</p>
+        </div>
+        <button
+          onClick={handleDownloadTemplate}
+          className="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-sm hover:bg-slate-50 text-slate-700"
+        >
+          <Download size={16} />
+          Download Template
+        </button>
       </div>
 
       {/* Upload Area */}
@@ -185,42 +213,85 @@ export default function EligibilityUploadPage() {
           <table className="w-full">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900 w-6"></th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">File Name</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Uploaded</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Action</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Status</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Progress</th>
+                <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {eligibilityFiles.map((file: any) => (
-                <tr key={file._id} className="hover:bg-slate-50">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <FileUp size={18} className="text-slate-400" />
-                      <span className="font-medium text-slate-900">{file.fileName}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-slate-600 text-sm">
-                    {file.uploadedAt ? new Date(file.uploadedAt).toLocaleString() : 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 text-slate-600 text-sm">{file.fileAction?.replace('_', ' ')}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(file.status)}
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(file.status)}`}>
-                        {file.status}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    <div className="w-full bg-slate-200 rounded-full h-2">
-                      <div className="bg-green-600 h-2 rounded-full transition-all" style={{ width: `${file.totalRecords > 0 ? (file.processedRecords / file.totalRecords) * 100 : 0}%` }} />
-                    </div>
-                    <p className="text-xs text-slate-600 mt-1">{file.processedRecords} / {file.totalRecords}</p>
-                  </td>
-                </tr>
-              ))}
+              {eligibilityFiles.map((file: any) => {
+                const hasErrors = (file.errors?.length ?? 0) > 0 || file.status === 'failed' || file.status === 'completed_with_errors';
+                const isExpanded = expandedFile === file._id;
+                return (
+                  <>
+                    <tr key={file._id} className="hover:bg-slate-50">
+                      <td className="px-4 py-4">
+                        {hasErrors ? (
+                          <button onClick={() => setExpandedFile(isExpanded ? null : file._id)} className="text-slate-400 hover:text-slate-600">
+                            {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                          </button>
+                        ) : null}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <FileUp size={18} className="text-slate-400" />
+                          <span className="font-medium text-slate-900">{file.fileName}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-slate-600 text-sm">
+                        {file.uploadedAt ? new Date(file.uploadedAt).toLocaleString() : 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 text-slate-600 text-sm">{file.fileAction?.replace('_', ' ')}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          {getStatusIcon(file.status)}
+                          <span className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(file.status)}`}>
+                            {file.status}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        <div className="w-full bg-slate-200 rounded-full h-2">
+                          <div className="bg-green-600 h-2 rounded-full transition-all" style={{ width: `${file.totalRecords > 0 ? (file.processedRecords / file.totalRecords) * 100 : 0}%` }} />
+                        </div>
+                        <p className="text-xs text-slate-600 mt-1">{file.processedRecords} / {file.totalRecords}</p>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        {(file.status === 'failed' || file.status === 'completed_with_errors') && (
+                          <button
+                            onClick={async () => {
+                              try { await processFile({ fileId: file._id }); }
+                              catch (err) { alert(`Re-process failed: ${err instanceof Error ? err.message : 'Unknown'}`); }
+                            }}
+                            className="text-xs px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100"
+                          >
+                            Re-process
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                    {isExpanded && hasErrors && (
+                      <tr key={`${file._id}-errors`} className="bg-red-50">
+                        <td colSpan={7} className="px-10 py-3">
+                          <p className="text-xs font-semibold text-red-700 mb-2">Errors ({file.errors?.length ?? 0}):</p>
+                          <div className="space-y-1 max-h-40 overflow-y-auto">
+                            {(file.errors ?? []).map((err: string, i: number) => (
+                              <p key={i} className="text-xs text-red-600 font-mono bg-red-100 px-2 py-1 rounded">{err}</p>
+                            ))}
+                            {(file.errors ?? []).length === 0 && (
+                              <p className="text-xs text-red-600">Processing failed — no detailed errors recorded.</p>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                );
+              })}
             </tbody>
           </table>
         )}

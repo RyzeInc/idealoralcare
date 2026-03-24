@@ -1,0 +1,10 @@
+const fs = require('fs');
+const path = require('path');
+const filePath = path.join(__dirname, '../convex/admin/distributionPartners.ts');
+const content = fs.readFileSync(filePath, 'utf8');
+const marker = "return { partnerId: partner._id, partnerName: partner.name };";
+const idx = content.lastIndexOf(marker);
+const afterMarker = content.indexOf('});', idx);
+const clean = content.slice(0, afterMarker + 3) + '\n';
+fs.writeFileSync(filePath, clean);
+console.log('Done. Lines:', clean.split('\n').length);

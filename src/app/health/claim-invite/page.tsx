@@ -31,13 +31,28 @@ function ClaimInviteContent() {
   const { isLoaded, isSignedIn } = useUser();
 
   const token = searchParams.get('token') ?? '';
+  const source = searchParams.get('source'); // 'partner' for distribution partner invites
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const convexApi = api as any;
-  const invite = useQuery(
+
+  // Dependent invite lookup
+  const dependentInvite = useQuery(
     convexApi.enrollment.dependents.getProfileByInviteToken,
-    token ? { token } : 'skip'
+    token && source !== 'partner' ? { token } : 'skip'
   ) as any;
-  const claimProfile = useMutation(convexApi.enrollment.dependents.claimDependentProfile);
+
+  // Partner invite lookup
+  const partnerInvite = useQuery(
+    convexApi.admin.distributionPartners.getByInviteToken,
+    token && source === 'partner' ? { token } : 'skip'
+  ) as any;
+
+  const claimDependentProfile = useMutation(convexApi.enrollment.dependents.claimDependentProfile);
+  const claimPartnerInvite = useMutation(convexApi.admin.distributionPartners.claimInvite);
+
+  const isPartner = source === 'partner';
+  const invite = isPartner ? partnerInvite : dependentInvite;
 
   const [claimState, setClaimState] = useState<ClaimState>('loading');
   const [errorMessage, setErrorMessage] = useState('');
@@ -53,7 +68,6 @@ function ClaimInviteContent() {
   }, [isLoaded, token, invite]);
 
   // Auto-claim as soon as the user is signed in and the invite is ready.
-  // This fires after redirect back from sign-up/sign-in.
   useEffect(() => {
     if (claimState === 'ready' && isSignedIn) {
       handleClaim();
@@ -63,7 +77,6 @@ function ClaimInviteContent() {
 
   const handleClaim = async () => {
     if (!isSignedIn) {
-      // New dependent: send to sign-up so they create an account, then return here
       const returnUrl = encodeURIComponent(window.location.href);
       router.push(`/health/sign-up?redirect_url=${returnUrl}`);
       return;
@@ -71,9 +84,12 @@ function ClaimInviteContent() {
     if (claimState === 'claiming' || claimState === 'success') return;
     setClaimState('claiming');
     try {
-      await claimProfile({ inviteToken: token });
+      if (isPartner) {
+        await claimPartnerInvite({ token });
+      } else {
+        await claimDependentProfile({ inviteToken: token });
+      }
       setClaimState('success');
-      // Redirect to dashboard after a short delay
       setTimeout(() => router.push('/health/dashboard'), 2000);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Failed to claim invite. Please try again.');
@@ -81,7 +97,15 @@ function ClaimInviteContent() {
     }
   };
 
-  // Loading / ready / claiming states
+  const displayName = isPartner ? invite?.name : invite?.primaryMemberName;
+  const inviteDescription = isPartner
+    ? `You've been invited to access Ideal Oral Health as a partner — ${invite?.name ?? ''}.`
+    : `${displayName} has invited you to join their plan as a family member.`;
+  const ctaTitle = isPartner ? 'Activate Your Partner Access' : 'Accept Family Invite';
+  const successMessage = isPartner
+    ? 'Your complimentary member access is now active. Redirecting to your dashboard…'
+    : 'Your account is now linked to the plan. Redirecting to your dashboard…';
+
   return (
     <PageShell>
       {(claimState === 'loading' || invite === undefined) ? (
@@ -93,7 +117,7 @@ function ClaimInviteContent() {
         <div style={{ textAlign: 'center' }}>
           <CheckCircle size={48} color="#16a34a" style={{ marginBottom: '1rem' }} />
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>You&apos;re In!</h1>
-          <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>Your account is now linked to the plan. Redirecting to your dashboard…</p>
+          <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>{successMessage}</p>
         </div>
       ) : claimState === 'invalid-token' ? (
         <div style={{ textAlign: 'center' }}>
@@ -113,11 +137,9 @@ function ClaimInviteContent() {
         <div style={{ textAlign: 'center' }}>
           <HeartPulse size={40} color="#0066CC" style={{ marginBottom: '1rem' }} />
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>
-            Accept Family Invite
+            {ctaTitle}
           </h1>
-          <p style={{ color: '#64748b', marginBottom: '0.5rem' }}>
-            <strong>{invite?.primaryMemberName}</strong> has invited you to join their plan as a family member.
-          </p>
+          <p style={{ color: '#64748b', marginBottom: '0.5rem' }}>{inviteDescription}</p>
           {claimState === 'claiming' ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: '#64748b', margin: '1.5rem 0' }}>
               <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
@@ -132,7 +154,9 @@ function ClaimInviteContent() {
             </button>
           )}
           <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '1.25rem', marginBottom: 0 }}>
-            By accepting, you&apos;ll gain access to the plan benefits as a dependent member. This won&apos;t create a separate billing account.
+            {isPartner
+              ? 'This will activate your complimentary membership to the Ideal Oral Health platform.'
+              : "By accepting, you'll gain access to the plan benefits as a dependent member. This won't create a separate billing account."}
           </p>
         </div>
       )}

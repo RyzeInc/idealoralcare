@@ -1,22 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation } from 'convex/react';
+import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '@/convex/_generated/api';
-import { Plus, Pencil, Trash2, Loader2, Mail, Phone, ChevronRight, Building2, Lock } from 'lucide-react';
-import { UserSelector } from './UserSelector';
+import { Plus, Pencil, Trash2, Loader2, Mail, Phone, ChevronRight, Building2, Send, CheckCircle2, Clock } from 'lucide-react';
 import styles from './DistributionAdmin.module.css';
 
 type PartnerType = 'program_manager' | 'fmo' | 'agency';
 type PartnerStatus = 'active' | 'inactive' | 'suspended';
-
-interface ClerkUser {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  name: string;
-}
 
 // Local interface — matches the distributionPartners schema.
 // Doc<'distributionPartners'> will be available after running npx convex dev.
@@ -30,6 +21,7 @@ interface DistributionPartner {
   contactEmail: string;
   contactPhone?: string;
   clerkUserId?: string;
+  inviteStatus?: 'pending' | 'claimed';
   overrideRate?: number;
   status: PartnerStatus;
   notes?: string;
@@ -54,7 +46,6 @@ const EMPTY_FORM = {
   contactName: '',
   contactEmail: '',
   contactPhone: '',
-  clerkUserId: '',
   overrideRate: '',
   parentId: '',
   status: 'active' as PartnerStatus,
@@ -66,34 +57,40 @@ export function DistributionAdmin() {
   const [activeTab, setActiveTab] = useState<'program_managers' | 'fmos'>('program_managers');
   const [showForm, setShowForm] = useState(false);
   const [editingPartner, setEditingPartner] = useState<DistributionPartner | null>(null);
-  const [useExistingUser, setUseExistingUser] = useState(true);
-  const [selectedClerkUser, setSelectedClerkUser] = useState<ClerkUser | null>(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
+  const [invitingId, setInvitingId] = useState<string | null>(null);
+  const [inviteResult, setInviteResult] = useState<Record<string, 'sent' | 'error'>>({});
 
-  const allPartners = useQuery(api.admin.distributionPartners.getAll) as DistributionPartner[] | undefined;
+  const allPartners = useQuery(api.admin.distributionPartners.getAllWithStats) as (DistributionPartner & { completedEnrollments: number; activeMemberCount: number; repCodeCount: number; totalUsage: number })[] | undefined;
   const programManagers = (allPartners ?? []).filter((p) => p.type === 'program_manager');
   const fmosAndAgencies = (allPartners ?? []).filter((p) => p.type === 'fmo' || p.type === 'agency');
 
   const addPartner = useMutation(api.admin.distributionPartners.add);
   const updatePartner = useMutation(api.admin.distributionPartners.update);
   const removePartner = useMutation(api.admin.distributionPartners.remove);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sendInviteAction = useAction((api as any).admin.distributionPartners.sendInvite);
 
   const resetForm = () => {
     setFormData(EMPTY_FORM);
-    setSelectedClerkUser(null);
     setEditingPartner(null);
     setShowForm(false);
-    setUseExistingUser(true);
   };
 
-  const handleSelectClerkUser = (user: ClerkUser) => {
-    setSelectedClerkUser(user);
-    setFormData((prev) => ({
-      ...prev,
-      contactName: prev.contactName || user.name,
-      contactEmail: prev.contactEmail || user.email,
-      clerkUserId: user.id,
-    }));
+  const handleSendInvite = async (partner: DistributionPartner) => {
+    if (!confirm(`Send an invite email to ${partner.contactName} at ${partner.contactEmail}?`)) return;
+    setInvitingId(partner._id);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await sendInviteAction({ partnerId: partner._id as any });
+      setInviteResult((prev) => ({ ...prev, [partner._id]: result.success ? 'sent' : 'error' }));
+      if (!result.success) alert(`Failed to send invite: ${result.error}`);
+    } catch {
+      setInviteResult((prev) => ({ ...prev, [partner._id]: 'error' }));
+      alert('Error sending invite. Please try again.');
+    } finally {
+      setInvitingId(null);
+    }
   };
 
   const handleEditPartner = (partner: DistributionPartner) => {
@@ -103,14 +100,12 @@ export function DistributionAdmin() {
       contactName: partner.contactName,
       contactEmail: partner.contactEmail,
       contactPhone: partner.contactPhone ?? '',
-      clerkUserId: partner.clerkUserId ?? '',
       overrideRate: partner.overrideRate?.toString() ?? '',
       parentId: partner.parentId ?? '',
       status: partner.status,
       notes: partner.notes ?? '',
       subType: partner.type === 'agency' ? 'agency' : 'fmo',
     });
-    setUseExistingUser(false);
     setShowForm(true);
   };
 
@@ -133,7 +128,6 @@ export function DistributionAdmin() {
           contactName: formData.contactName,
           contactEmail: formData.contactEmail,
           contactPhone: formData.contactPhone || undefined,
-          clerkUserId: formData.clerkUserId || undefined,
           overrideRate: formData.overrideRate ? parseFloat(formData.overrideRate) : undefined,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           parentId: formData.parentId ? (formData.parentId as any) : undefined,
@@ -147,7 +141,6 @@ export function DistributionAdmin() {
           contactName: formData.contactName,
           contactEmail: formData.contactEmail,
           contactPhone: formData.contactPhone || undefined,
-          clerkUserId: formData.clerkUserId || undefined,
           overrideRate: formData.overrideRate ? parseFloat(formData.overrideRate) : undefined,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           parentId: formData.parentId ? (formData.parentId as any) : undefined,
@@ -291,49 +284,6 @@ export function DistributionAdmin() {
             {/* ── Primary Contact ── */}
             <div className={styles.sectionTitle}>Primary Contact</div>
 
-            {!editingPartner && (
-              <div className={styles.modeToggle}>
-                <label className={styles.modeLabel}>How would you like to set the contact?</label>
-                <div className={styles.radioGroup}>
-                  <label className={styles.radioLabel}>
-                    <input
-                      type="radio"
-                      checked={useExistingUser}
-                      onChange={() => {
-                        setUseExistingUser(true);
-                        setSelectedClerkUser(null);
-                        setFormData((prev) => ({ ...prev, contactName: '', contactEmail: '', clerkUserId: '' }));
-                      }}
-                    />
-                    <span>Select from Existing Users (grants portal access automatically)</span>
-                  </label>
-                  <label className={styles.radioLabel}>
-                    <input
-                      type="radio"
-                      checked={!useExistingUser}
-                      onChange={() => {
-                        setUseExistingUser(false);
-                        setSelectedClerkUser(null);
-                        setFormData((prev) => ({ ...prev, contactName: '', contactEmail: '', clerkUserId: '' }));
-                      }}
-                    />
-                    <span>Manual Entry</span>
-                  </label>
-                </div>
-              </div>
-            )}
-
-            {!editingPartner && useExistingUser && (
-              <div className={styles.formGroup}>
-                <UserSelector
-                  onSelectUser={handleSelectClerkUser}
-                  selectedUserId={formData.clerkUserId}
-                  label="Select Existing User"
-                  placeholder="Search by name or email..."
-                />
-              </div>
-            )}
-
             <div className={styles.formRow}>
               <div className={styles.formGroup}>
                 <label>Contact Name *</label>
@@ -343,7 +293,6 @@ export function DistributionAdmin() {
                   onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
                   placeholder="Jane Smith"
                   required
-                  disabled={selectedClerkUser !== null}
                 />
               </div>
               <div className={styles.formGroup}>
@@ -354,7 +303,6 @@ export function DistributionAdmin() {
                   onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
                   placeholder="jane@agency.com"
                   required
-                  disabled={selectedClerkUser !== null}
                 />
               </div>
             </div>
@@ -382,23 +330,6 @@ export function DistributionAdmin() {
                 />
               </div>
             </div>
-
-            {/* Clerk User ID shown for manual entry or when editing */}
-            {(!useExistingUser || editingPartner) && (
-              <div className={styles.formGroup}>
-                <label>Clerk User ID — Portal Access (Optional)</label>
-                <input
-                  type="text"
-                  value={formData.clerkUserId}
-                  onChange={(e) => setFormData({ ...formData, clerkUserId: e.target.value })}
-                  placeholder="user_xxxxxxxxxxxxx"
-                />
-                <p className={styles.hint}>
-                  <Lock size={12} />
-                  Setting this will add this contact as an Admin Portal user with restricted (editor) access.
-                </p>
-              </div>
-            )}
 
             <div className={styles.formRow}>
               <div className={styles.formGroup}>
@@ -494,12 +425,24 @@ export function DistributionAdmin() {
                     <strong>{partner.overrideRate}%</strong>
                   </div>
                 )}
-                {partner.clerkUserId && (
-                  <div className={styles.infoRow}>
-                    <Lock size={13} />
-                    <span style={{ fontSize: 12, color: '#64748b' }}>Portal access granted</span>
-                  </div>
-                )}
+                <div className={styles.infoRow}>
+                  <span className={styles.infoLabel}>Enrollments:</span>
+                  <strong>{(partner as any).completedEnrollments ?? 0}</strong>
+                  <span className={styles.infoLabel} style={{ marginLeft: 8 }}>Members:</span>
+                  <strong>{(partner as any).activeMemberCount ?? 0}</strong>
+                  <span className={styles.infoLabel} style={{ marginLeft: 8 }}>Rep Codes:</span>
+                  <strong>{(partner as any).repCodeCount ?? 0}</strong>
+                </div>
+                {/* Invite status */}
+                <div className={styles.infoRow} style={{ marginTop: 4 }}>
+                  {partner.inviteStatus === 'claimed' || partner.clerkUserId ? (
+                    <><CheckCircle2 size={13} style={{ color: '#16a34a' }} /><span style={{ fontSize: 12, color: '#16a34a' }}>Access active</span></>
+                  ) : partner.inviteStatus === 'pending' ? (
+                    <><Clock size={13} style={{ color: '#d97706' }} /><span style={{ fontSize: 12, color: '#d97706' }}>Invite sent — awaiting signup</span></>
+                  ) : (
+                    <><Send size={13} style={{ color: '#94a3b8' }} /><span style={{ fontSize: 12, color: '#94a3b8' }}>No invite sent yet</span></>
+                  )}
+                </div>
               </div>
 
               <div className={styles.partnerFooter}>
@@ -510,6 +453,23 @@ export function DistributionAdmin() {
                   <span className={styles.parentLabel}>
                     ↳ {programManagers.find((pm) => pm._id === partner.parentId)?.name ?? 'Parent PM'}
                   </span>
+                )}
+                {/* Send / Resend invite button */}
+                {partner.inviteStatus !== 'claimed' && !partner.clerkUserId && (
+                  <button
+                    onClick={() => handleSendInvite(partner)}
+                    disabled={invitingId === partner._id}
+                    className={styles.editButton}
+                    title="Send invite email"
+                    style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}
+                  >
+                    {invitingId === partner._id ? (
+                      <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
+                    ) : (
+                      <Send size={13} />
+                    )}
+                    {inviteResult[partner._id] === 'sent' ? 'Resend Invite' : partner.inviteStatus === 'pending' ? 'Resend Invite' : 'Send Invite'}
+                  </button>
                 )}
               </div>
             </div>

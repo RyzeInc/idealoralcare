@@ -125,74 +125,129 @@ function SitesList({ sites }: { sites: any[] }) {
 function AccountsList({ accounts, sites }: { accounts: any[]; sites: any[] }) {
   const removeAccount = useMutation(api.admin.hierarchy.removeAccount);
   const siteMap = Object.fromEntries(sites.map(s => [s._id, s.name]));
+  const [editingAccount, setEditingAccount] = useState<any | null>(null);
+  const [search, setSearch] = useState('');
+
+  const filtered = accounts.filter((a: any) =>
+    !search || (a.slug || '').toLowerCase().includes(search.toLowerCase()) ||
+    (a.name || '').toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
-    <table className="w-full">
-      <thead className="bg-slate-50 border-b border-slate-200">
-        <tr>
-          <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Slug</th>
-          <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Site</th>
-          <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Type</th>
-          <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Billing</th>
-          <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Status</th>
-          <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">Actions</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-slate-200">
-        {accounts.length === 0 ? (
-          <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-500">No accounts yet. Create one to get started.</td></tr>
-        ) : (
-          accounts.map((acct: any) => (
-            <tr key={acct._id} className="hover:bg-slate-50">
-              <td className="px-6 py-4 font-mono text-sm font-medium">{acct.slug}</td>
-              <td className="px-6 py-4 text-slate-600">{siteMap[acct.siteId] || '—'}</td>
-              <td className="px-6 py-4 text-slate-600">{acct.accountType}</td>
-              <td className="px-6 py-4 text-slate-600">{acct.billingModel}</td>
-              <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-xs font-semibold ${acct.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{acct.status}</span></td>
-              <td className="px-6 py-4 text-right">
-                <button onClick={() => { if (confirm(`Delete account "${acct.slug}"?`)) removeAccount({ accountId: acct._id }); }} className="p-1 hover:bg-red-100 rounded text-red-600"><Trash2 size={16} /></button>
-              </td>
-            </tr>
-          ))
-        )}
-      </tbody>
-    </table>
+    <>
+      <div className="px-4 py-3 border-b border-slate-200">
+        <input
+          type="text"
+          placeholder="Search accounts…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full max-w-xs px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+      <table className="w-full">
+        <thead className="bg-slate-50 border-b border-slate-200">
+          <tr>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Name / Slug</th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Site</th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Type</th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Billing</th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Status</th>
+            <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">Actions</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-200">
+          {filtered.length === 0 ? (
+            <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-500">No accounts yet. Create one to get started.</td></tr>
+          ) : (
+            filtered.map((acct: any) => (
+              <tr key={acct._id} className="hover:bg-slate-50">
+                <td className="px-6 py-4">
+                  <div className="font-medium text-slate-900">{acct.name || acct.slug}</div>
+                  {acct.name && <div className="text-xs font-mono text-slate-400">{acct.slug}</div>}
+                </td>
+                <td className="px-6 py-4 text-slate-600">{siteMap[acct.siteId] || '—'}</td>
+                <td className="px-6 py-4 text-slate-600">{acct.accountType}</td>
+                <td className="px-6 py-4 text-slate-600">{acct.billingModel}</td>
+                <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-xs font-semibold ${acct.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{acct.status}</span></td>
+                <td className="px-6 py-4 text-right">
+                  <div className="flex gap-1 justify-end">
+                    <button onClick={() => setEditingAccount(acct)} className="p-1 hover:bg-slate-200 rounded" title="Edit"><Edit size={16} /></button>
+                    <button onClick={() => { if (confirm(`Delete account "${acct.slug}"?`)) removeAccount({ accountId: acct._id }); }} className="p-1 hover:bg-red-100 rounded text-red-600"><Trash2 size={16} /></button>
+                  </div>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+      {editingAccount && <EditAccountModal account={editingAccount} onClose={() => setEditingAccount(null)} />}
+    </>
   );
 }
 
 function GroupsList({ groups, accounts, sites }: { groups: any[]; accounts: any[]; sites: any[] }) {
   const removeGroup = useMutation(api.admin.hierarchy.removeGroup);
   const acctMap = Object.fromEntries(accounts.map(a => [a._id, a.slug]));
+  const memberCounts = useQuery(api.admin.members.getMemberCountsByGroup) || {};
+  const [editingGroup, setEditingGroup] = useState<any | null>(null);
+  const [search, setSearch] = useState('');
+
+  const filtered = groups.filter((g: any) =>
+    !search || (g.name || g.slug || '').toLowerCase().includes(search.toLowerCase()) ||
+    (g.groupCode || '').toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
-    <table className="w-full">
-      <thead className="bg-slate-50 border-b border-slate-200">
-        <tr>
-          <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Name</th>
-          <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Group Code</th>
-          <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Account</th>
-          <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Status</th>
-          <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">Actions</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-slate-200">
-        {groups.length === 0 ? (
-          <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-500">No groups yet. Create one to start enrolling members.</td></tr>
-        ) : (
-          groups.map((grp: any) => (
-            <tr key={grp._id} className="hover:bg-slate-50">
-              <td className="px-6 py-4 font-medium text-slate-900">{grp.name || grp.slug}</td>
-              <td className="px-6 py-4 font-mono text-sm">{grp.groupCode}</td>
-              <td className="px-6 py-4 text-slate-600">{acctMap[grp.accountId] || '—'}</td>
-              <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-xs font-semibold ${grp.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{grp.status}</span></td>
-              <td className="px-6 py-4 text-right">
-                <button onClick={() => { if (confirm(`Delete group "${grp.groupCode}"?`)) removeGroup({ groupId: grp._id }); }} className="p-1 hover:bg-red-100 rounded text-red-600"><Trash2 size={16} /></button>
-              </td>
-            </tr>
-          ))
-        )}
-      </tbody>
-    </table>
+    <>
+      <div className="px-4 py-3 border-b border-slate-200">
+        <input
+          type="text"
+          placeholder="Search groups…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full max-w-xs px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+      <table className="w-full">
+        <thead className="bg-slate-50 border-b border-slate-200">
+          <tr>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Name</th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Group Code</th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Account</th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Members</th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Status</th>
+            <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">Actions</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-200">
+          {filtered.length === 0 ? (
+            <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-500">No groups yet. Create one to start enrolling members.</td></tr>
+          ) : (
+            filtered.map((grp: any) => {
+              const counts = (memberCounts as any)[grp._id] || { total: 0, active: 0 };
+              return (
+                <tr key={grp._id} className="hover:bg-slate-50">
+                  <td className="px-6 py-4 font-medium text-slate-900">{grp.name || grp.slug}</td>
+                  <td className="px-6 py-4 font-mono text-sm">{grp.groupCode}</td>
+                  <td className="px-6 py-4 text-slate-600">{acctMap[grp.accountId] || '—'}</td>
+                  <td className="px-6 py-4 text-sm text-slate-600">
+                    <span className="font-medium text-slate-900">{counts.total}</span> · <span className="text-green-700">{counts.active} active</span>
+                  </td>
+                  <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-xs font-semibold ${grp.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{grp.status}</span></td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex gap-1 justify-end">
+                      <button onClick={() => setEditingGroup(grp)} className="p-1 hover:bg-slate-200 rounded" title="Edit"><Edit size={16} /></button>
+                      <button onClick={() => { if (confirm(`Delete group "${grp.groupCode}"?`)) removeGroup({ groupId: grp._id }); }} className="p-1 hover:bg-red-100 rounded text-red-600"><Trash2 size={16} /></button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </table>
+      {editingGroup && <EditGroupModal group={editingGroup} accounts={accounts} onClose={() => setEditingGroup(null)} />}
+    </>
   );
 }
 
@@ -335,7 +390,7 @@ function CreateAccountModal({ sites, onClose }: { sites: any[]; onClose: () => v
 
 function CreateGroupModal({ sites, accounts, onClose }: { sites: any[]; accounts: any[]; onClose: () => void }) {
   const createGroup = useMutation(api.admin.hierarchy.createGroup);
-  const [form, setForm] = useState({ siteId: sites[0]?._id || '', accountId: accounts[0]?._id || '', slug: '', groupCode: '', name: '' });
+  const [form, setForm] = useState({ siteId: sites[0]?._id || '', accountId: accounts[0]?._id || '', slug: '', groupCode: '', name: '', description: '', maxMembers: '', effectiveDate: '', terminationDate: '', brokerId: '', brokerTrackingCode: '' });
   const [saving, setSaving] = useState(false);
 
   const filteredAccounts = accounts.filter((a: any) => !form.siteId || a.siteId === form.siteId);
@@ -350,6 +405,13 @@ function CreateGroupModal({ sites, accounts, onClose }: { sites: any[]; accounts
         accountId: form.accountId as Id<'accounts'>,
         slug: form.slug,
         groupCode: form.groupCode,
+        name: form.name || undefined,
+        description: form.description || undefined,
+        maxMembers: form.maxMembers ? Number(form.maxMembers) : undefined,
+        effectiveDate: form.effectiveDate ? new Date(form.effectiveDate).getTime() : undefined,
+        terminationDate: form.terminationDate ? new Date(form.terminationDate).getTime() : undefined,
+        brokerId: form.brokerId || undefined,
+        brokerTrackingCode: form.brokerTrackingCode || undefined,
       });
       onClose();
     } catch (err) {
@@ -361,7 +423,7 @@ function CreateGroupModal({ sites, accounts, onClose }: { sites: any[]; accounts
 
   return (
     <ModalWrapper title="Create Group" onClose={onClose}>
-      <form onSubmit={handleSave} className="space-y-4">
+      <form onSubmit={handleSave} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Site</label>
           <select value={form.siteId} onChange={e => setForm({ ...form, siteId: e.target.value, accountId: '' })} className="w-full px-3 py-2 border border-slate-300 rounded-lg">
@@ -376,11 +438,184 @@ function CreateGroupModal({ sites, accounts, onClose }: { sites: any[]; accounts
           </select>
         </div>
         <Field label="Name" value={form.name} onChange={v => setForm({ ...form, name: v })} placeholder="e.g. ACME Default Group" />
+        <Field label="Description" value={form.description} onChange={v => setForm({ ...form, description: v })} />
         <Field label="Slug" value={form.slug} onChange={v => setForm({ ...form, slug: v })} required placeholder="e.g. acme-default" />
         <Field label="Group Code" value={form.groupCode} onChange={v => setForm({ ...form, groupCode: v })} required placeholder="e.g. ACME-2026" />
+        <Field label="Max Members" value={form.maxMembers} onChange={v => setForm({ ...form, maxMembers: v })} placeholder="Leave blank for unlimited" />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Effective Date</label>
+            <input type="date" value={form.effectiveDate} onChange={e => setForm({ ...form, effectiveDate: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Termination Date</label>
+            <input type="date" value={form.terminationDate} onChange={e => setForm({ ...form, terminationDate: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
+          </div>
+        </div>
+        <Field label="Broker ID" value={form.brokerId} onChange={v => setForm({ ...form, brokerId: v })} placeholder="Clerk user ID" />
+        <Field label="Broker Tracking Code" value={form.brokerTrackingCode} onChange={v => setForm({ ...form, brokerTrackingCode: v })} />
         <div className="flex gap-2 pt-2">
           <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50">Cancel</button>
           <button type="submit" disabled={saving || !form.accountId} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">Create</button>
+        </div>
+      </form>
+    </ModalWrapper>
+  );
+}
+
+function EditAccountModal({ account, onClose }: { account: any; onClose: () => void }) {
+  const updateAccount = useMutation(api.admin.hierarchy.updateAccount);
+  const [form, setForm] = useState({
+    name: account.name || '',
+    slug: account.slug || '',
+    billingModel: account.billingModel || 'per_member',
+    perMemberRateCents: String(account.billingDetails?.perMemberRateCents ?? ''),
+    flatRateCents: String(account.billingDetails?.flatRateCents ?? ''),
+    subsidyPercentage: String(account.billingDetails?.subsidyPercentage ?? ''),
+    contractStartDate: account.contractStartDate ? new Date(account.contractStartDate).toISOString().slice(0, 10) : '',
+    contractEndDate: account.contractEndDate ? new Date(account.contractEndDate).toISOString().slice(0, 10) : '',
+    status: account.status || 'active',
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await updateAccount({
+        accountId: account._id,
+        name: form.name || undefined,
+        slug: form.slug || undefined,
+        billingModel: form.billingModel,
+        billingDetails: {
+          perMemberRateCents: form.perMemberRateCents ? Number(form.perMemberRateCents) : undefined,
+          flatRateCents: form.flatRateCents ? Number(form.flatRateCents) : undefined,
+          subsidyPercentage: form.subsidyPercentage ? Number(form.subsidyPercentage) : undefined,
+        },
+        contractStartDate: form.contractStartDate ? new Date(form.contractStartDate).getTime() : undefined,
+        contractEndDate: form.contractEndDate ? new Date(form.contractEndDate).getTime() : undefined,
+        status: form.status,
+      });
+      onClose();
+    } catch (err) {
+      alert(`Error: ${err instanceof Error ? err.message : 'Failed'}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ModalWrapper title={`Edit Account: ${account.slug}`} onClose={onClose}>
+      <form onSubmit={handleSave} className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+        <Field label="Name" value={form.name} onChange={(v) => setForm((f) => ({ ...f, name: v }))} placeholder="Display name" />
+        <Field label="Slug" value={form.slug} onChange={(v) => setForm((f) => ({ ...f, slug: v }))} />
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Billing Model</label>
+          <select value={form.billingModel} onChange={(e) => setForm((f) => ({ ...f, billingModel: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg">
+            {['per_member', 'flat_rate', 'direct', 'subsidized', 'tiered'].map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Per Member Rate (¢)" value={form.perMemberRateCents} onChange={(v) => setForm((f) => ({ ...f, perMemberRateCents: v }))} placeholder="e.g. 1500" />
+          <Field label="Flat Rate (¢)" value={form.flatRateCents} onChange={(v) => setForm((f) => ({ ...f, flatRateCents: v }))} placeholder="e.g. 50000" />
+        </div>
+        <Field label="Subsidy %" value={form.subsidyPercentage} onChange={(v) => setForm((f) => ({ ...f, subsidyPercentage: v }))} placeholder="0–100" />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Contract Start</label>
+            <input type="date" value={form.contractStartDate} onChange={(e) => setForm((f) => ({ ...f, contractStartDate: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Contract End</label>
+            <input type="date" value={form.contractEndDate} onChange={(e) => setForm((f) => ({ ...f, contractEndDate: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
+          <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg">
+            <option value="active">Active</option>
+            <option value="suspended">Suspended</option>
+            <option value="terminated">Terminated</option>
+          </select>
+        </div>
+        <div className="flex gap-2 pt-2">
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50">Cancel</button>
+          <button type="submit" disabled={saving} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">Save</button>
+        </div>
+      </form>
+    </ModalWrapper>
+  );
+}
+
+function EditGroupModal({ group, accounts, onClose }: { group: any; accounts: any[]; onClose: () => void }) {
+  const updateGroup = useMutation(api.admin.hierarchy.updateGroup);
+  const [form, setForm] = useState({
+    name: group.name || '',
+    description: group.description || '',
+    groupCode: group.groupCode || '',
+    maxMembers: String(group.maxMembers ?? ''),
+    effectiveDate: group.effectiveDate ? new Date(group.effectiveDate).toISOString().slice(0, 10) : '',
+    terminationDate: group.terminationDate ? new Date(group.terminationDate).toISOString().slice(0, 10) : '',
+    brokerId: group.brokerId || '',
+    brokerTrackingCode: group.brokerTrackingCode || '',
+    status: group.status || 'active',
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await updateGroup({
+        groupId: group._id,
+        name: form.name || undefined,
+        description: form.description || undefined,
+        groupCode: form.groupCode || undefined,
+        maxMembers: form.maxMembers ? Number(form.maxMembers) : undefined,
+        effectiveDate: form.effectiveDate ? new Date(form.effectiveDate).getTime() : undefined,
+        terminationDate: form.terminationDate ? new Date(form.terminationDate).getTime() : undefined,
+        brokerId: form.brokerId || undefined,
+        brokerTrackingCode: form.brokerTrackingCode || undefined,
+        status: form.status || undefined,
+      });
+      onClose();
+    } catch (err) {
+      alert(`Error: ${err instanceof Error ? err.message : 'Failed'}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ModalWrapper title={`Edit Group: ${group.groupCode}`} onClose={onClose}>
+      <form onSubmit={handleSave} className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+        <Field label="Name" value={form.name} onChange={(v) => setForm((f) => ({ ...f, name: v }))} />
+        <Field label="Description" value={form.description} onChange={(v) => setForm((f) => ({ ...f, description: v }))} />
+        <Field label="Group Code" value={form.groupCode} onChange={(v) => setForm((f) => ({ ...f, groupCode: v }))} />
+        <Field label="Max Members" value={form.maxMembers} onChange={(v) => setForm((f) => ({ ...f, maxMembers: v }))} placeholder="Leave blank for unlimited" />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Effective Date</label>
+            <input type="date" value={form.effectiveDate} onChange={(e) => setForm((f) => ({ ...f, effectiveDate: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Termination Date</label>
+            <input type="date" value={form.terminationDate} onChange={(e) => setForm((f) => ({ ...f, terminationDate: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
+          </div>
+        </div>
+        <Field label="Broker ID" value={form.brokerId} onChange={(v) => setForm((f) => ({ ...f, brokerId: v }))} placeholder="Clerk user ID" />
+        <Field label="Broker Tracking Code" value={form.brokerTrackingCode} onChange={(v) => setForm((f) => ({ ...f, brokerTrackingCode: v }))} />
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
+          <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg">
+            <option value="active">Active</option>
+            <option value="suspended">Suspended</option>
+            <option value="terminated">Terminated</option>
+          </select>
+        </div>
+        <div className="flex gap-2 pt-2">
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50">Cancel</button>
+          <button type="submit" disabled={saving} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">Save</button>
         </div>
       </form>
     </ModalWrapper>

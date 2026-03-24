@@ -3,7 +3,7 @@ import { v } from "convex/values";
 import { requireAdmin, requireAuth } from "../lib/authGuards";
 import { autoGrantFreeAccess } from "./grantFreeAccess";
 
-// Check if user is admin
+// Check if user is admin (adminUsers table OR active distribution partner)
 export const isAdmin = query({
   args: { clerkUserId: v.string() },
   handler: async (ctx, args) => {
@@ -11,7 +11,14 @@ export const isAdmin = query({
       .query("adminUsers")
       .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", args.clerkUserId))
       .first();
-    return !!admin;
+    if (admin) return true;
+
+    // Program Managers, FMOs, and Agencies with a clerkUserId get portal access
+    const partner = await ctx.db
+      .query("distributionPartners")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", args.clerkUserId))
+      .first();
+    return !!partner && partner.status === "active";
   },
 });
 

@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Doc } from '@/convex/_generated/dataModel';
-import { Plus, Loader2, Check, XCircle, RefreshCw, Tag, Trash2 } from 'lucide-react';
+import { Plus, Loader2, Check, XCircle, RefreshCw, Tag, Trash2, ChevronDown, ChevronRight, Users } from 'lucide-react';
 import { UserSelector } from './UserSelector';
 import styles from './RepCodesAdmin.module.css';
 
@@ -15,6 +15,8 @@ interface ClerkUser {
   lastName: string;
   name: string;
 }
+
+type RepCodeWithRate = Doc<'brokerTrackingCodes'> & { commissionRate: number | null };
 
 // Local interface for distributionPartners (not yet in generated types until npx convex dev runs)
 interface DistributionPartner {
@@ -30,9 +32,67 @@ function generateCode(): string {
   return `REP-${rand}`;
 }
 
+function EnrollmentDrillDown({ code }: { code: string }) {
+  const enrollments = useQuery(api.admin.repCodes.getEnrollmentsByCode, { code });
+
+  if (enrollments === undefined) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', color: '#64748b' }}>
+        <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+        Loading enrollments…
+      </div>
+    );
+  }
+  if (enrollments.length === 0) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', color: '#94a3b8' }}>
+        <Users size={14} />
+        No enrollments recorded for this code.
+      </div>
+    );
+  }
+  return (
+    <div style={{ padding: '8px 16px 12px 32px' }}>
+      <p style={{ fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 8 }}>
+        Enrollments ({enrollments.length})
+      </p>
+      <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+        <thead>
+          <tr style={{ color: '#94a3b8', textAlign: 'left' }}>
+            <th style={{ padding: '4px 8px', fontWeight: 500 }}>Member</th>
+            <th style={{ padding: '4px 8px', fontWeight: 500 }}>Email</th>
+            <th style={{ padding: '4px 8px', fontWeight: 500 }}>Status</th>
+            <th style={{ padding: '4px 8px', fontWeight: 500 }}>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {enrollments.map((e) => (
+            <tr key={e._id}>
+              <td style={{ padding: '4px 8px' }}>{e.memberName ?? '—'}</td>
+              <td style={{ padding: '4px 8px', color: '#64748b' }}>{e.memberEmail ?? '—'}</td>
+              <td style={{ padding: '4px 8px' }}>
+                <span style={{
+                  display: 'inline-block',
+                  padding: '2px 6px',
+                  borderRadius: 4,
+                  fontSize: 11,
+                  background: e.status === 'completed' ? '#dcfce7' : '#fef9c3',
+                  color: e.status === 'completed' ? '#166534' : '#854d0e',
+                }}>{e.status}</span>
+              </td>
+              <td style={{ padding: '4px 8px', color: '#64748b' }}>{new Date(e._creationTime).toLocaleDateString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function RepCodesAdmin() {
   const [showForm, setShowForm] = useState(false);
   const [useExistingUser, setUseExistingUser] = useState(true);
+  const [expandedCode, setExpandedCode] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     brokerId: '',
     agencyId: '',
@@ -40,7 +100,7 @@ export function RepCodesAdmin() {
     notes: '',
   });
 
-  const allCodes = useQuery(api.admin.repCodes.getAll) as Doc<'brokerTrackingCodes'>[] | undefined;
+  const allCodes = useQuery(api.admin.repCodes.getAllWithRates) as RepCodeWithRate[] | undefined;
   const allPartners = useQuery(api.admin.distributionPartners.getAll) as DistributionPartner[] | undefined;
   const agencies = (allPartners ?? []).filter((p) => p.type === 'fmo' || p.type === 'agency');
 
@@ -300,67 +360,94 @@ export function RepCodesAdmin() {
           <table className={styles.table}>
             <thead>
               <tr>
+                <th style={{ width: 32 }}></th>
                 <th>Code</th>
                 <th>Agent (Clerk ID)</th>
                 <th>Agency / FMO</th>
                 <th>Uses</th>
+                <th>Commission</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {allCodes.map((code) => (
-                <tr key={code._id}>
-                  <td>
-                    <span className={styles.codeTag}>{code.code}</span>
-                  </td>
-                  <td className={styles.clerkIdCell} title={code.brokerId}>
-                    {code.brokerId.length > 22
-                      ? `${code.brokerId.slice(0, 22)}…`
-                      : code.brokerId}
-                  </td>
-                  <td>
-                    {getAgencyName(code.agencyId) ?? (
-                      <span style={{ color: '#94a3b8' }}>—</span>
-                    )}
-                  </td>
-                  <td className={styles.usageCell}>{code.usageCount}</td>
-                  <td>
-                    <span
-                      className={`${styles.statusBadge} ${styles[`status_${code.status}` as keyof typeof styles]}`}
-                    >
-                      {code.status}
-                    </span>
-                  </td>
-                  <td>
-                    <div className={styles.rowActions}>
-                      {code.status === 'active' ? (
-                        <button
-                          onClick={() => handleRevoke(code)}
-                          className={styles.revokeButton}
-                          title="Revoke code"
-                        >
-                          <XCircle size={15} />
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleReactivate(code)}
-                          className={styles.reactivateButton}
-                          title="Reactivate code"
-                        >
-                          <Check size={15} />
-                        </button>
-                      )}
+                <Fragment key={code._id}>
+                  <tr>
+                    <td>
                       <button
-                        onClick={() => handleDelete(code)}
-                        className={styles.deleteButton}
-                        title="Delete permanently"
+                        onClick={() => setExpandedCode(expandedCode === code.code ? null : code.code)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: 2, display: 'flex' }}
+                        title={expandedCode === code.code ? 'Hide enrollments' : 'View enrollments'}
                       >
-                        <Trash2 size={15} />
+                        {expandedCode === code.code ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
                       </button>
-                    </div>
-                  </td>
-                </tr>
+                    </td>
+                    <td>
+                      <span className={styles.codeTag}>{code.code}</span>
+                    </td>
+                    <td className={styles.clerkIdCell} title={code.brokerId}>
+                      {code.brokerId.length > 22
+                        ? `${code.brokerId.slice(0, 22)}…`
+                        : code.brokerId}
+                    </td>
+                    <td>
+                      {getAgencyName(code.agencyId) ?? (
+                        <span style={{ color: '#94a3b8' }}>—</span>
+                      )}
+                    </td>
+                    <td className={styles.usageCell}>{code.usageCount}</td>
+                    <td>
+                      {code.commissionRate != null ? (
+                        <span style={{ fontWeight: 600, color: '#059669' }}>{code.commissionRate}%</span>
+                      ) : (
+                        <span style={{ color: '#94a3b8' }}>—</span>
+                      )}
+                    </td>
+                    <td>
+                      <span
+                        className={`${styles.statusBadge} ${styles[`status_${code.status}` as keyof typeof styles]}`}
+                      >
+                        {code.status}
+                      </span>
+                    </td>
+                    <td>
+                      <div className={styles.rowActions}>
+                        {code.status === 'active' ? (
+                          <button
+                            onClick={() => handleRevoke(code)}
+                            className={styles.revokeButton}
+                            title="Revoke code"
+                          >
+                            <XCircle size={15} />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleReactivate(code)}
+                            className={styles.reactivateButton}
+                            title="Reactivate code"
+                          >
+                            <Check size={15} />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDelete(code)}
+                          className={styles.deleteButton}
+                          title="Delete permanently"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {expandedCode === code.code && (
+                    <tr>
+                      <td colSpan={8} style={{ background: '#f8fafc', padding: 0, borderBottom: '2px solid #e2e8f0' }}>
+                        <EnrollmentDrillDown code={code.code} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>

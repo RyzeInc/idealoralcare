@@ -5,11 +5,13 @@ import { useQuery, useAction } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { FunctionReference } from 'convex/server';
-import { Download, BarChart3, AlertCircle } from 'lucide-react';
+import { Download, BarChart3, AlertCircle, CheckCircle, WifiOff, History } from 'lucide-react';
 
 export default function VendorFilesPage() {
   const [generatingVendor, setGeneratingVendor] = useState<string | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState('');
+  const [fileType, setFileType] = useState<'full' | 'delta'>('full');
+  const [showHistory, setShowHistory] = useState<string | null>(null);
 
   const vendorConfigs = useQuery(api.admin.vendorFiles.getVendorConfigurations) || [];
   const groups = useQuery(api.admin.hierarchy.getAllGroups) || [];
@@ -38,7 +40,7 @@ export default function VendorFilesPage() {
       const groupId = selectedGroupId as Id<'groups'>;
       let result: any;
       if (vendorName === 'Dental Discount Network') {
-        result = await generateDDN({ groupId, fileType: 'full' });
+        result = await generateDDN({ groupId, fileType });
       } else {
         result = await generateDialCare({ groupId });
       }
@@ -59,51 +61,94 @@ export default function VendorFilesPage() {
         <p className="text-slate-600">Generate and download eligibility files for vendors</p>
       </div>
 
-      {/* Group Selector */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <label className="block text-sm font-semibold text-slate-900 mb-2">Select Group</label>
-        <select
-          value={selectedGroupId}
-          onChange={e => setSelectedGroupId(e.target.value)}
-          className="w-full max-w-xs px-4 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">Select Group...</option>
-          {groups.map((g: any) => (
-            <option key={g._id} value={g._id}>{g.groupCode} — {g.name || g.slug}</option>
-          ))}
-        </select>
+      {/* Group Selector + File Type Toggle */}
+      <div className="bg-white rounded-lg shadow p-6 flex flex-wrap gap-6 items-end">
+        <div>
+          <label className="block text-sm font-semibold text-slate-900 mb-2">Select Group</label>
+          <select
+            value={selectedGroupId}
+            onChange={e => setSelectedGroupId(e.target.value)}
+            className="w-64 px-3 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 text-sm"
+          >
+            <option value="">Select Group...</option>
+            {groups.map((g: any) => (
+              <option key={g._id} value={g._id}>{g.groupCode} — {g.name || g.slug}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-slate-900 mb-2">File Type</label>
+          <div className="flex rounded-lg border border-slate-300 overflow-hidden">
+            <button
+              onClick={() => setFileType('full')}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${fileType === 'full' ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
+            >
+              Full
+            </button>
+            <button
+              onClick={() => setFileType('delta')}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${fileType === 'delta' ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
+            >
+              Delta
+            </button>
+          </div>
+          <p className="text-xs text-slate-500 mt-1">{fileType === 'full' ? 'All active members' : 'Changes since last export'}</p>
+        </div>
       </div>
 
       {/* Vendor Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {vendorConfigs.map((vendor: any) => (
           <div key={vendor.vendor} className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-start justify-between mb-4">
+            <div className="flex items-start justify-between mb-3">
               <h3 className="text-lg font-semibold text-slate-900">{vendor.vendor}</h3>
-              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${vendor.status === 'ready' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                {vendor.status}
-              </span>
-            </div>
-            <div className="space-y-2 text-sm mb-6">
-              <div className="flex justify-between">
-                <span className="text-slate-600">Last Generated:</span>
-                <span className="font-medium">{vendor.lastGenerated ? new Date(vendor.lastGenerated).toLocaleString() : '—'}</span>
+              <div className="flex items-center gap-2">
+                {vendor.status === 'ready'
+                  ? <CheckCircle size={16} className="text-green-500" />
+                  : <WifiOff size={16} className="text-red-400" />}
+                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${vendor.status === 'ready' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                  {vendor.status}
+                </span>
               </div>
             </div>
-            <button
-              onClick={() => handleGenerate(vendor.vendor)}
-              disabled={generatingVendor === vendor.vendor || !selectedGroupId}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {generatingVendor === vendor.vendor ? (
-                'Generating...'
-              ) : (
-                <>
-                  <Download size={16} />
-                  Generate & Download
-                </>
+            <div className="space-y-1.5 text-sm mb-4">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Last Generated:</span>
+                <span className="font-medium">{vendor.lastGenerated ? new Date(vendor.lastGenerated).toLocaleString() : '—'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Format:</span>
+                <span className="font-medium font-mono text-xs">{vendor.format || 'CSV'}</span>
+              </div>
+              {vendor.sftpEnabled && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">SFTP:</span>
+                  <span className="font-medium text-green-600 text-xs">Configured</span>
+                </div>
               )}
-            </button>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleGenerate(vendor.vendor)}
+                disabled={generatingVendor === vendor.vendor || !selectedGroupId}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              >
+                {generatingVendor === vendor.vendor ? 'Generating...' : (<><Download size={14} /> Generate & Download</>)}
+              </button>
+              <button
+                onClick={() => setShowHistory(showHistory === vendor.vendor ? null : vendor.vendor)}
+                className="p-2 border border-slate-300 rounded hover:bg-slate-50 text-slate-600"
+                title="View history"
+              >
+                <History size={16} />
+              </button>
+            </div>
+            {showHistory === vendor.vendor && (
+              <div className="mt-3 pt-3 border-t border-slate-100">
+                <p className="text-xs font-semibold text-slate-700 mb-2">Delivery History</p>
+                <p className="text-xs text-slate-400 italic">No SFTP delivery records yet. Generate and download the file to deliver manually.</p>
+              </div>
+            )}
           </div>
         ))}
       </div>

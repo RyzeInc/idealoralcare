@@ -18,13 +18,33 @@ const getApi = () => {
 
 /**
  * Get billing summaries for all groups
+ * Cross-references subscriptionBundles to distinguish paid vs free members
  */
 export const getAllGroupBillingSummaries = query({
   handler: async (ctx) => {
     const groups = await ctx.db.query("groups").collect();
+    const allBundles = await ctx.db.query("subscriptionBundles").collect();
+
+    // Build a set of customerIds with paid active subscriptions (totalCents > 0)
+    const paidCustomerIds = new Set<string>();
+    for (const bundle of allBundles) {
+      if (
+        bundle.status === "active" &&
+        bundle.pricingSnapshot?.totalCents > 0
+      ) {
+        paidCustomerIds.add(bundle.customerId);
+      }
+    }
+
     const summaries = [];
+    const DEFAULT_RATE = 15.0;
 
     for (const group of groups) {
+      // Look up billing rate: account.billingDetails.perMemberRateCents, else default
+      const account = await ctx.db.get(group.accountId);
+      const rateFromAccount = (account as any)?.billingDetails?.perMemberRateCents;
+      const PAID_RATE = rateFromAccount ? rateFromAccount / 100 : DEFAULT_RATE;
+
       const members = await ctx.db
         .query("memberProfiles")
         .filter(
@@ -36,20 +56,89 @@ export const getAllGroupBillingSummaries = query({
         )
         .collect();
 
-      const memberPrice = 15.0;
-      const totalAmount = members.length * memberPrice;
+      let paidCount = 0;
+      let freeCount = 0;
+
+      for (const member of members) {
+        if (member.customerId && paidCustomerIds.has(member.customerId)) {
+          paidCount++;
+        } else {
+          freeCount++;
+        }
+      }
+
+      const totalAmount = paidCount * PAID_RATE;
 
       summaries.push({
         groupId: group._id,
-        groupName: group.slug,
+        accountId: group.accountId,
+        groupName: (group as any).name ?? group.slug,
         groupCode: group.groupCode,
         memberCount: members.length,
-        ratePerMember: memberPrice,
+        paidCount,
+        freeCount,
+        ratePerMember: PAID_RATE,
         totalAmount,
       });
     }
 
     return summaries;
+  },
+});
+
+/**
+ * Get members for a specific group with their billing status (paid/free)
+ */
+export const getGroupMembersWithBillingStatus = query({
+  args: { groupId: v.id("groups") },
+  handler: async (ctx, args) => {
+    const members = await ctx.db
+      .query("memberProfiles")
+      .filter(
+        (q) =>
+          q.and(
+            q.eq(q.field("groupId"), args.groupId),
+            q.eq(q.field("memberType"), "active")
+          )
+      )
+      .collect();
+
+    const result = [];
+    for (const member of members) {
+      let billingType: "paid" | "free" = "free";
+      let bundleInfo: any = null;
+
+      if (member.customerId) {
+        const bundle = (await ctx.db.query("subscriptionBundles").collect()).find(
+          (b) =>
+            b.customerId === member.customerId &&
+            b.status === "active"
+        );
+        if (bundle && bundle.pricingSnapshot?.totalCents > 0) {
+          billingType = "paid";
+          bundleInfo = {
+            cadence: bundle.cadence,
+            totalCents: bundle.pricingSnapshot.totalCents,
+            currentPeriodEnd: bundle.currentPeriodEnd,
+            stripeSubscriptionId: bundle.stripeSubscriptionId,
+          };
+        }
+      }
+
+      result.push({
+        _id: member._id,
+        firstName: member.firstName,
+        lastName: member.lastName,
+        email: member.email,
+        memberId: member.memberId,
+        memberType: member.memberType,
+        enrolledAt: member.enrolledAt,
+        billingType,
+        bundleInfo,
+      });
+    }
+
+    return result;
   },
 });
 

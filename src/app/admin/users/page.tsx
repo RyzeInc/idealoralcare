@@ -37,7 +37,17 @@ export default function UsersAdmin() {
   const [submitting, setSubmitting] = useState(false);
 
   // Add form state
-  const [form, setForm] = useState({ clerkUserId: '', email: '', name: '', role: 'editor' as Role });
+  const [form, setForm] = useState({ clerkUserId: '', email: '', name: '', role: 'editor' as Role, departments: [] as string[] });
+
+  const DEPT_OPTIONS = [
+    { value: 'admin', label: 'Admin' },
+    { value: 'program_manager', label: 'Program Manager' },
+    { value: 'fmo', label: 'FMO' },
+    { value: 'broker', label: 'Broker' },
+    { value: 'sales', label: 'Sales' },
+    { value: 'hr', label: 'HR' },
+    { value: 'executive', label: 'Executive' },
+  ];
 
   // Bootstrap form state
   const [bootstrapForm, setBootstrapForm] = useState({ clerkUserId: '', email: '', name: '' });
@@ -81,9 +91,9 @@ export default function UsersAdmin() {
         email: form.email.trim(),
         name: form.name.trim(),
         role: form.role,
-        departments: ["admin"],
+        departments: form.departments.length > 0 ? form.departments as any[] : ["admin"],
       });
-      setForm({ clerkUserId: '', email: '', name: '', role: 'editor' });
+      setForm({ clerkUserId: '', email: '', name: '', role: 'editor', departments: [] });
       setShowAddForm(false);
       notify('success', `${form.name} added as ${form.role}`);
     } catch (err: any) {
@@ -343,6 +353,29 @@ export default function UsersAdmin() {
                   <option value="editor">Editor — Operational access</option>
                   <option value="owner">Owner — Full access</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Departments</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {DEPT_OPTIONS.map((dept) => (
+                    <label key={dept.value} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={form.departments.includes(dept.value)}
+                        onChange={(e) => {
+                          setForm((f) => ({
+                            ...f,
+                            departments: e.target.checked
+                              ? [...f.departments, dept.value]
+                              : f.departments.filter((d) => d !== dept.value),
+                          }));
+                        }}
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-slate-700">{dept.label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
               <div className="flex gap-3 pt-2">
                 <button

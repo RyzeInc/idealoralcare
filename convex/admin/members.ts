@@ -569,3 +569,153 @@ export const removeMember = mutation({
     return { success: true };
   },
 });
+
+/**
+ * Update member profile fields (admin action)
+ */
+export const updateMemberProfile = mutation({
+  args: {
+    memberId: v.id("memberProfiles"),
+    firstName: v.optional(v.string()),
+    lastName: v.optional(v.string()),
+    email: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    dateOfBirth: v.optional(v.string()),
+    groupMemberId: v.optional(v.string()),
+    address: v.optional(v.any()),
+    communicationPrefs: v.optional(v.any()),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const member = await ctx.db.get(args.memberId);
+    if (!member) throw new Error("Member not found");
+
+    const { memberId: _id, ...rest } = args;
+    const updates: Record<string, unknown> = { updatedAt: Date.now() };
+    for (const [k, val] of Object.entries(rest)) {
+      if (val !== undefined) updates[k] = val;
+    }
+
+    await ctx.db.patch(args.memberId, updates);
+
+    await ctx.db.insert("memberActivities", {
+      memberProfileId: args.memberId,
+      siteId: member.siteId,
+      groupId: member.groupId,
+      activityType: "profile_updated",
+      title: "Profile updated by admin",
+      actorType: "admin",
+      createdAt: Date.now(),
+    });
+
+    return await ctx.db.get(args.memberId);
+  },
+});
+
+/**
+ * Create a new member profile via admin panel (admin-assisted enrollment)
+ */
+export const createAdminMember = mutation({
+  args: {
+    groupId: v.id("groups"),
+    firstName: v.string(),
+    lastName: v.string(),
+    email: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    dateOfBirth: v.optional(v.string()),
+    memberType: v.optional(v.union(
+      v.literal("lead"), v.literal("eligible"), v.literal("active")
+    )),
+    groupMemberId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const group = await ctx.db.get(args.groupId);
+    if (!group) throw new Error("Group not found");
+
+    const allMembers = await ctx.db.query("memberProfiles").collect();
+    const seq = String(allMembers.length + 1).padStart(5, "0");
+    const memberId = `MBR-${new Date().getFullYear()}-${seq}`;
+    const barcode = memberId.replace(/-/g, "");
+
+    const id = await ctx.db.insert("memberProfiles", {
+      memberId,
+      barcode,
+      siteId: group.siteId,
+      accountId: group.accountId,
+      groupId: args.groupId,
+      firstName: args.firstName,
+      lastName: args.lastName,
+      email: args.email,
+      phone: args.phone,
+      dateOfBirth: args.dateOfBirth,
+      groupMemberId: args.groupMemberId,
+      memberType: args.memberType ?? "eligible",
+      memberRole: "primary",
+      status: "active",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    } as any);
+
+    await ctx.db.insert("memberActivities", {
+      memberProfileId: id,
+      siteId: group.siteId,
+      groupId: args.groupId,
+      activityType: "lead_created",
+      title: "Member created by admin",
+      actorType: "admin",
+      createdAt: Date.now(),
+    });
+
+    return await ctx.db.get(id);
+  },
+});
+
+/**
+ * Get member count breakdown by group (for hierarchy dashboard)
+ */
+export const getMemberCountsByGroup = query({
+  args: { groupIds: v.optional(v.array(v.id("groups"))) },
+  handler: async (ctx, args) => {
+    const allMembers = await ctx.db.query("memberProfiles").collect();
+    const counts: Record<string, { total: number; active: number; enrolling: number }> = {};
+    for (const m of allMembers) {
+      const gid = m.groupId.toString();
+      if (!counts[gid]) counts[gid] = { total: 0, active: 0, enrolling: 0 };
+      counts[gid].total++;
+      if (m.memberType === "active") counts[gid].active++;
+      if (m.memberType === "enrolling") counts[gid].enrolling++;
+    }
+    return counts;
+  },
+});
+
+/**
+ * Alert-feed data for dashboard (unread contacts, stuck members, failed files)
+ */
+export const getAdminAlerts = query({
+  handler: async (ctx) => {
+    const [contacts, inquiries, failedFiles, stuckMembers] = await Promise.all([
+      ctx.db.query("contactSubmissions")
+        .withIndex("by_status", (q: any) => q.eq("status", "new")).collect(),
+      ctx.db.query("inquiries")
+        .withIndex("by_status", (q: any) => q.eq("status", "new")).collect(),
+      ctx.db.query("eligibilityFiles")
+        .withIndex("by_status", (q: any) => q.eq("status", "failed")).collect(),
+      ctx.db.query("memberProfiles").collect(),
+    ]);
+
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const stuck = stuckMembers.filter(
+      (m) => m.memberType === "enrolling" && (m.createdAt ?? 0) < sevenDaysAgo
+    );
+
+    return {
+      unreadContacts: contacts.length,
+      newInquiries: inquiries.length,
+      failedEligibilityFiles: failedFiles.length,
+      stuckEnrollments: stuck.length,
+      total: contacts.length + inquiries.length + failedFiles.length + stuck.length,
+    };
+  },
+});

@@ -148,8 +148,15 @@ export default defineSchema({
     contactName: v.string(),
     contactEmail: v.string(),
     contactPhone: v.optional(v.string()),
-    // If set, this contact has /admin portal access (adminUsers entry auto-created)
+    // Set after the contact claims their invite — grants /admin portal access for PMs/FMOs
     clerkUserId: v.optional(v.string()),
+    // Invitation flow
+    inviteToken: v.optional(v.string()),
+    inviteStatus: v.optional(v.union(
+      v.literal("pending"),
+      v.literal("claimed"),
+    )),
+    inviteExpiry: v.optional(v.number()),
     // Commission override rate (e.g. 5 for 5%)
     overrideRate: v.optional(v.number()),
     status: v.union(
@@ -165,6 +172,7 @@ export default defineSchema({
     .index("by_type", ["type"])
     .index("by_parent", ["parentId"])
     .index("by_clerk_id", ["clerkUserId"])
+    .index("by_invite_token", ["inviteToken"])
     .index("by_status", ["status"]),
 
   // ============================================

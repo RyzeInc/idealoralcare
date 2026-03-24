@@ -1,7 +1,7 @@
 'use client';
 
 import Link from "next/link";
-import { ArrowRight, Users, FileUp, BarChart3, AlertCircle, Gift, Activity, Clock } from "lucide-react";
+import { ArrowRight, Users, FileUp, BarChart3, AlertCircle, Gift, Activity, Clock, Mail, FileX, UserX, Bell } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useState } from "react";
@@ -11,10 +11,10 @@ export default function AdminDashboard() {
   const [isGranting, setIsGranting] = useState(false);
   const [grantStatus, setGrantStatus] = useState<null | { success: boolean; message: string }>(null);
 
-  // Real data from Convex
   const stats = useQuery(api.admin.members.getDashboardStats);
   const billingGroups = useQuery(api.admin.billing.getAllGroupBillingSummaries) || [];
   const recentActivity = useQuery(api.admin.members.getRecentActivity, { limit: 10 });
+  const alerts = useQuery(api.admin.members.getAdminAlerts);
 
   const totalBilling = billingGroups.reduce((sum: number, g: any) => sum + g.totalAmount, 0);
 
@@ -25,10 +25,7 @@ export default function AdminDashboard() {
       const result = await grantAccess({ durationDays: 365 });
       setGrantStatus({ success: true, message: result.message });
     } catch (error) {
-      setGrantStatus({
-        success: false,
-        message: `Error: ${error instanceof Error ? error.message : "Failed to grant access"}`,
-      });
+      setGrantStatus({ success: false, message: `Error: ${error instanceof Error ? error.message : "Failed"}` });
     } finally {
       setIsGranting(false);
     }
@@ -41,36 +38,38 @@ export default function AdminDashboard() {
         <p className="text-slate-500">Manage sites, accounts, groups, and member data</p>
       </div>
 
+      {/* Alert Feed */}
+      {alerts && alerts.total > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Bell size={18} className="text-amber-600" />
+            <h2 className="text-sm font-semibold text-amber-900">
+              {alerts.total} Action{alerts.total !== 1 ? "s" : ""} Required
+            </h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {alerts.unreadContacts > 0 && (
+              <AlertItem icon={<Mail size={16} className="text-amber-600" />} label="Unread Contacts" count={alerts.unreadContacts} href="/admin/settings?tab=contacts" />
+            )}
+            {alerts.newInquiries > 0 && (
+              <AlertItem icon={<Bell size={16} className="text-blue-600" />} label="New Inquiries" count={alerts.newInquiries} href="/admin/settings?tab=inquiries" />
+            )}
+            {alerts.failedEligibilityFiles > 0 && (
+              <AlertItem icon={<FileX size={16} className="text-red-600" />} label="Failed Files" count={alerts.failedEligibilityFiles} href="/admin/eligibility" />
+            )}
+            {alerts.stuckEnrollments > 0 && (
+              <AlertItem icon={<UserX size={16} className="text-orange-600" />} label="Stuck Enrollments" count={alerts.stuckEnrollments} href="/admin/members" />
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        <StatCard
-          title="Active Members"
-          value={stats?.activeMembers?.toString() ?? "—"}
-          icon={<Users size={22} className="text-blue-600" />}
-          href="/admin/members"
-          color="blue"
-        />
-        <StatCard
-          title="Pending Enrollments"
-          value={stats?.pendingEnrollments?.toString() ?? "—"}
-          icon={<AlertCircle size={22} className="text-amber-600" />}
-          href="/admin/members"
-          color="amber"
-        />
-        <StatCard
-          title="Eligibility Files"
-          value={stats?.eligibilityFiles?.toString() ?? "—"}
-          icon={<FileUp size={22} className="text-emerald-600" />}
-          href="/admin/eligibility"
-          color="emerald"
-        />
-        <StatCard
-          title="Monthly Billing"
-          value={totalBilling > 0 ? `$${totalBilling.toFixed(2)}` : "—"}
-          icon={<BarChart3 size={22} className="text-violet-600" />}
-          href="/admin/billing"
-          color="violet"
-        />
+        <StatCard title="Active Members" value={stats?.activeMembers?.toString() ?? "—"} icon={<Users size={22} className="text-blue-600" />} href="/admin/members" color="blue" />
+        <StatCard title="Pending Enrollments" value={stats?.pendingEnrollments?.toString() ?? "—"} icon={<AlertCircle size={22} className="text-amber-600" />} href="/admin/members" color="amber" />
+        <StatCard title="Eligibility Files" value={stats?.eligibilityFiles?.toString() ?? "—"} icon={<FileUp size={22} className="text-emerald-600" />} href="/admin/eligibility" color="emerald" />
+        <StatCard title="Monthly Billing" value={totalBilling > 0 ? `$${totalBilling.toFixed(2)}` : "—"} icon={<BarChart3 size={22} className="text-violet-600" />} href="/admin/billing" color="violet" />
       </div>
 
       {/* Quick Actions */}
@@ -79,11 +78,7 @@ export default function AdminDashboard() {
           <h2 className="text-lg font-semibold text-slate-900">Quick Actions</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-slate-100">
-          <button
-            onClick={handleGrantAccess}
-            disabled={isGranting}
-            className="bg-white px-6 py-4 hover:bg-emerald-50 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          <button onClick={handleGrantAccess} disabled={isGranting} className="bg-white px-6 py-4 hover:bg-emerald-50 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed">
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium text-slate-900">Grant Free Access</p>
@@ -92,30 +87,12 @@ export default function AdminDashboard() {
               <Gift size={16} className="text-emerald-500 flex-shrink-0" />
             </div>
           </button>
-          <QuickAction
-            label="Create New Group"
-            description="Set up a new enrollment group"
-            href="/admin/hierarchy"
-          />
-          <QuickAction
-            label="Upload Eligibility File"
-            description="Batch import member records"
-            href="/admin/eligibility"
-          />
-          <QuickAction
-            label="View Billing Summary"
-            description="Monthly member counts & amounts"
-            href="/admin/billing"
-          />
+          <QuickAction label="Create New Group" description="Set up a new enrollment group" href="/admin/hierarchy" />
+          <QuickAction label="Upload Eligibility File" description="Batch import member records" href="/admin/eligibility" />
+          <QuickAction label="View Billing Summary" description="Monthly member counts & amounts" href="/admin/billing" />
         </div>
         {grantStatus && (
-          <div
-            className={`px-6 py-3 border-t border-slate-100 text-sm font-medium ${
-              grantStatus.success
-                ? "bg-emerald-50 text-emerald-700"
-                : "bg-red-50 text-red-700"
-            }`}
-          >
+          <div className={`px-6 py-3 border-t border-slate-100 text-sm font-medium ${grantStatus.success ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
             {grantStatus.message}
           </div>
         )}
@@ -127,21 +104,15 @@ export default function AdminDashboard() {
           <h2 className="text-lg font-semibold text-slate-900">Recent Activity</h2>
         </div>
         {!recentActivity || recentActivity.length === 0 ? (
-          <div className="px-6 py-10 text-center">
-            <p className="text-slate-400 text-sm">No activity recorded yet</p>
-          </div>
+          <div className="px-6 py-10 text-center"><p className="text-slate-400 text-sm">No activity recorded yet</p></div>
         ) : (
           <div className="divide-y divide-slate-100">
             {recentActivity.map((activity: any) => (
               <div key={activity._id} className="px-6 py-3 flex items-start gap-3">
-                <div className="mt-0.5">
-                  <Activity size={14} className="text-slate-400" />
-                </div>
+                <div className="mt-0.5"><Activity size={14} className="text-slate-400" /></div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-slate-900 truncate">{activity.title}</p>
-                  {activity.description && (
-                    <p className="text-xs text-slate-500 truncate">{activity.description}</p>
-                  )}
+                  {activity.description && <p className="text-xs text-slate-500 truncate">{activity.description}</p>}
                 </div>
                 <div className="text-xs text-slate-400 flex items-center gap-1 flex-shrink-0">
                   <Clock size={12} />
@@ -156,26 +127,24 @@ export default function AdminDashboard() {
   );
 }
 
-function StatCard({
-  title,
-  value,
-  icon,
-  href,
-  color,
-}: {
-  title: string;
-  value: string;
-  icon: React.ReactNode;
-  href: string;
-  color: string;
-}) {
+function AlertItem({ icon, label, count, href }: { icon: React.ReactNode; label: string; count: number; href: string }) {
+  return (
+    <Link href={href} className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 hover:bg-amber-100 transition-colors border border-amber-200">
+      {icon}
+      <div className="min-w-0">
+        <p className="text-xs text-slate-600 truncate">{label}</p>
+        <p className="text-sm font-bold text-slate-900">{count}</p>
+      </div>
+    </Link>
+  );
+}
+
+function StatCard({ title, value, icon, href, color: _ }: { title: string; value: string; icon: React.ReactNode; href: string; color: string }) {
   return (
     <Link href={href}>
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 hover:shadow-md hover:border-slate-300 transition-all cursor-pointer group">
         <div className="flex items-start justify-between mb-3">
-          <div className="p-2 rounded-lg bg-slate-50 group-hover:bg-slate-100 transition-colors">
-            {icon}
-          </div>
+          <div className="p-2 rounded-lg bg-slate-50 group-hover:bg-slate-100 transition-colors">{icon}</div>
         </div>
         <p className="text-sm text-slate-500 mb-1">{title}</p>
         <p className="text-2xl font-bold text-slate-900">{value}</p>
@@ -184,15 +153,7 @@ function StatCard({
   );
 }
 
-function QuickAction({
-  label,
-  description,
-  href,
-}: {
-  label: string;
-  description: string;
-  href: string;
-}) {
+function QuickAction({ label, description, href }: { label: string; description: string; href: string }) {
   return (
     <Link href={href}>
       <div className="bg-white px-6 py-4 hover:bg-slate-50 transition-colors cursor-pointer group">

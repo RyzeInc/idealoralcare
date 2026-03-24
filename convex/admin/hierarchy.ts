@@ -147,12 +147,16 @@ export const createAccount = mutation({
   args: {
     siteId: v.id("sites"),
     slug: v.string(),
+    name: v.optional(v.string()),
     accountType: v.union(v.literal("owner"), v.literal("employer"), v.literal("broker"), v.literal("franchisee"), v.literal("partner"), v.literal("individual")),
     billingModel: v.union(v.literal("per_member"), v.literal("flat_rate"), v.literal("direct"), v.literal("subsidized"), v.literal("tiered")),
+    billingDetails: v.optional(v.any()),
     customPricing: v.optional(v.array(v.any())),
     enrollmentOverrides: v.optional(v.any()),
     contacts: v.optional(v.array(v.any())),
     status: v.optional(v.union(v.literal("active"), v.literal("suspended"), v.literal("onboarding"), v.literal("terminated"))),
+    contractStartDate: v.optional(v.number()),
+    contractEndDate: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
@@ -177,12 +181,16 @@ export const createAccount = mutation({
     const accountId = await ctx.db.insert("accounts", {
       siteId: args.siteId,
       slug: args.slug,
+      name: args.name ?? args.slug,
       accountType: args.accountType,
       billingModel: args.billingModel,
+      billingDetails: args.billingDetails,
       customPricing: args.customPricing ?? [],
       enrollmentOverrides: args.enrollmentOverrides ?? {},
       contacts: args.contacts ?? [],
       status: args.status ?? "active",
+      contractStartDate: args.contractStartDate,
+      contractEndDate: args.contractEndDate,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     } as any);
@@ -195,29 +203,34 @@ export const updateAccount = mutation({
   args: {
     accountId: v.id("accounts"),
     slug: v.optional(v.string()),
+    name: v.optional(v.string()),
     accountType: v.optional(v.union(v.literal("owner"), v.literal("employer"), v.literal("broker"), v.literal("franchisee"), v.literal("partner"), v.literal("individual"))),
     billingModel: v.optional(v.string()),
+    billingDetails: v.optional(v.any()),
     customPricing: v.optional(v.array(v.any())),
     enrollmentOverrides: v.optional(v.any()),
     contacts: v.optional(v.array(v.any())),
     status: v.optional(v.string()),
+    contractStartDate: v.optional(v.number()),
+    contractEndDate: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
     const account = await ctx.db.get(args.accountId);
     if (!account) throw new Error("Account not found");
 
-    const updates: any = {
-      updatedAt: Date.now(),
-    };
-
+    const updates: any = { updatedAt: Date.now() };
     if (args.slug !== undefined) updates.slug = args.slug;
+    if (args.name !== undefined) updates.name = args.name;
     if (args.accountType !== undefined) updates.accountType = args.accountType;
     if (args.billingModel !== undefined) updates.billingModel = args.billingModel;
+    if (args.billingDetails !== undefined) updates.billingDetails = args.billingDetails;
     if (args.customPricing !== undefined) updates.customPricing = args.customPricing;
     if (args.enrollmentOverrides !== undefined) updates.enrollmentOverrides = args.enrollmentOverrides;
     if (args.contacts !== undefined) updates.contacts = args.contacts;
     if (args.status !== undefined) updates.status = args.status;
+    if (args.contractStartDate !== undefined) updates.contractStartDate = args.contractStartDate;
+    if (args.contractEndDate !== undefined) updates.contractEndDate = args.contractEndDate;
 
     await ctx.db.patch(args.accountId, updates);
     return await ctx.db.get(args.accountId);
@@ -282,11 +295,17 @@ export const createGroup = mutation({
     siteId: v.id("sites"),
     accountId: v.id("accounts"),
     slug: v.string(),
+    name: v.optional(v.string()),
+    description: v.optional(v.string()),
     groupCode: v.string(),
     allowedPlanIds: v.optional(v.array(v.id("catalogProducts"))),
     customPricing: v.optional(v.array(v.any())),
     enrollmentOverrides: v.optional(v.any()),
     maxMembers: v.optional(v.number()),
+    effectiveDate: v.optional(v.number()),
+    terminationDate: v.optional(v.number()),
+    brokerId: v.optional(v.string()),
+    brokerTrackingCode: v.optional(v.string()),
     status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -314,11 +333,17 @@ export const createGroup = mutation({
       siteId: args.siteId,
       accountId: args.accountId,
       slug: args.slug,
+      name: args.name ?? args.slug,
+      description: args.description,
       groupCode: args.groupCode,
       allowedPlanIds: args.allowedPlanIds ?? [],
       customPricing: args.customPricing ?? [],
       enrollmentOverrides: args.enrollmentOverrides ?? {},
       maxMembers: args.maxMembers,
+      effectiveDate: args.effectiveDate,
+      terminationDate: args.terminationDate,
+      brokerId: args.brokerId,
+      brokerTrackingCode: args.brokerTrackingCode,
       status: args.status ?? "active",
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -332,11 +357,17 @@ export const updateGroup = mutation({
   args: {
     groupId: v.id("groups"),
     slug: v.optional(v.string()),
+    name: v.optional(v.string()),
+    description: v.optional(v.string()),
     groupCode: v.optional(v.string()),
     allowedPlanIds: v.optional(v.array(v.id("catalogProducts"))),
     customPricing: v.optional(v.array(v.any())),
     enrollmentOverrides: v.optional(v.any()),
     maxMembers: v.optional(v.number()),
+    effectiveDate: v.optional(v.number()),
+    terminationDate: v.optional(v.number()),
+    brokerId: v.optional(v.string()),
+    brokerTrackingCode: v.optional(v.string()),
     status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -344,16 +375,19 @@ export const updateGroup = mutation({
     const group = await ctx.db.get(args.groupId);
     if (!group) throw new Error("Group not found");
 
-    const updates: any = {
-      updatedAt: Date.now(),
-    };
-
+    const updates: any = { updatedAt: Date.now() };
     if (args.slug !== undefined) updates.slug = args.slug;
+    if (args.name !== undefined) updates.name = args.name;
+    if (args.description !== undefined) updates.description = args.description;
     if (args.groupCode !== undefined) updates.groupCode = args.groupCode;
     if (args.allowedPlanIds !== undefined) updates.allowedPlanIds = args.allowedPlanIds;
     if (args.customPricing !== undefined) updates.customPricing = args.customPricing;
     if (args.enrollmentOverrides !== undefined) updates.enrollmentOverrides = args.enrollmentOverrides;
     if (args.maxMembers !== undefined) updates.maxMembers = args.maxMembers;
+    if (args.effectiveDate !== undefined) updates.effectiveDate = args.effectiveDate;
+    if (args.terminationDate !== undefined) updates.terminationDate = args.terminationDate;
+    if (args.brokerId !== undefined) updates.brokerId = args.brokerId;
+    if (args.brokerTrackingCode !== undefined) updates.brokerTrackingCode = args.brokerTrackingCode;
     if (args.status !== undefined) updates.status = args.status;
 
     await ctx.db.patch(args.groupId, updates);
