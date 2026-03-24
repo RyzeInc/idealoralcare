@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { action } from "../_generated/server";
 import { v } from "convex/values";
+import { getBaseUrl } from "../lib/env";
 
 /**
  * Email Fulfillment Actions
@@ -44,10 +45,7 @@ export const sendFulfillmentPacketEmail = action({
     appUrl: v.optional(v.string()),
   },
   handler: async (_ctx: any, args: any) => {
-    const baseUrl =
-      args.appUrl ??
-      process.env.NEXT_PUBLIC_APP_URL ??
-      "https://app.getidealoh.com";
+    const baseUrl = args.appUrl ?? getBaseUrl();
 
     // ── Step 1: generate the PDF ──────────────────────────────────────────────
     const pdfPayload = {
@@ -256,7 +254,7 @@ export const sendDependentInviteEmail = action({
     appUrl: v.optional(v.string()),
   },
   handler: async (ctx: any, args: any) => {
-    const baseUrl = args.appUrl ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getidealoh.com";
+    const baseUrl = args.appUrl ?? getBaseUrl();
     const claimUrl = `${baseUrl}/health/claim-invite?token=${args.inviteToken}`;
     try {
       const response = await fetch("https://api.resend.com/emails", {

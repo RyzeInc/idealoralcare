@@ -3,14 +3,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '@/convex/_generated/api';
-import { Plus, Pencil, Trash2, Loader2, Mail, Phone, ChevronRight, Building2, Send, CheckCircle2, Clock } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Mail, Phone, ChevronRight, Building2, Send, CheckCircle2, Clock, Users, X, UserPlus } from 'lucide-react';
 import styles from './DistributionAdmin.module.css';
 
 type PartnerType = 'program_manager' | 'fmo' | 'agency';
 type PartnerStatus = 'active' | 'inactive' | 'suspended';
 
-// Local interface — matches the distributionPartners schema.
-// Doc<'distributionPartners'> will be available after running npx convex dev.
 interface DistributionPartner {
   _id: string;
   _creationTime: number;
@@ -30,6 +28,19 @@ interface DistributionPartner {
   createdBy?: string;
 }
 
+interface PartnerLeader {
+  _id: string;
+  partnerId: string;
+  name: string;
+  email: string;
+  phone?: string;
+  title?: string;
+  isPrimary: boolean;
+  clerkUserId?: string;
+  inviteStatus?: 'pending' | 'claimed';
+  createdAt: number;
+}
+
 const TYPE_LABELS: Record<PartnerType, { label: string; badge: string }> = {
   program_manager: { label: 'Program Manager', badge: 'PM' },
   fmo: { label: 'FMO', badge: 'FMO' },
@@ -46,6 +57,7 @@ const EMPTY_FORM = {
   contactName: '',
   contactEmail: '',
   contactPhone: '',
+  contactTitle: '',
   overrideRate: '',
   parentId: '',
   status: 'active' as PartnerStatus,
@@ -53,23 +65,42 @@ const EMPTY_FORM = {
   subType: 'fmo' as 'fmo' | 'agency',
 };
 
+const EMPTY_LEADER_FORM = { name: '', email: '', phone: '', title: '' };
+
 export function DistributionAdmin() {
   const [activeTab, setActiveTab] = useState<'program_managers' | 'fmos'>('program_managers');
   const [showForm, setShowForm] = useState(false);
   const [editingPartner, setEditingPartner] = useState<DistributionPartner | null>(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
-  const [invitingId, setInvitingId] = useState<string | null>(null);
-  const [inviteResult, setInviteResult] = useState<Record<string, 'sent' | 'error'>>({});
 
-  const allPartners = useQuery(api.admin.distributionPartners.getAllWithStats) as (DistributionPartner & { completedEnrollments: number; activeMemberCount: number; repCodeCount: number; totalUsage: number })[] | undefined;
+  // Per-partner leaders panel
+  const [expandedLeaders, setExpandedLeaders] = useState<Set<string>>(new Set());
+  const [addingLeaderFor, setAddingLeaderFor] = useState<string | null>(null);
+  const [leaderForm, setLeaderForm] = useState(EMPTY_LEADER_FORM);
+  const [editingLeader, setEditingLeader] = useState<PartnerLeader | null>(null);
+
+  // Invite status tracking
+  const [invitingLeaderId, setInvitingLeaderId] = useState<string | null>(null);
+  const [leaderInviteResult, setLeaderInviteResult] = useState<Record<string, 'sent' | 'error'>>({});
+  const [addingPartner, setAddingPartner] = useState(false);
+
+  const allPartners = useQuery(api.admin.distributionPartners.getAllWithStats) as
+    | (DistributionPartner & { completedEnrollments: number; activeMemberCount: number; repCodeCount: number; totalUsage: number })[]
+    | undefined;
+
   const programManagers = (allPartners ?? []).filter((p) => p.type === 'program_manager');
   const fmosAndAgencies = (allPartners ?? []).filter((p) => p.type === 'fmo' || p.type === 'agency');
 
-  const addPartner = useMutation(api.admin.distributionPartners.add);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const addPartnerAction = useAction((api as any).admin.distributionPartners.add);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const addLeaderAction = useAction((api as any).admin.distributionPartners.addLeader);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sendLeaderInviteAction = useAction((api as any).admin.distributionPartners.sendLeaderInvite);
   const updatePartner = useMutation(api.admin.distributionPartners.update);
   const removePartner = useMutation(api.admin.distributionPartners.remove);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sendInviteAction = useAction((api as any).admin.distributionPartners.sendInvite);
+  const updateLeaderMutation = useMutation(api.admin.distributionPartners.updateLeader);
+  const removeLeaderMutation = useMutation(api.admin.distributionPartners.removeLeader);
 
   const resetForm = () => {
     setFormData(EMPTY_FORM);
@@ -77,19 +108,33 @@ export function DistributionAdmin() {
     setShowForm(false);
   };
 
-  const handleSendInvite = async (partner: DistributionPartner) => {
-    if (!confirm(`Send an invite email to ${partner.contactName} at ${partner.contactEmail}?`)) return;
-    setInvitingId(partner._id);
+  const resetLeaderForm = () => {
+    setLeaderForm(EMPTY_LEADER_FORM);
+    setEditingLeader(null);
+    setAddingLeaderFor(null);
+  };
+
+  const toggleLeadersPanel = (partnerId: string) => {
+    setExpandedLeaders((prev) => {
+      const next = new Set(prev);
+      if (next.has(partnerId)) next.delete(partnerId); else next.add(partnerId);
+      return next;
+    });
+  };
+
+  const handleSendLeaderInvite = async (leader: PartnerLeader) => {
+    if (!confirm(`Send an invite email to ${leader.name} at ${leader.email}?`)) return;
+    setInvitingLeaderId(leader._id);
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await sendInviteAction({ partnerId: partner._id as any });
-      setInviteResult((prev) => ({ ...prev, [partner._id]: result.success ? 'sent' : 'error' }));
+      const result = await sendLeaderInviteAction({ leaderId: leader._id as any });
+      setLeaderInviteResult((prev) => ({ ...prev, [leader._id]: result.success ? 'sent' : 'error' }));
       if (!result.success) alert(`Failed to send invite: ${result.error}`);
     } catch {
-      setInviteResult((prev) => ({ ...prev, [partner._id]: 'error' }));
+      setLeaderInviteResult((prev) => ({ ...prev, [leader._id]: 'error' }));
       alert('Error sending invite. Please try again.');
     } finally {
-      setInvitingId(null);
+      setInvitingLeaderId(null);
     }
   };
 
@@ -100,6 +145,7 @@ export function DistributionAdmin() {
       contactName: partner.contactName,
       contactEmail: partner.contactEmail,
       contactPhone: partner.contactPhone ?? '',
+      contactTitle: '',
       overrideRate: partner.overrideRate?.toString() ?? '',
       parentId: partner.parentId ?? '',
       status: partner.status,
@@ -134,23 +180,33 @@ export function DistributionAdmin() {
           status: formData.status,
           notes: formData.notes || undefined,
         });
+        resetForm();
       } else {
-        await addPartner({
+        setAddingPartner(true);
+        const result = await addPartnerAction({
           name: formData.name,
           type: partnerType,
           contactName: formData.contactName,
           contactEmail: formData.contactEmail,
           contactPhone: formData.contactPhone || undefined,
+          contactTitle: formData.contactTitle || undefined,
           overrideRate: formData.overrideRate ? parseFloat(formData.overrideRate) : undefined,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           parentId: formData.parentId ? (formData.parentId as any) : undefined,
           status: formData.status,
           notes: formData.notes || undefined,
         });
+        resetForm();
+        if (result.inviteSent) {
+          alert(`✓ ${formData.contactName} has been added and received their invite email.`);
+        } else {
+          alert(`Partner added, but invite email failed: ${result.inviteError ?? 'Unknown error'}. You can resend from the partner card.`);
+        }
       }
-      resetForm();
     } catch {
       alert('Error saving partner. Please try again.');
+    } finally {
+      setAddingPartner(false);
     }
   };
 
@@ -162,6 +218,66 @@ export function DistributionAdmin() {
     } catch {
       alert('Error deleting partner. Please try again.');
     }
+  };
+
+  const handleAddLeader = async (e: React.FormEvent, partnerId: string) => {
+    e.preventDefault();
+    if (!leaderForm.name || !leaderForm.email) {
+      alert('Name and email are required');
+      return;
+    }
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await addLeaderAction({
+        partnerId: partnerId as any,
+        name: leaderForm.name,
+        email: leaderForm.email,
+        phone: leaderForm.phone || undefined,
+        title: leaderForm.title || undefined,
+      });
+      resetLeaderForm();
+      if (result.inviteSent) {
+        alert(`✓ ${leaderForm.name} has been added and received their invite email.`);
+      } else {
+        alert(`Leader added, but invite email failed: ${result.inviteError ?? 'Unknown error'}. You can resend from the leaders panel.`);
+      }
+    } catch {
+      alert('Error adding leader. Please try again.');
+    }
+  };
+
+  const handleUpdateLeader = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingLeader) return;
+    try {
+      await updateLeaderMutation({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        leaderId: editingLeader._id as any,
+        name: leaderForm.name || undefined,
+        email: leaderForm.email || undefined,
+        phone: leaderForm.phone || undefined,
+        title: leaderForm.title || undefined,
+      });
+      resetLeaderForm();
+    } catch {
+      alert('Error updating leader. Please try again.');
+    }
+  };
+
+  const handleDeleteLeader = async (leader: PartnerLeader) => {
+    if (!confirm(`Remove ${leader.name} from this partner?`)) return;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await removeLeaderMutation({ leaderId: leader._id as any });
+    } catch {
+      alert('Error removing leader. Please try again.');
+    }
+  };
+
+  const startEditLeader = (leader: PartnerLeader) => {
+    setEditingLeader(leader);
+    setLeaderForm({ name: leader.name, email: leader.email, phone: leader.phone ?? '', title: leader.title ?? '' });
+    setAddingLeaderFor(leader.partnerId);
   };
 
   if (allPartners === undefined) {
@@ -231,7 +347,7 @@ export function DistributionAdmin() {
         ))}
       </div>
 
-      {/* Form */}
+      {/* Add / Edit Partner Form */}
       {showForm && (
         <div className={styles.formCard}>
           <h2>{editingPartner ? `Edit ${tabLabel}` : `Add New ${tabLabel}`}</h2>
@@ -281,12 +397,17 @@ export function DistributionAdmin() {
               </div>
             )}
 
-            {/* ── Primary Contact ── */}
-            <div className={styles.sectionTitle}>Primary Contact</div>
+            {/* ── Primary Leader ── */}
+            <div className={styles.sectionTitle}>
+              {editingPartner ? 'Primary Contact' : 'Primary Leader'}
+              {!editingPartner && (
+                <span className={styles.sectionNote}> — an invite will be sent automatically</span>
+              )}
+            </div>
 
             <div className={styles.formRow}>
               <div className={styles.formGroup}>
-                <label>Contact Name *</label>
+                <label>Full Name *</label>
                 <input
                   type="text"
                   value={formData.contactName}
@@ -296,7 +417,7 @@ export function DistributionAdmin() {
                 />
               </div>
               <div className={styles.formGroup}>
-                <label>Contact Email *</label>
+                <label>Email Address *</label>
                 <input
                   type="email"
                   value={formData.contactEmail}
@@ -309,7 +430,7 @@ export function DistributionAdmin() {
 
             <div className={styles.formRow}>
               <div className={styles.formGroup}>
-                <label>Contact Phone</label>
+                <label>Phone</label>
                 <input
                   type="tel"
                   value={formData.contactPhone}
@@ -317,6 +438,22 @@ export function DistributionAdmin() {
                   placeholder="(555) 123-4567"
                 />
               </div>
+              {!editingPartner && (
+                <div className={styles.formGroup}>
+                  <label>Title / Role</label>
+                  <input
+                    type="text"
+                    value={formData.contactTitle}
+                    onChange={(e) => setFormData({ ...formData, contactTitle: e.target.value })}
+                    placeholder="VP of Sales"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* ── Settings ── */}
+            <div className={styles.sectionTitle}>Settings</div>
+            <div className={styles.formRow}>
               <div className={styles.formGroup}>
                 <label>Override / Management Fee Rate (%)</label>
                 <input
@@ -329,9 +466,6 @@ export function DistributionAdmin() {
                   max="100"
                 />
               </div>
-            </div>
-
-            <div className={styles.formRow}>
               <div className={styles.formGroup}>
                 <label>Status</label>
                 <select
@@ -344,20 +478,21 @@ export function DistributionAdmin() {
                   <option value="suspended">Suspended</option>
                 </select>
               </div>
-              <div className={styles.formGroup}>
-                <label>Notes</label>
-                <input
-                  type="text"
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Optional notes"
-                />
-              </div>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>Notes</label>
+              <input
+                type="text"
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="Optional notes"
+              />
             </div>
 
             <div className={styles.formActions}>
-              <button type="submit" className={styles.submitButton}>
-                {editingPartner ? 'Update' : 'Add'} {tabLabel}
+              <button type="submit" className={styles.submitButton} disabled={addingPartner}>
+                {addingPartner ? <><Loader2 size={14} className={styles.spinner} /> Adding…</> : (editingPartner ? 'Update' : `Add ${tabLabel} & Send Invite`)}
               </button>
               <button type="button" onClick={resetForm} className={styles.cancelButton}>
                 Cancel
@@ -380,102 +515,248 @@ export function DistributionAdmin() {
       ) : (
         <div className={styles.partnerGrid}>
           {activePartners.map((partner) => (
-            <div key={partner._id} className={styles.partnerCard}>
-              <div className={styles.partnerHeader}>
-                <div>
-                  <div className={styles.partnerTypeBadge} data-type={partner.type}>
-                    {TYPE_LABELS[partner.type].badge}
-                  </div>
-                  <h3>{partner.name}</h3>
-                </div>
-                <div className={styles.partnerActions}>
-                  <button
-                    onClick={() => handleEditPartner(partner)}
-                    className={styles.editButton}
-                    title="Edit"
-                  >
-                    <Pencil size={15} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(partner)}
-                    className={styles.deleteButton}
-                    title="Delete"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-              </div>
-
-              <div className={styles.partnerInfo}>
-                <div className={styles.infoRow}>
-                  <Mail size={13} />
-                  <a href={`mailto:${partner.contactEmail}`}>
-                    {partner.contactName} — {partner.contactEmail}
-                  </a>
-                </div>
-                {partner.contactPhone && (
-                  <div className={styles.infoRow}>
-                    <Phone size={13} />
-                    <a href={`tel:${partner.contactPhone}`}>{partner.contactPhone}</a>
-                  </div>
-                )}
-                {partner.overrideRate !== undefined && (
-                  <div className={styles.infoRow}>
-                    <span className={styles.infoLabel}>Override Rate:</span>
-                    <strong>{partner.overrideRate}%</strong>
-                  </div>
-                )}
-                <div className={styles.infoRow}>
-                  <span className={styles.infoLabel}>Enrollments:</span>
-                  <strong>{(partner as any).completedEnrollments ?? 0}</strong>
-                  <span className={styles.infoLabel} style={{ marginLeft: 8 }}>Members:</span>
-                  <strong>{(partner as any).activeMemberCount ?? 0}</strong>
-                  <span className={styles.infoLabel} style={{ marginLeft: 8 }}>Rep Codes:</span>
-                  <strong>{(partner as any).repCodeCount ?? 0}</strong>
-                </div>
-                {/* Invite status */}
-                <div className={styles.infoRow} style={{ marginTop: 4 }}>
-                  {partner.inviteStatus === 'claimed' || partner.clerkUserId ? (
-                    <><CheckCircle2 size={13} style={{ color: '#16a34a' }} /><span style={{ fontSize: 12, color: '#16a34a' }}>Access active</span></>
-                  ) : partner.inviteStatus === 'pending' ? (
-                    <><Clock size={13} style={{ color: '#d97706' }} /><span style={{ fontSize: 12, color: '#d97706' }}>Invite sent — awaiting signup</span></>
-                  ) : (
-                    <><Send size={13} style={{ color: '#94a3b8' }} /><span style={{ fontSize: 12, color: '#94a3b8' }}>No invite sent yet</span></>
-                  )}
-                </div>
-              </div>
-
-              <div className={styles.partnerFooter}>
-                <span className={`${styles.statusBadge} ${styles[`status_${partner.status}` as keyof typeof styles]}`}>
-                  {partner.status}
-                </span>
-                {partner.parentId && (
-                  <span className={styles.parentLabel}>
-                    ↳ {programManagers.find((pm) => pm._id === partner.parentId)?.name ?? 'Parent PM'}
-                  </span>
-                )}
-                {/* Send / Resend invite button */}
-                {partner.inviteStatus !== 'claimed' && !partner.clerkUserId && (
-                  <button
-                    onClick={() => handleSendInvite(partner)}
-                    disabled={invitingId === partner._id}
-                    className={styles.editButton}
-                    title="Send invite email"
-                    style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}
-                  >
-                    {invitingId === partner._id ? (
-                      <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
-                    ) : (
-                      <Send size={13} />
-                    )}
-                    {inviteResult[partner._id] === 'sent' ? 'Resend Invite' : partner.inviteStatus === 'pending' ? 'Resend Invite' : 'Send Invite'}
-                  </button>
-                )}
-              </div>
-            </div>
+            <PartnerCard
+              key={partner._id}
+              partner={partner}
+              programManagers={programManagers}
+              expanded={expandedLeaders.has(partner._id)}
+              onToggleLeaders={() => toggleLeadersPanel(partner._id)}
+              onEdit={() => handleEditPartner(partner)}
+              onDelete={() => handleDelete(partner)}
+              addingLeaderFor={addingLeaderFor}
+              leaderForm={leaderForm}
+              editingLeader={editingLeader}
+              onLeaderFormChange={setLeaderForm}
+              onAddLeader={(e) => handleAddLeader(e, partner._id)}
+              onUpdateLeader={handleUpdateLeader}
+              onStartAddLeader={() => { setAddingLeaderFor(partner._id); setEditingLeader(null); setLeaderForm(EMPTY_LEADER_FORM); }}
+              onCancelLeaderForm={resetLeaderForm}
+              onSendLeaderInvite={handleSendLeaderInvite}
+              onDeleteLeader={handleDeleteLeader}
+              onEditLeader={startEditLeader}
+              invitingLeaderId={invitingLeaderId}
+              leaderInviteResult={leaderInviteResult}
+            />
           ))}
         </div>
       )}
     </div>
   );
 }
+
+// ── Sub-component: PartnerCard ────────────────────────────────────────────────
+
+interface PartnerCardProps {
+  partner: DistributionPartner & { completedEnrollments: number; activeMemberCount: number; repCodeCount: number };
+  programManagers: DistributionPartner[];
+  expanded: boolean;
+  onToggleLeaders: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  addingLeaderFor: string | null;
+  leaderForm: typeof EMPTY_LEADER_FORM;
+  editingLeader: PartnerLeader | null;
+  onLeaderFormChange: (f: typeof EMPTY_LEADER_FORM) => void;
+  onAddLeader: (e: React.FormEvent) => void;
+  onUpdateLeader: (e: React.FormEvent) => void;
+  onStartAddLeader: () => void;
+  onCancelLeaderForm: () => void;
+  onSendLeaderInvite: (leader: PartnerLeader) => void;
+  onDeleteLeader: (leader: PartnerLeader) => void;
+  onEditLeader: (leader: PartnerLeader) => void;
+  invitingLeaderId: string | null;
+  leaderInviteResult: Record<string, 'sent' | 'error'>;
+}
+
+function PartnerCard({
+  partner, programManagers, expanded, onToggleLeaders,
+  onEdit, onDelete,
+  addingLeaderFor, leaderForm, editingLeader,
+  onLeaderFormChange, onAddLeader, onUpdateLeader,
+  onStartAddLeader, onCancelLeaderForm,
+  onSendLeaderInvite, onDeleteLeader, onEditLeader,
+  invitingLeaderId, leaderInviteResult,
+}: PartnerCardProps) {
+  const leaders = useQuery(api.admin.distributionPartners.getLeadersByPartner, {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    partnerId: partner._id as any,
+  }) as PartnerLeader[] | undefined;
+
+  const isAddingForThis = addingLeaderFor === partner._id;
+  const isEditingForThis = editingLeader?.partnerId === partner._id;
+  const showForm = isAddingForThis || isEditingForThis;
+
+  return (
+    <div className={styles.partnerCard}>
+      <div className={styles.partnerHeader}>
+        <div>
+          <div className={styles.partnerTypeBadge} data-type={partner.type}>
+            {TYPE_LABELS[partner.type].badge}
+          </div>
+          <h3>{partner.name}</h3>
+        </div>
+        <div className={styles.partnerActions}>
+          <button onClick={onEdit} className={styles.editButton} title="Edit">
+            <Pencil size={15} />
+          </button>
+          <button onClick={onDelete} className={styles.deleteButton} title="Delete">
+            <Trash2 size={15} />
+          </button>
+        </div>
+      </div>
+
+      <div className={styles.partnerInfo}>
+        {partner.overrideRate !== undefined && (
+          <div className={styles.infoRow}>
+            <span className={styles.infoLabel}>Override Rate:</span>
+            <strong>{partner.overrideRate}%</strong>
+          </div>
+        )}
+        <div className={styles.infoRow}>
+          <span className={styles.infoLabel}>Enrollments:</span>
+          <strong>{partner.completedEnrollments ?? 0}</strong>
+          <span className={styles.infoLabel} style={{ marginLeft: 8 }}>Members:</span>
+          <strong>{partner.activeMemberCount ?? 0}</strong>
+        </div>
+      </div>
+
+      {/* Leaders panel toggle */}
+      <button className={styles.leadersToggle} onClick={onToggleLeaders}>
+        <Users size={14} />
+        <span>
+          {leaders === undefined ? 'Leaders' : `${leaders.length} Leader${leaders.length !== 1 ? 's' : ''}`}
+        </span>
+        <span className={`${styles.leadersChevron} ${expanded ? styles.leadersChevronOpen : ''}`}>›</span>
+      </button>
+
+      {/* Leaders list */}
+      {expanded && (
+        <div className={styles.leadersPanel}>
+          {leaders === undefined ? (
+            <div className={styles.leadersLoading}><Loader2 size={14} className={styles.spinner} /></div>
+          ) : leaders.length === 0 ? (
+            <p className={styles.leadersEmpty}>No leaders yet.</p>
+          ) : (
+            <ul className={styles.leadersList}>
+              {leaders.map((leader) => (
+                <li key={leader._id} className={styles.leaderRow}>
+                  <div className={styles.leaderInfo}>
+                    <span className={styles.leaderName}>
+                      {leader.name}
+                      {leader.isPrimary && <span className={styles.primaryBadge}>Primary</span>}
+                    </span>
+                    {leader.title && <span className={styles.leaderTitle}>{leader.title}</span>}
+                    <a href={`mailto:${leader.email}`} className={styles.leaderEmail}>
+                      <Mail size={11} />{leader.email}
+                    </a>
+                    {leader.phone && (
+                      <a href={`tel:${leader.phone}`} className={styles.leaderPhone}>
+                        <Phone size={11} />{leader.phone}
+                      </a>
+                    )}
+                  </div>
+                  <div className={styles.leaderStatus}>
+                    {leader.inviteStatus === 'claimed' || leader.clerkUserId ? (
+                      <span className={styles.statusClaimed}><CheckCircle2 size={12} />Active</span>
+                    ) : leader.inviteStatus === 'pending' ? (
+                      <span className={styles.statusPending}><Clock size={12} />Pending</span>
+                    ) : (
+                      <span className={styles.statusNone}><Send size={12} />No invite</span>
+                    )}
+                  </div>
+                  <div className={styles.leaderActions}>
+                    {leader.inviteStatus !== 'claimed' && !leader.clerkUserId && (
+                      <button
+                        className={styles.iconBtn}
+                        title={leader.inviteStatus === 'pending' ? 'Resend invite' : 'Send invite'}
+                        onClick={() => onSendLeaderInvite(leader)}
+                        disabled={invitingLeaderId === leader._id}
+                      >
+                        {invitingLeaderId === leader._id
+                          ? <Loader2 size={13} className={styles.spinner} />
+                          : <Send size={13} />}
+                      </button>
+                    )}
+                    <button className={styles.iconBtn} title="Edit leader" onClick={() => onEditLeader(leader)}>
+                      <Pencil size={13} />
+                    </button>
+                    <button className={`${styles.iconBtn} ${styles.iconBtnDanger}`} title="Remove leader" onClick={() => onDeleteLeader(leader)}>
+                      <X size={13} />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* Add / Edit leader form */}
+          {showForm ? (
+            <form
+              className={styles.leaderForm}
+              onSubmit={isEditingForThis ? onUpdateLeader : onAddLeader}
+            >
+              <div className={styles.leaderFormTitle}>
+                {isEditingForThis ? 'Edit Leader' : 'Add New Leader'}
+              </div>
+              <div className={styles.leaderFormRow}>
+                <input
+                  type="text"
+                  placeholder="Full Name *"
+                  value={leaderForm.name}
+                  onChange={(e) => onLeaderFormChange({ ...leaderForm, name: e.target.value })}
+                  required
+                />
+                <input
+                  type="email"
+                  placeholder="Email *"
+                  value={leaderForm.email}
+                  onChange={(e) => onLeaderFormChange({ ...leaderForm, email: e.target.value })}
+                  required
+                />
+              </div>
+              <div className={styles.leaderFormRow}>
+                <input
+                  type="tel"
+                  placeholder="Phone"
+                  value={leaderForm.phone}
+                  onChange={(e) => onLeaderFormChange({ ...leaderForm, phone: e.target.value })}
+                />
+                <input
+                  type="text"
+                  placeholder="Title / Role"
+                  value={leaderForm.title}
+                  onChange={(e) => onLeaderFormChange({ ...leaderForm, title: e.target.value })}
+                />
+              </div>
+              <div className={styles.leaderFormActions}>
+                <button type="submit" className={styles.leaderFormSubmit}>
+                  {isEditingForThis ? 'Save Changes' : <><UserPlus size={13} /> Add & Send Invite</>}
+                </button>
+                <button type="button" className={styles.leaderFormCancel} onClick={onCancelLeaderForm}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : (
+            <button className={styles.addLeaderBtn} onClick={onStartAddLeader}>
+              <UserPlus size={14} />
+              Add Leader
+            </button>
+          )}
+        </div>
+      )}
+
+      <div className={styles.partnerFooter}>
+        <span className={`${styles.statusBadge} ${styles[`status_${partner.status}` as keyof typeof styles]}`}>
+          {partner.status}
+        </span>
+        {partner.parentId && (
+          <span className={styles.parentLabel}>
+            ↳ {programManagers.find((pm) => pm._id === partner.parentId)?.name ?? 'Parent PM'}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+

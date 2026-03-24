@@ -175,6 +175,26 @@ export default defineSchema({
     .index("by_invite_token", ["inviteToken"])
     .index("by_status", ["status"]),
 
+  // Leaders / representatives for each distribution partner
+  // A Program Manager, FMO, or Agency can have multiple people representing them.
+  partnerLeaders: defineTable({
+    partnerId: v.id("distributionPartners"),
+    name: v.string(),
+    email: v.string(),
+    phone: v.optional(v.string()),
+    title: v.optional(v.string()),   // e.g. "VP of Sales", "Account Executive"
+    isPrimary: v.boolean(),
+    clerkUserId: v.optional(v.string()),
+    inviteToken: v.optional(v.string()),
+    inviteStatus: v.optional(v.union(v.literal("pending"), v.literal("claimed"))),
+    inviteExpiry: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_partner", ["partnerId"])
+    .index("by_invite_token", ["inviteToken"])
+    .index("by_clerk_id", ["clerkUserId"]),
+
   // ============================================
   // FORM SUBMISSIONS (existing)
   // ============================================

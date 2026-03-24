@@ -3,6 +3,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { ConvexHttpClient } from "convex/browser";
 import Stripe from "stripe";
 import { api } from "@/convex/_generated/api";
+import { getBaseUrl } from "@/lib/env";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error("STRIPE_SECRET_KEY environment variable is required");
@@ -185,8 +186,8 @@ export async function POST(req: NextRequest) {
         // Truncate to 500 chars if needed (Stripe metadata limit per value)
         dependents: dependentsMeta.slice(0, 500),
       },
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/health/dashboard?session_id={CHECKOUT_SESSION_ID}&status=success`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/health/plans`,
+      success_url: `${getBaseUrl()}/health/dashboard?session_id={CHECKOUT_SESSION_ID}&status=success`,
+      cancel_url: `${getBaseUrl()}/health/plans`,
       automatic_tax: { enabled: false },
     });
 

@@ -13,6 +13,7 @@
  */
 
 import { mutation, query, internalMutation, internalAction } from "../_generated/server";
+import { getBaseUrl } from "../lib/env";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { v } from "convex/values";
 import { requireAuth } from "../lib/authGuards";
@@ -50,8 +51,7 @@ export const sendDependentInviteEmail = internalAction({
     inviteToken: v.string(),
   },
   handler: async (_ctx, args) => {
-    const baseUrl =
-      process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getidealoh.com";
+    const baseUrl = getBaseUrl();
     const claimUrl = `${baseUrl}/health/claim-invite?token=${args.inviteToken}`;
 
     const html = `
