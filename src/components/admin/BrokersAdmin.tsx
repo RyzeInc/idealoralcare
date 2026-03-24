@@ -103,7 +103,7 @@ export function BrokersAdmin() {
         });
       } else {
         // Add new - validate clerkUserId
-        const existingBroker = allAdmins.find(
+        const existingBroker = (allAdmins ?? []).find(
           (admin) => admin.clerkUserId === formData.clerkUserId
         );
         if (existingBroker) {
@@ -225,7 +225,7 @@ export function BrokersAdmin() {
                   selectedUserId={formData.clerkUserId}
                   label="Select an Existing User"
                   placeholder="Search by name or email..."
-                  excludeUserIds={allAdmins
+                  excludeUserIds={(allAdmins ?? [])
                     .filter((a) => (a.departments ?? []).includes('broker'))
                     .map((a) => a.clerkUserId)}
                 />

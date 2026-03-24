@@ -34,7 +34,7 @@ const BENEFITS: BenefitCard[] = [
     imageSrc: "/health-assets/toothlensscan_1086x1024.png",
     imageAlt: "AI Dental Scan - phone showing oral scan interface",
     howItWorks: [
-      "Take or Upload Photos",
+      "Take 5 Easy Photos",
       "AI Reviews Your Scan",
       "Get Your Results & Next Steps",
     ],
