@@ -44,8 +44,10 @@ export async function POST(req: NextRequest) {
 
     switch (type) {
       case 'fulfillment-packet': {
-        // Generate PDF via the existing internal API route
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${process.env.PORT || 3000}`;
+        // Internal server URL for PDF generation (can be localhost in dev)
+        const serverUrl = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${process.env.PORT || 3000}`;
+        // Public-facing URL for links in emails (never localhost)
+        const portalUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://getidealoh.com';
         const pdfPayload = {
           memberName,
           memberFirstName: memberFirst,
@@ -65,7 +67,7 @@ export async function POST(req: NextRequest) {
 
         let pdfBase64: string | null = null;
         try {
-          const pdfRes = await fetch(`${baseUrl}/api/generate-fulfillment-pdf`, {
+          const pdfRes = await fetch(`${serverUrl}/api/generate-fulfillment-pdf`, {
             method: 'POST',
             headers: pdfHeaders,
             body: JSON.stringify(pdfPayload),
@@ -86,7 +88,7 @@ export async function POST(req: NextRequest) {
           effectiveDate: TEST_MEMBER.effectiveDate,
           groupCode: TEST_MEMBER.groupCode,
           memberServicesPhone: TEST_MEMBER.memberServicesPhone,
-          portalUrl: baseUrl,
+          portalUrl: portalUrl,
         });
         if (pdfBase64) {
           attachments = [{ filename: 'Ideal_Oral_Health_Membership_Packet.pdf', content: pdfBase64 }];

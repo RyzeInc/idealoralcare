@@ -208,7 +208,7 @@ export const emailTemplates = {
     inviteToken: string;
     appUrl?: string;
   }) => {
-    const baseUrl = data.appUrl ?? "https://app.getidealoh.com";
+    const baseUrl = data.appUrl ?? "https://getidealoh.com";
     const claimUrl = `${baseUrl}/health/claim-invite?token=${data.inviteToken}`;
     return {
       to: data.dependentEmail,

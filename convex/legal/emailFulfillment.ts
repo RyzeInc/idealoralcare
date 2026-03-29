@@ -20,7 +20,7 @@ import { getBaseUrl } from "../lib/env";
  *
  * Required env vars:
  *   RESEND_API_KEY
- *   NEXT_PUBLIC_APP_URL  (e.g. https://app.getidealoh.com)
+ *   NEXT_PUBLIC_APP_URL  (e.g. https://getidealoh.com)
  *   INTERNAL_API_SECRET  (shared secret with Next.js – omit in dev to skip auth)
  */
 export const sendFulfillmentPacketEmail = action({

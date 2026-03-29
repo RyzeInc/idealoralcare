@@ -7,6 +7,6 @@ const DEV_URL = "http://localhost:3000";
  */
 export function getBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
-  if (process.env.NEXT_PUBLIC_APP_ENV === "production") return PRODUCTION_URL;
-  return DEV_URL;
+  if (process.env.NEXT_PUBLIC_APP_ENV === "development") return DEV_URL;
+  return PRODUCTION_URL;
 }
