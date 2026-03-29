@@ -4,6 +4,7 @@ import { createElement, type ReactElement } from "react";
 import type { DocumentProps } from "@react-pdf/renderer";
 import path from "path";
 import fs from "fs";
+import { Readable } from "stream";
 import { FulfillmentPacketPdf, FulfillmentPacketData } from "@/lib/fulfillment-pdf";
 
 /**
@@ -56,17 +57,15 @@ export async function POST(req: NextRequest) {
       { data }
     ) as unknown as ReactElement<DocumentProps>;
     const pdfInstance = pdf(document);
-    // toBuffer() returns a ReadableStream<Uint8Array> in @react-pdf/renderer v4
+    // toBuffer() returns a Node.js Readable stream in @react-pdf/renderer v4
     const stream = await pdfInstance.toBuffer();
-    const chunks: Uint8Array[] = [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const reader = (stream as any).getReader();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (value) chunks.push(value as Uint8Array);
-    }
-    const buffer = Buffer.concat(chunks.map((c) => Buffer.from(c)));
+    const buffer = await new Promise<Buffer>((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      const nodeStream = stream as unknown as Readable;
+      nodeStream.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+      nodeStream.on("end", () => resolve(Buffer.concat(chunks)));
+      nodeStream.on("error", reject);
+    });
     const base64 = buffer.toString("base64");
 
     return NextResponse.json({ pdf: base64 });

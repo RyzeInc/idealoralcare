@@ -1,0 +1,76 @@
+<svg viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
+  <!-- Map background -->
+  <rect width="800" height="800" fill="#f5f5f0"/>
+  
+  <!-- Streets -->
+  <g stroke="#d0d0c8" stroke-width="8" fill="none" opacity="0.6">
+    <!-- Horizontal streets -->
+    <line x1="0" y1="100" x2="800" y2="100"/>
+    <line x1="0" y1="200" x2="800" y2="200"/>
+    <line x1="0" y1="300" x2="800" y2="300"/>
+    <line x1="0" y1="400" x2="800" y2="400"/>
+    <line x1="0" y1="500" x2="800" y2="500"/>
+    <line x1="0" y1="600" x2="800" y2="600"/>
+    <line x1="0" y1="700" x2="800" y2="700"/>
+    
+    <!-- Vertical streets -->
+    <line x1="100" y1="0" x2="100" y2="800"/>
+    <line x1="200" y1="0" x2="200" y2="800"/>
+    <line x1="300" y1="0" x2="300" y2="800"/>
+    <line x1="400" y1="0" x2="400" y2="800"/>
+    <line x1="500" y1="0" x2="500" y2="800"/>
+    <line x1="600" y1="0" x2="600" y2="800"/>
+    <line x1="700" y1="0" x2="700" y2="800"/>
+    
+    <!-- Diagonal roads -->
+    <line x1="0" y1="600" x2="400" y2="200"/>
+    <line x1="400" y1="750" x2="800" y2="450"/>
+  </g>
+  
+  <!-- Water/parks areas -->
+  <ellipse cx="150" cy="200" rx="80" ry="100" fill="#c8e6f5" opacity="0.7"/>
+  <ellipse cx="650" cy="150" rx="90" ry="80" fill="#d4f1d4" opacity="0.6"/>
+  <ellipse cx="200" cy="650" rx="100" ry="70" fill="#d4f1d4" opacity="0.6"/>
+  <path d="M 550 600 Q 620 550 680 600 Q 650 650 580 680 Q 550 660 550 600" fill="#c8e6f5" opacity="0.6"/>
+  
+  <!-- Yellow road highlight -->
+  <path d="M 350 0 L 400 150 L 450 300" stroke="#f4c430" stroke-width="12" fill="none" opacity="0.7"/>
+  
+  <!-- Blue road highlight -->
+  <path d="M 0 450 L 150 400 L 300 380 L 450 420" stroke="#4a90e2" stroke-width="12" fill="none" opacity="0.7"/>
+  
+  <!-- Location pins -->
+  <!-- Golden pin (top right) -->
+  <g transform="translate(520, 180)">
+    <!-- Pin shadow -->
+    <ellipse cx="0" cy="70" rx="28" ry="8" fill="rgba(0,0,0,0.15)"/>
+    <!-- Pin body -->
+    <path d="M 0,-40 C -25,-40 -40,-25 -40,0 C -40,20 0,70 0,70 C 0,70 40,20 40,0 C 40,-25 25,-40 0,-40 Z" 
+          fill="url(#goldenGradient)" stroke="#d4890f" stroke-width="2"/>
+    <!-- White circle -->
+    <circle cx="0" cy="-8" r="14" fill="white"/>
+  </g>
+  
+  <!-- Blue pin (left lower) -->
+  <g transform="translate(280, 420)">
+    <!-- Pin shadow -->
+    <ellipse cx="0" cy="70" rx="32" ry="10" fill="rgba(0,0,0,0.15)"/>
+    <!-- Pin body -->
+    <path d="M 0,-40 C -25,-40 -40,-25 -40,0 C -40,20 0,70 0,70 C 0,70 40,20 40,0 C 40,-25 25,-40 0,-40 Z" 
+          fill="url(#blueGradient)" stroke="#2563eb" stroke-width="2"/>
+    <!-- White circle -->
+    <circle cx="0" cy="-8" r="14" fill="white"/>
+  </g>
+  
+  <!-- Gradients -->
+  <defs>
+    <linearGradient id="goldenGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffd700;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f4a500;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="blueGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#60a5fa;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e40af;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+</svg>
