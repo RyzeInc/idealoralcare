@@ -122,7 +122,7 @@ export default function DentalDiscountNetworkPage() {
             }}
           >
             Save Up to<br />
-            <span style={{ color: "#fde68a" }}>58%</span> on Dental<br />
+            <span style={{ color: "#10b981" }}>58%</span> on Dental<br />
             Procedures
           </h1>
           <p
@@ -167,7 +167,7 @@ export default function DentalDiscountNetworkPage() {
         <div style={{ position: "relative", overflow: "hidden", height: "500px" }}>
           <img
             src="/health-assets/dentist-network-discount_1536x1024.png"
-            alt="Parent helping child brush teeth"
+            alt="Neighborhood dentist providing care"
             style={{
               width: "100%",
               height: "100%",
@@ -423,8 +423,8 @@ export default function DentalDiscountNetworkPage() {
           >
             <div style={{ position: "relative" }}>
               <img
-                src="/health-assets/dentist-network-discount_1536x1024.png"
-                alt="Neighborhood dentist visit"
+                src="/discountmap.png"
+                alt="National dental network locations map"
                 style={{
                   width: "100%",
                   borderRadius: "16px",

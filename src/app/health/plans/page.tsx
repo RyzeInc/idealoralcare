@@ -191,7 +191,7 @@ function PlanCard({ product }: { product: CatalogProduct }) {
             </div>
             {isFamily && (
               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                Primary + 4 dependents
+                Primary + add family members
               </div>
             )}
           </div>
@@ -232,7 +232,7 @@ function PlanCard({ product }: { product: CatalogProduct }) {
             </div>
             {isFamily && (
               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                Primary + 4 dependents
+                Primary + add family members
               </div>
             )}
           </div>

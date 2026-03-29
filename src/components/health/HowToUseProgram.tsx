@@ -9,7 +9,7 @@ import Image from "next/image";
  * Required assets under /public/health-assets/:
  *   - toothlensscan_1086x1024.png  (AI scan phone image)
  *   - teledentistry-video-call.png (teledentistry phone image)
- *   - dentist-network-discount_1536x1024.png (map / provider image)
+ *   - network-map.svg (provider network map)
  *
  * Logo: /public/ideal-oral-health-logo.png
  */
@@ -38,11 +38,12 @@ const BENEFITS: BenefitCard[] = [
       "AI Reviews Your Scan",
       "Get Your Results & Next Steps",
     ],
-    bullets: [
-      "Early Issue Detection",
-      "Monitoring Oral Health",
-      "Knowing What to Do Next",
+    bestFor: [
+      "Spotting possible problem areas",
+      "Monitoring visible changes",
+      "Knowing when to seek follow-up care",
     ],
+    bullets: [],
     bulletColor: "#10b981",
   },
   {
@@ -68,7 +69,7 @@ const BENEFITS: BenefitCard[] = [
     ctaLabel: "Find a Provider",
     ctaGradient: "linear-gradient(135deg, #fbbf24, #f59e0b)",
     title: "Dental Discount Network",
-    imageSrc: "/health-assets/dentist-network-discount_1536x1024.png",
+    imageSrc: "/discountmap.png",
     imageAlt: "Dental Discount Network - map with provider locations",
     howItWorks: [
       "Search Participating Dentists",
