@@ -31,6 +31,9 @@ import {
   ArrowUpCircle,
   ArrowDownCircle,
   Loader2,
+  FileDown,
+  FileText,
+  CreditCard as CardIcon,
 } from "lucide-react";
 import "@/app/health/health.css";
 
@@ -164,6 +167,31 @@ function ManagePlansContent() {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [billingLoading, setBillingLoading] = useState(false);
+  const [docDownloading, setDocDownloading] = useState<string | null>(null);
+
+  const handleDocDownload = async (type: "packet" | "agreement" | "card") => {
+    setDocDownloading(type);
+    try {
+      const res = await fetch(`/api/documents?type=${type}`);
+      if (!res.ok) throw new Error("Failed to generate document");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const names: Record<string, string> = {
+        packet: "Ideal_Oral_Health_Membership_Packet.pdf",
+        agreement: "Ideal_Oral_Health_Membership_Agreement.pdf",
+        card: "Ideal_Oral_Health_Member_Card.pdf",
+      };
+      a.href = url;
+      a.download = names[type];
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Document download failed:", err);
+    } finally {
+      setDocDownloading(null);
+    }
+  };
   const [tierChangeLoading, setTierChangeLoading] = useState<string | null>(null);
   const [tierChangeResult, setTierChangeResult] = useState<{ direction: string; newTier: string; effective: string; effectiveDate?: string } | null>(null);
   const [tierChangeError, setTierChangeError] = useState<string | null>(null);
@@ -337,6 +365,85 @@ function ManagePlansContent() {
                       Browse Plans
                     </Link>
                   </div>
+                )}
+              </div>
+
+              {/* ── My Documents ────────────────────────────────── */}
+              <div className="glass-card" style={{ padding: "2rem" }}>
+                <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "#0f172a", marginBottom: "0.375rem", display: "flex", alignItems: "center", gap: "0.625rem" }}>
+                  <FileDown size={22} color="#0066CC" /> My Documents
+                </h2>
+                <p style={{ color: "#64748b", fontSize: "0.875rem", marginBottom: "1.25rem" }}>
+                  Download your membership documents at any time.
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                  {([
+                    {
+                      type: "packet" as const,
+                      label: "Membership Packet",
+                      description: "Welcome letter, program details, schedule of services & member ID card",
+                      icon: <FileText size={18} color="#0066CC" />,
+                    },
+                    {
+                      type: "agreement" as const,
+                      label: "Membership Agreement",
+                      description: "Your signed membership agreement and terms",
+                      icon: <FileText size={18} color="#14b8a6" />,
+                    },
+                    {
+                      type: "card" as const,
+                      label: "Member ID Card",
+                      description: "Printable front & back member ID card (PDF)",
+                      icon: <CardIcon size={18} color="#7c3aed" />,
+                    },
+                  ] as const).map(({ type, label, description, icon }) => (
+                    <div
+                      key={type}
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "1rem 1.25rem", background: "#f8fafc",
+                        borderRadius: "12px", border: "1px solid #e2e8f0",
+                        gap: "1rem", flexWrap: "wrap",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flex: 1, minWidth: "160px" }}>
+                        <div style={{
+                          width: 38, height: 38, borderRadius: "10px",
+                          background: "#fff", border: "1px solid #e2e8f0",
+                          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                        }}>
+                          {icon}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: "0.9375rem", color: "#0f172a" }}>{label}</div>
+                          <div style={{ fontSize: "0.8125rem", color: "#64748b", marginTop: "2px" }}>{description}</div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDocDownload(type)}
+                        disabled={docDownloading === type || !hasActive}
+                        style={{
+                          display: "flex", alignItems: "center", gap: "0.375rem",
+                          padding: "0.5rem 1rem", borderRadius: "8px", border: "1px solid #e2e8f0",
+                          background: docDownloading === type ? "#f1f5f9" : "#fff",
+                          color: docDownloading === type ? "#94a3b8" : "#0066CC",
+                          fontWeight: 600, fontSize: "0.8125rem",
+                          cursor: (docDownloading === type || !hasActive) ? "not-allowed" : "pointer",
+                          opacity: !hasActive ? 0.5 : 1,
+                          whiteSpace: "nowrap", transition: "all 0.15s",
+                        }}
+                      >
+                        {docDownloading === type
+                          ? <><Loader2 size={14} className="animate-spin" /> Generating…</>
+                          : <><FileDown size={14} /> Download</>}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                {!hasActive && (
+                  <p style={{ color: "#94a3b8", fontSize: "0.8125rem", marginTop: "1rem", textAlign: "center" }}>
+                    Documents are available once you have an active plan.
+                  </p>
                 )}
               </div>
 

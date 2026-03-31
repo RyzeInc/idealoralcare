@@ -29,6 +29,7 @@ import type * as admin_siteSettings from "../admin/siteSettings.js";
 import type * as admin_teamMembers from "../admin/teamMembers.js";
 import type * as admin_vendorFiles from "../admin/vendorFiles.js";
 import type * as admin_ventures from "../admin/ventures.js";
+import type * as admin_walletPasses from "../admin/walletPasses.js";
 import type * as auth from "../auth.js";
 import type * as catalog_index from "../catalog/index.js";
 import type * as catalog_mutations from "../catalog/mutations.js";
@@ -97,6 +98,7 @@ declare const fullApi: ApiFromModules<{
   "admin/teamMembers": typeof admin_teamMembers;
   "admin/vendorFiles": typeof admin_vendorFiles;
   "admin/ventures": typeof admin_ventures;
+  "admin/walletPasses": typeof admin_walletPasses;
   auth: typeof auth;
   "catalog/index": typeof catalog_index;
   "catalog/mutations": typeof catalog_mutations;

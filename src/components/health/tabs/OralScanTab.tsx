@@ -73,8 +73,7 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
     }
     // Already in DB
     if (toothlensUser) {
-      const company = toothlensUser.company || 'ryzehealth';
-      const url = `https://selfcheck.toothlens.com/ai/${company}`;
+      const url = `https://selfcheck.toothlens.com/ai/idealhealth`;
       setScanBaseUrl(url);
       return { uid: toothlensUser.toothlensUid, scanBaseUrl: url };
     }
@@ -145,14 +144,14 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
   const buildScanUrl = useCallback((scan: { toothlensUid: string; sessionId: string; scanUrl?: string }) => {
     if (scan.scanUrl) return scan.scanUrl;
     // Reconstruct from uid + sessionId for older records
-    const base = scanBaseUrl || 'https://selfcheck.toothlens.com/ai/ryzehealth';
+    const base = scanBaseUrl || 'https://selfcheck.toothlens.com/ai/idealhealth';
     return `${base}?uid=${encodeURIComponent(scan.toothlensUid)}&session_id=${encodeURIComponent(scan.sessionId)}`;
   }, [scanBaseUrl]);
 
   // Build the scanner iframe URL
   const getScanUrl = useCallback(() => {
     if (!toothlensUid || !sessionId) return '';
-    const base = scanBaseUrl || 'https://selfcheck.toothlens.com/ai/ryzehealth';
+    const base = scanBaseUrl || 'https://selfcheck.toothlens.com/ai/idealhealth';
     return `${base}?uid=${encodeURIComponent(toothlensUid)}&session_id=${encodeURIComponent(sessionId)}`;
   }, [toothlensUid, sessionId, scanBaseUrl]);
 
@@ -216,6 +215,7 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
 
           {/* QR code + instructions */}
           <div
+            className="dashboard-scan-grid"
             style={{
               display: 'grid',
               gridTemplateColumns: 'auto 1fr',

@@ -57,7 +57,7 @@ export default function MembersAdmin() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState({ groupId: '', firstName: '', lastName: '', email: '', phone: '', dateOfBirth: '', memberType: 'eligible' });
 
-  const members = useQuery(api.admin.members.getAllMembers) || [];
+  const members = useQuery(api.admin.members.getAllMembers, {}) || [];
   const groups = useQuery(api.admin.hierarchy.getAllGroups) || [];
   const memberDetail = useQuery(
     api.admin.members.getMemberDetail,

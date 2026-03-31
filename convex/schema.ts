@@ -1032,7 +1032,9 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_member_type", ["memberType"])
     .index("by_primary_member", ["primaryMemberId"])
-    .index("by_invite_token", ["inviteToken"]),
+    .index("by_invite_token", ["inviteToken"])
+    .index("by_email", ["email"])
+    .index("by_group_email", ["groupId", "email"]),
 
   // MEMBER ACTIVITIES (Timeline/activity log)
   memberActivities: defineTable({
@@ -1196,7 +1198,8 @@ export default defineSchema({
     fileType: v.union(
       v.literal("csv"),
       v.literal("xlsx"),
-      v.literal("json")
+      v.literal("json"),
+      v.literal("txt")
     ),
     
     // PROCESSING STATUS
@@ -1364,7 +1367,7 @@ export default defineSchema({
     clerkUserId: v.string(),                // Clerk user ID
     memberProfileId: v.optional(v.id("memberProfiles")),
     toothlensUid: v.string(),               // UID returned from / sent to Toothlens API
-    company: v.string(),                    // "ryzehealth"
+    company: v.string(),                    // "idealhealth" or other company slug
     name: v.optional(v.string()),
     email: v.optional(v.string()),
     createdAt: v.number(),
@@ -1528,4 +1531,12 @@ export default defineSchema({
     .index("by_effective_date", ["effectiveDate"])
     .index("by_termination_date", ["terminationDate"])
     .index("by_sftp_batch", ["sftpBatchId"]),
+
+  // ============================================
+  // SYSTEM COUNTERS (for atomic ID generation)
+  // ============================================
+  counters: defineTable({
+    name: v.string(),   // e.g. "memberIdSeq"
+    value: v.number(),  // current counter value
+  }).index("by_name", ["name"]),
 });

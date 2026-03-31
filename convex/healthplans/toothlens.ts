@@ -8,7 +8,7 @@
  *   3. Use UID + session_id to open the selfcheck scanner URL
  *
  * Environment variables required (set in Convex dashboard):
- *   RYZEHEALTH_COMPANY   – "ryzehealth"
+ *   RYZEHEALTH_COMPANY   – "idealhealth"
  *   RYZEHEALTH_ACCESS_KEY – secret access key
  */
 
@@ -237,7 +237,7 @@ export const getOrCreateToothlensUser = action({
   },
   handler: async (ctx, args): Promise<{ uid: string; scanBaseUrl: string }> => {
     const identity = await requireAuthAction(ctx);
-    const company = process.env.RYZEHEALTH_COMPANY ?? "ryzehealth";
+    const company = process.env.RYZEHEALTH_COMPANY ?? "idealhealth";
 
     // Check if user already has a Toothlens UID
     const existing = await ctx.runQuery(

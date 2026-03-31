@@ -18,19 +18,52 @@ import {
   Headphones,
 } from "lucide-react";
 
-const ADMIN_NAVIGATION = [
-  { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
-  { label: "Sites & Accounts", href: "/admin/hierarchy", icon: Building2 },
-  { label: "Members", href: "/admin/members", icon: Users },
-  { label: "Distribution", href: "/admin/brokers", icon: Network },
-  { label: "Rep Codes", href: "/admin/rep-codes", icon: Tag },
-  { label: "Eligibility Files", href: "/admin/eligibility", icon: FileText },
-  { label: "Billing", href: "/admin/billing", icon: DollarSign },
-  { label: "Customer Service", href: "/admin/customer-service", icon: Headphones },
-  { label: "Vendor Files", href: "/admin/vendor-files", icon: FileOutput },
-  { label: "Commissions", href: "/admin/commissions", icon: BarChart3 },
-  { label: "Admin Users", href: "/admin/users", icon: ShieldCheck },
-  { label: "Site Settings", href: "/admin/settings", icon: Settings },
+type NavItem = { label: string; href: string; icon: typeof LayoutDashboard };
+type NavSection = { section: string; items: NavItem[] };
+
+const ADMIN_NAVIGATION: NavSection[] = [
+  {
+    section: "Overview",
+    items: [
+      { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
+    ],
+  },
+  {
+    section: "Members & Partners",
+    items: [
+      { label: "Members", href: "/admin/members", icon: Users },
+      { label: "Distribution", href: "/admin/brokers", icon: Network },
+      { label: "Rep Codes", href: "/admin/rep-codes", icon: Tag },
+    ],
+  },
+  {
+    section: "Operations",
+    items: [
+      { label: "Sites & Accounts", href: "/admin/hierarchy", icon: Building2 },
+      { label: "Eligibility Files", href: "/admin/eligibility", icon: FileText },
+      { label: "Vendor Files", href: "/admin/vendor-files", icon: FileOutput },
+    ],
+  },
+  {
+    section: "Finance",
+    items: [
+      { label: "Billing", href: "/admin/billing", icon: DollarSign },
+      { label: "Commissions", href: "/admin/commissions", icon: BarChart3 },
+    ],
+  },
+  {
+    section: "Support",
+    items: [
+      { label: "Customer Service", href: "/admin/customer-service", icon: Headphones },
+    ],
+  },
+  {
+    section: "System",
+    items: [
+      { label: "Admin Users", href: "/admin/users", icon: ShieldCheck },
+      { label: "Site Settings", href: "/admin/settings", icon: Settings },
+    ],
+  },
 ];
 
 export function AdminSidebar() {
@@ -57,25 +90,36 @@ export function AdminSidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {ADMIN_NAVIGATION.map((item) => {
-          const Icon = item.icon;
-          const active = isActive(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                active
-                  ? "bg-blue-600 text-white font-medium"
-                  : "text-slate-300 hover:text-white hover:bg-slate-800/70"
-              }`}
-            >
-              <Icon size={18} className={`flex-shrink-0 ${active ? "opacity-100" : "opacity-70"}`} />
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
+      <nav className="flex-1 px-3 py-4 overflow-y-auto">
+        {ADMIN_NAVIGATION.map((section, idx) => (
+          <div key={section.section} className={idx > 0 ? "mt-5" : ""}>
+            {section.section !== "Overview" && (
+              <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                {section.section}
+              </p>
+            )}
+            <div className="space-y-0.5">
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                const active = isActive(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                      active
+                        ? "bg-blue-600 text-white font-medium"
+                        : "text-slate-300 hover:text-white hover:bg-slate-800/70"
+                    }`}
+                  >
+                    <Icon size={18} className={`flex-shrink-0 ${active ? "opacity-100" : "opacity-70"}`} />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       {/* Footer */}

@@ -10,41 +10,38 @@ import { requireAdmin } from "../lib/authGuards";
  */
 
 /**
- * Get all members across all groups
+ * Get all members across all groups (paginated — max 500)
  */
 export const getAllMembers = query({
-  handler: async (ctx) => {
-    return await ctx.db.query("memberProfiles").order("asc").collect();
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = Math.min(args.limit ?? 500, 500);
+    return await ctx.db.query("memberProfiles").order("asc").take(limit);
   },
 });
 
 /**
- * Get member roster for a group (paginated)
+ * Get member roster for a group (index-backed, limited)
  */
 export const getMemberRoster = query({
   args: {
     groupId: v.id("groups"),
     limit: v.optional(v.number()),
-    offset: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const limit = args.limit ?? 25;
-    const offset = args.offset ?? 0;
+    const limit = Math.min(args.limit ?? 100, 500);
 
-    // Get total count
-    const all = await ctx.db
+    const members = await ctx.db
       .query("memberProfiles")
-      .filter((q) => q.eq(q.field("groupId"), args.groupId))
-      .collect();
-
-    const members = all.slice(offset, offset + limit);
+      .withIndex("by_group", (q: any) => q.eq("groupId", args.groupId))
+      .take(limit);
 
     return {
       groupId: args.groupId,
-      total: all.length,
-      limit,
-      offset,
       members,
+      hasMore: members.length === limit,
     };
   },
 });
@@ -502,22 +499,159 @@ export const assignMemberToStaff = mutation({
 });
 
 /**
- * Dashboard statistics — counts by status plus recent activity
+ * Dashboard statistics — counts by status plus subscription data from Stripe
  */
 export const getDashboardStats = query({
   handler: async (ctx) => {
-    const allMembers = await ctx.db.query("memberProfiles").collect();
-    const eligFiles = await ctx.db.query("eligibilityFiles").collect();
+    const [allMembers, eligFiles, allBundles] = await Promise.all([
+      ctx.db.query("memberProfiles").collect(),
+      ctx.db.query("eligibilityFiles").collect(),
+      ctx.db.query("subscriptionBundles").collect(),
+    ]);
 
     const active = allMembers.filter((m) => m.memberType === "active").length;
-    const enrolling = allMembers.filter((m) => m.memberType === "enrolling").length;
     const pending = allMembers.filter((m) => ["lead", "eligible", "enrolling"].includes(m.memberType)).length;
+
+    // Paying subscribers: active bundles with totalCents > 0
+    const payingBundles = allBundles.filter(
+      (b) => b.status === "active" && b.pricingSnapshot?.totalCents > 0
+    );
+    const payingSubscribers = payingBundles.length;
+
+    // Monthly recurring revenue from active paid bundles
+    const monthlyRevenueCents = payingBundles.reduce((sum, b) => {
+      const cents = b.pricingSnapshot?.totalCents ?? 0;
+      // Convert annual to monthly equivalent
+      return sum + (b.cadence === "annual" ? Math.round(cents / 12) : cents);
+    }, 0);
 
     return {
       activeMembers: active,
       pendingEnrollments: pending,
       eligibilityFiles: eligFiles.length,
       totalMembers: allMembers.length,
+      payingSubscribers,
+      monthlyRevenueCents,
+      totalBundles: allBundles.length,
+    };
+  },
+});
+
+/**
+ * System health check — verifies key subsystems are operational
+ */
+export const getSystemHealth = query({
+  handler: async (ctx) => {
+    const now = Date.now();
+    const oneDayAgo = now - 24 * 60 * 60 * 1000;
+    const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+
+    const [
+      allBundles,
+      eligFiles,
+      enrollmentSessions,
+      contacts,
+      newsletter,
+      memberActivities,
+      allMembers,
+    ] = await Promise.all([
+      ctx.db.query("subscriptionBundles").collect(),
+      ctx.db.query("eligibilityFiles").collect(),
+      ctx.db.query("enrollmentSessions").collect(),
+      ctx.db.query("contactSubmissions").collect(),
+      ctx.db.query("newsletterSubscriptions").collect(),
+      ctx.db.query("memberActivities").order("desc").take(1),
+      ctx.db.query("memberProfiles").collect(),
+    ]);
+
+    // Stripe / Subscriptions health
+    const activeBundles = allBundles.filter((b) => b.status === "active");
+    const paidActiveBundles = activeBundles.filter(
+      (b) => b.pricingSnapshot?.totalCents > 0
+    );
+    const failedPayments = allBundles.filter(
+      (b) => b.status === "payment_failed" || b.status === "past_due"
+    );
+
+    // Eligibility processing
+    const recentEligFiles = eligFiles.filter(
+      (f) => (f.uploadedAt ?? 0) > sevenDaysAgo
+    );
+    const failedEligFiles = eligFiles.filter((f) => f.status === "failed");
+    const completedEligFiles = eligFiles.filter(
+      (f) => f.status === "completed" || f.status === "completed_with_errors"
+    );
+
+    // Enrollment pipeline
+    const inProgressSessions = enrollmentSessions.filter(
+      (s) => s.status === "in_progress" || s.status === "pending_payment"
+    );
+    const completedSessions = enrollmentSessions.filter(
+      (s) => s.status === "completed"
+    );
+    const abandonedSessions = enrollmentSessions.filter(
+      (s) => s.status === "abandoned" || s.status === "expired"
+    );
+
+    // Contact form
+    const recentContacts = contacts.filter(
+      (c) => c.createdAt > sevenDaysAgo
+    );
+
+    // Last activity timestamp
+    const lastActivityAt = memberActivities.length > 0
+      ? memberActivities[0].createdAt
+      : null;
+
+    // Members with vs without customerId (linked to auth)
+    const linkedMembers = allMembers.filter((m) => m.customerId).length;
+
+    return {
+      stripe: {
+        status: paidActiveBundles.length > 0 ? "ok" : "warning",
+        activePaidSubscriptions: paidActiveBundles.length,
+        totalSubscriptions: allBundles.length,
+        failedPayments: failedPayments.length,
+        label: paidActiveBundles.length > 0
+          ? `${paidActiveBundles.length} active paid subscription${paidActiveBundles.length !== 1 ? "s" : ""}`
+          : "No active paid subscriptions",
+      },
+      eligibility: {
+        status: failedEligFiles.length === 0 ? "ok" : "warning",
+        totalFiles: eligFiles.length,
+        recentUploads: recentEligFiles.length,
+        completedFiles: completedEligFiles.length,
+        failedFiles: failedEligFiles.length,
+        label: failedEligFiles.length > 0
+          ? `${failedEligFiles.length} failed file${failedEligFiles.length !== 1 ? "s" : ""}`
+          : `${eligFiles.length} file${eligFiles.length !== 1 ? "s" : ""} processed`,
+      },
+      enrollment: {
+        status: inProgressSessions.length > 0 || completedSessions.length > 0 ? "ok" : "idle",
+        inProgress: inProgressSessions.length,
+        completed: completedSessions.length,
+        abandoned: abandonedSessions.length,
+        label: completedSessions.length > 0
+          ? `${completedSessions.length} completed, ${inProgressSessions.length} in progress`
+          : inProgressSessions.length > 0
+            ? `${inProgressSessions.length} in progress`
+            : "No enrollment sessions yet",
+      },
+      contacts: {
+        status: "ok",
+        totalSubmissions: contacts.length,
+        recentSubmissions: recentContacts.length,
+        newsletterSubscribers: newsletter.filter((n) => n.status === "active").length,
+        label: `${contacts.length} total, ${recentContacts.length} this week`,
+      },
+      members: {
+        status: "ok",
+        total: allMembers.length,
+        linked: linkedMembers,
+        unlinked: allMembers.length - linkedMembers,
+        label: `${allMembers.length} total, ${linkedMembers} linked to accounts`,
+      },
+      lastActivityAt,
     };
   },
 });

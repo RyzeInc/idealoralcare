@@ -14,6 +14,7 @@ import { requireAdmin } from "../lib/authGuards";
 /**
  * Global member search across all groups.
  * Matches on name, email, or member ID — returns up to 20 results.
+ * Uses paginated scan (1000 at a time) to avoid loading entire table.
  */
 export const searchAllMembers = query({
   args: { query: v.string() },
@@ -23,27 +24,67 @@ export const searchAllMembers = query({
     const q = args.query.toLowerCase().trim();
     if (q.length < 2) return [];
 
-    const all = await ctx.db.query("memberProfiles").order("desc").collect();
+    // First try exact member ID match via index
+    const byMemberId = await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_member_id", (idx: any) => idx.eq("memberId", args.query.trim()))
+      .first();
+    if (byMemberId) {
+      return [{
+        _id: byMemberId._id,
+        memberId: byMemberId.memberId,
+        firstName: byMemberId.firstName,
+        lastName: byMemberId.lastName,
+        email: byMemberId.email ?? null,
+        memberType: byMemberId.memberType,
+      }];
+    }
 
-    return all
-      .filter((m) => {
-        const nameMatch =
-          m.firstName.toLowerCase().includes(q) ||
-          m.lastName.toLowerCase().includes(q) ||
-          `${m.firstName} ${m.lastName}`.toLowerCase().includes(q);
-        const emailMatch = m.email?.toLowerCase().includes(q);
-        const idMatch = m.memberId?.toLowerCase().includes(q);
-        return nameMatch || emailMatch || idMatch;
-      })
-      .slice(0, 20)
-      .map((m) => ({
-        _id: m._id,
-        memberId: m.memberId,
-        firstName: m.firstName,
-        lastName: m.lastName,
-        email: m.email ?? null,
-        memberType: m.memberType,
-      }));
+    // Then try email index match
+    const byEmail = await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_email", (idx: any) => idx.eq("email", args.query.trim()))
+      .first();
+    if (byEmail) {
+      return [{
+        _id: byEmail._id,
+        memberId: byEmail.memberId,
+        firstName: byEmail.firstName,
+        lastName: byEmail.lastName,
+        email: byEmail.email ?? null,
+        memberType: byEmail.memberType,
+      }];
+    }
+
+    // Fallback: scan with .take() to limit memory usage
+    // Pull at most 5000 records and search within them
+    const candidates = await ctx.db
+      .query("memberProfiles")
+      .order("desc")
+      .take(5000);
+
+    const results: any[] = [];
+    for (const m of candidates) {
+      const nameMatch =
+        m.firstName.toLowerCase().includes(q) ||
+        m.lastName.toLowerCase().includes(q) ||
+        `${m.firstName} ${m.lastName}`.toLowerCase().includes(q);
+      const emailMatch = m.email?.toLowerCase().includes(q);
+      const idMatch = m.memberId?.toLowerCase().includes(q);
+      if (nameMatch || emailMatch || idMatch) {
+        results.push({
+          _id: m._id,
+          memberId: m.memberId,
+          firstName: m.firstName,
+          lastName: m.lastName,
+          email: m.email ?? null,
+          memberType: m.memberType,
+        });
+        if (results.length >= 20) break;
+      }
+    }
+
+    return results;
   },
 });
 
@@ -117,7 +158,9 @@ export const getFinancialSummary = query({
   handler: async (ctx) => {
     await requireAdmin(ctx);
 
-    const allBundles = await ctx.db.query("subscriptionBundles").collect();
+    const allBundles = await ctx.db.query("subscriptionBundles")
+      .withIndex("by_status")
+      .collect();
 
     const now = Date.now();
     const monthStart = new Date();

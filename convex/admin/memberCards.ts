@@ -16,102 +16,15 @@ function firstOfNextMonth(ts?: number): string {
 /**
  * MEMBER ID CARD GENERATION
  *
- * Generate PDF member ID cards with:
- * - Member name, 9-digit ID, plan name, effective date
- * - Network provider info (Dental Discount Network, Teledentistry Program)
- * - Smart check link (AI Oral Scanning)
- * - QR code / barcode
+ * Generate member ID card data for:
+ * - PDF rendering (on frontend or via email)
+ * - Wallet pass generation (Apple Wallet, Google Pay, Samsung Pay)
+ * - Digital card display (dashboard)
  */
 
 /**
- * Generate member ID card PDF (placeholder)
- * In production: use @react-pdf/renderer to create actual PDF
- */
-export const generateMemberIdCardPdf: any = action({
-  args: {
-    memberId: v.id("memberProfiles"),
-  },
-  handler: async (ctx, args) => {
-    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
-    const memberDetail = await ctx.runQuery(api.admin.members.getMemberDetail, { memberId: args.memberId });
-    if (!memberDetail) throw new Error("Member not found");
-    const member = memberDetail.member;
-
-    // Card data
-    const cardData = {
-      memberName: `${member.firstName} ${member.lastName}`,
-      memberId: member.memberId || "MBR-2026-00001",
-      planName: "Oral Health Plan",
-      effectiveDate: firstOfNextMonth(member.createdAt),
-      networks: [
-        "Dental Discount Network",
-        "Teledentistry Program",
-        "AI Oral Scanning",
-      ],
-      toothlensLink: `https://toothlens.com/verify?memberId=${member.memberId}`,
-    };
-
-    // In production: use @react-pdf/renderer to generate actual PDF
-    // For now, return card data as JSON for frontend rendering
-
-    const pdfContent = {
-      filename: `${cardData.memberId}_IdCard.pdf`,
-      cardData,
-      htmlContent: `
-        <html>
-          <head>
-            <style>
-              body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
-              .card { 
-                width: 3.4in; 
-                height: 2.15in; 
-                border: 1px solid #333; 
-                padding: 12px; 
-                background: linear-gradient(135deg, #0D47A1 0%, #1565C0 100%);
-                color: white;
-                font-size: 10px;
-              }
-              .card-header { font-weight: bold; font-size: 14px; margin-bottom: 8px; }
-              .card-field { margin: 4px 0; }
-              .card-label { font-size: 8px; opacity: 0.9; }
-              .card-value { font-weight: bold; }
-            </style>
-          </head>
-          <body>
-            <div class="card">
-              <div class="card-header">Ideal Health Oral Care</div>
-              <div class="card-field">
-                <div class="card-label">MEMBER NAME</div>
-                <div class="card-value">${cardData.memberName}</div>
-              </div>
-              <div class="card-field">
-                <div class="card-label">MEMBER ID</div>
-                <div class="card-value">${cardData.memberId}</div>
-              </div>
-              <div class="card-field">
-                <div class="card-label">PLAN</div>
-                <div class="card-value">${cardData.planName}</div>
-              </div>
-              <div class="card-field">
-                <div class="card-label">EFFECTIVE DATE</div>
-                <div class="card-value">${cardData.effectiveDate}</div>
-              </div>
-              <div style="margin-top: 6px; font-size: 8px; border-top: 1px solid rgba(255,255,255,0.5); padding-top: 4px;">
-                Toothlens Smart Check
-              </div>
-            </div>
-          </body>
-        </html>
-      `,
-    };
-
-    return pdfContent;
-  },
-});
-
-/**
- * Get member card data for display/rendering
+ * Get member card data for PDF, wallet, or display rendering
+ * Returns structured data that can be used by frontend (React PDF) or backend services
  */
 export const getMemberCardData: any = action({
   args: {
@@ -131,6 +44,8 @@ export const getMemberCardData: any = action({
       planName: "Oral Health Plan",
       effectiveDate: firstOfNextMonth(member.createdAt),
       barcode: member.barcode,
+      groupCode: "IOH-DTC",
+      subscriberId: member.memberId,
       networks: {
         careington: {
           name: "Dental Discount Network",
@@ -145,41 +60,9 @@ export const getMemberCardData: any = action({
           memberUrl: `https://smartcheck.toothlens.com/verify?memberId=${member.memberId}`,
         },
       },
-      supportPhone: "1-800-IDEAL-CARE",
+      supportPhone: "(800) IDEAL-CARE",
       supportEmail: "support@idealoralcare.com",
-    };
-  },
-});
-
-/**
- * Generate card with QR code encoding member ID
- */
-export const generateMemberCardWithQr: any = action({
-  args: {
-    memberId: v.id("memberProfiles"),
-  },
-  handler: async (ctx, args) => {
-    const memberDetail = await ctx.runQuery(api.admin.members.getMemberDetail, { memberId: args.memberId });
-    if (!memberDetail) throw new Error("Member not found");
-    const member = memberDetail.member;
-
-    const cardData = {
-      memberName: `${member.firstName} ${member.lastName}`,
-      memberId: member.memberId || "MBR-2026-00001",
-      email: member.email,
-      planName: "Oral Health Plan",
-      effectiveDate: firstOfNextMonth(member.createdAt),
-      barcode: member.barcode,
-    };
-
-    // In production: use 'qrcode' library to generate QR code data URL
-    // const QRCode = require('qrcode');
-    // const qrDataUrl = await QRCode.toDataURL(cardData.memberId);
-
-    return {
-      ...cardData,
-      qrCode: null, // Would contain data URL in production
-      qrCodeData: cardData.memberId, // Data encoded in QR
+      memberWebsite: "www.getidealoh.com",
     };
   },
 });

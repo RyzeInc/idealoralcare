@@ -79,6 +79,7 @@ export default function OverviewTab({
 
   const grid = (
     <div
+      className="dashboard-overview-grid"
       style={{
         display: 'grid',
         gridTemplateColumns: '1fr 340px',

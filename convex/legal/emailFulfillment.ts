@@ -89,9 +89,9 @@ export const sendFulfillmentPacketEmail = action({
       );
     }
 
-    const { pdf: pdfBase64 } = await pdfResponse.json();
+    const { pdf: pdfBase64, agreementPdf: agreementPdfBase64 } = await pdfResponse.json();
 
-    // ── Step 2: send via Resend with the PDF attached ─────────────────────────
+    // ── Step 2: send via Resend with both PDFs attached ───────────────────────
     const emailResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -115,6 +115,10 @@ export const sendFulfillmentPacketEmail = action({
           {
             filename: "Ideal_Oral_Health_Membership_Packet.pdf",
             content: pdfBase64,
+          },
+          {
+            filename: "Ideal_Oral_Health_Membership_Agreement.pdf",
+            content: agreementPdfBase64,
           },
         ],
       }),
@@ -213,7 +217,6 @@ export const sendMembershipCancelledEmail = action({
     memberName: v.string(),
     memberEmail: v.string(),
     memberId: v.string(),
-    refundAmount: v.optional(v.string()),
   },
   handler: async (ctx: any, args: any) => {
     try {
@@ -309,7 +312,6 @@ interface CancellationEmailData {
   memberName: string;
   memberEmail: string;
   memberId: string;
-  refundAmount?: string;
 }
 
 function generateWelcomeEmailHTML(data: WelcomeEmailData): string {
@@ -435,7 +437,6 @@ function generateCancellationEmailHTML(data: CancellationEmailData): string {
           <h3 style="margin-top: 0; color: #c0392b;">Cancellation Details</h3>
           <p style="margin: 5px 0;"><strong>Member ID:</strong> ${data.memberId}</p>
           <p style="margin: 5px 0;"><strong>Cancellation Date:</strong> ${new Date().toLocaleDateString()}</p>
-          ${data.refundAmount ? `<p style="margin: 5px 0;"><strong>Refund Amount:</strong> ${data.refundAmount}</p>` : ""}
         </div>
 
         <p>You will continue to have access to your benefits for the remainder of the period for which you've already paid.</p>
@@ -533,7 +534,7 @@ function generateFulfillmentEmailHTML(data: FulfillmentEmailData): string {
 
         <p style="font-size: 14px; line-height: 1.7;">
           Your enrollment is confirmed and your membership is <strong>active as of ${data.effectiveDate}</strong>.
-          Your complete member fulfillment packet is attached to this email as a PDF.
+          Your complete member fulfillment packet and your membership agreement are both attached to this email as PDFs.
         </p>
 
         <!-- Membership Snapshot -->
@@ -562,10 +563,14 @@ function generateFulfillmentEmailHTML(data: FulfillmentEmailData): string {
         <h3 style="color: #1E88E5; font-size: 14px;">What's in your packet:</h3>
         <ul style="font-size: 13px; line-height: 2.0; color: #374151; padding-left: 20px;">
           <li>Welcome letter &amp; member summary card</li>
-          <li>Program summary and how to use your discount plan</li>
-          <li>Membership agreement</li>
+          <li>Careington POS Network program details &amp; how to access the discount</li>
+          <li>DialCare Teledentistry program details &amp; how to access</li>
           <li>Sample schedule of dental services and member-pay amounts</li>
+          <li>Member ID card (front &amp; back)</li>
         </ul>
+        <p style="font-size: 13px; color: #374151; line-height: 1.7;">
+          <strong>Your Membership Agreement</strong> is attached as a separate PDF for your records.
+        </p>
 
         <!-- ─── How to Use Your Program ───────────────────────────────── -->
         <div style="border-top: 2px solid #e2e8f0; margin: 28px 0 20px; padding-top: 24px;">

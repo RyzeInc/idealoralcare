@@ -2,29 +2,15 @@
 
 import { useState } from 'react';
 import { Download, RotateCcw } from 'lucide-react';
+import { renderCardFront, renderCardBack, type MemberCardData } from '@/lib/card-renderer';
 
 /**
  * MEMBER ID CARD COMPONENT
  *
  * Physical membership card replica with front/back flip.
  * Matches Careington-style card layout used by the provider network.
+ * Uses shared rendering logic for consistency with PDF and wallet passes.
  */
-
-export interface MemberCardData {
-  memberName: string;
-  memberId: string;
-  planName: string;
-  effectiveDate: string;
-  groupCode?: string;
-  subscriberId?: string;
-  networks: {
-    careington: { name: string; memberUrl: string };
-    dialCare: { name: string; memberUrl: string };
-    toothlens: { name: string; memberUrl: string };
-  };
-  supportPhone: string;
-  supportEmail: string;
-}
 
 interface MemberIdCardProps {
   cardData: MemberCardData;
@@ -275,3 +261,5 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
     </div>
   );
 }
+
+export type { MemberCardData };

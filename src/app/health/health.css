@@ -1993,3 +1993,55 @@ a:hover {
 .enroll-rail__total-label { font-size:0.9rem; font-weight:700; color:#0f172a; }
 .enroll-rail__total-value { font-size:1.25rem; font-weight:800; color:#0066CC; }
 .enroll-rail__disclosure { font-size:0.75rem; color:#94a3b8; line-height:1.5; margin-top:1rem; padding-top:0.875rem; border-top:1px solid #f1f5f9; }
+
+/* ========================================
+   DASHBOARD RESPONSIVE
+   ======================================== */
+
+/* ── Tablet (≤ 900px) ─────────────────────────────────────────── */
+@media (max-width: 900px) {
+  /* Stack the overview grid (main + sidebar) into a single column */
+  .dashboard-overview-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+  }
+
+  /* Stack QR code above instructions */
+  .dashboard-scan-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+    justify-items: center;
+  }
+}
+
+/* ── Mobile (≤ 640px) ─────────────────────────────────────────── */
+@media (max-width: 640px) {
+  /* Dashboard header: stack logo and welcome vertically */
+  .dashboard-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+  }
+  .dashboard-header > div {
+    text-align: left !important;
+  }
+
+  /* Tighter tab bar on mobile */
+  .dashboard-tab-bar {
+    gap: 0.125rem !important;
+  }
+  .dashboard-tab-bar > button {
+    padding: 0.5rem 0.625rem !important;
+    font-size: 0.8rem !important;
+    gap: 0.35rem !important;
+  }
+
+  /* Scan grid: center QR code */
+  .dashboard-scan-grid {
+    justify-items: center;
+    text-align: center;
+  }
+  .dashboard-scan-grid > div:last-child {
+    text-align: left;
+  }
+}

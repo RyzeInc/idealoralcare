@@ -430,14 +430,12 @@ export async function POST(req: NextRequest) {
                   { customerId: bundle.customerId }
                 );
                 if (memberInfo?.email) {
-                  await convex.action(
-                    api["legal/emailFulfillment"].sendMembershipCancelledEmail,
-                    {
-                      memberName: `${memberInfo.firstName} ${memberInfo.lastName}`,
-                      memberEmail: memberInfo.email,
-                      memberId: memberInfo.memberId,
-                    }
-                  );
+                  // @ts-ignore - legal/emailFulfillment not in generated types
+                  await convex.action((api as any)["legal/emailFulfillment"].sendMembershipCancelledEmail, {
+                    memberName: `${memberInfo.firstName} ${memberInfo.lastName}`,
+                    memberEmail: memberInfo.email,
+                    memberId: memberInfo.memberId,
+                  });
                 }
               } catch (emailError) {
                 console.error("[webhook] Failed to send cancellation email:", emailError);

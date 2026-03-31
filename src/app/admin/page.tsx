@@ -1,7 +1,7 @@
 'use client';
 
 import Link from "next/link";
-import { ArrowRight, Users, FileUp, BarChart3, AlertCircle, Gift, Activity, Clock, Mail, FileX, UserX, Bell } from "lucide-react";
+import { ArrowRight, Users, FileUp, BarChart3, AlertCircle, Gift, Activity, Clock, Mail, FileX, UserX, Bell, CreditCard, CheckCircle2, AlertTriangle, Circle, Wallet } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useState } from "react";
@@ -15,6 +15,7 @@ export default function AdminDashboard() {
   const billingGroups = useQuery(api.admin.billing.getAllGroupBillingSummaries) || [];
   const recentActivity = useQuery(api.admin.members.getRecentActivity, { limit: 10 });
   const alerts = useQuery(api.admin.members.getAdminAlerts);
+  const systemHealth = useQuery(api.admin.members.getSystemHealth);
 
   const totalBilling = billingGroups.reduce((sum: number, g: any) => sum + g.totalAmount, 0);
 
@@ -65,11 +66,126 @@ export default function AdminDashboard() {
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        <StatCard title="Active Members" value={stats?.activeMembers?.toString() ?? "—"} icon={<Users size={22} className="text-blue-600" />} href="/admin/members" color="blue" />
-        <StatCard title="Pending Enrollments" value={stats?.pendingEnrollments?.toString() ?? "—"} icon={<AlertCircle size={22} className="text-amber-600" />} href="/admin/members" color="amber" />
-        <StatCard title="Eligibility Files" value={stats?.eligibilityFiles?.toString() ?? "—"} icon={<FileUp size={22} className="text-emerald-600" />} href="/admin/eligibility" color="emerald" />
-        <StatCard title="Monthly Billing" value={totalBilling > 0 ? `$${totalBilling.toFixed(2)}` : "—"} icon={<BarChart3 size={22} className="text-violet-600" />} href="/admin/billing" color="violet" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
+        <StatCard
+          title="Paying Subscribers"
+          value={stats?.payingSubscribers?.toString() ?? "—"}
+          subtitle={stats ? `${stats.totalBundles} total subscriptions` : undefined}
+          icon={<CreditCard size={22} className="text-emerald-600" />}
+          href="/admin/billing"
+          color="emerald"
+        />
+        <StatCard
+          title="Active Members"
+          value={stats?.activeMembers?.toString() ?? "—"}
+          subtitle={stats ? `${stats.totalMembers} total members` : undefined}
+          icon={<Users size={22} className="text-blue-600" />}
+          href="/admin/members"
+          color="blue"
+        />
+        <StatCard
+          title="Monthly Revenue"
+          value={stats?.monthlyRevenueCents != null ? `$${(stats.monthlyRevenueCents / 100).toFixed(2)}` : totalBilling > 0 ? `$${totalBilling.toFixed(2)}` : "—"}
+          icon={<Wallet size={22} className="text-violet-600" />}
+          href="/admin/billing"
+          color="violet"
+        />
+        <StatCard
+          title="Pending Enrollments"
+          value={stats?.pendingEnrollments?.toString() ?? "—"}
+          icon={<AlertCircle size={22} className="text-amber-600" />}
+          href="/admin/members"
+          color="amber"
+        />
+        <StatCard
+          title="Eligibility Files"
+          value={stats?.eligibilityFiles?.toString() ?? "—"}
+          icon={<FileUp size={22} className="text-slate-600" />}
+          href="/admin/eligibility"
+          color="slate"
+        />
+      </div>
+
+      {/* System Health */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+        <div className="px-6 py-4 border-b border-slate-100">
+          <h2 className="text-lg font-semibold text-slate-900">System Health</h2>
+          <p className="text-xs text-slate-400 mt-0.5">Real-time status of platform features</p>
+        </div>
+        {!systemHealth ? (
+          <div className="px-6 py-8 text-center"><p className="text-slate-400 text-sm">Loading...</p></div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-slate-100">
+            <HealthCard
+              title="Stripe Subscriptions"
+              status={systemHealth.stripe.status as "ok" | "warning" | "idle"}
+              label={systemHealth.stripe.label}
+              details={[
+                `${systemHealth.stripe.activePaidSubscriptions} paid active`,
+                `${systemHealth.stripe.totalSubscriptions} total bundles`,
+                systemHealth.stripe.failedPayments > 0
+                  ? `${systemHealth.stripe.failedPayments} failed/past due`
+                  : undefined,
+              ]}
+              href="/admin/billing"
+            />
+            <HealthCard
+              title="Enrollment Pipeline"
+              status={systemHealth.enrollment.status as "ok" | "warning" | "idle"}
+              label={systemHealth.enrollment.label}
+              details={[
+                `${systemHealth.enrollment.completed} completed`,
+                `${systemHealth.enrollment.inProgress} in progress`,
+                `${systemHealth.enrollment.abandoned} abandoned/expired`,
+              ]}
+              href="/admin/members"
+            />
+            <HealthCard
+              title="Eligibility Processing"
+              status={systemHealth.eligibility.status as "ok" | "warning" | "idle"}
+              label={systemHealth.eligibility.label}
+              details={[
+                `${systemHealth.eligibility.completedFiles} completed`,
+                `${systemHealth.eligibility.recentUploads} uploaded this week`,
+                systemHealth.eligibility.failedFiles > 0
+                  ? `${systemHealth.eligibility.failedFiles} failed`
+                  : undefined,
+              ]}
+              href="/admin/eligibility"
+            />
+            <HealthCard
+              title="Contact & Newsletter"
+              status={systemHealth.contacts.status as "ok" | "warning" | "idle"}
+              label={systemHealth.contacts.label}
+              details={[
+                `${systemHealth.contacts.totalSubmissions} contact submissions`,
+                `${systemHealth.contacts.newsletterSubscribers} newsletter subscribers`,
+              ]}
+              href="/admin/settings?tab=contacts"
+            />
+            <HealthCard
+              title="Member Profiles"
+              status={systemHealth.members.status as "ok" | "warning" | "idle"}
+              label={systemHealth.members.label}
+              details={[
+                `${systemHealth.members.linked} linked to user accounts`,
+                `${systemHealth.members.unlinked} unlinked (eligibility-only)`,
+              ]}
+              href="/admin/members"
+            />
+            <div className="bg-white px-5 py-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Activity size={16} className="text-slate-400" />
+                <p className="text-sm font-medium text-slate-700">Last Activity</p>
+              </div>
+              <p className="text-xs text-slate-500">
+                {systemHealth.lastActivityAt
+                  ? formatTimeAgo(systemHealth.lastActivityAt)
+                  : "No activity recorded"}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Quick Actions */}
@@ -127,6 +243,55 @@ export default function AdminDashboard() {
   );
 }
 
+function formatTimeAgo(timestamp: number): string {
+  const diff = Date.now() - timestamp;
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days !== 1 ? "s" : ""} ago`;
+}
+
+function HealthCard({ title, status, label, details, href }: {
+  title: string;
+  status: "ok" | "warning" | "idle";
+  label: string;
+  details: (string | undefined)[];
+  href: string;
+}) {
+  const statusIcon = status === "ok"
+    ? <CheckCircle2 size={16} className="text-emerald-500" />
+    : status === "warning"
+      ? <AlertTriangle size={16} className="text-amber-500" />
+      : <Circle size={16} className="text-slate-300" />;
+
+  const statusBg = status === "ok"
+    ? "bg-emerald-50 text-emerald-700"
+    : status === "warning"
+      ? "bg-amber-50 text-amber-700"
+      : "bg-slate-50 text-slate-500";
+
+  return (
+    <Link href={href} className="bg-white px-5 py-4 hover:bg-slate-50 transition-colors block">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-sm font-medium text-slate-700">{title}</p>
+        {statusIcon}
+      </div>
+      <p className={`text-xs font-medium px-2 py-0.5 rounded-full inline-block mb-2 ${statusBg}`}>
+        {status === "ok" ? "Operational" : status === "warning" ? "Needs Attention" : "Idle"}
+      </p>
+      <p className="text-xs text-slate-500 mb-1">{label}</p>
+      <ul className="space-y-0.5">
+        {details.filter(Boolean).map((d, i) => (
+          <li key={i} className="text-[11px] text-slate-400">{d}</li>
+        ))}
+      </ul>
+    </Link>
+  );
+}
+
 function AlertItem({ icon, label, count, href }: { icon: React.ReactNode; label: string; count: number; href: string }) {
   return (
     <Link href={href} className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 hover:bg-amber-100 transition-colors border border-amber-200">
@@ -139,7 +304,7 @@ function AlertItem({ icon, label, count, href }: { icon: React.ReactNode; label:
   );
 }
 
-function StatCard({ title, value, icon, href, color: _ }: { title: string; value: string; icon: React.ReactNode; href: string; color: string }) {
+function StatCard({ title, value, subtitle, icon, href, color: _ }: { title: string; value: string; subtitle?: string; icon: React.ReactNode; href: string; color: string }) {
   return (
     <Link href={href}>
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 hover:shadow-md hover:border-slate-300 transition-all cursor-pointer group">
@@ -148,6 +313,7 @@ function StatCard({ title, value, icon, href, color: _ }: { title: string; value
         </div>
         <p className="text-sm text-slate-500 mb-1">{title}</p>
         <p className="text-2xl font-bold text-slate-900">{value}</p>
+        {subtitle && <p className="text-xs text-slate-400 mt-1">{subtitle}</p>}
       </div>
     </Link>
   );

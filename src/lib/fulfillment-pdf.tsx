@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Font,
 } from "@react-pdf/renderer";
+import { renderCardFront, renderCardBack, type MemberCardData } from "@/lib/card-renderer";
 
 // ─── Brand colours ────────────────────────────────────────────────────────────
 const BLUE = "#1E88E5";
@@ -344,23 +345,24 @@ function WelcomePage({ data }: { data: FulfillmentPacketData }) {
         Included in this packet:
       </Text>
       {[
-        "Member ID card / digital ID card instructions",
-        "Program summary and access details",
-        "Membership agreement and cancellation terms",
+        "Careington POS Network program details and how to access the discount",
+        "DialCare Teledentistry program details and how to access",
         "Sample schedule of dental services and member-pay amounts",
+        "Member ID card (front and back)",
       ].map((item) => (
         <Bullet key={item} text={item} />
       ))}
 
       {/* How to Use Your Membership */}
       <Text style={{ ...s.h4, marginTop: 10, marginBottom: 4, color: GREEN }}>
-        How to Use Your Membership — 3 Easy Steps
+        How to Access the Dental Discount
       </Text>
       <View style={{ backgroundColor: LIGHT_GREEN, padding: 8, marginBottom: 8, borderRadius: 4 }}>
         {[
-          { n: 1, text: `Find a participating dentist near you — visit ${website} and enter your zip code to search 140,000+ providers nationwide.` },
-          { n: 2, text: "At your appointment, present your digital or printed member ID card. Let the front desk know you are a Careington discount plan member." },
-          { n: 3, text: "Pay the member-discounted rate directly to the provider at the time of service. No claims to file, no reimbursement required." },
+          { n: 1, text: "To locate a participating provider, please call (800) 290-0523 or visit www.careington.com to access the online provider search." },
+          { n: 2, text: "When scheduling an appointment, please inform the participating provider\u2019s office you are a member of the Careington Dental Network." },
+          { n: 3, text: "Please present your Careington ID card upon arrival to receive savings." },
+          { n: 4, text: "The provider will collect payment at the time of service. You are responsible for paying the total bill, less the applicable savings, when service is provided." },
         ].map((item) => (
           <Numbered key={item.n} n={item.n} text={item.text} />
         ))}
@@ -402,70 +404,95 @@ function WelcomePage({ data }: { data: FulfillmentPacketData }) {
 
 // ─── Page 2: Program Summary ──────────────────────────────────────────────────
 function ProgramSummaryPage({ data }: { data: FulfillmentPacketData }) {
-  const phone = data.memberServicesPhone ?? "(800) 290-0523";
-  const website = data.memberWebsite ?? "www.careington.com";
-
   return (
     <Page size="LETTER" style={s.page}>
       <PageHeader logoDataUri={data.logoDataUri} />
 
-      <Text style={s.h2}>2. Program Summary &amp; Member Use</Text>
+      <Text style={s.h2}>2. Program Summary</Text>
 
-      {/* Two-column highlights */}
-      <View style={{ flexDirection: "row", marginBottom: 10 }}>
-        <View style={s.highlightLeft}>
-          <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: GREEN, marginBottom: 5 }}>
-            What members receive
-          </Text>
-          {[
-            "Access to participating dental providers",
-            "Reduced member-pay amounts on eligible services",
-            "Support locating providers and using the program",
-            "Membership materials and ID card details",
-          ].map((item) => (
-            <Bullet key={item} text={item} small />
-          ))}
-        </View>
-        <View style={s.highlightRight}>
-          <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: BLUE, marginBottom: 5 }}>
-            How to use the program
-          </Text>
-          {[
-            "Confirm the provider participates before treatment.",
-            "Schedule your appointment and identify yourself as a member.",
-            "Present your member ID card at the visit.",
-            "Pay the discounted member amount directly to the provider at time of service.",
-          ].map((item, i) => (
-            <Numbered key={i} n={i + 1} text={item} />
-          ))}
-        </View>
-      </View>
+      {/* ── Careington POS Network ── */}
+      <Text style={s.h3}>Careington POS Network</Text>
+      <Text style={s.body}>
+        Careington International Corporation is one of the most recognized professional dental networks in the nation and boasts one of the largest dental networks nationally with a focus on neighborhood dentists.
+      </Text>
+      <Text style={s.body}>
+        Careington networks are a leader in member-transparent pricing with robust fee schedules.
+      </Text>
 
-      <Text style={s.h3}>Program Details</Text>
+      <Text style={{ ...s.h4, color: GREEN, marginTop: 6 }}>Careington Dental Plan Features:</Text>
       {[
-        `Dental — Ideal Oral Health Dental Savings Program (powered by the Careington network): Members save on many common dental services, including preventive care and select major procedures, through participating providers.`,
-        `Provider Search: To locate a participating provider near you, enter your zip code at ${website} or call ${phone}. The network includes 140,000+ participating dental specialists nationwide.`,
-        `Member Reminder: This plan is not insurance. Members are responsible for payment at the time of service and receive access to negotiated discounts through participating providers.`,
+        "Save 20% to 50% on most dental procedures including routine oral exams, unlimited cleanings and major work such as dentures, root canals and crowns",
+        "20% savings on orthodontics including braces and retainers for children and adults",
+        "20% reduction on specialists\u2019 normal fees. Specialties include endodontics, oral surgery, pediatric dentistry, periodontics, and prosthodontics where available",
+        "Cosmetic dentistry such as bonding and veneers also included",
+        "All dentists must meet highly selective credentialing standards based on education, background, license standing and other requirements",
+        "You may visit any participating dentist on the plan and change providers at any time",
       ].map((item) => (
         <Bullet key={item.slice(0, 40)} text={item} />
       ))}
 
-      <View style={{ ...s.disclosureBox, marginTop: 8 }}>
-        <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: DARK, marginBottom: 5 }}>
-          Disclosure Summary
-        </Text>
-        {[
-          "THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance.",
-          "The plan does not pay providers directly. Members must pay for all services but receive discounts from participating providers.",
-          "The range of discounts varies by provider and service. Provider participation may change.",
-          "A written list of participating providers is available upon request.",
-          "Cancellation, refund, and state-specific language should be reviewed against your final program documents before release.",
-        ].map((item) => (
-          <Bullet key={item.slice(0, 40)} text={item} small />
-        ))}
-      </View>
+      <Text style={{ ...s.h4, color: GREEN, marginTop: 6 }}>How to Access the Discount:</Text>
+      {[
+        { n: 1, text: "To locate a participating provider, please call (800) 290-0523 or visit www.careington.com to access the online provider search." },
+        { n: 2, text: "When scheduling an appointment, please inform the participating provider\u2019s office you are a member of the Careington Dental Network." },
+        { n: 3, text: "Please present your Careington ID card upon arrival to receive savings." },
+        { n: 4, text: "The provider will collect payment at the time of service. You are responsible for paying the total bill, less the applicable savings, when service is provided." },
+      ].map((item) => (
+        <Numbered key={item.n} n={item.n} text={item.text} />
+      ))}
 
       <Text style={s.footer}>Ideal Oral Health | Program Summary</Text>
+    </Page>
+  );
+}
+
+// ─── Page 2b: DialCare Teledentistry ──────────────────────────────────────────
+function DialCareSummaryPage({ data }: { data: FulfillmentPacketData }) {
+  return (
+    <Page size="LETTER" style={s.page}>
+      <PageHeader logoDataUri={data.logoDataUri} />
+
+      <Text style={s.h3}>DialCare Teledentistry</Text>
+      <Text style={s.body}>
+        DialCare Teledentistry provides a comprehensive virtual dental solution. Teledentistry offers convenient, robust care through 24/7/365 virtual consultations with licensed dentists via phone or video session for advice and diagnoses on a wide variety of oral health ailments, urgent care, dental-related questions and second opinions. With Teledentistry, members can access the care they need on their schedule.
+      </Text>
+
+      <Text style={{ ...s.h4, color: GREEN, marginTop: 6 }}>Teledentistry dentists can advise on the following:</Text>
+      {[
+        "Oral pain",
+        "Broken, chipped, sensitive or misaligned teeth",
+        "Gum swelling and bleeding",
+        "Sores, lesions, swelling or infections",
+        "Orthodontia needs",
+        "Provide expert second opinions to give peace of mind for oral health diagnoses and treatment options",
+        "Provide clinically appropriate prescriptions for non-DEA controlled substances",
+        "And much more",
+      ].map((item) => (
+        <Bullet key={item} text={item} />
+      ))}
+
+      <Text style={{ ...s.h4, color: GREEN, marginTop: 6 }}>When to use Teledentistry:</Text>
+      {[
+        "For non-emergency dental issues, questions and concerns",
+        "When a member lives a significant distance from a dentist",
+        "For second opinions on dental care",
+        "When the member\u2019s primary dentist is unavailable",
+        "When traveling within the U.S. and in need of dental care or guidance",
+        "During or after normal business hours, nights, weekends and holidays",
+        "To avoid unnecessary trips to the E.R.",
+      ].map((item) => (
+        <Bullet key={item} text={item} />
+      ))}
+
+      <Text style={{ ...s.h4, color: GREEN, marginTop: 6 }}>HOW TO ACCESS</Text>
+      <Text style={s.body}>
+        To register, the member simply follows the link in the confirmation email, downloads the DialCare mobile app or visits dialcare.com/verify. If they have any problems registering, members can contact DialCare for assistance at (855) 335-2255. Once registered, members can log in online at member.dialcare.com or through the mobile app to request consults or to update medical history.
+      </Text>
+      <Text style={s.bodySmall}>
+        State availability may vary. Please visit dialcare.com/states for up-to-date information.
+      </Text>
+
+      <Text style={s.footer}>Ideal Oral Health | Program Summary — DialCare Teledentistry</Text>
     </Page>
   );
 }
@@ -918,60 +945,83 @@ function MemberCardFrontPage({ data }: { data: FulfillmentPacketData }) {
   );
 }
 
-// Back of card
+// Back of card - matches dashboard card back exactly
 function MemberCardBackPage({ data }: { data: FulfillmentPacketData }) {
+  const website = data.memberWebsite ?? "www.careington.com";
+  const phone = data.memberServicesPhone ?? "(800) 290-0523";
+
   return (
     <Page style={cardStyles.cardPage} size="LETTER">
       <View style={cardStyles.bleedContainer}>
         <View style={cardStyles.cardContainer}>
-          <View style={cardStyles.topBar} />
+          {/* Top bar gradient */}
+          <View style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 4,
+            backgroundColor: BLUE,
+          }} />
 
-          {/* Header */}
-          <View style={cardStyles.header}>
-            <View style={cardStyles.headerLeft}>
-              {data.logoDataUri && (
-                <Image
-                  src={data.logoDataUri}
-                  style={cardStyles.logo}
-                />
-              )}
-              <View style={cardStyles.headerText}>
-                <Text style={cardStyles.brandName}>Ideal Health Oral Care</Text>
-                <Text style={cardStyles.cardType}>Important Information</Text>
+          {/* Networks section - matching dashboard layout */}
+          <View style={{ marginTop: 8, marginBottom: 12 }}>
+            <Text style={{ fontSize: 6.5, fontWeight: 'bold', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 5 }}>
+              Networks &amp; Services
+            </Text>
+
+            {/* Dental - Careington */}
+            <View style={{ marginBottom: 8 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: DARK, flex: 1 }}>
+                  Dental — Careington — POS
+                </Text>
+                <Text style={{ fontSize: 6.5, color: '#94a3b8', marginLeft: 4 }}>
+                  {phone}
+                </Text>
               </View>
-            </View>
-          </View>
-
-          {/* Back content */}
-          <View style={cardStyles.backContent}>
-            {/* Networks section */}
-            <View style={cardStyles.backSection}>
-              <Text style={cardStyles.backSectionTitle}>Provider Networks</Text>
-              <Text style={cardStyles.backText}>• Careington International</Text>
-              <Text style={cardStyles.backText}>• Dialcare Network</Text>
-              <Text style={cardStyles.backText}>• Toothlens</Text>
+              <Text style={{ fontSize: 6.5, color: '#475569', marginTop: 1 }}>
+                {website.replace('https://', '')}
+              </Text>
             </View>
 
-            {/* How to use */}
-            <View style={cardStyles.backSection}>
-              <Text style={cardStyles.backSectionTitle}>How to Use Your Card</Text>
-              <Text style={cardStyles.backText}>1. Present card at participating provider</Text>
-              <Text style={cardStyles.backText}>2. Ask about member discounts</Text>
-              <Text style={cardStyles.backText}>3. Enjoy discounted rates</Text>
+            {/* Teledentistry - DialCare */}
+            <View style={{ marginBottom: 8 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: DARK, flex: 1 }}>
+                  Teledentistry — DialCare
+                </Text>
+                <Text style={{ fontSize: 6.5, color: '#94a3b8', marginLeft: 4 }}>
+                  (800) 290-0523
+                </Text>
+              </View>
+              <Text style={{ fontSize: 6.5, color: '#475569', marginTop: 1 }}>
+                www.dialcare.com
+              </Text>
             </View>
 
-            {/* Contact */}
-            <View style={cardStyles.backSection}>
-              <Text style={cardStyles.backSectionTitle}>Member Services</Text>
-              <Text style={cardStyles.backText}>Phone: {data.memberServicesPhone}</Text>
-              <Text style={cardStyles.backText}>Website: {data.memberWebsite}</Text>
-              <Text style={cardStyles.backText}>Email: support@getidealoh.com</Text>
+            {/* AI Oral Scanning - ToothlensAI */}
+            <View>
+              <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: DARK }}>
+                AI Oral Scanning — ToothlensAI
+              </Text>
+              <Text style={{ fontSize: 6.5, color: '#475569', marginTop: 1 }}>
+                toothlens.com
+              </Text>
             </View>
           </View>
 
           {/* Footer */}
-          <View style={cardStyles.footer}>
-            <Text style={cardStyles.footerSub}>Questions? Visit {data.memberWebsite}</Text>
+          <View style={{
+            borderTopWidth: 1,
+            borderTopColor: '#e2e8f0',
+            paddingTop: 6,
+            marginTop: 8,
+            textAlign: 'center',
+          }}>
+            <Text style={{ fontSize: 6.5, fontWeight: 'bold', color: DARK, letterSpacing: 0.2 }}>
+              THIS IS NOT INSURANCE. IT IS A DISCOUNT PROGRAM.
+            </Text>
           </View>
         </View>
       </View>
@@ -989,8 +1039,23 @@ export function FulfillmentPacketPdf({ data }: { data: FulfillmentPacketData }) 
     >
       <WelcomePage data={data} />
       <ProgramSummaryPage data={data} />
-      <MembershipAgreementPage data={data} />
+      <DialCareSummaryPage data={data} />
       <SchedulePage data={data} />
+      <MemberCardTitlePage data={data} />
+      <MemberCardFrontPage data={data} />
+      <MemberCardBackPage data={data} />
+    </Document>
+  );
+}
+
+export function MembershipAgreementPdf({ data }: { data: FulfillmentPacketData }) {
+  return (
+    <Document
+      title={`Ideal Oral Health Membership Agreement - ${data.memberName}`}
+      author="Ideal Oral Health"
+      subject="Membership Agreement"
+    >
+      <MembershipAgreementPage data={data} />
     </Document>
   );
 }

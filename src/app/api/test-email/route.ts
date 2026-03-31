@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
         }
 
         let pdfBase64: string | null = null;
+        let agreementPdfBase64: string | null = null;
         try {
           const pdfRes = await fetch(`${serverUrl}/api/generate-fulfillment-pdf`, {
             method: 'POST',
@@ -75,6 +76,7 @@ export async function POST(req: NextRequest) {
           if (pdfRes.ok) {
             const pdfData = await pdfRes.json();
             pdfBase64 = pdfData.pdf;
+            agreementPdfBase64 = pdfData.agreementPdf ?? null;
           }
         } catch {
           // PDF generation failed — send email without attachment
@@ -92,6 +94,9 @@ export async function POST(req: NextRequest) {
         });
         if (pdfBase64) {
           attachments = [{ filename: 'Ideal_Oral_Health_Membership_Packet.pdf', content: pdfBase64 }];
+          if (agreementPdfBase64) {
+            attachments.push({ filename: 'Ideal_Oral_Health_Membership_Agreement.pdf', content: agreementPdfBase64 });
+          }
         }
         break;
       }
@@ -128,7 +133,6 @@ export async function POST(req: NextRequest) {
           memberName,
           memberEmail: to,
           memberId: TEST_MEMBER.memberId,
-          refundAmount: '$19.95',
         });
         break;
       }
@@ -363,7 +367,7 @@ function generateConfirmationEmailHTML(data: {
 }
 
 function generateCancellationEmailHTML(data: {
-  memberName: string; memberEmail: string; memberId: string; refundAmount?: string;
+  memberName: string; memberEmail: string; memberId: string;
 }): string {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
@@ -377,7 +381,6 @@ function generateCancellationEmailHTML(data: {
           <h3 style="margin-top: 0; color: #c0392b;">Cancellation Details</h3>
           <p style="margin: 5px 0;"><strong>Member ID:</strong> ${data.memberId}</p>
           <p style="margin: 5px 0;"><strong>Cancellation Date:</strong> ${new Date().toLocaleDateString()}</p>
-          ${data.refundAmount ? `<p style="margin: 5px 0;"><strong>Refund Amount:</strong> ${data.refundAmount}</p>` : ""}
         </div>
         <p>You will continue to have access to your benefits for the remainder of the period for which you've already paid.</p>
         <p style="font-size: 12px; color: #666;">

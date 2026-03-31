@@ -85,11 +85,14 @@ export default function DashboardTabs({
     <>
       {/* Dashboard Header with Logo */}
       <div
+        className="dashboard-header"
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           marginBottom: '2rem',
+          flexWrap: 'wrap',
+          gap: '0.75rem',
         }}
       >
         <button
@@ -119,6 +122,7 @@ export default function DashboardTabs({
 
       {/* Tab Bar */}
       <div
+        className="dashboard-tab-bar"
         style={{
           display: 'flex',
           gap: '0.25rem',

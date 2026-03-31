@@ -236,7 +236,7 @@ export const generateDentalDiscountNetworkFile: any = action({
       totalRecords++;
 
       // Dependent rows — same Unique ID, sequence 01/02/..., Guardian = 0
-      dependents.forEach((dep, idx) => {
+      dependents.forEach((dep: any, idx: number) => {
         const seqNum = String(idx + 1).padStart(2, "0");
         const depDob = dep.dateOfBirth
           ? formatDateCareington(new Date(dep.dateOfBirth + "T00:00:00Z"))
