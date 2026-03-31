@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       const batch = await stripe.subscriptions.list({
         status: "active",
         limit: 100,
-        expand: ["data.customer", "data.items.data.plan.product"],
+        expand: ["data.customer"],
         ...(startingAfter ? { starting_after: startingAfter } : {}),
       });
       subscriptions.push(...batch.data);
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
       const batch = await stripe.subscriptions.list({
         status: "past_due",
         limit: 100,
-        expand: ["data.customer", "data.items.data.plan.product"],
+        expand: ["data.customer"],
         ...(startingAfterPD ? { starting_after: startingAfterPD } : {}),
       });
       subscriptions.push(...batch.data);
