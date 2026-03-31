@@ -15,6 +15,7 @@ import {
   FileOutput,
   Settings,
   BarChart3,
+  Headphones,
 } from "lucide-react";
 
 const ADMIN_NAVIGATION = [
@@ -25,6 +26,7 @@ const ADMIN_NAVIGATION = [
   { label: "Rep Codes", href: "/admin/rep-codes", icon: Tag },
   { label: "Eligibility Files", href: "/admin/eligibility", icon: FileText },
   { label: "Billing", href: "/admin/billing", icon: DollarSign },
+  { label: "Customer Service", href: "/admin/customer-service", icon: Headphones },
   { label: "Vendor Files", href: "/admin/vendor-files", icon: FileOutput },
   { label: "Commissions", href: "/admin/commissions", icon: BarChart3 },
   { label: "Admin Users", href: "/admin/users", icon: ShieldCheck },

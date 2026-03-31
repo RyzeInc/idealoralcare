@@ -412,3 +412,26 @@ export const clearPendingDowngrade = mutation({
     return { success: true };
   },
 });
+
+/**
+ * Look up minimal member info by Clerk customerId for webhook-driven emails.
+ * Returns only the fields needed to send a cancellation email.
+ * Called without auth context from the Stripe webhook handler.
+ */
+export const getMemberForCancellation = query({
+  args: { customerId: v.string() },
+  handler: async (ctx, args) => {
+    const profile = await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_customer", (q) => q.eq("customerId", args.customerId))
+      .first();
+
+    if (!profile) return null;
+    return {
+      memberId: profile.memberId,
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+      email: profile.email ?? null,
+    };
+  },
+});

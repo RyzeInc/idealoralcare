@@ -88,12 +88,14 @@ export const recordScanStarted = mutation({
     clerkUserId: v.string(),
     toothlensUid: v.string(),
     sessionId: v.string(),
+    scanUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     return ctx.db.insert("toothlensScans", {
       clerkUserId: args.clerkUserId,
       toothlensUid: args.toothlensUid,
       sessionId: args.sessionId,
+      scanUrl: args.scanUrl,
       status: "started",
       startedAt: Date.now(),
     });
@@ -126,6 +128,16 @@ export const forwardToTeledentist = mutation({
       forwardedToTeledentist: true,
       forwardedAt: Date.now(),
     });
+  },
+});
+
+/**
+ * Get a single scan by ID (for viewing report).
+ */
+export const getScanById = query({
+  args: { scanId: v.id("toothlensScans") },
+  handler: async (ctx, args) => {
+    return ctx.db.get(args.scanId);
   },
 });
 

@@ -8,9 +8,10 @@ import { api } from '../../../../convex/_generated/api';
 
 interface OralScanTabProps {
   userId: string | null;
+  onTabChange?: (tabId: 'overview' | 'provider-search' | 'oral-scan' | 'teledentistry') => void;
 }
 
-export default function OralScanTab({ userId }: OralScanTabProps) {
+export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
   const [scannerActive, setScannerActive] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [convexScanId, setConvexScanId] = useState<string | null>(null);
@@ -97,11 +98,11 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
       setSessionId(newSessionId);
       setScannerActive(true);
 
-      // Record the scan session in Convex
       const scanId = await recordScanStartedMut({
         clerkUserId: userId,
         toothlensUid: uid,
         sessionId: newSessionId,
+        scanUrl: `${baseUrl}?uid=${encodeURIComponent(uid)}&session_id=${encodeURIComponent(newSessionId)}`,
       });
       setConvexScanId(scanId);
     } catch (err) {
@@ -126,6 +127,10 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
       setForwardingIds((prev) => new Set(prev).add(scanId));
       try {
         await forwardToTeledentistMut({ scanId: scanId as any });
+        // Navigate to teledentistry tab so user can start a consultation
+        if (onTabChange) {
+          onTabChange('teledentistry');
+        }
       } finally {
         setForwardingIds((prev) => {
           const n = new Set(prev);
@@ -134,8 +139,15 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
         });
       }
     },
-    [forwardToTeledentistMut]
+    [forwardToTeledentistMut, onTabChange]
   );
+
+  const buildScanUrl = useCallback((scan: { toothlensUid: string; sessionId: string; scanUrl?: string }) => {
+    if (scan.scanUrl) return scan.scanUrl;
+    // Reconstruct from uid + sessionId for older records
+    const base = scanBaseUrl || 'https://selfcheck.toothlens.com/ai/ryzehealth';
+    return `${base}?uid=${encodeURIComponent(scan.toothlensUid)}&session_id=${encodeURIComponent(scan.sessionId)}`;
+  }, [scanBaseUrl]);
 
   // Build the scanner iframe URL
   const getScanUrl = useCallback(() => {
@@ -843,6 +855,23 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
                     </span>
                     {scan.status === 'completed' && (
                       <button
+                        onClick={() => window.open(buildScanUrl(scan), '_blank', 'noopener,noreferrer')}
+                        style={{
+                          padding: '0.5rem 0.875rem',
+                          background: '#3b82f6',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        View Report
+                      </button>
+                    )}
+                    {scan.status === 'completed' && !scan.forwardedToTeledentist && (
+                      <button
                         onClick={() => handleForwardToTeledentist(scan._id as string)}
                         disabled={forwardingIds.has(scan._id as string)}
                         style={{
@@ -858,6 +887,20 @@ export default function OralScanTab({ userId }: OralScanTabProps) {
                       >
                         {forwardingIds.has(scan._id as string) ? 'Forwarding…' : 'Forward to Dentist'}
                       </button>
+                    )}
+                    {scan.status === 'completed' && scan.forwardedToTeledentist && (
+                      <span
+                        style={{
+                          padding: '0.25rem 0.75rem',
+                          background: '#ede9fe',
+                          color: '#6d28d9',
+                          borderRadius: '9999px',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                        }}
+                      >
+                        Forwarded ✓
+                      </span>
                     )}
                   </div>
                 </div>

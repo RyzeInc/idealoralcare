@@ -421,6 +421,28 @@ export async function POST(req: NextRequest) {
               bundleId: bundle._id,
               reason: "Stripe subscription deleted",
             });
+
+            // 4a. Send cancellation email to the member
+            if (bundle.customerId) {
+              try {
+                const memberInfo = await convex.query(
+                  api.subscriptions.webhookActions.getMemberForCancellation,
+                  { customerId: bundle.customerId }
+                );
+                if (memberInfo?.email) {
+                  await convex.action(
+                    api["legal/emailFulfillment"].sendMembershipCancelledEmail,
+                    {
+                      memberName: `${memberInfo.firstName} ${memberInfo.lastName}`,
+                      memberEmail: memberInfo.email,
+                      memberId: memberInfo.memberId,
+                    }
+                  );
+                }
+              } catch (emailError) {
+                console.error("[webhook] Failed to send cancellation email:", emailError);
+              }
+            }
           }
 
           // 4. Log the event

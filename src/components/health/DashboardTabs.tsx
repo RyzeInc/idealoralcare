@@ -178,7 +178,7 @@ export default function DashboardTabs({
 
         {activeTab === 'provider-search' && <ProviderSearchTab onClose={() => setActiveTab('overview')} />}
 
-        {activeTab === 'oral-scan' && <OralScanTab userId={userId} />}
+        {activeTab === 'oral-scan' && <OralScanTab userId={userId} onTabChange={setActiveTab} />}
 
         {activeTab === 'teledentistry' && <TeledentistryTab />}
       </Suspense>

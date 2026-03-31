@@ -1382,6 +1382,7 @@ export default defineSchema({
       v.literal("completed"),
       v.literal("cancelled")
     ),
+    scanUrl: v.optional(v.string()),        // Full selfcheck URL to re-open / download report
     forwardedToTeledentist: v.optional(v.boolean()),
     forwardedAt: v.optional(v.number()),
     startedAt: v.number(),
