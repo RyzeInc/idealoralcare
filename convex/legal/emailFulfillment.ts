@@ -336,15 +336,16 @@ function generateWelcomeEmailHTML(data: WelcomeEmailData): string {
 
         <h3 style="color: #667eea;">What You Get:</h3>
         <ul style="line-height: 1.8;">
-          <li><strong>Careington Dental Network:</strong> Save 20-50% on dental procedures</li>
+          <li><strong>AI Oral Scanning:</strong> Monitor your dental health from home with SmartCheck</li>
           <li><strong>DialCare Teledentistry:</strong> 24/7/365 virtual consultations</li>
+          <li><strong>Dental Discount Network:</strong> Save 20-50% on dental procedures</li>
           <li><strong>No Insurance Hassles:</strong> Simple discount pricing</li>
         </ul>
 
         <h3 style="color: #667eea;">Getting Started:</h3>
         <ol style="line-height: 1.8;">
-          <li>Visit www.careington.com or call (800) 290-0523</li>
-          <li>Find a dentist near you</li>
+          <li>Log in to your <a href="https://www.getidealoh.com/health/dashboard" style="color: #667eea; text-decoration: none;">Member Portal</a> for your AI Oral Scan and digital ID card</li>
+          <li>Visit <a href="https://www.careington.com" style="color: #667eea; text-decoration: none;">careington.com</a> or call (800) 290-0523 to find a dentist near you</li>
           <li>Present your ID card to receive discounts</li>
         </ol>
 
@@ -486,8 +487,9 @@ function generateDependentInviteEmailHTML(data: {
 
         <h3 style="color: #0066CC; font-size: 15px;">What You Get:</h3>
         <ul style="line-height: 1.8; font-size: 14px; color: #4b5563;">
-          <li><strong>Careington Dental Network:</strong> Save 20–50% on dental procedures at thousands of providers nationwide</li>
+          <li><strong>AI Oral Scanning:</strong> Monitor dental health from home with SmartCheck by ToothlensAI</li>
           <li><strong>DialCare Teledentistry:</strong> 24/7 virtual consultations with licensed dentists</li>
+          <li><strong>Dental Discount Network:</strong> Save 20–50% on dental procedures at thousands of providers nationwide</li>
           <li><strong>No separate charge:</strong> Your access is included under ${data.primaryMemberName}'s plan</li>
         </ul>
 
@@ -526,7 +528,7 @@ function generateFulfillmentEmailHTML(data: FulfillmentEmailData): string {
       <!-- Header -->
       <div style="background: linear-gradient(135deg, #1E88E5 0%, #35C48A 100%); color: white; padding: 28px 24px; text-align: center; border-radius: 8px 8px 0 0;">
         <h1 style="margin: 0; font-size: 22px;">Your Membership Packet &amp; Program Guide</h1>
-        <p style="margin: 8px 0 0; font-size: 14px; opacity: 0.9;">Ideal Oral Health — Careington Dental Savings Program</p>
+        <p style="margin: 8px 0 0; font-size: 14px; opacity: 0.9;">Ideal Oral Health — AI Dental Scan &middot; Teledentistry &middot; Dental Savings</p>
       </div>
 
       <div style="padding: 28px 24px;">
@@ -563,8 +565,9 @@ function generateFulfillmentEmailHTML(data: FulfillmentEmailData): string {
         <h3 style="color: #1E88E5; font-size: 14px;">What's in your packet:</h3>
         <ul style="font-size: 13px; line-height: 2.0; color: #374151; padding-left: 20px;">
           <li>Welcome letter &amp; member summary card</li>
-          <li>Careington POS Network program details &amp; how to access the discount</li>
+          <li>AI Oral Scanning (SmartCheck by ToothlensAI) &mdash; how to access and use</li>
           <li>DialCare Teledentistry program details &amp; how to access</li>
+          <li>Dental Discount Network program details &amp; how to access savings</li>
           <li>Sample schedule of dental services and member-pay amounts</li>
           <li>Member ID card (front &amp; back)</li>
         </ul>
@@ -604,14 +607,20 @@ function generateFulfillmentEmailHTML(data: FulfillmentEmailData): string {
           <p style="font-size: 12px; color: #6b7280; margin: 10px 0 0; line-height: 1.5;">
             <strong>Best for:</strong> Questions about dental concerns, guidance after an AI scan, and deciding if in-person care is needed.
           </p>
+          <div style="background: #FFF8E1; border-left: 3px solid #F9A825; padding: 10px 12px; margin-top: 10px; border-radius: 4px;">
+            <p style="font-size: 12px; color: #374151; margin: 0; line-height: 1.5;">
+              <strong style="color: #F9A825;">Look for your DialCare email:</strong>
+              Shortly after enrollment, you will receive a separate &ldquo;Register Your Account&rdquo; email directly from DialCare. Use it to set up your teledentistry account. If you don&rsquo;t see it, check your spam/junk folder or call DialCare at (855) 335-2255.
+            </p>
+          </div>
         </div>
 
         <!-- Benefit 3: Dental Discount Network -->
         <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px;">
-          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${TEAL};">3. Dental Discount Network (Careington)</h3>
+          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${TEAL};">3. Dental Discount Network</h3>
           <ol style="margin: 0; padding: 0 0 0 20px; font-size: 13px; line-height: 2.0; color: #374151;">
             <li>Search for a participating provider at <a href="https://www.careington.com" style="color: ${TEAL}; text-decoration: none;">careington.com</a> or call (800) 290-0523.</li>
-            <li>Confirm the provider accepts the Careington discount program <strong>before</strong> your visit.</li>
+            <li>Confirm the provider accepts the discount program <strong>before</strong> your visit.</li>
             <li>Present your Member ID card at your appointment.</li>
             <li>Pay the discounted member amount directly at time of service.</li>
           </ol>
@@ -647,11 +656,15 @@ function generateFulfillmentEmailHTML(data: FulfillmentEmailData): string {
           <p style="font-size: 13px; color: #6b7280; margin: 0 0 0; line-height: 1.5;">Your attached packet includes a sample schedule. You can also ask any participating provider for a discounted treatment plan.</p>
         </div>
 
-        <!-- CTA -->
+        <!-- CTA + QR Code -->
         <div style="text-align: center; margin: 24px 0 16px;">
           <a href="${data.portalUrl}/health/dashboard" style="display: inline-block; padding: 14px 36px; background: ${BLUE}; color: white; font-weight: 700; font-size: 15px; text-decoration: none; border-radius: 8px;">
             Go to Your Member Portal
           </a>
+          <div style="margin-top: 16px;">
+            <p style="font-size: 12px; color: #6b7280; margin: 0 0 8px;">Or scan this QR code to open your dashboard:</p>
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent("https://www.getidealoh.com/health/dashboard")}" alt="QR Code to Member Dashboard" width="150" height="150" style="border: 1px solid #e5e7eb; border-radius: 8px;" />
+          </div>
         </div>
 
         <!-- Support -->

@@ -82,7 +82,7 @@ export default function OverviewTab({
       className="dashboard-overview-grid"
       style={{
         display: 'grid',
-        gridTemplateColumns: '1fr 340px',
+        gridTemplateColumns: 'minmax(0, 1fr) 340px',
         gap: '2.5rem',
         alignItems: 'start',
       }}

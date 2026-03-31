@@ -62,6 +62,8 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
         style={{
           perspective: '1000px',
           cursor: 'pointer',
+          maxWidth: '100%',
+          overflow: 'hidden',
         }}
         onClick={() => setFlipped(!flipped)}
       >
@@ -69,6 +71,7 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
           style={{
             position: 'relative',
             width: '100%',
+            maxWidth: '100%',
             aspectRatio: '1.586',
             transition: 'transform 0.6s',
             transformStyle: 'preserve-3d',
@@ -209,21 +212,21 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>
-                    Dental — Careington — POS
-                  </span>
-                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{cardData.supportPhone}</span>
-                </div>
-                <div style={{ fontSize: '0.75rem', color: '#475569' }}>
-                  {cardData.networks.careington.memberUrl.replace('https://', '')}
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
-                  <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>
                     Teledentistry — DialCare
                   </span>
                   <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(800) 290-0523</span>
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#475569' }}>
                   {cardData.networks.dialCare.memberUrl.replace('https://', '')}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
+                  <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>
+                    Dental — Careington — POS
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{cardData.supportPhone}</span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#475569' }}>
+                  {cardData.networks.careington.memberUrl.replace('https://', '')}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
                   <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>

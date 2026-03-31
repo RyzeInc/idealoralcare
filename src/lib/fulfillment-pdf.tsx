@@ -275,7 +275,7 @@ function PageHeader({ logoDataUri }: { logoDataUri?: string }) {
 // ─── Page 1: Welcome Letter ───────────────────────────────────────────────────
 function WelcomePage({ data }: { data: FulfillmentPacketData }) {
   const phone = data.memberServicesPhone ?? "(800) 290-0523";
-  const website = data.memberWebsite ?? "www.careington.com";
+  const website = data.memberWebsite ?? "www.getidealoh.com";
 
   return (
     <Page size="LETTER" style={s.page}>
@@ -284,14 +284,14 @@ function WelcomePage({ data }: { data: FulfillmentPacketData }) {
       {/* Title */}
       <Text style={{ ...s.h1, textAlign: "center" }}>Member Fulfillment Packet</Text>
       <Text style={{ fontSize: 10, color: GRAY, textAlign: "center", marginBottom: 12 }}>
-        Ideal Oral Health — Careington Dental Savings Program
+        Ideal Oral Health — AI Dental Scan - Teledentistry - Dental Savings Program
       </Text>
 
       {/* Meta table */}
       <View style={{ flexDirection: "row", marginBottom: 8 }}>
         {[
           { label: "Program Name", value: "Ideal Oral Health" },
-          { label: "Network / Vendor", value: "Careington discount program" },
+          { label: "Member ID", value: data.memberId },
           { label: "Effective Date", value: data.effectiveDate },
         ].map((item) => (
           <View key={item.label} style={{ ...s.metaBox, width: "33.33%", marginRight: 4 }}>
@@ -345,8 +345,9 @@ function WelcomePage({ data }: { data: FulfillmentPacketData }) {
         Included in this packet:
       </Text>
       {[
-        "Careington POS Network program details and how to access the discount",
+        "AI Oral Scanning (SmartCheck by ToothlensAI) — how to access and use",
         "DialCare Teledentistry program details and how to access",
+        "Dental Discount Network program details and how to access savings",
         "Sample schedule of dental services and member-pay amounts",
         "Member ID card (front and back)",
       ].map((item) => (
@@ -355,14 +356,14 @@ function WelcomePage({ data }: { data: FulfillmentPacketData }) {
 
       {/* How to Use Your Membership */}
       <Text style={{ ...s.h4, marginTop: 10, marginBottom: 4, color: GREEN }}>
-        How to Access the Dental Discount
+        How to Access Your Benefits
       </Text>
       <View style={{ backgroundColor: LIGHT_GREEN, padding: 8, marginBottom: 8, borderRadius: 4 }}>
         {[
-          { n: 1, text: "To locate a participating provider, please call (800) 290-0523 or visit www.careington.com to access the online provider search." },
-          { n: 2, text: "When scheduling an appointment, please inform the participating provider\u2019s office you are a member of the Careington Dental Network." },
-          { n: 3, text: "Please present your Careington ID card upon arrival to receive savings." },
-          { n: 4, text: "The provider will collect payment at the time of service. You are responsible for paying the total bill, less the applicable savings, when service is provided." },
+          { n: 1, text: "Log in to your Member Portal at www.getidealoh.com/health/dashboard to access your AI Oral Scan, view your card, and manage your membership." },
+          { n: 2, text: "To locate a participating dental provider, call (800) 290-0523 or visit www.careington.com to search the provider directory." },
+          { n: 3, text: "When scheduling an appointment, inform the provider\u2019s office you are an Ideal Oral Health member." },
+          { n: 4, text: "Present your Member ID card upon arrival to receive savings. The provider will collect payment at the time of service." },
         ].map((item) => (
           <Numbered key={item.n} n={item.n} text={item.text} />
         ))}
@@ -402,24 +403,77 @@ function WelcomePage({ data }: { data: FulfillmentPacketData }) {
   );
 }
 
-// ─── Page 2: Program Summary ──────────────────────────────────────────────────
+// ─── Page 2: AI Oral Scanning (SmartCheck by ToothlensAI) ───────────────────
+function AIScanningSummaryPage({ data }: { data: FulfillmentPacketData }) {
+  return (
+    <Page size="LETTER" style={s.page}>
+      <PageHeader logoDataUri={data.logoDataUri} />
+
+      <Text style={s.h2}>2. AI Oral Scanning (SmartCheck)</Text>
+      <Text style={s.body}>
+        Your Ideal Oral Health membership includes access to SmartCheck by ToothlensAI — an AI-powered dental assessment tool that lets you monitor your oral health from home. Simply upload or take a photo of your teeth from your Member Portal and receive an instant AI-driven screening of potential dental issues.
+      </Text>
+
+      <Text style={{ ...s.h4, color: GREEN, marginTop: 6 }}>What SmartCheck Can Do:</Text>
+      {[
+        "Detect potential dental issues early through AI-powered photo analysis",
+        "Monitor visible changes in your oral health over time with unlimited repeat scans",
+        "Provide AI-generated insights to help you decide when to seek professional care",
+        "Review scan history to track your oral health progress",
+        "Share scan results with your dentist or during a teledentistry consultation",
+      ].map((item) => (
+        <Bullet key={item.slice(0, 40)} text={item} />
+      ))}
+
+      <Text style={{ ...s.h4, color: GREEN, marginTop: 6 }}>How to Use SmartCheck:</Text>
+      {[
+        { n: 1, text: "Log in to your Member Portal at www.getidealoh.com/health/dashboard." },
+        { n: 2, text: "Open the Oral Scan tab from your dashboard." },
+        { n: 3, text: "Upload or take a clear photo of your teeth following the on-screen guide." },
+        { n: 4, text: "Review your AI-generated results and any recommended next steps." },
+        { n: 5, text: "Use your results to guide a teledentistry consultation or share with your dentist at your next visit." },
+      ].map((item) => (
+        <Numbered key={item.n} n={item.n} text={item.text} />
+      ))}
+
+      <Text style={{ ...s.h4, color: GREEN, marginTop: 6 }}>When to Use AI Scanning:</Text>
+      {[
+        "Before scheduling a dental appointment — to understand any visible areas of concern",
+        "Between regular dental visits — to monitor your oral health at home",
+        "After dental treatment — to track healing and changes",
+        "When you notice something unusual — discoloration, swelling, or sensitivity",
+        "Before a teledentistry consultation — to share visual context with the dentist",
+      ].map((item) => (
+        <Bullet key={item.slice(0, 40)} text={item} />
+      ))}
+
+      <View style={s.noticeBox}>
+        <Text style={{ fontSize: 9, lineHeight: 1.4 }}>
+          <Text style={{ fontFamily: "Helvetica-Bold", color: ORANGE }}>Important: </Text>
+          <Text>
+            SmartCheck is an AI screening tool — it is not a clinical diagnosis. Always consult a licensed dentist for professional evaluation and treatment. Your data is protected with SOC 2 Type 2 and HIPAA-compliant security protocols.
+          </Text>
+        </Text>
+      </View>
+
+      <Text style={s.footer}>Ideal Oral Health | AI Oral Scanning — SmartCheck</Text>
+    </Page>
+  );
+}
+
+// ─── Page 4: Dental Discount Network ─────────────────────────────────────────
 function ProgramSummaryPage({ data }: { data: FulfillmentPacketData }) {
   return (
     <Page size="LETTER" style={s.page}>
       <PageHeader logoDataUri={data.logoDataUri} />
 
-      <Text style={s.h2}>2. Program Summary</Text>
+      <Text style={s.h2}>4. Dental Discount Network</Text>
 
-      {/* ── Careington POS Network ── */}
-      <Text style={s.h3}>Careington POS Network</Text>
       <Text style={s.body}>
-        Careington International Corporation is one of the most recognized professional dental networks in the nation and boasts one of the largest dental networks nationally with a focus on neighborhood dentists.
-      </Text>
-      <Text style={s.body}>
-        Careington networks are a leader in member-transparent pricing with robust fee schedules.
+        Your Ideal Oral Health membership includes access to one of the largest dental discount networks in the nation, with a focus on neighborhood dentists and transparent, member-friendly pricing.
       </Text>
 
-      <Text style={{ ...s.h4, color: GREEN, marginTop: 6 }}>Careington Dental Plan Features:</Text>
+      <Text style={{ ...s.h4, color: GREEN, marginTop: 6 }}>Dental Discount Features:</Text>
       {[
         "Save 20% to 50% on most dental procedures including routine oral exams, unlimited cleanings and major work such as dentures, root canals and crowns",
         "20% savings on orthodontics including braces and retainers for children and adults",
@@ -433,26 +487,26 @@ function ProgramSummaryPage({ data }: { data: FulfillmentPacketData }) {
 
       <Text style={{ ...s.h4, color: GREEN, marginTop: 6 }}>How to Access the Discount:</Text>
       {[
-        { n: 1, text: "To locate a participating provider, please call (800) 290-0523 or visit www.careington.com to access the online provider search." },
-        { n: 2, text: "When scheduling an appointment, please inform the participating provider\u2019s office you are a member of the Careington Dental Network." },
-        { n: 3, text: "Please present your Careington ID card upon arrival to receive savings." },
+        { n: 1, text: "To locate a participating provider, call (800) 290-0523 or visit www.careington.com to search the provider directory." },
+        { n: 2, text: "When scheduling an appointment, inform the provider\u2019s office you are an Ideal Oral Health member." },
+        { n: 3, text: "Present your Member ID card upon arrival to receive savings." },
         { n: 4, text: "The provider will collect payment at the time of service. You are responsible for paying the total bill, less the applicable savings, when service is provided." },
       ].map((item) => (
         <Numbered key={item.n} n={item.n} text={item.text} />
       ))}
 
-      <Text style={s.footer}>Ideal Oral Health | Program Summary</Text>
+      <Text style={s.footer}>Ideal Oral Health | Dental Discount Network</Text>
     </Page>
   );
 }
 
-// ─── Page 2b: DialCare Teledentistry ──────────────────────────────────────────
+// ─── Page 3: DialCare Teledentistry ──────────────────────────────────────────
 function DialCareSummaryPage({ data }: { data: FulfillmentPacketData }) {
   return (
     <Page size="LETTER" style={s.page}>
       <PageHeader logoDataUri={data.logoDataUri} />
 
-      <Text style={s.h3}>DialCare Teledentistry</Text>
+      <Text style={s.h2}>3. Teledentistry (DialCare)</Text>
       <Text style={s.body}>
         DialCare Teledentistry provides a comprehensive virtual dental solution. Teledentistry offers convenient, robust care through 24/7/365 virtual consultations with licensed dentists via phone or video session for advice and diagnoses on a wide variety of oral health ailments, urgent care, dental-related questions and second opinions. With Teledentistry, members can access the care they need on their schedule.
       </Text>
@@ -488,16 +542,26 @@ function DialCareSummaryPage({ data }: { data: FulfillmentPacketData }) {
       <Text style={s.body}>
         To register, the member simply follows the link in the confirmation email, downloads the DialCare mobile app or visits dialcare.com/verify. If they have any problems registering, members can contact DialCare for assistance at (855) 335-2255. Once registered, members can log in online at member.dialcare.com or through the mobile app to request consults or to update medical history.
       </Text>
+
+      <View style={s.noticeBox}>
+        <Text style={{ fontSize: 9, lineHeight: 1.4 }}>
+          <Text style={{ fontFamily: "Helvetica-Bold", color: ORANGE }}>Look for your DialCare email: </Text>
+          <Text>
+            Shortly after enrollment, you will receive a separate "Register Your Account" email directly from DialCare. Use this email to set up your teledentistry account. If you do not see it, check your spam/junk folder or contact DialCare at (855) 335-2255.
+          </Text>
+        </Text>
+      </View>
+
       <Text style={s.bodySmall}>
         State availability may vary. Please visit dialcare.com/states for up-to-date information.
       </Text>
 
-      <Text style={s.footer}>Ideal Oral Health | Program Summary — DialCare Teledentistry</Text>
+      <Text style={s.footer}>Ideal Oral Health | Teledentistry — DialCare</Text>
     </Page>
   );
 }
 
-// ─── Page 3: Membership Agreement ────────────────────────────────────────────
+// ─── Page 5: Membership Agreement ────────────────────────────────────────────
 function MembershipAgreementPage({ data }: { data: FulfillmentPacketData }) {
   const fields: [string, string][] = [
     ["Discount Plan Organization", "Careington International Corporation"],
@@ -548,7 +612,7 @@ function MembershipAgreementPage({ data }: { data: FulfillmentPacketData }) {
     <Page size="LETTER" style={s.page}>
       <PageHeader logoDataUri={data.logoDataUri} />
 
-      <Text style={s.h2}>3. Membership Agreement</Text>
+      <Text style={s.h2}>5. Membership Agreement</Text>
       <Text style={s.italic}>
         This agreement is a record of your enrollment. Finalized billing, cancellation, and legal
         language apply as provided at time of enrollment.
@@ -579,7 +643,7 @@ function MembershipAgreementPage({ data }: { data: FulfillmentPacketData }) {
   );
 }
 
-// ─── Page 4: Schedule of Services ────────────────────────────────────────────
+// ─── Page 6: Schedule of Services ────────────────────────────────────────────
 function SchedulePage({ data }: { data: FulfillmentPacketData }) {
   const phone = data.memberServicesPhone ?? "(800) 290-0523";
 
@@ -587,10 +651,10 @@ function SchedulePage({ data }: { data: FulfillmentPacketData }) {
     <Page size="LETTER" style={s.page}>
       <PageHeader logoDataUri={data.logoDataUri} />
 
-      <Text style={s.h2}>4. Sample Schedule of Services</Text>
+      <Text style={s.h2}>6. Sample Schedule of Services</Text>
       <Text style={{ fontSize: 9, fontFamily: "Helvetica-Oblique", color: GRAY, marginBottom: 8 }}>
-        Abbreviated sample based on the Careington POS schedule. Confirm codes and pricing against
-        your final fee schedule before use.
+        Abbreviated sample schedule of discounted member-pay amounts. Confirm codes and pricing
+        against the current fee schedule before use.
       </Text>
 
       {/* Contact strip */}
@@ -912,7 +976,7 @@ function MemberCardFrontPage({ data }: { data: FulfillmentPacketData }) {
                 />
               )}
               <View style={cardStyles.headerText}>
-                <Text style={cardStyles.brandName}>Ideal Health Oral Care</Text>
+                <Text style={cardStyles.brandName}>Ideal Oral Health</Text>
                 <Text style={cardStyles.cardType}>Member ID Card</Text>
               </View>
             </View>
@@ -947,7 +1011,7 @@ function MemberCardFrontPage({ data }: { data: FulfillmentPacketData }) {
 
 // Back of card - matches dashboard card back exactly
 function MemberCardBackPage({ data }: { data: FulfillmentPacketData }) {
-  const website = data.memberWebsite ?? "www.careington.com";
+  const website = data.memberWebsite ?? "www.getidealoh.com";
   const phone = data.memberServicesPhone ?? "(800) 290-0523";
 
   return (
@@ -970,21 +1034,6 @@ function MemberCardBackPage({ data }: { data: FulfillmentPacketData }) {
               Networks &amp; Services
             </Text>
 
-            {/* Dental - Careington */}
-            <View style={{ marginBottom: 8 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: DARK, flex: 1 }}>
-                  Dental — Careington — POS
-                </Text>
-                <Text style={{ fontSize: 6.5, color: '#94a3b8', marginLeft: 4 }}>
-                  {phone}
-                </Text>
-              </View>
-              <Text style={{ fontSize: 6.5, color: '#475569', marginTop: 1 }}>
-                {website.replace('https://', '')}
-              </Text>
-            </View>
-
             {/* Teledentistry - DialCare */}
             <View style={{ marginBottom: 8 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -997,6 +1046,21 @@ function MemberCardBackPage({ data }: { data: FulfillmentPacketData }) {
               </View>
               <Text style={{ fontSize: 6.5, color: '#475569', marginTop: 1 }}>
                 www.dialcare.com
+              </Text>
+            </View>
+
+            {/* Dental - Careington */}
+            <View style={{ marginBottom: 8 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: DARK, flex: 1 }}>
+                  Dental — Careington — POS
+                </Text>
+                <Text style={{ fontSize: 6.5, color: '#94a3b8', marginLeft: 4 }}>
+                  {phone}
+                </Text>
+              </View>
+              <Text style={{ fontSize: 6.5, color: '#475569', marginTop: 1 }}>
+                {website.replace('https://', '')}
               </Text>
             </View>
 
@@ -1038,8 +1102,9 @@ export function FulfillmentPacketPdf({ data }: { data: FulfillmentPacketData }) 
       subject="Member Fulfillment Packet"
     >
       <WelcomePage data={data} />
-      <ProgramSummaryPage data={data} />
+      <AIScanningSummaryPage data={data} />
       <DialCareSummaryPage data={data} />
+      <ProgramSummaryPage data={data} />
       <SchedulePage data={data} />
       <MemberCardTitlePage data={data} />
       <MemberCardFrontPage data={data} />

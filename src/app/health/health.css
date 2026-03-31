@@ -54,6 +54,7 @@
   font-size: 1rem;
   min-height: 100vh;
   position: relative;
+  overflow-x: hidden;
 }
 
 /* Typography Hierarchy */
@@ -1998,6 +1999,12 @@ a:hover {
    DASHBOARD RESPONSIVE
    ======================================== */
 
+/* Prevent dashboard from overflowing viewport */
+.dashboard-overview-grid {
+  max-width: 100%;
+  overflow: hidden;
+}
+
 /* ── Tablet (≤ 900px) ─────────────────────────────────────────── */
 @media (max-width: 900px) {
   /* Stack the overview grid (main + sidebar) into a single column */
@@ -2036,6 +2043,12 @@ a:hover {
     gap: 0.35rem !important;
   }
 
+  /* Constrain glass cards so they don't overflow */
+  .glass-card {
+    max-width: 100%;
+    overflow: hidden;
+  }
+
   /* Scan grid: center QR code */
   .dashboard-scan-grid {
     justify-items: center;
@@ -2043,5 +2056,10 @@ a:hover {
   }
   .dashboard-scan-grid > div:last-child {
     text-align: left;
+  }
+
+  /* Member ID card: shrink text for small screens */
+  .dashboard-overview-grid .glass-card [style*="aspectRatio"] {
+    font-size: 0.85em;
   }
 }

@@ -119,14 +119,14 @@ export function renderCardBack(cardData: MemberCardData): RenderedCardSide {
           section: 'Networks & Services',
           items: [
             {
-              name: 'Dental — Careington — POS',
-              phone: cardData.supportPhone,
-              website: cardData.networks.careington.memberUrl,
-            },
-            {
               name: 'Teledentistry — DialCare',
               phone: '(800) 290-0523',
               website: cardData.networks.dialCare.memberUrl,
+            },
+            {
+              name: 'Dental — Careington — POS',
+              phone: cardData.supportPhone,
+              website: cardData.networks.careington.memberUrl,
             },
             {
               name: 'AI Oral Scanning — ToothlensAI',
@@ -190,8 +190,8 @@ export function prepareWalletPassData(cardData: MemberCardData): WalletPassData 
     planName: cardData.planName,
     supportPhone: cardData.supportPhone,
     networks: [
-      cardData.networks.careington.name,
       cardData.networks.dialCare.name,
+      cardData.networks.careington.name,
       cardData.networks.toothlens.name,
     ],
     logoUrl: 'https://getidealoh.com/logo.png',
@@ -241,7 +241,7 @@ export function fulfillmentToCardData(fulfillmentData: {
   memberEmail?: string;
 }): MemberCardData {
   const phone = fulfillmentData.memberServicesPhone || '(800) 290-0523';
-  const website = fulfillmentData.memberWebsite || 'www.careington.com';
+  const website = fulfillmentData.memberWebsite || 'www.getidealoh.com';
   const email = fulfillmentData.memberEmail || 'support@getidealoh.com';
 
   return {
