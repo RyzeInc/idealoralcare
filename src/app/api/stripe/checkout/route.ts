@@ -129,10 +129,9 @@ export async function POST(req: NextRequest) {
       {
         price_data: {
           currency: "usd",
-          product_data: {
-            name: productName,
-            metadata: { planId, stripeProductId },
-          },
+          // Reference the existing Stripe product by ID so the webhook can resolve
+          // it back to a Convex catalogProduct for entitlement creation.
+          product: stripeProductId,
           unit_amount: amount,
           recurring: {
             interval: cadence === "monthly" ? "month" : "year",

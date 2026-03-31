@@ -3,31 +3,29 @@
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import { User } from "lucide-react";
+import { useEffect, useState } from "react";
 import UserMenu from "./UserMenu";
 
 /**
  * MEMBER PORTAL BUTTON
  *
  * Smart nav button shown on every page that adapts to auth state:
- *   - Not loaded:  renders a ghost placeholder (avoids layout shift)
  *   - Signed out:  "Member Portal" button → /health/sign-in
  *   - Signed in:   UserMenu avatar + dropdown → dashboard / logout
+ *
+ * Only renders on client after hydration to avoid SSR/client mismatch
  */
 export default function MemberPortalButton() {
   const { isSignedIn, isLoaded } = useAuth();
+  const [isMounted, setIsMounted] = useState(false);
 
-  // Render a fixed-width placeholder while Clerk hydrates to prevent layout shift
-  if (!isLoaded) {
-    return (
-      <div
-        style={{
-          width: "128px",
-          height: "36px",
-          borderRadius: "8px",
-          background: "rgba(255,255,255,0.08)",
-        }}
-      />
-    );
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Don't render anything until client mounts to avoid hydration mismatch
+  if (!isMounted || !isLoaded) {
+    return null;
   }
 
   if (isSignedIn) {

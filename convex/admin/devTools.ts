@@ -2,8 +2,85 @@ import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
 
 /**
- * DEV / TESTING TOOL
- *
+ * Seed the catalog with initial products — no auth required.
+ * Use this from the CLI: npx convex run admin/devTools:seedCatalog
+ * (The regular catalog/mutations:seedInitialData requires admin JWT which CLI can't provide.)
+ */
+export const seedCatalog = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const existing = await ctx.db.query("catalogProducts").collect();
+    if (existing.length > 0) {
+      return {
+        success: false,
+        message: `Catalog already has ${existing.length} products. Clear them first if needed.`,
+      };
+    }
+
+    const now = Date.now();
+    const products = [
+      {
+        slug: "oral-health-individual",
+        name: "Ideal Oral Health Plan",
+        category: "dental",
+        description:
+          "Comprehensive oral health coverage with AI Oral Scanning, 24/7 teledentistry consultations, and access to the Dental Discount Network.",
+        inclusions: [
+          "AI Oral Scanning",
+          "24/7 Teledentistry Program",
+          "Dental Discount Network Access",
+          "Preventive Discounts",
+          "Member ID Card",
+          "Emergency Access",
+        ],
+        exclusions: ["Not traditional dental insurance", "Savings-based discount plan"],
+        eligibilityRules: { requiresVerification: false, disclosureText: "This is a savings-based discount plan, not insurance." },
+        activationBehavior: "immediate" as const,
+        pricing: { monthlyCardCents: 1499, monthlyACHCents: 1499, annualCardCents: 16499, annualACHCents: 16499 },
+        metadata: { icon: "Heart", bestFor: ["Individuals"] },
+        isVisible: true,
+        isFeatured: true,
+        order: 0,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        slug: "oral-health-family",
+        name: "Ideal Oral Health Plan — Family",
+        category: "dental",
+        description:
+          "Comprehensive oral health coverage for the whole family with AI Oral Scanning, 24/7 teledentistry, and the Dental Discount Network.",
+        inclusions: [
+          "Everything in Individual Plan",
+          "Unlimited Dependents Covered",
+          "AI Oral Scanning for Family",
+          "24/7 Teledentistry Program",
+          "Dental Discount Network Access",
+          "Family Member ID Cards",
+        ],
+        exclusions: ["Not traditional dental insurance", "Savings-based discount plan"],
+        eligibilityRules: { requiresVerification: false, disclosureText: "This is a savings-based discount plan, not insurance." },
+        activationBehavior: "immediate" as const,
+        pricing: { monthlyCardCents: 2499, monthlyACHCents: 2499, annualCardCents: 27499, annualACHCents: 27499 },
+        metadata: { icon: "Users", bestFor: ["Families"] },
+        isVisible: true,
+        isFeatured: true,
+        order: 1,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ];
+
+    const ids = [];
+    for (const p of products) {
+      ids.push(await ctx.db.insert("catalogProducts", p));
+    }
+
+    return { success: true, message: `Seeded ${ids.length} products`, count: ids.length };
+  },
+});
+
+/**
  * Links an admin account to an active memberProfile so they can test
  * all member-facing flows (dependents, entitlements, member cards, etc.).
  *
@@ -112,5 +189,39 @@ export const getMyMemberProfile = query({
       .withIndex("by_customer", (q) => q.eq("customerId", args.clerkUserId))
       .filter((q) => q.neq(q.field("status"), "terminated"))
       .first();
+  },
+});
+
+/**
+ * Set Stripe product IDs on a catalog product by slug.
+ * Called by scripts/setup-test-stripe.js to wire up test Stripe products.
+ * No auth required — intended to be run via `npx convex run` in dev only.
+ */
+export const setTestStripeIds = mutation({
+  args: {
+    slug: v.string(),
+    stripeProducts: v.object({
+      monthlyCardId: v.string(),
+      monthlyACHId: v.string(),
+      annualCardId: v.string(),
+      annualACHId: v.string(),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const product = await ctx.db
+      .query("catalogProducts")
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+      .first();
+
+    if (!product) {
+      throw new Error(`Catalog product not found: ${args.slug}`);
+    }
+
+    await ctx.db.patch(product._id, {
+      stripeProducts: args.stripeProducts,
+      updatedAt: Date.now(),
+    });
+
+    return { success: true, productId: product._id, slug: args.slug };
   },
 });

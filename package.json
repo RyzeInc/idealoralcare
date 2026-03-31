@@ -12,7 +12,9 @@
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui",
     "convex:dev": "convex dev",
-    "convex:deploy": "convex deploy"
+    "convex:deploy": "convex deploy",
+    "webhook": "stripe listen --forward-to localhost:3000/api/stripe/webhook",
+    "setup:test": "node scripts/setup-test-stripe.js"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.36.8",

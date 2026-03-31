@@ -12,7 +12,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ShoppingCart, Menu, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
 import IdealHealthWordmark from "./NexusHealthWordmark";
 import MemberPortalButton from "@/components/auth/MemberPortalButton";
@@ -28,6 +28,11 @@ export default function HealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
   const { isSignedIn } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const resourceCenterHref = isSignedIn ? "/health/dashboard" : "/health/resources";
 
@@ -89,8 +94,8 @@ export default function HealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
               </Link>
             </li>
             
-            {/* Cart Icon (only show if items in cart) */}
-            {cartItemCount > 0 && (
+            {/* Cart Icon (only show if items in cart, and only on client after mount) */}
+            {isMounted && cartItemCount > 0 && (
               <li className="nav-item">
                 <Link 
                   href="/health/checkout" 
