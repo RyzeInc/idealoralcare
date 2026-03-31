@@ -1,7 +1,7 @@
 'use client';
 
 import Link from "next/link";
-import { ArrowRight, Users, FileUp, BarChart3, AlertCircle, Gift, Activity, Clock, Mail, FileX, UserX, Bell, CreditCard, CheckCircle2, AlertTriangle, Circle, Wallet } from "lucide-react";
+import { ArrowRight, Users, FileUp, BarChart3, AlertCircle, Gift, Activity, Clock, Mail, FileX, UserX, Bell, CreditCard, CheckCircle2, AlertTriangle, Circle, Wallet, RefreshCw } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useState } from "react";
@@ -10,6 +10,8 @@ export default function AdminDashboard() {
   const grantAccess = useMutation(api.admin.grantFreeAccess.grantMeFullAccess);
   const [isGranting, setIsGranting] = useState(false);
   const [grantStatus, setGrantStatus] = useState<null | { success: boolean; message: string }>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<null | { success: boolean; message: string }>(null);
 
   const stats = useQuery(api.admin.members.getDashboardStats);
   const billingGroups = useQuery(api.admin.billing.getAllGroupBillingSummaries) || [];
@@ -203,6 +205,31 @@ export default function AdminDashboard() {
               <Gift size={16} className="text-emerald-500 flex-shrink-0" />
             </div>
           </button>
+          <button onClick={async () => {
+            setIsSyncing(true);
+            setSyncStatus(null);
+            try {
+              const res = await fetch("/api/stripe/sync", { method: "POST" });
+              const data = await res.json();
+              if (res.ok) {
+                setSyncStatus({ success: true, message: data.message });
+              } else {
+                setSyncStatus({ success: false, message: data.error || "Sync failed" });
+              }
+            } catch (error) {
+              setSyncStatus({ success: false, message: `Error: ${error instanceof Error ? error.message : "Failed"}` });
+            } finally {
+              setIsSyncing(false);
+            }
+          }} disabled={isSyncing} className="bg-white px-6 py-4 hover:bg-blue-50 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-slate-900">Sync Stripe Subscriptions</p>
+                <p className="text-sm text-slate-500 mt-0.5">{isSyncing ? "Syncing..." : "Reconcile active Stripe subs with member data"}</p>
+              </div>
+              <RefreshCw size={16} className={`text-blue-500 flex-shrink-0 ${isSyncing ? "animate-spin" : ""}`} />
+            </div>
+          </button>
           <QuickAction label="Create New Group" description="Set up a new enrollment group" href="/admin/hierarchy" />
           <QuickAction label="Upload Eligibility File" description="Batch import member records" href="/admin/eligibility" />
           <QuickAction label="View Billing Summary" description="Monthly member counts & amounts" href="/admin/billing" />
@@ -210,6 +237,11 @@ export default function AdminDashboard() {
         {grantStatus && (
           <div className={`px-6 py-3 border-t border-slate-100 text-sm font-medium ${grantStatus.success ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
             {grantStatus.message}
+          </div>
+        )}
+        {syncStatus && (
+          <div className={`px-6 py-3 border-t border-slate-100 text-sm font-medium ${syncStatus.success ? "bg-blue-50 text-blue-700" : "bg-red-50 text-red-700"}`}>
+            {syncStatus.message}
           </div>
         )}
       </div>

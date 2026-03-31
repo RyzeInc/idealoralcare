@@ -383,3 +383,41 @@ export const getEnrollmentSession = query({
     return session;
   },
 });
+
+/**
+ * Get the default DTC (direct-to-consumer) site/account/group hierarchy.
+ * Used by the Stripe sync reconciliation to assign orphaned subscriptions.
+ */
+export const getDTCHierarchy = query({
+  handler: async (ctx: QueryCtx) => {
+    // Find the default DTC site by slug
+    const site = await ctx.db
+      .query("sites")
+      .filter((q) => q.eq(q.field("slug"), "ideal-health"))
+      .first();
+
+    if (!site) return null;
+
+    // Find the first active account under this site
+    const account = await ctx.db
+      .query("accounts")
+      .withIndex("by_site", (q: any) => q.eq("siteId", site._id))
+      .first();
+
+    if (!account) return null;
+
+    // Find the first active group under this account
+    const group = await ctx.db
+      .query("groups")
+      .withIndex("by_account", (q: any) => q.eq("accountId", account._id))
+      .first();
+
+    if (!group) return null;
+
+    return {
+      siteId: site._id,
+      accountId: account._id,
+      groupId: group._id,
+    };
+  },
+});

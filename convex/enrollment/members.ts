@@ -754,3 +754,17 @@ export const addMemberNote = mutation({
     return noteId;
   },
 });
+
+/**
+ * Look up a member profile by Clerk customerId.
+ * Used by Stripe sync to check if a member already exists.
+ */
+export const getMemberByCustomerId = query({
+  args: { customerId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_customer", (q: any) => q.eq("customerId", args.customerId))
+      .first();
+  },
+});

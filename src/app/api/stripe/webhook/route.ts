@@ -56,7 +56,8 @@ export async function POST(req: NextRequest) {
         const stripeSubscriptionId = session.subscription as string;
 
         // Guard: session must have required metadata
-        if (!metadata?.clerkUserId || !metadata?.enrollmentSessionId) {
+        if (!metadata?.clerkUserId) {
+          console.error("[webhook] Missing clerkUserId in checkout session metadata");
           return NextResponse.json({ received: true });
         }
 
@@ -64,13 +65,40 @@ export async function POST(req: NextRequest) {
 
         try {
           // Fetch enrollment session to get site/account/group context
-          const enrollmentSession = await convex.query(
-            api.enrollment.sessions.getEnrollmentSession,
-            { sessionId: enrollmentSessionId }
-          );
+          // Fall back to DTC hierarchy if enrollment session is missing (cross-environment, missed webhook, etc.)
+          let siteId: string;
+          let accountId: string;
+          let groupId: string;
+          let enrollmentSessionDocId: string | undefined;
 
-          if (!enrollmentSession) {
-            throw new Error(`Enrollment session not found: ${enrollmentSessionId}`);
+          if (enrollmentSessionId) {
+            try {
+              const enrollmentSession = await convex.query(
+                api.enrollment.sessions.getEnrollmentSession,
+                { sessionId: enrollmentSessionId }
+              );
+              siteId = enrollmentSession.siteId;
+              accountId = enrollmentSession.accountId;
+              groupId = enrollmentSession.groupId;
+              enrollmentSessionDocId = enrollmentSession._id;
+            } catch {
+              console.warn(`[webhook] Enrollment session not found: ${enrollmentSessionId}. Falling back to DTC hierarchy.`);
+              const hierarchy = await convex.query(api.enrollment.sessions.getDTCHierarchy);
+              if (!hierarchy) {
+                throw new Error("No DTC hierarchy found and enrollment session missing — cannot create member");
+              }
+              siteId = hierarchy.siteId;
+              accountId = hierarchy.accountId;
+              groupId = hierarchy.groupId;
+            }
+          } else {
+            const hierarchy = await convex.query(api.enrollment.sessions.getDTCHierarchy);
+            if (!hierarchy) {
+              throw new Error("No DTC hierarchy found and no enrollmentSessionId — cannot create member");
+            }
+            siteId = hierarchy.siteId;
+            accountId = hierarchy.accountId;
+            groupId = hierarchy.groupId;
           }
 
           // Get Stripe subscription to extract pricing/billingdetails
@@ -90,9 +118,9 @@ export async function POST(req: NextRequest) {
           const memberProfileId = await convex.mutation(
             api.enrollment.members.webhookCreateMemberProfile,
             {
-              siteId: enrollmentSession.siteId,
-              accountId: enrollmentSession.accountId,
-              groupId: enrollmentSession.groupId,
+              siteId: siteId as any,
+              accountId: accountId as any,
+              groupId: groupId as any,
               firstName: session.customer_details?.name?.split(" ")[0] || "Member",
               lastName: session.customer_details?.name?.split(" ")?.[1] || "",
               email: session.customer_email || "",
@@ -100,8 +128,8 @@ export async function POST(req: NextRequest) {
               memberType: "active",
               signupSource: referralCode
                 ? `referral:${referralCode}`
-                : `stripe:${enrollmentSessionId}`,
-              enrollmentSessionId: enrollmentSession._id,
+                : `stripe:${enrollmentSessionId || session.id}`,
+              enrollmentSessionId: enrollmentSessionDocId as any,
             }
           );
 
@@ -149,12 +177,18 @@ export async function POST(req: NextRequest) {
             });
           }
 
-          // 4. Complete enrollment session
-          await convex.mutation(api.enrollment.sessions.completeEnrollmentSession, {
-            sessionId: enrollmentSessionId,
-            bundleId,
-            customerId: clerkUserId,
-          });
+          // 4. Complete enrollment session (only if we found one)
+          if (enrollmentSessionId) {
+            try {
+              await convex.mutation(api.enrollment.sessions.completeEnrollmentSession, {
+                sessionId: enrollmentSessionId,
+                bundleId,
+                customerId: clerkUserId,
+              });
+            } catch (sessionError) {
+              console.warn("[webhook] Could not complete enrollment session:", sessionError);
+            }
+          }
 
           // 5. Create commission record if broker attribution
           const effectiveBrokerCode = brokerCode || referralCode;
@@ -162,7 +196,7 @@ export async function POST(req: NextRequest) {
             try {
               await convex.mutation(api.subscriptions.commissions.createCommissionPayable, {
                 brokerId: effectiveBrokerCode,
-                enrollmentSessionId: enrollmentSession._id,
+                enrollmentSessionId: enrollmentSessionDocId as any,
                 memberId: memberProfileId,
                 rateApplied: 0.15, // Default 15% - will be overridden by commissionRates
                 amount: Math.round(totalCents * 0.15), // Auto-calculated
