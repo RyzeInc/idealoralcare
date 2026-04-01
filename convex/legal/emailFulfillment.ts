@@ -101,6 +101,7 @@ export const sendFulfillmentPacketEmail = action({
       body: JSON.stringify({
         from: "Ideal Oral Health <noreply@getidealoh.com>",
         to: args.memberEmail,
+        replyTo: "support@getidealoh.com",
         subject: "Your Ideal Oral Health Membership Packet & Program Guide",
         html: generateFulfillmentEmailHTML({
           memberFirstName: args.memberFirstName,
@@ -154,6 +155,7 @@ export const sendMembershipWelcomeEmail = action({
         body: JSON.stringify({
           from: "Ideal Oral Health <noreply@getidealoh.com>",
           to: args.memberEmail,
+          replyTo: "support@getidealoh.com",
           subject: "Welcome to Ideal Oral Health - Your Membership is Active",
           html: generateWelcomeEmailHTML(args),
         }),
@@ -194,6 +196,7 @@ export const sendMembershipConfirmationEmail = action({
         body: JSON.stringify({
           from: "Ideal Oral Health <noreply@getidealoh.com>",
           to: args.memberEmail,
+          replyTo: "support@getidealoh.com",
           subject: "Ideal Oral Health Membership Confirmation",
           html: generateConfirmationEmailHTML(args),
         }),
@@ -229,6 +232,7 @@ export const sendMembershipCancelledEmail = action({
         body: JSON.stringify({
           from: "Ideal Oral Health <noreply@getidealoh.com>",
           to: args.memberEmail,
+          replyTo: "support@getidealoh.com",
           subject: "Ideal Oral Health Membership Cancelled",
           html: generateCancellationEmailHTML(args),
         }),
@@ -269,6 +273,7 @@ export const sendDependentInviteEmail = action({
         body: JSON.stringify({
           from: "Ideal Oral Health <noreply@getidealoh.com>",
           to: args.dependentEmail,
+          replyTo: "support@getidealoh.com",
           subject: `${args.primaryMemberName} added you to their Ideal Oral Health plan`,
           html: generateDependentInviteEmailHTML({
             dependentName: args.dependentName,
@@ -336,7 +341,7 @@ function generateWelcomeEmailHTML(data: WelcomeEmailData): string {
 
         <h3 style="color: #667eea;">What You Get:</h3>
         <ul style="line-height: 1.8;">
-          <li><strong>AI Oral Scanning:</strong> Monitor your dental health from home with SmartCheck</li>
+          <li><strong>AI Oral Scan:</strong> Monitor your dental health from home</li>
           <li><strong>DialCare Teledentistry:</strong> 24/7/365 virtual consultations</li>
           <li><strong>Dental Discount Network:</strong> Save 20-50% on dental procedures</li>
           <li><strong>No Insurance Hassles:</strong> Simple discount pricing</li>
@@ -345,7 +350,7 @@ function generateWelcomeEmailHTML(data: WelcomeEmailData): string {
         <h3 style="color: #667eea;">Getting Started:</h3>
         <ol style="line-height: 1.8;">
           <li>Log in to your <a href="https://www.getidealoh.com/health/dashboard" style="color: #667eea; text-decoration: none;">Member Portal</a> for your AI Oral Scan and digital ID card</li>
-          <li>Visit <a href="https://www.careington.com" style="color: #667eea; text-decoration: none;">careington.com</a> or call (800) 290-0523 to find a dentist near you</li>
+          <li>Visit <a href="https://www.getidealoh.com" style="color: #667eea; text-decoration: none;">getidealoh.com</a> or call (800) 290-0523 to find a dentist near you</li>
           <li>Present your ID card to receive discounts</li>
         </ol>
 
@@ -487,7 +492,7 @@ function generateDependentInviteEmailHTML(data: {
 
         <h3 style="color: #0066CC; font-size: 15px;">What You Get:</h3>
         <ul style="line-height: 1.8; font-size: 14px; color: #4b5563;">
-          <li><strong>AI Oral Scanning:</strong> Monitor dental health from home with SmartCheck by ToothlensAI</li>
+          <li><strong>AI Oral Scan:</strong> Monitor dental health from home</li>
           <li><strong>DialCare Teledentistry:</strong> 24/7 virtual consultations with licensed dentists</li>
           <li><strong>Dental Discount Network:</strong> Save 20–50% on dental procedures at thousands of providers nationwide</li>
           <li><strong>No separate charge:</strong> Your access is included under ${data.primaryMemberName}'s plan</li>
@@ -565,7 +570,7 @@ function generateFulfillmentEmailHTML(data: FulfillmentEmailData): string {
         <h3 style="color: #1E88E5; font-size: 14px;">What's in your packet:</h3>
         <ul style="font-size: 13px; line-height: 2.0; color: #374151; padding-left: 20px;">
           <li>Welcome letter &amp; member summary card</li>
-          <li>AI Oral Scanning (SmartCheck by ToothlensAI) &mdash; how to access and use</li>
+          <li>AI Oral Scan &mdash; how to access and use</li>
           <li>DialCare Teledentistry program details &amp; how to access</li>
           <li>Dental Discount Network program details &amp; how to access savings</li>
           <li>Sample schedule of dental services and member-pay amounts</li>
@@ -619,7 +624,7 @@ function generateFulfillmentEmailHTML(data: FulfillmentEmailData): string {
         <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px;">
           <h3 style="margin: 0 0 10px; font-size: 15px; color: ${TEAL};">3. Dental Discount Network</h3>
           <ol style="margin: 0; padding: 0 0 0 20px; font-size: 13px; line-height: 2.0; color: #374151;">
-            <li>Search for a participating provider at <a href="https://www.careington.com" style="color: ${TEAL}; text-decoration: none;">careington.com</a> or call (800) 290-0523.</li>
+            <li>Search for a participating provider at <a href="https://www.getidealoh.com" style="color: ${TEAL}; text-decoration: none;">getidealoh.com</a> or call (800) 290-0523.</li>
             <li>Confirm the provider accepts the discount program <strong>before</strong> your visit.</li>
             <li>Present your Member ID card at your appointment.</li>
             <li>Pay the discounted member amount directly at time of service.</li>

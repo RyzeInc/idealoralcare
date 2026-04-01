@@ -53,6 +53,7 @@ import type * as legal_emailFulfillment from "../legal/emailFulfillment.js";
 import type * as legal_membershipAgreements from "../legal/membershipAgreements.js";
 import type * as lib_authGuards from "../lib/authGuards.js";
 import type * as lib_env from "../lib/env.js";
+import type * as lib_gmail from "../lib/gmail.js";
 import type * as lib_sanitize from "../lib/sanitize.js";
 import type * as newsletter from "../newsletter.js";
 import type * as nexus_categories from "../nexus/categories.js";
@@ -122,6 +123,7 @@ declare const fullApi: ApiFromModules<{
   "legal/membershipAgreements": typeof legal_membershipAgreements;
   "lib/authGuards": typeof lib_authGuards;
   "lib/env": typeof lib_env;
+  "lib/gmail": typeof lib_gmail;
   "lib/sanitize": typeof lib_sanitize;
   newsletter: typeof newsletter;
   "nexus/categories": typeof nexus_categories;

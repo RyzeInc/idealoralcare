@@ -313,7 +313,7 @@ function WelcomePage({ data }: { data: FulfillmentPacketData }) {
       </View>
 
       {/* Welcome letter heading */}
-      <Text style={{ ...s.h3, marginTop: 6 }}>1. Welcome Letter</Text>
+      <Text style={{ ...s.h3, marginTop: 6 }}>Welcome Letter</Text>
 
       {/* Address block */}
       {[
@@ -345,8 +345,8 @@ function WelcomePage({ data }: { data: FulfillmentPacketData }) {
         Included in this packet:
       </Text>
       {[
-        "AI Oral Scanning (SmartCheck by ToothlensAI) — how to access and use",
-        "DialCare Teledentistry program details and how to access",
+        "AI Oral Scan — how to access and use",
+        "Teledentistry program details and how to access",
         "Dental Discount Network program details and how to access savings",
         "Sample schedule of dental services and member-pay amounts",
         "Member ID card (front and back)",
@@ -361,7 +361,7 @@ function WelcomePage({ data }: { data: FulfillmentPacketData }) {
       <View style={{ backgroundColor: LIGHT_GREEN, padding: 8, marginBottom: 8, borderRadius: 4 }}>
         {[
           { n: 1, text: "Log in to your Member Portal at www.getidealoh.com/health/dashboard to access your AI Oral Scan, view your card, and manage your membership." },
-          { n: 2, text: "To locate a participating dental provider, call (800) 290-0523 or visit www.careington.com to search the provider directory." },
+          { n: 2, text: "To locate a participating dental provider, call (800) 290-0523 or visit www.getidealoh.com to search the provider directory." },
           { n: 3, text: "When scheduling an appointment, inform the provider\u2019s office you are an Ideal Oral Health member." },
           { n: 4, text: "Present your Member ID card upon arrival to receive savings. The provider will collect payment at the time of service." },
         ].map((item) => (
@@ -403,18 +403,18 @@ function WelcomePage({ data }: { data: FulfillmentPacketData }) {
   );
 }
 
-// ─── Page 2: AI Oral Scanning (SmartCheck by ToothlensAI) ───────────────────
+// ─── Page 2: AI Oral Scan ────────────────────────────────────────────────────
 function AIScanningSummaryPage({ data }: { data: FulfillmentPacketData }) {
   return (
     <Page size="LETTER" style={s.page}>
       <PageHeader logoDataUri={data.logoDataUri} />
 
-      <Text style={s.h2}>2. AI Oral Scanning (SmartCheck)</Text>
+      <Text style={s.h2}>1. AI Oral Scan</Text>
       <Text style={s.body}>
-        Your Ideal Oral Health membership includes access to SmartCheck by ToothlensAI — an AI-powered dental assessment tool that lets you monitor your oral health from home. Simply upload or take a photo of your teeth from your Member Portal and receive an instant AI-driven screening of potential dental issues.
+        Your Ideal Oral Health membership includes access to an AI-powered dental assessment tool that lets you monitor your oral health from home. Simply upload or take a photo of your teeth from your Member Portal and receive an instant AI-driven screening of potential dental issues.
       </Text>
 
-      <Text style={{ ...s.h4, color: GREEN, marginTop: 6 }}>What SmartCheck Can Do:</Text>
+      <Text style={{ ...s.h4, color: GREEN, marginTop: 6 }}>What AI Oral Scan Can Do:</Text>
       {[
         "Detect potential dental issues early through AI-powered photo analysis",
         "Monitor visible changes in your oral health over time with unlimited repeat scans",
@@ -425,7 +425,7 @@ function AIScanningSummaryPage({ data }: { data: FulfillmentPacketData }) {
         <Bullet key={item.slice(0, 40)} text={item} />
       ))}
 
-      <Text style={{ ...s.h4, color: GREEN, marginTop: 6 }}>How to Use SmartCheck:</Text>
+      <Text style={{ ...s.h4, color: GREEN, marginTop: 6 }}>How to Use AI Oral Scan:</Text>
       {[
         { n: 1, text: "Log in to your Member Portal at www.getidealoh.com/health/dashboard." },
         { n: 2, text: "Open the Oral Scan tab from your dashboard." },
@@ -451,12 +451,12 @@ function AIScanningSummaryPage({ data }: { data: FulfillmentPacketData }) {
         <Text style={{ fontSize: 9, lineHeight: 1.4 }}>
           <Text style={{ fontFamily: "Helvetica-Bold", color: ORANGE }}>Important: </Text>
           <Text>
-            SmartCheck is an AI screening tool — it is not a clinical diagnosis. Always consult a licensed dentist for professional evaluation and treatment. Your data is protected with SOC 2 Type 2 and HIPAA-compliant security protocols.
+            AI Oral Scan is a screening tool — it is not a clinical diagnosis. Always consult a licensed dentist for professional evaluation and treatment. Your data is protected with SOC 2 Type 2 and HIPAA-compliant security protocols.
           </Text>
         </Text>
       </View>
 
-      <Text style={s.footer}>Ideal Oral Health | AI Oral Scanning — SmartCheck</Text>
+      <Text style={s.footer}>Ideal Oral Health | AI Oral Scan</Text>
     </Page>
   );
 }
@@ -487,7 +487,7 @@ function ProgramSummaryPage({ data }: { data: FulfillmentPacketData }) {
 
       <Text style={{ ...s.h4, color: GREEN, marginTop: 6 }}>How to Access the Discount:</Text>
       {[
-        { n: 1, text: "To locate a participating provider, call (800) 290-0523 or visit www.careington.com to search the provider directory." },
+        { n: 1, text: "To locate a participating provider, call (800) 290-0523 or visit www.getidealoh.com to search the provider directory." },
         { n: 2, text: "When scheduling an appointment, inform the provider\u2019s office you are an Ideal Oral Health member." },
         { n: 3, text: "Present your Member ID card upon arrival to receive savings." },
         { n: 4, text: "The provider will collect payment at the time of service. You are responsible for paying the total bill, less the applicable savings, when service is provided." },
@@ -506,7 +506,7 @@ function DialCareSummaryPage({ data }: { data: FulfillmentPacketData }) {
     <Page size="LETTER" style={s.page}>
       <PageHeader logoDataUri={data.logoDataUri} />
 
-      <Text style={s.h2}>3. Teledentistry (DialCare)</Text>
+      <Text style={s.h2}>2. Teledentistry (DialCare)</Text>
       <Text style={s.body}>
         DialCare Teledentistry provides a comprehensive virtual dental solution. Teledentistry offers convenient, robust care through 24/7/365 virtual consultations with licensed dentists via phone or video session for advice and diagnoses on a wide variety of oral health ailments, urgent care, dental-related questions and second opinions. With Teledentistry, members can access the care they need on their schedule.
       </Text>
@@ -561,64 +561,28 @@ function DialCareSummaryPage({ data }: { data: FulfillmentPacketData }) {
   );
 }
 
-// ─── Page 5: Membership Agreement ────────────────────────────────────────────
+// ─── Membership Agreement ────────────────────────────────────────────────────
 function MembershipAgreementPage({ data }: { data: FulfillmentPacketData }) {
   const fields: [string, string][] = [
-    ["Discount Plan Organization", "Careington International Corporation"],
-    ["Program Brand", "Ideal Oral Health"],
+    ["Program", "Ideal Oral Health"],
     ["Group Code", data.groupCode],
-    ["Group Name", "Ideal Oral Health"],
     ["Member ID", data.memberId],
+    ["Member Name", data.memberName],
+    ["Address", data.memberAddress ?? "[ADDRESS]"],
+    ["Email", data.memberEmail],
     ["Effective Date", data.effectiveDate],
     ["Term", data.term ?? "Annual"],
-    ["Periodic Charge", data.periodicCharge ?? "[PERIODIC CHARGE]"],
-    ["Processing Fee", data.processingFee ?? "[PROCESSING FEE]"],
-    [
-      "Cancellation Contact",
-      data.memberServicesPhone
-        ? `${data.memberServicesPhone} | info@getidealoh.com`
-        : "801-820-0010 | info@getidealoh.com",
-    ],
-  ];
-
-  const sections: [string, string][] = [
-    [
-      "Purchase and Renewal Conditions",
-      "By enrolling in the program, the member confirms they are at least 18 years old or are enrolling on behalf of a minor child for whom they are a parent or legal guardian. Membership charges, renewal timing, and any automatic renewal language match the finalized billing process.",
-    ],
-    [
-      "Termination Conditions",
-      "Ideal Oral Health and its program administrator reserve the right to terminate membership for permitted reasons, including non-payment. Any refund treatment follows the final approved contract language and applicable law.",
-    ],
-    [
-      "Cancellation Conditions",
-      "Members have a clearly identified process for cancellation requests. Contact by mailing address, email, or phone. A 30-day cancellation window is available; processing-fee rules and pro-rata refund rules match the final approved state-specific language.",
-    ],
-    [
-      "Description of Services",
-      "The program offers access to participating providers and negotiated savings on eligible dental services. Additional program components may be described in the enclosed materials and on the member website.",
-    ],
-    [
-      "Limitations, Exclusions & Exceptions",
-      "This discount membership program is not insurance. Members are responsible for payment at the time of service. Discounts are available only from participating providers, actual savings vary, and provider participation is subject to change. Services may not be combined with other discounts where prohibited.",
-    ],
-    [
-      "Complaint Procedure",
-      "Complaints should be submitted in writing to: info@getidealoh.com or 801-820-0010. Escalation and appeal processes are available through the program administrator.",
-    ],
+    ["Plan Name", data.planName],
   ];
 
   return (
     <Page size="LETTER" style={s.page}>
       <PageHeader logoDataUri={data.logoDataUri} />
 
-      <Text style={s.h2}>5. Membership Agreement</Text>
-      <Text style={s.italic}>
-        This agreement is a record of your enrollment. Finalized billing, cancellation, and legal
-        language apply as provided at time of enrollment.
-      </Text>
+      <Text style={s.h2}>Membership Agreement</Text>
 
-      {/* Fields table */}
+      {/* Member Information */}
+      <SectionHeadingGreen text="Member Information" />
       {fields.map(([label, value]) => (
         <View key={label} style={{ flexDirection: "row", marginBottom: 2 }}>
           <View style={s.fieldLabelCell}>
@@ -630,13 +594,60 @@ function MembershipAgreementPage({ data }: { data: FulfillmentPacketData }) {
         </View>
       ))}
 
-      {/* Sections */}
-      {sections.map(([title, text]) => (
-        <View key={title}>
-          <SectionHeadingGreen text={title} />
-          <Text style={s.bodySmall}>{text}</Text>
-        </View>
-      ))}
+      {/* Intro */}
+      <Text style={{ ...s.bodySmall, marginTop: 8 }}>
+        The Terms and Conditions you have accepted or will accept upon registering at www.dialcare.com, are part of this membership agreement (Agreement) between you and DialCare, LLC (&quot;DialCare&quot;). DialCare provides administrative services to DialCare clinicians and does not provide professional medical services. The Terms and Conditions define the obligations of DialCare, its authorized agents and yourself, and they establish the basic rules of safe and fair use of DialCare&apos;s public website, member website, and services (Services). DialCare and its authorized agents reserve the right to immediately and without advance notice terminate the Services and deny access to individuals who do not abide by the Terms and Conditions.
+      </Text>
+
+      {/* Purchase and Renewal Conditions */}
+      <SectionHeadingGreen text="Purchase and Renewal Conditions" />
+      <Text style={s.bodySmall}>
+        By joining a plan, for yourself or on behalf of a minor child for whom you are a parent or legal guardian, you confirm that you are at least 18 years old and you authorize Ryze LLC to charge your credit card or checking account for the plan you have selected. By joining, you indicate you have read and agree to the terms and conditions of the plan.
+      </Text>
+
+      {/* Termination Conditions */}
+      <SectionHeadingGreen text="Termination Conditions" />
+      <Text style={s.bodySmall}>
+        Ryze LLC and DialCare reserve the right to terminate plan members from its plan for any reason, including non-payment. If Ryze LLC terminates the plan or your membership for a reason other than non-payment, you will receive a pro-rata refund of your membership fees.
+      </Text>
+
+      {/* Cancellation Conditions */}
+      <SectionHeadingGreen text="Cancellation Conditions" />
+      <Text style={s.bodySmall}>
+        You have the right to cancel within the first 30 days after effective date or receipt of membership materials (whichever is later) and receive a full refund, less the processing fee, if applicable. If for any reason you wish to cancel, submit a cancellation request with your name and member ID by mail to Ryze LLC, Ryze LLC, email to info@getidealoh.com or phone. Ryze LLC will stop collecting membership fees in a reasonable amount of time, but no later than 30 days after receiving a cancellation request.
+      </Text>
+      <Text style={s.bodySmall}>
+        When you cancel, you will continue to have access to the plan for the remainder of the period for which you have paid; your membership will terminate at the end of that period. The preceding sentence does not apply to quarterly, semi-annual or annual memberships in FL and OK, where you will receive a pro-rata refund whenever you cancel.
+      </Text>
+
+      {/* Description of Services */}
+      <SectionHeadingGreen text="Description of Services" />
+      <Text style={s.bodySmall}>
+        Please see the enclosed materials for a specific description of the programs included in your plan.
+      </Text>
+
+      {/* Limitations, Exclusions and Exceptions */}
+      <SectionHeadingGreen text="Limitations, Exclusions and Exceptions" />
+      <Text style={s.bodySmall}>
+        This is a discount plan offered by Careington. Careington is not a licensed insurer, health maintenance organization or other underwriter of health care services. This plan is not insurance. No portion of any provider&apos;s fees will be reimbursed or otherwise paid by Careington. Careington is not licensed to provide and does not provide health care services or items to individuals. You will receive discounts for services at certain health care providers who have contracted with the plan. You are obligated to pay for all health care services at the time of service. Savings are based upon the provider&apos;s normal fees. Actual savings will vary depending upon location and specific services or products purchased. Please verify such services with each individual provider. The plan&apos;s discounts may not be used in conjunction with any other discount plan or program. All listed or quoted prices are current prices by participating providers and subject to change without notice.
+      </Text>
+      <Text style={s.bodySmall}>
+        Any procedures performed by a non-participating provider are not discounted. From time to time, certain providers may offer products or services to the general public at prices lower than the discounted prices available through this plan. In such event, members will be charged the lowest price. Discounts on professional services are not available when prohibited by law. This plan does not discount all procedures. Providers are subject to change without notice and services may vary in some states. It is your responsibility to verify that the provider participates in the plan. At any time Careington may substitute a provider network at its sole discretion. Careington cannot guarantee the continued participation of any provider. If the provider leaves the plan, you will need to select another provider. Providers contracted by Careington are solely responsible for the professional advice and treatment rendered to members and Careington disclaims any liability with respect to such matters.
+      </Text>
+
+      {/* Complaint Procedure */}
+      <SectionHeadingGreen text="Complaint Procedure" />
+      <Text style={s.bodySmall}>
+        If you would like to file a complaint, you must submit your complaint in writing to:
+      </Text>
+      <View style={{ backgroundColor: DISCLOSURE_BG, padding: 6, marginBottom: 4 }}>
+        <Text style={{ fontSize: 9, fontFamily: "Helvetica-Bold" }}>DialCare</Text>
+        <Text style={{ fontSize: 9 }}>P.O. Box 2568</Text>
+        <Text style={{ fontSize: 9 }}>Frisco, TX 75034</Text>
+      </View>
+      <Text style={s.bodySmall}>
+        You have the right to request an appeal if you are dissatisfied with the complaint resolution. After completing the complaint resolution process, if you remain dissatisfied you may contact your state insurance department. Contact information for your state insurance department is available upon request.
+      </Text>
 
       <Text style={s.footer}>Ideal Oral Health | Membership Agreement</Text>
     </Page>
@@ -651,7 +662,7 @@ function SchedulePage({ data }: { data: FulfillmentPacketData }) {
     <Page size="LETTER" style={s.page}>
       <PageHeader logoDataUri={data.logoDataUri} />
 
-      <Text style={s.h2}>6. Sample Schedule of Services</Text>
+      <Text style={s.h2}>Sample Schedule of Services</Text>
       <Text style={{ fontSize: 9, fontFamily: "Helvetica-Oblique", color: GRAY, marginBottom: 8 }}>
         Abbreviated sample schedule of discounted member-pay amounts. Confirm codes and pricing
         against the current fee schedule before use.
@@ -1049,11 +1060,11 @@ function MemberCardBackPage({ data }: { data: FulfillmentPacketData }) {
               </Text>
             </View>
 
-            {/* Dental - Careington */}
+            {/* Dental Discount Network */}
             <View style={{ marginBottom: 8 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: DARK, flex: 1 }}>
-                  Dental — Careington — POS
+                  Dental Discount Network
                 </Text>
                 <Text style={{ fontSize: 6.5, color: '#94a3b8', marginLeft: 4 }}>
                   {phone}
@@ -1064,13 +1075,13 @@ function MemberCardBackPage({ data }: { data: FulfillmentPacketData }) {
               </Text>
             </View>
 
-            {/* AI Oral Scanning - ToothlensAI */}
+            {/* AI Oral Scan */}
             <View>
               <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: DARK }}>
-                AI Oral Scanning — ToothlensAI
+                AI Oral Scan
               </Text>
               <Text style={{ fontSize: 6.5, color: '#475569', marginTop: 1 }}>
-                toothlens.com
+                www.getidealoh.com
               </Text>
             </View>
           </View>

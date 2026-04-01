@@ -35,7 +35,7 @@ export const emailTemplates = {
 
           <h3 style="color: #667eea;">What You Get:</h3>
           <ul style="line-height: 1.8;">
-            <li><strong>AI Oral Scanning:</strong> Monitor your dental health from home with SmartCheck by ToothlensAI</li>
+            <li><strong>AI Oral Scan:</strong> Monitor your dental health from home</li>
             <li><strong>DialCare Teledentistry:</strong> Access 24/7/365 virtual consultations with licensed dentists</li>
             <li><strong>Dental Discount Network:</strong> Save 20-50% on dental procedures at thousands of providers nationwide</li>
             <li><strong>No Insurance Hassles:</strong> Simple, straightforward discount pricing—no claim forms or waiting periods</li>
@@ -45,7 +45,7 @@ export const emailTemplates = {
           <ol style="line-height: 1.8;">
             <li><strong>Log In to Your Portal:</strong> Visit <a href="https://www.getidealoh.com/health/dashboard" style="color: #667eea; text-decoration: none;">getidealoh.com/health/dashboard</a> to access your AI Oral Scan, digital ID card, and member tools.</li>
             <li><strong>Download Your ID Card:</strong> Your digital ID card is attached. You can also view it anytime in your member portal.</li>
-            <li><strong>Find a Provider:</strong> Visit <a href="https://www.careington.com" style="color: #667eea; text-decoration: none;">careington.com</a> or call (800) 290-0523 to locate a dentist near you.</li>
+            <li><strong>Find a Provider:</strong> Visit <a href="https://www.getidealoh.com" style="color: #667eea; text-decoration: none;">getidealoh.com</a> or call (800) 290-0523 to locate a dentist near you.</li>
             <li><strong>Schedule Your Appointment:</strong> Call to book and mention you are an Ideal Oral Health member.</li>
             <li><strong>Present Your ID:</strong> Show your card at your appointment to receive your member discount.</li>
           </ol>
@@ -140,7 +140,7 @@ export const emailTemplates = {
           <ul style="line-height: 1.8;">
             <li>Your membership is effective immediately</li>
             <li>Your digital ID card is ready to use (attached to this email and available in your portal)</li>
-            <li>You can start using DialCare teledentistry and Careington provider discounts right away</li>
+            <li>You can start using DialCare teledentistry and your provider discounts right away</li>
           </ul>
 
           <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ffc107;">
@@ -251,7 +251,7 @@ export const emailTemplates = {
 
             <h3 style="color: #0066CC; font-size: 15px;">What You Get:</h3>
             <ul style="line-height: 1.8; font-size: 14px; color: #4b5563;">
-              <li><strong>AI Oral Scanning:</strong> Monitor dental health from home with SmartCheck</li>
+              <li><strong>AI Oral Scan:</strong> Monitor dental health from home</li>
               <li><strong>DialCare Teledentistry:</strong> 24/7 virtual consultations with licensed dentists</li>
               <li><strong>Dental Discount Network:</strong> Save 20–50% on dental procedures at thousands of providers nationwide</li>
               <li><strong>No separate charge:</strong> Your access is included under ${data.primaryMemberName}&apos;s plan</li>

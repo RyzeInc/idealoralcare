@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
 import { requireAdmin, requireAuth } from "../lib/authGuards";
 import { getBaseUrl } from "../lib/env";
+import { sendViaGmail } from "../lib/gmail";
 import { autoGrantFreeAccess } from "./grantFreeAccess";
 
 const partnerTypeValidator = v.union(
@@ -334,7 +335,6 @@ async function dispatchInviteEmail(opts: {
   partnerName: string;
   typeLabel: string;
   claimUrl: string;
-  resendApiKey: string | undefined;
 }): Promise<{ ok: boolean; error?: string }> {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
@@ -367,25 +367,13 @@ async function dispatchInviteEmail(opts: {
       </div>
     </div>`;
 
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${opts.resendApiKey}`,
-    },
-    body: JSON.stringify({
-      from: "Ideal Oral Health <noreply@getidealoh.com>",
-      to: opts.recipientEmail,
-      subject: `Your complimentary access to Ideal Oral Health — ${opts.partnerName}`,
-      html,
-    }),
+  const result = await sendViaGmail({
+    to: opts.recipientEmail,
+    subject: `Your complimentary access to Ideal Oral Health — ${opts.partnerName}`,
+    html,
   });
 
-  if (!res.ok) {
-    const err = await res.text();
-    return { ok: false, error: `Email send failed: ${err}` };
-  }
-  return { ok: true };
+  return { ok: result.success, error: result.error };
 }
 
 function typeLabel(type: string): string {
@@ -463,7 +451,6 @@ export const add = action({
       partnerName: args.name,
       typeLabel: typeLabel(args.type),
       claimUrl,
-      resendApiKey: process.env.RESEND_API_KEY,
     });
 
     return {
@@ -525,7 +512,6 @@ export const addLeader = action({
       partnerName: partner.name,
       typeLabel: typeLabel(partner.type),
       claimUrl,
-      resendApiKey: process.env.RESEND_API_KEY,
     });
 
     return {
@@ -571,7 +557,6 @@ export const sendLeaderInvite = action({
       partnerName: partner.name,
       typeLabel: typeLabel(partner.type),
       claimUrl,
-      resendApiKey: process.env.RESEND_API_KEY,
     });
 
     return { success: emailResult.ok, error: emailResult.error };
@@ -616,7 +601,6 @@ export const sendInvite = action({
       partnerName: partner.name,
       typeLabel: typeLabel(partner.type),
       claimUrl,
-      resendApiKey: process.env.RESEND_API_KEY,
     });
 
     return { success: emailResult.ok, error: emailResult.error };

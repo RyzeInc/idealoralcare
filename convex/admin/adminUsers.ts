@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { requireAdmin, requireAuth } from "../lib/authGuards";
 import { getBaseUrl } from "../lib/env";
+import { sendViaGmail } from "../lib/gmail";
 import { autoGrantFreeAccess } from "./grantFreeAccess";
 
 // Check if user is admin (adminUsers table OR active distribution partner)
@@ -316,13 +317,12 @@ export const _verifyAdminForInvite = internalMutation({
   },
 });
 
-/** Send invite email via Resend */
+/** Send invite email via Gmail SMTP */
 async function dispatchAdminInviteEmail(opts: {
   recipientName: string;
   recipientEmail: string;
   role: string;
   claimUrl: string;
-  resendApiKey: string | undefined;
 }): Promise<{ ok: boolean; error?: string }> {
   const roleLabel = opts.role === "owner" ? "Owner (Full Access)" : "Editor (Operational Access)";
   const html = `
@@ -356,25 +356,13 @@ async function dispatchAdminInviteEmail(opts: {
       </div>
     </div>`;
 
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${opts.resendApiKey}`,
-    },
-    body: JSON.stringify({
-      from: "Ideal Oral Health <noreply@getidealoh.com>",
-      to: opts.recipientEmail,
-      subject: "You're invited to Ideal Health Admin Portal",
-      html,
-    }),
+  const result = await sendViaGmail({
+    to: opts.recipientEmail,
+    subject: "You're invited to Ideal Health Admin Portal",
+    html,
   });
 
-  if (!res.ok) {
-    const err = await res.text();
-    return { ok: false, error: `Email send failed: ${err}` };
-  }
-  return { ok: true };
+  return { ok: result.success, error: result.error };
 }
 
 /**
@@ -420,7 +408,6 @@ export const inviteAdmin = action({
       recipientEmail: args.email,
       role: args.role,
       claimUrl,
-      resendApiKey: process.env.RESEND_API_KEY,
     });
 
     return {
@@ -462,7 +449,6 @@ export const resendAdminInvite = action({
       recipientEmail: invite.email,
       role: invite.role,
       claimUrl,
-      resendApiKey: process.env.RESEND_API_KEY,
     });
 
     return { success: emailResult.ok, error: emailResult.error };

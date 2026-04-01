@@ -8,7 +8,7 @@ import { renderCardFront, renderCardBack, type MemberCardData } from '@/lib/card
  * MEMBER ID CARD COMPONENT
  *
  * Physical membership card replica with front/back flip.
- * Matches Careington-style card layout used by the provider network.
+ * Matches card layout used by the provider network.
  * Uses shared rendering logic for consistency with PDF and wallet passes.
  */
 
@@ -221,7 +221,7 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
                   <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>
-                    Dental — Careington — POS
+                    Dental Discount Network
                   </span>
                   <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{cardData.supportPhone}</span>
                 </div>
@@ -230,7 +230,7 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
                   <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>
-                    AI Oral Scanning — ToothlensAI
+                    AI Oral Scan
                   </span>
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#475569' }}>

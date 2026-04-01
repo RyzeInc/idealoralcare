@@ -2,63 +2,31 @@ import { action, internalMutation } from "../_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
 import { requireAdminAction } from "../lib/authGuards";
+import { sendViaGmail } from "../lib/gmail";
 
 /**
  * EMAIL NOTIFICATION SYSTEM
  *
- * Transactional emails via Resend API.
- * Simple HTML templates for onboarding, receipts, and admin reminders.
+ * Admin/internal emails via Gmail SMTP (through Next.js API route).
+ * Member-facing transactional emails with attachments use Resend (see legal/emailFulfillment.ts).
  *
  * Bulk email: batchSendWelcomeEmails dispatches individual sends via
- * ctx.scheduler to avoid action timeout and respect Resend rate limits.
+ * ctx.scheduler to avoid action timeout and respect rate limits.
  */
 
-const SENDER_EMAIL = process.env.RESEND_FROM_EMAIL || "noreply@idealoralcare.com";
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
-
-// Resend free tier: 100 emails/day, paid: 50K+/month
-// We batch at 10/second via scheduler staggering to stay safe
+// Gmail Workspace: 2,000 emails/day on Business Starter
 const EMAIL_BATCH_SIZE = 50;
 const EMAIL_STAGGER_MS = 5000; // 5 seconds between batches of 50
 
 /**
- * Helper: send email via Resend
+ * Helper: send email via Gmail SMTP
  */
-async function sendEmailViaResend(
+async function sendEmail(
   to: string,
   subject: string,
   html: string
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  if (!RESEND_API_KEY) {
-    console.warn("RESEND_API_KEY not configured, email not sent");
-    return { success: false, error: "Email service not configured" };
-  }
-
-  try {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-      },
-      body: JSON.stringify({
-        from: SENDER_EMAIL,
-        to,
-        subject,
-        html,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Resend API error ${response.status}: ${errorText}`);
-    }
-
-    const data = await response.json();
-    return { success: true, messageId: data.id };
-  } catch (error) {
-    return { success: false, error: (error as any).message };
-  }
+  return sendViaGmail({ to, subject, html });
 }
 
 /**
@@ -91,7 +59,7 @@ export const sendWelcomeEmail = action({
       </html>
     `;
 
-    const result = await sendEmailViaResend(
+    const result = await sendEmail(
       args.email,
       "Welcome to Ideal Health Oral Care",
       html
@@ -158,7 +126,7 @@ export const sendPaymentReceiptEmail = action({
       </html>
     `;
 
-    const result = await sendEmailViaResend(args.email, "Payment Receipt", html);
+    const result = await sendEmail(args.email, "Payment Receipt", html);
 
     // Log event
     await ctx.runMutation(api.subscriptions.events.logEvent, {
@@ -204,7 +172,7 @@ export const sendMemberIdCardEmail = action({
       </html>
     `;
 
-    const result = await sendEmailViaResend(args.email, "Your Member ID Card", html);
+    const result = await sendEmail(args.email, "Your Member ID Card", html);
 
     // Log event
     await ctx.runMutation(api.subscriptions.events.logEvent, {
@@ -252,7 +220,7 @@ export const sendEligibilityReminderEmail = action({
       </html>
     `;
 
-    const result = await sendEmailViaResend(
+    const result = await sendEmail(
       args.email,
       `Monthly Eligibility File Reminder: ${args.groupName}`,
       html
@@ -295,7 +263,7 @@ export const sendTestEmail = action({
       </html>
     `;
 
-    return await sendEmailViaResend(args.email, "Test Email from Ideal Health", html);
+    return await sendEmail(args.email, "Test Email from Ideal Health", html);
   },
 });
 
@@ -507,9 +475,9 @@ export const sendSingleWelcomeEmailInternal = action({
               <div class="benefits">
                 <h3>What's Included:</h3>
                 <ul>
-                  <li><strong>Dental Discounts:</strong> Save 10-60% on dental services through the Careington network (140,000+ providers)</li>
+                  <li><strong>Dental Discounts:</strong> Save 10-60% on dental services through our Dental Discount Network (140,000+ providers)</li>
                   <li><strong>Teledentistry:</strong> Access to virtual dental consultations via DialCare</li>
-                  <li><strong>AI Oral Scanning:</strong> Use ToothlensAI for at-home oral health assessments</li>
+                  <li><strong>AI Oral Scan:</strong> At-home oral health assessments from your Member Portal</li>
                   <li><strong>No Insurance Required:</strong> Use your benefits immediately—no claims to file</li>
                 </ul>
               </div>
@@ -545,7 +513,7 @@ export const sendSingleWelcomeEmailInternal = action({
       </html>
     `;
 
-    return await sendEmailViaResend(
+    return await sendEmail(
       args.email,
       "Welcome to Ideal Oral Health - Your Member ID Card",
       html

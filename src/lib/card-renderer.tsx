@@ -124,12 +124,12 @@ export function renderCardBack(cardData: MemberCardData): RenderedCardSide {
               website: cardData.networks.dialCare.memberUrl,
             },
             {
-              name: 'Dental — Careington — POS',
+              name: 'Dental Discount Network',
               phone: cardData.supportPhone,
               website: cardData.networks.careington.memberUrl,
             },
             {
-              name: 'AI Oral Scanning — ToothlensAI',
+              name: 'AI Oral Scan',
               website: cardData.networks.toothlens.memberUrl,
             },
           ],
@@ -138,7 +138,7 @@ export function renderCardBack(cardData: MemberCardData): RenderedCardSide {
           section: 'How to Use',
           items: [
             '1. Present card at participating provider',
-            '2. Mention you are a Careington member',
+            '2. Mention you are an Ideal Oral Health member',
             '3. Ask about member discounts',
           ],
         },
@@ -253,7 +253,7 @@ export function fulfillmentToCardData(fulfillmentData: {
     subscriberId: fulfillmentData.subscriberId,
     networks: {
       careington: {
-        name: 'Careington Dental Savings',
+        name: 'Dental Discount Network',
         memberUrl: website,
       },
       dialCare: {
@@ -261,8 +261,8 @@ export function fulfillmentToCardData(fulfillmentData: {
         memberUrl: 'https://dialcare.com',
       },
       toothlens: {
-        name: 'ToothlensAI Oral Scanning',
-        memberUrl: 'https://toothlens.com',
+        name: 'AI Oral Scan',
+        memberUrl: 'https://www.getidealoh.com',
       },
     },
     supportPhone: phone,

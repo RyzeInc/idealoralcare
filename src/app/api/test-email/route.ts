@@ -249,7 +249,7 @@ function generateFulfillmentEmailHTML(data: {
         <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px;">
           <h3 style="margin: 0 0 10px; font-size: 15px; color: ${TEAL};">3. Dental Discount Network</h3>
           <ol style="margin: 0; padding: 0 0 0 20px; font-size: 13px; line-height: 2.0; color: #374151;">
-            <li>Search for a participating provider at <a href="https://www.careington.com" style="color: ${TEAL}; text-decoration: none;">careington.com</a> or call (800) 290-0523.</li>
+            <li>Search for a participating provider at <a href="https://www.getidealoh.com" style="color: ${TEAL}; text-decoration: none;">getidealoh.com</a> or call (800) 290-0523.</li>
             <li>Confirm the provider accepts the discount program <strong>before</strong> your visit.</li>
             <li>Present your Member ID card at your appointment.</li>
             <li>Pay the discounted member amount directly at time of service.</li>
@@ -316,7 +316,7 @@ function generateWelcomeEmailHTML(data: {
         </div>
         <h3 style="color: #667eea;">What You Get:</h3>
         <ul style="line-height: 1.8;">
-          <li><strong>AI Oral Scanning:</strong> Monitor your dental health from home with SmartCheck</li>
+          <li><strong>AI Oral Scan:</strong> Monitor your dental health from home</li>
           <li><strong>DialCare Teledentistry:</strong> 24/7/365 virtual consultations</li>
           <li><strong>Dental Discount Network:</strong> Save 20-50% on dental procedures</li>
           <li><strong>No Insurance Hassles:</strong> Simple discount pricing</li>
@@ -324,7 +324,7 @@ function generateWelcomeEmailHTML(data: {
         <h3 style="color: #667eea;">Getting Started:</h3>
         <ol style="line-height: 1.8;">
           <li>Log in to your <a href="https://www.getidealoh.com/health/dashboard" style="color: #667eea; text-decoration: none;">Member Portal</a></li>
-          <li>Visit <a href="https://www.careington.com" style="color: #667eea; text-decoration: none;">careington.com</a> or call (800) 290-0523 to find a dentist</li>
+          <li>Visit <a href="https://www.getidealoh.com" style="color: #667eea; text-decoration: none;">getidealoh.com</a> or call (800) 290-0523 to find a dentist</li>
           <li>Present your ID card to receive discounts</li>
         </ol>
         <div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0;">
