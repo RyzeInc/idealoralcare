@@ -2023,30 +2023,49 @@ a:hover {
 
 /* ── Mobile (≤ 640px) ─────────────────────────────────────────── */
 @media (max-width: 640px) {
+  /* Reduce section padding on mobile for the dashboard */
+  .section.bg--white > .container {
+    padding: 24px 16px;
+    margin: 0 8px;
+  }
+  .dashboard-section {
+    padding-top: 1rem !important;
+    padding-bottom: 2rem !important;
+  }
+
   /* Dashboard header: stack logo and welcome vertically */
   .dashboard-header {
     flex-direction: column !important;
     align-items: flex-start !important;
     text-align: left !important;
+    margin-bottom: 1.25rem !important;
   }
   .dashboard-header > div {
     text-align: left !important;
   }
 
-  /* Tighter tab bar on mobile */
+  /* Tab bar: 2×2 grid on mobile for equal sizing */
   .dashboard-tab-bar {
-    gap: 0.125rem !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.25rem !important;
+    padding: 0.25rem !important;
+    margin-bottom: 1.25rem !important;
   }
   .dashboard-tab-bar > button {
-    padding: 0.5rem 0.625rem !important;
-    font-size: 0.8rem !important;
-    gap: 0.35rem !important;
+    padding: 0.625rem 0.5rem !important;
+    font-size: 0.8125rem !important;
+    gap: 0.375rem !important;
+    white-space: nowrap !important;
+    justify-content: center !important;
+    min-width: 0 !important;
   }
 
   /* Constrain glass cards so they don't overflow */
   .glass-card {
     max-width: 100%;
     overflow: hidden;
+    padding: 1.25rem !important;
   }
 
   /* Scan grid: center QR code */
@@ -2061,5 +2080,18 @@ a:hover {
   /* Member ID card: shrink text for small screens */
   .dashboard-overview-grid .glass-card [style*="aspectRatio"] {
     font-size: 0.85em;
+  }
+}
+
+/* ── Small phones (≤ 380px) ───────────────────────────────────── */
+@media (max-width: 380px) {
+  .dashboard-tab-bar > button {
+    font-size: 0.75rem !important;
+    padding: 0.5rem 0.375rem !important;
+    gap: 0.25rem !important;
+  }
+  .dashboard-tab-bar > button svg {
+    width: 14px !important;
+    height: 14px !important;
   }
 }

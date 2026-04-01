@@ -101,7 +101,7 @@ export default async function DashboardPage() {
       <HealthHeader />
 
       {/* Main Dashboard Content */}
-      <section className="section bg--white" style={{ paddingTop: "3rem", paddingBottom: "4rem" }}>
+      <section className="section bg--white dashboard-section" style={{ paddingTop: "2rem", paddingBottom: "3rem" }}>
         <div className="container" style={{ maxWidth: "1100px" }}>
           <DashboardTabs
             firstName={user?.firstName ?? null}
