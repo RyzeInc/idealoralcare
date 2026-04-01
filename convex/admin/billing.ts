@@ -1,4 +1,4 @@
-import { query, action } from "../_generated/server";
+import { query, action, mutation } from "../_generated/server";
 import { v } from "convex/values";
 // @ts-ignore - Type instantiation too deep
 import { api as apiOriginal } from "../_generated/api";
@@ -402,6 +402,229 @@ export const getUpcomingBillingDates = query({
       billingCycle: "monthly",
       billingDay: 1,
       upcomingDates: dates,
+    };
+  },
+});
+
+// ============================================================
+// LIST-BILL FUNCTIONS (FT/payroll-deduction employer groups)
+// ============================================================
+
+/**
+ * Get all groups configured for list-bill (payroll deduction).
+ */
+export const getListBillGroups = query({
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    const groups = await ctx.db.query("groups").collect();
+    return groups.filter((g: any) => g.listBill?.enabled === true);
+  },
+});
+
+/**
+ * Get a monthly list-bill summary for all list-bill groups.
+ * Returns member count, rate, total, and payment status for a given billing period.
+ */
+export const getListBillMonthlySummary = query({
+  args: {
+    billingPeriod: v.string(), // "YYYY-MM"
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const groups = await ctx.db.query("groups").collect();
+    const listBillGroups = groups.filter((g: any) => g.listBill?.enabled === true);
+
+    const DEFAULT_RATE_CENTS = 1500; // $15.00
+    const results = [];
+
+    for (const group of listBillGroups) {
+      const account = await ctx.db.get(group.accountId);
+      const ratePerMemberCents =
+        (account as any)?.billingDetails?.perMemberRateCents ?? DEFAULT_RATE_CENTS;
+
+      // Count active list-bill (FT) members in the group
+      const members = await ctx.db
+        .query("memberProfiles")
+        .withIndex("by_group", (q: any) => q.eq("groupId", group._id))
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("memberType"), "active"),
+            q.eq(q.field("employeeType"), "full_time")
+          )
+        )
+        .collect();
+
+      const memberCount = members.length;
+      const totalCents = memberCount * ratePerMemberCents;
+
+      // Check if a payment record already exists for this period
+      const existingPayment = await ctx.db
+        .query("listBillPayments")
+        .withIndex("by_group_period", (q: any) =>
+          q.eq("groupId", group._id).eq("billingPeriod", args.billingPeriod)
+        )
+        .first();
+
+      results.push({
+        groupId: group._id,
+        accountId: group.accountId,
+        groupName: (group as any).name ?? group.slug,
+        groupCode: group.groupCode,
+        listBillConfig: (group as any).listBill,
+        memberCount,
+        ratePerMemberCents,
+        totalCents,
+        billingPeriod: args.billingPeriod,
+        payment: existingPayment ?? null,
+      });
+    }
+
+    return results;
+  },
+});
+
+/**
+ * Create or update a list-bill payment record for a group/period.
+ */
+export const recordListBillPayment = mutation({
+  args: {
+    groupId: v.id("groups"),
+    billingPeriod: v.string(), // "YYYY-MM"
+    paymentMethod: v.union(v.literal("check"), v.literal("ach")),
+    paymentStatus: v.union(
+      v.literal("pending"),
+      v.literal("paid"),
+      v.literal("partial"),
+      v.literal("overdue")
+    ),
+    memberCount: v.number(),
+    ratePerMemberCents: v.number(),
+    totalCents: v.number(),
+    checkNumber: v.optional(v.string()),
+    checkDate: v.optional(v.string()),
+    achConfirmationNumber: v.optional(v.string()),
+    amountReceivedCents: v.optional(v.number()),
+    notes: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const group = await ctx.db.get(args.groupId);
+    if (!group) throw new Error("Group not found");
+
+    const now = Date.now();
+
+    // Derive period start/end from "YYYY-MM"
+    const [year, month] = args.billingPeriod.split("-").map(Number);
+    const periodStart = new Date(year, month - 1, 1).getTime();
+    const periodEnd = new Date(year, month, 0, 23, 59, 59, 999).getTime();
+
+    const remainingCents =
+      args.amountReceivedCents !== undefined
+        ? Math.max(0, args.totalCents - args.amountReceivedCents)
+        : undefined;
+
+    const existing = await ctx.db
+      .query("listBillPayments")
+      .withIndex("by_group_period", (q: any) =>
+        q.eq("groupId", args.groupId).eq("billingPeriod", args.billingPeriod)
+      )
+      .first();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        paymentMethod: args.paymentMethod,
+        paymentStatus: args.paymentStatus,
+        memberCount: args.memberCount,
+        ratePerMemberCents: args.ratePerMemberCents,
+        totalCents: args.totalCents,
+        checkNumber: args.checkNumber,
+        checkDate: args.checkDate,
+        achConfirmationNumber: args.achConfirmationNumber,
+        amountReceivedCents: args.amountReceivedCents,
+        remainingCents,
+        notes: args.notes,
+        updatedAt: now,
+        paidAt: args.paymentStatus === "paid" ? now : existing.paidAt,
+      });
+      return existing._id;
+    }
+
+    return await ctx.db.insert("listBillPayments", {
+      groupId: args.groupId,
+      accountId: group.accountId,
+      siteId: group.siteId,
+      billingPeriod: args.billingPeriod,
+      periodStart,
+      periodEnd,
+      memberCount: args.memberCount,
+      ratePerMemberCents: args.ratePerMemberCents,
+      totalCents: args.totalCents,
+      paymentMethod: args.paymentMethod,
+      paymentStatus: args.paymentStatus,
+      checkNumber: args.checkNumber,
+      checkDate: args.checkDate,
+      achConfirmationNumber: args.achConfirmationNumber,
+      amountReceivedCents: args.amountReceivedCents,
+      remainingCents,
+      notes: args.notes,
+      createdAt: now,
+      updatedAt: now,
+      paidAt: args.paymentStatus === "paid" ? now : undefined,
+    });
+  },
+});
+
+/**
+ * Get payment history for a list-bill group.
+ */
+export const getListBillPaymentHistory = query({
+  args: { groupId: v.id("groups") },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    return await ctx.db
+      .query("listBillPayments")
+      .withIndex("by_group", (q: any) => q.eq("groupId", args.groupId))
+      .order("desc")
+      .collect();
+  },
+});
+
+/**
+ * Generate a list-bill invoice CSV for a given billing period.
+ */
+export const generateListBillInvoiceCsv: any = action({
+  args: {
+    billingPeriod: v.string(), // "YYYY-MM"
+  },
+  handler: async (ctx, args) => {
+    const api = getApi();
+    // @ts-ignore
+    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+
+    const summaries = await ctx.runQuery(
+      api.admin.billing.getListBillMonthlySummary,
+      { billingPeriod: args.billingPeriod }
+    );
+
+    let csv =
+      "group_code,group_name,billing_period,member_count,rate_per_member,total_amount,payment_method,payment_status\n";
+
+    for (const s of summaries) {
+      const rate = (s.ratePerMemberCents / 100).toFixed(2);
+      const total = (s.totalCents / 100).toFixed(2);
+      const payMethod = s.listBillConfig?.paymentMethod ?? "check";
+      const payStatus = s.payment?.paymentStatus ?? "pending";
+      csv += `"${s.groupCode}","${s.groupName}","${args.billingPeriod}",${s.memberCount},${rate},${total},"${payMethod}","${payStatus}"\n`;
+    }
+
+    return {
+      filename: `list_bill_invoice_${args.billingPeriod}.csv`,
+      content: csv,
+      billingPeriod: args.billingPeriod,
+      groupCount: summaries.length,
+      generatedAt: Date.now(),
     };
   },
 });

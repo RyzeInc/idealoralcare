@@ -868,6 +868,18 @@ export default defineSchema({
     // BROKER ATTRIBUTION (Scenario B: broker sells to company/group)
     brokerId: v.optional(v.string()), // Clerk user ID of broker who owns this group account
     brokerTrackingCode: v.optional(v.string()), // Broker's tracking code tied to this group deal
+
+    // LIST-BILL CONFIGURATION (for FT/payroll-deducted groups)
+    listBill: v.optional(v.object({
+      enabled: v.boolean(),                       // true = this group uses list-bill/payroll deduction
+      paymentMethod: v.union(                     // how the employer remits monthly payment
+        v.literal("check"),
+        v.literal("ach")
+      ),
+      paymentDueDayOfMonth: v.optional(v.number()), // e.g. 1 = 1st of month
+      employerContactEmail: v.optional(v.string()),  // billing contact at the employer
+      notes: v.optional(v.string()),
+    })),
     
     // AUDIT
     createdAt: v.number(),
@@ -949,6 +961,21 @@ export default defineSchema({
       v.literal("terminated"), // Removed
       v.literal("declined") // Declined enrollment
     ),
+
+    // EMPLOYEE TYPE (for employer groups: FT = list-bill/payroll, PT = direct/platform)
+    employeeType: v.optional(v.union(
+      v.literal("full_time"),
+      v.literal("part_time")
+    )),
+
+    // LIST-BILL TRACKING (for FT members on payroll deduction)
+    listBillStatus: v.optional(v.union(
+      v.literal("active"),       // Currently on payroll deduction
+      v.literal("termed"),       // Left payroll deduction; eligible to switch to direct pay
+      v.literal("converted")     // Converted from list-bill to direct CC/ACH enrollment
+    )),
+    listBillTermedAt: v.optional(v.number()), // Timestamp when removed from list bill
+    reenrollmentToken: v.optional(v.string()), // One-time token sent to termed ee for direct re-enrollment
     
     leadType: v.optional(v.union(
       v.literal("walk_in"),
@@ -1531,6 +1558,65 @@ export default defineSchema({
     .index("by_effective_date", ["effectiveDate"])
     .index("by_termination_date", ["terminationDate"])
     .index("by_sftp_batch", ["sftpBatchId"]),
+
+  // ============================================
+  // LIST-BILL PAYMENTS (monthly employer remittances for FT payroll-deduction groups)
+  // ============================================
+  listBillPayments: defineTable({
+    groupId: v.id("groups"),
+    accountId: v.id("accounts"),
+    siteId: v.id("sites"),
+
+    // Billing period (e.g. "2026-05" = May 2026)
+    billingPeriod: v.string(),    // "YYYY-MM"
+    periodStart: v.number(),      // Unix ms — first day of billing month
+    periodEnd: v.number(),        // Unix ms — last day of billing month
+
+    // Snapshot at time of invoice generation
+    memberCount: v.number(),       // Active list-bill members in the period
+    ratePerMemberCents: v.number(),// Agreed per-member rate in cents
+    totalCents: v.number(),        // memberCount × ratePerMemberCents
+
+    // Payment adjudication
+    paymentMethod: v.union(
+      v.literal("check"),
+      v.literal("ach")
+    ),
+    paymentStatus: v.union(
+      v.literal("pending"),
+      v.literal("paid"),
+      v.literal("partial"),
+      v.literal("overdue")
+    ),
+
+    // Check details (when paymentMethod = "check")
+    checkNumber: v.optional(v.string()),
+    checkDate: v.optional(v.string()),   // ISO date "YYYY-MM-DD"
+
+    // ACH details (when paymentMethod = "ach")
+    achConfirmationNumber: v.optional(v.string()),
+    achInitiatedAt: v.optional(v.number()),
+
+    // Partial payment tracking
+    amountReceivedCents: v.optional(v.number()),
+    remainingCents: v.optional(v.number()),
+
+    // Notes / reconciliation
+    notes: v.optional(v.string()),
+    reconciledBy: v.optional(v.string()), // admin Clerk user ID
+
+    // Audit
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    paidAt: v.optional(v.number()),
+    dueDate: v.optional(v.number()),      // Unix ms — when payment is due
+  })
+    .index("by_group", ["groupId"])
+    .index("by_account", ["accountId"])
+    .index("by_site", ["siteId"])
+    .index("by_period", ["billingPeriod"])
+    .index("by_group_period", ["groupId", "billingPeriod"])
+    .index("by_status", ["paymentStatus"]),
 
   // ============================================
   // SYSTEM COUNTERS (for atomic ID generation)

@@ -1,6 +1,13 @@
-import { mutation, query } from "../_generated/server";
+import { mutation, query, action } from "../_generated/server";
 import { v } from "convex/values";
-import { requireAdmin } from "../lib/authGuards";
+import { requireAdmin, requireAdminAction } from "../lib/authGuards";
+// @ts-ignore - Type instantiation too deep
+import { api as apiOriginal } from "../_generated/api";
+
+const getApi = () => {
+  // @ts-ignore
+  return apiOriginal as any;
+};
 
 /**
  * ADMIN MEMBER MANAGEMENT
@@ -761,6 +768,7 @@ export const createAdminMember = mutation({
       v.literal("lead"), v.literal("eligible"), v.literal("active")
     )),
     groupMemberId: v.optional(v.string()),
+    employeeType: v.optional(v.union(v.literal("full_time"), v.literal("part_time"))),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
@@ -771,6 +779,10 @@ export const createAdminMember = mutation({
     const seq = String(allMembers.length + 1).padStart(5, "0");
     const memberId = `MBR-${new Date().getFullYear()}-${seq}`;
     const barcode = memberId.replace(/-/g, "");
+
+    // Infer list-bill status for FT members in a list-bill group
+    const isListBillGroup = (group as any).listBill?.enabled === true;
+    const isFT = args.employeeType === "full_time";
 
     const id = await ctx.db.insert("memberProfiles", {
       memberId,
@@ -784,6 +796,8 @@ export const createAdminMember = mutation({
       phone: args.phone,
       dateOfBirth: args.dateOfBirth,
       groupMemberId: args.groupMemberId,
+      employeeType: args.employeeType,
+      listBillStatus: isListBillGroup && isFT ? "active" : undefined,
       memberType: args.memberType ?? "eligible",
       memberRole: "primary",
       status: "active",
@@ -851,5 +865,157 @@ export const getAdminAlerts = query({
       stuckEnrollments: stuck.length,
       total: contacts.length + inquiries.length + failedFiles.length + stuck.length,
     };
+  },
+});
+
+// ============================================================
+// LIST-BILL MEMBER FUNCTIONS (FT/payroll-deduction groups)
+// ============================================================
+
+/**
+ * Get FT members in a list-bill group (active on payroll deduction)
+ */
+export const getListBillActiveMembers = query({
+  args: { groupId: v.id("groups") },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    return await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_group", (q: any) => q.eq("groupId", args.groupId))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("memberType"), "active"),
+          q.eq(q.field("employeeType"), "full_time")
+        )
+      )
+      .collect();
+  },
+});
+
+/**
+ * Get termed list-bill members (FT employees who left; eligible for direct re-enrollment)
+ */
+export const getTermedListBillMembers = query({
+  args: { groupId: v.optional(v.id("groups")) },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    if (args.groupId) {
+      return await ctx.db
+        .query("memberProfiles")
+        .withIndex("by_group", (q: any) => q.eq("groupId", args.groupId))
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("employeeType"), "full_time"),
+            q.eq(q.field("listBillStatus"), "termed")
+          )
+        )
+        .collect();
+    }
+    // All groups
+    return await ctx.db
+      .query("memberProfiles")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("employeeType"), "full_time"),
+          q.eq(q.field("listBillStatus"), "termed")
+        )
+      )
+      .collect();
+  },
+});
+
+/**
+ * Mark a FT member as termed from the list-bill plan and generate a re-enrollment token.
+ * The token is used in the re-enrollment link sent via email.
+ */
+export const termListBillMember = mutation({
+  args: {
+    memberId: v.id("memberProfiles"),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const member = await ctx.db.get(args.memberId);
+    if (!member) throw new Error("Member not found");
+
+    // Generate a random token (hex)
+    const tokenBytes = new Array(20)
+      .fill(0)
+      .map(() => Math.floor(Math.random() * 256).toString(16).padStart(2, "0"))
+      .join("");
+
+    const now = Date.now();
+
+    await ctx.db.patch(args.memberId, {
+      listBillStatus: "termed",
+      listBillTermedAt: now,
+      reenrollmentToken: tokenBytes,
+      memberType: "inactive",
+      status: "inactive",
+      updatedAt: now,
+    });
+
+    // Log activity
+    await ctx.db.insert("memberActivities", {
+      memberProfileId: args.memberId,
+      siteId: member.siteId,
+      groupId: member.groupId,
+      activityType: "status_changed",
+      title: "Termed from list-bill plan",
+      description: args.reason ?? "Employee left the payroll-deduction group plan",
+      actorType: "admin",
+      metadata: { previousStatus: member.memberType, listBillStatus: "termed" },
+      createdAt: now,
+    });
+
+    return { reenrollmentToken: tokenBytes };
+  },
+});
+
+/**
+ * Send a re-enrollment link email to a termed list-bill member.
+ * Dispatches sendReenrollmentLinkEmail action.
+ */
+export const sendReenrollmentLink: any = action({
+  args: {
+    memberId: v.id("memberProfiles"),
+  },
+  handler: async (ctx, args) => {
+    const api = getApi();
+    // @ts-ignore
+    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+
+    const detail = await ctx.runQuery(api.admin.members.getMemberDetail, {
+      memberId: args.memberId,
+    });
+
+    if (!detail) throw new Error("Member not found");
+    const member = detail.member;
+    if (!member.email) throw new Error("Member has no email address");
+    if (member.listBillStatus !== "termed") {
+      throw new Error("Member is not in termed list-bill status");
+    }
+
+    // Ensure token exists
+    let token = member.reenrollmentToken;
+    if (!token) {
+      const result = await ctx.runMutation(api.admin.members.termListBillMember, {
+        memberId: args.memberId,
+      });
+      token = result.reenrollmentToken;
+    }
+
+    const group = await ctx.runQuery(api.admin.hierarchy.getGroupById, {
+      groupId: member.groupId,
+    });
+
+    return await ctx.runAction(api.admin.notifications.sendReenrollmentLinkEmail, {
+      email: member.email,
+      firstName: member.firstName,
+      memberId: member.memberId,
+      reenrollmentToken: token,
+      groupName: group?.name ?? group?.slug ?? "your employer group",
+    });
   },
 });

@@ -520,3 +520,101 @@ export const sendSingleWelcomeEmailInternal = action({
     );
   },
 });
+
+/**
+ * Send a re-enrollment link to a terminated list-bill (FT/payroll) employee.
+ * Allows them to continue coverage via CC or ACH after leaving the group plan.
+ */
+export const sendReenrollmentLinkEmail = action({
+  args: {
+    email: v.string(),
+    firstName: v.string(),
+    memberId: v.string(),
+    reenrollmentToken: v.string(),
+    groupName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // @ts-ignore
+    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://getidealoh.com";
+    const reenrollUrl = `${appUrl}/health/enroll?token=${args.reenrollmentToken}&source=listbill_term`;
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #333; line-height: 1.6; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(90deg, #0066CC, #14b8a6); color: white; padding: 30px; border-radius: 8px 8px 0 0; text-align: center; }
+            .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; border-top: 3px solid #0066CC; }
+            .highlight { background: white; padding: 20px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #0066CC; }
+            .button { display: inline-block; padding: 14px 28px; background: #0066CC; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; margin: 15px 0; }
+            .footer { color: #666; font-size: 12px; text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>Keep Your Oral Care Coverage</h1>
+              <p style="margin: 10px 0 0 0;">Continue your benefits as an individual member</p>
+            </div>
+            <div class="content">
+              <p>Hi ${args.firstName},</p>
+              <p>Your payroll-deducted dental benefit through <strong>${args.groupName}</strong> has ended.
+                 The good news: you can continue your <strong>Ideal Oral Health</strong> coverage on your own
+                 — billed directly to your credit card or bank account.</p>
+
+              <div class="highlight">
+                <p style="margin:0;"><strong>Your Member ID:</strong> ${args.memberId}</p>
+                <p style="margin:8px 0 0 0;">Your existing member history and discounts carry over when you re-enroll.</p>
+              </div>
+
+              <p style="text-align:center;">
+                <a href="${reenrollUrl}" class="button">Re-Enroll Now (CC or ACH)</a>
+              </p>
+
+              <p>This link is unique to your account and expires in <strong>30 days</strong>.
+                 Once enrolled, your benefits are active immediately — no waiting period.</p>
+
+              <p>Questions? We're here to help:</p>
+              <p>📧 <a href="mailto:support@getidealoh.com">support@getidealoh.com</a><br>
+                 📞 <a href="tel:+18003524325">(800) IDEAL-CARE</a></p>
+
+              <p style="color:#666; font-style:italic;">
+                This plan is not insurance. It is a discount membership program providing access to negotiated discounts.
+              </p>
+            </div>
+            <div class="footer">
+              <p>© 2025 Ideal Oral Health. All rights reserved.</p>
+              <p>You received this because you were previously enrolled through your employer's group plan.</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const result = await sendEmail(
+      args.email,
+      `Continue Your Dental Coverage — Re-Enroll Today`,
+      html
+    );
+
+    await ctx.runMutation(api.subscriptions.events.logEvent, {
+      eventType: "notification.reenrollment_link_sent",
+      actor: "system",
+      payload: {
+        email: args.email,
+        memberId: args.memberId,
+        reenrollmentToken: args.reenrollmentToken,
+        emailSuccess: result.success,
+      },
+      success: result.success,
+      errorMessage: result.error,
+    });
+
+    return result;
+  },
+});
