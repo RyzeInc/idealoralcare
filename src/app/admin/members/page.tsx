@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Eye, Edit, Trash2, X, Clock, Send, CreditCard, Plus, Download, CheckSquare, Square } from 'lucide-react';
+import { Search, Eye, Edit, Trash2, X, Clock, Send, CreditCard, Plus, Download, CheckSquare, Square, UserX } from 'lucide-react';
 import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
@@ -55,7 +55,7 @@ export default function MembersAdmin() {
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkStatus, setBulkStatus] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [addForm, setAddForm] = useState({ groupId: '', firstName: '', lastName: '', email: '', phone: '', dateOfBirth: '', memberType: 'eligible' });
+  const [addForm, setAddForm] = useState({ groupId: '', firstName: '', lastName: '', email: '', phone: '', dateOfBirth: '', memberType: 'eligible', employeeType: '' });
 
   const members = useQuery(api.admin.members.getAllMembers, {}) || [];
   const groups = useQuery(api.admin.hierarchy.getAllGroups) || [];
@@ -69,6 +69,8 @@ export default function MembersAdmin() {
   const createMember = useMutation(api.admin.members.createAdminMember);
   const updateProfile = useMutation(api.admin.members.updateMemberProfile);
   const bulkUpdate = useMutation(api.admin.members.bulkUpdateMemberStatus);
+  const termListBillMember = useMutation(api.admin.members.termListBillMember);
+  const sendReenrollLink = useAction(api.admin.members.sendReenrollmentLink as any);
   const generateIdCard = useAction(
     "admin/memberCards:generateMemberIdCardPdf" as unknown as FunctionReference<"action", "public", { memberId: Id<'memberProfiles'> }, any>
   );
@@ -155,9 +157,10 @@ export default function MembersAdmin() {
         phone: addForm.phone || undefined,
         dateOfBirth: addForm.dateOfBirth || undefined,
         memberType: addForm.memberType as any,
+        employeeType: addForm.employeeType as any || undefined,
       });
       setShowAddModal(false);
-      setAddForm({ groupId: '', firstName: '', lastName: '', email: '', phone: '', dateOfBirth: '', memberType: 'eligible' });
+      setAddForm({ groupId: '', firstName: '', lastName: '', email: '', phone: '', dateOfBirth: '', memberType: 'eligible', employeeType: '' });
     } catch (err) {
       alert(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
@@ -400,6 +403,12 @@ export default function MembersAdmin() {
                     <div className="flex justify-between"><dt className="text-slate-500">Phone</dt><dd>{memberDetail.member.phone || '—'}</dd></div>
                     <div className="flex justify-between"><dt className="text-slate-500">DOB</dt><dd>{memberDetail.member.dateOfBirth || '—'}</dd></div>
                     <div className="flex justify-between"><dt className="text-slate-500">Enrolled</dt><dd>{memberDetail.member.enrolledAt ? new Date(memberDetail.member.enrolledAt).toLocaleDateString() : '—'}</dd></div>
+                    {memberDetail.member.employeeType && (
+                      <div className="flex justify-between"><dt className="text-slate-500">Employee Type</dt><dd className="capitalize">{memberDetail.member.employeeType.replace('_', '-')}</dd></div>
+                    )}
+                    {memberDetail.member.listBillStatus && (
+                      <div className="flex justify-between"><dt className="text-slate-500">List-Bill</dt><dd className="capitalize">{memberDetail.member.listBillStatus}</dd></div>
+                    )}
                   </dl>
                   <button
                     onClick={async () => {
@@ -418,6 +427,53 @@ export default function MembersAdmin() {
                     <CreditCard size={14} />
                     Download ID Card
                   </button>
+
+                  {/* List-Bill Actions (FT employees) */}
+                  {memberDetail.member.employeeType === 'full_time' && (
+                    <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">List-Bill (FT)</p>
+                      {memberDetail.member.listBillStatus !== 'termed' ? (
+                        <button
+                          onClick={async () => {
+                            if (!confirm('Term this member from the list-bill plan? They will receive a re-enrollment link.')) return;
+                            try {
+                              await termListBillMember({ memberId: selectedMemberId! });
+                              alert('Member termed from list-bill. Send them a re-enrollment link when ready.');
+                            } catch (err) {
+                              alert(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                            }
+                          }}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm border border-red-300 text-red-700 rounded-lg hover:bg-red-50"
+                        >
+                          <UserX size={14} />
+                          Term from List-Bill
+                        </button>
+                      ) : (
+                        <>
+                          <div className="text-xs text-amber-700 bg-amber-50 rounded px-2 py-1">
+                            Termed {memberDetail.member.listBillTermedAt
+                              ? new Date(memberDetail.member.listBillTermedAt).toLocaleDateString()
+                              : ''}
+                          </div>
+                          <button
+                            onClick={async () => {
+                              try {
+                                await sendReenrollLink({ memberId: selectedMemberId } as any);
+                                alert('Re-enrollment link sent!');
+                              } catch (err) {
+                                alert(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                              }
+                            }}
+                            disabled={!memberDetail.member.email}
+                            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                          >
+                            <Send size={14} />
+                            Send Re-enrollment Link
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -591,6 +647,14 @@ export default function MembersAdmin() {
                   <option value="lead">Lead</option>
                   <option value="eligible">Eligible</option>
                   <option value="active">Active</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Employee Type</label>
+                <select value={addForm.employeeType} onChange={(e) => setAddForm((f) => ({ ...f, employeeType: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg">
+                  <option value="">Not specified</option>
+                  <option value="full_time">Full-Time (List-Bill / Payroll)</option>
+                  <option value="part_time">Part-Time (Direct / Platform)</option>
                 </select>
               </div>
               <div className="flex gap-2 pt-2">

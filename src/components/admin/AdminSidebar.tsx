@@ -16,6 +16,7 @@ import {
   Settings,
   BarChart3,
   Headphones,
+  Receipt,
 } from "lucide-react";
 
 type NavItem = { label: string; href: string; icon: typeof LayoutDashboard };
@@ -48,6 +49,7 @@ const ADMIN_NAVIGATION: NavSection[] = [
     section: "Finance",
     items: [
       { label: "Billing", href: "/admin/billing", icon: DollarSign },
+      { label: "List-Bill", href: "/admin/list-bill", icon: Receipt },
       { label: "Commissions", href: "/admin/commissions", icon: BarChart3 },
     ],
   },

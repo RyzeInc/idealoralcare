@@ -307,6 +307,13 @@ export const createGroup = mutation({
     brokerId: v.optional(v.string()),
     brokerTrackingCode: v.optional(v.string()),
     status: v.optional(v.string()),
+    listBill: v.optional(v.object({
+      enabled: v.boolean(),
+      paymentMethod: v.union(v.literal("check"), v.literal("ach")),
+      paymentDueDayOfMonth: v.optional(v.number()),
+      employerContactEmail: v.optional(v.string()),
+      notes: v.optional(v.string()),
+    })),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
@@ -344,6 +351,7 @@ export const createGroup = mutation({
       terminationDate: args.terminationDate,
       brokerId: args.brokerId,
       brokerTrackingCode: args.brokerTrackingCode,
+      listBill: args.listBill,
       status: args.status ?? "active",
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -369,6 +377,13 @@ export const updateGroup = mutation({
     brokerId: v.optional(v.string()),
     brokerTrackingCode: v.optional(v.string()),
     status: v.optional(v.string()),
+    listBill: v.optional(v.object({
+      enabled: v.boolean(),
+      paymentMethod: v.union(v.literal("check"), v.literal("ach")),
+      paymentDueDayOfMonth: v.optional(v.number()),
+      employerContactEmail: v.optional(v.string()),
+      notes: v.optional(v.string()),
+    })),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
@@ -389,6 +404,7 @@ export const updateGroup = mutation({
     if (args.brokerId !== undefined) updates.brokerId = args.brokerId;
     if (args.brokerTrackingCode !== undefined) updates.brokerTrackingCode = args.brokerTrackingCode;
     if (args.status !== undefined) updates.status = args.status;
+    if (args.listBill !== undefined) updates.listBill = args.listBill;
 
     await ctx.db.patch(args.groupId, updates);
     return await ctx.db.get(args.groupId);

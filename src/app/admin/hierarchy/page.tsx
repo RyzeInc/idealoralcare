@@ -559,6 +559,11 @@ function EditGroupModal({ group, accounts, onClose }: { group: any; accounts: an
     brokerId: group.brokerId || '',
     brokerTrackingCode: group.brokerTrackingCode || '',
     status: group.status || 'active',
+    listBillEnabled: group.listBill?.enabled === true,
+    listBillPaymentMethod: (group.listBill?.paymentMethod as 'check' | 'ach') ?? 'check',
+    listBillDueDay: String(group.listBill?.paymentDueDayOfMonth ?? '1'),
+    listBillContactEmail: group.listBill?.employerContactEmail ?? '',
+    listBillNotes: group.listBill?.notes ?? '',
   });
   const [saving, setSaving] = useState(false);
 
@@ -577,7 +582,16 @@ function EditGroupModal({ group, accounts, onClose }: { group: any; accounts: an
         brokerId: form.brokerId || undefined,
         brokerTrackingCode: form.brokerTrackingCode || undefined,
         status: form.status || undefined,
-      });
+        listBill: form.listBillEnabled
+          ? {
+              enabled: true,
+              paymentMethod: form.listBillPaymentMethod,
+              paymentDueDayOfMonth: Number(form.listBillDueDay) || 1,
+              employerContactEmail: form.listBillContactEmail || undefined,
+              notes: form.listBillNotes || undefined,
+            }
+          : { enabled: false, paymentMethod: 'check' as const },
+      } as any);
       onClose();
     } catch (err) {
       alert(`Error: ${err instanceof Error ? err.message : 'Failed'}`);
@@ -613,6 +627,65 @@ function EditGroupModal({ group, accounts, onClose }: { group: any; accounts: an
             <option value="terminated">Terminated</option>
           </select>
         </div>
+
+        {/* List-Bill Configuration */}
+        <div className="border-t border-slate-200 pt-3">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.listBillEnabled}
+              onChange={(e) => setForm((f) => ({ ...f, listBillEnabled: e.target.checked }))}
+              className="rounded"
+            />
+            <span className="text-sm font-medium text-slate-700">Enable List-Bill (FT Payroll Deduction)</span>
+          </label>
+          {form.listBillEnabled && (
+            <div className="mt-3 space-y-3 pl-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Employer Payment Method</label>
+                <select
+                  value={form.listBillPaymentMethod}
+                  onChange={(e) => setForm((f) => ({ ...f, listBillPaymentMethod: e.target.value as 'check' | 'ach' }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                >
+                  <option value="check">Check</option>
+                  <option value="ach">ACH / Bank Transfer</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Payment Due Day of Month</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="28"
+                  value={form.listBillDueDay}
+                  onChange={(e) => setForm((f) => ({ ...f, listBillDueDay: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Employer Billing Contact Email</label>
+                <input
+                  type="email"
+                  value={form.listBillContactEmail}
+                  onChange={(e) => setForm((f) => ({ ...f, listBillContactEmail: e.target.value }))}
+                  placeholder="billing@employer.com"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
+                <textarea
+                  value={form.listBillNotes}
+                  onChange={(e) => setForm((f) => ({ ...f, listBillNotes: e.target.value }))}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="flex gap-2 pt-2">
           <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50">Cancel</button>
           <button type="submit" disabled={saving} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">Save</button>
