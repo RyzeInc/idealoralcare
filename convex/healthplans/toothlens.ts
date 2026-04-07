@@ -184,6 +184,7 @@ async function createDetectionUser(
   token: string,
   payload: {
     company: string;
+    uid?: string;
     name?: string;
     email?: string;
     age?: number;
@@ -245,7 +246,10 @@ export const getOrCreateToothlensUser = action({
       { clerkUserId: identity.clerkUserId }
     );
 
-    if (existing) {
+    // UID is valid only if it was created under the current company.
+    // If the stored company differs (e.g. old "ryzehealth" vs current "idealhealth")
+    // we must create a new UID under the right company — fall through to registration.
+    if (existing && existing.company === company) {
       return {
         uid: existing.toothlensUid,
         scanBaseUrl: `${SELFCHECK_BASE}/${company}`,
@@ -277,14 +281,22 @@ export const getOrCreateToothlensUser = action({
       zip_code: args.zipCode,
     });
 
-    // Persist the UID
-    await ctx.runMutation(getInternal().healthplans.toothlens.saveToothlensUser, {
-      clerkUserId: identity.clerkUserId,
-      toothlensUid: uid,
-      company,
-      name: resolvedName,
-      email: resolvedEmail,
-    });
+    // Persist the UID — update existing record if company changed, else insert new
+    if (existing) {
+      await ctx.runMutation(getInternal().healthplans.toothlens.updateToothlensUserUid, {
+        id: existing._id,
+        toothlensUid: uid,
+        company,
+      });
+    } else {
+      await ctx.runMutation(getInternal().healthplans.toothlens.saveToothlensUser, {
+        clerkUserId: identity.clerkUserId,
+        toothlensUid: uid,
+        company,
+        name: resolvedName,
+        email: resolvedEmail,
+      });
+    }
 
     return {
       uid,
@@ -302,5 +314,93 @@ export const getToothlensUserInternal = internalQuery({
       .query("toothlensUsers")
       .withIndex("by_clerk_user", (q) => q.eq("clerkUserId", args.clerkUserId))
       .first();
+  },
+});
+
+/**
+ * Internal: Update an existing Toothlens user record with a new UID and company.
+ */
+export const updateToothlensUserUid = internalMutation({
+  args: {
+    id: v.id("toothlensUsers"),
+    toothlensUid: v.string(),
+    company: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const patch: Record<string, string> = { toothlensUid: args.toothlensUid };
+    if (args.company) patch.company = args.company;
+    await ctx.db.patch(args.id, patch);
+  },
+});
+
+/**
+ * Re-register the current user with Toothlens.
+ * Re-sends the existing UID to restore access to prior scan reports.
+ * Falls back to a fresh UID if the old one is rejected.
+ */
+export const refreshToothlensUser = action({
+  args: {},
+  handler: async (ctx): Promise<{ uid: string; scanBaseUrl: string }> => {
+    const identity = await requireAuthAction(ctx);
+    const company = process.env.RYZEHEALTH_COMPANY ?? "idealhealth";
+
+    const existing = await ctx.runQuery(
+      getInternal().healthplans.toothlens.getToothlensUserInternal,
+      { clerkUserId: identity.clerkUserId }
+    );
+
+    const token = await authenticateRyzeHealth();
+    const resolvedName =
+      identity.name ??
+      (identity.email ? identity.email.split("@")[0] : undefined) ??
+      "Member";
+
+    const basePayload = {
+      company,
+      name: resolvedName,
+      email: identity.email,
+    };
+
+    // If the stored UID belongs to the same company, try re-registering it so
+    // old scan reports remain accessible under the same UID.
+    // If the company differs (migration scenario), skip this — UIDs are per-company
+    // on Toothlens' side so a token for `idealhealth` cannot accept a `ryzehealth` UID.
+    if (existing && existing.company === company) {
+      try {
+        const { uid } = await createDetectionUser(token, {
+          ...basePayload,
+          uid: existing.toothlensUid,
+        });
+        if (uid !== existing.toothlensUid) {
+          await ctx.runMutation(
+            getInternal().healthplans.toothlens.updateToothlensUserUid,
+            { id: existing._id, toothlensUid: uid, company }
+          );
+        }
+        return { uid, scanBaseUrl: `${SELFCHECK_BASE}/${company}` };
+      } catch {
+        // Same-UID registration rejected — fall through to create fresh UID
+      }
+    }
+
+    // Create a brand-new detection user under the current company
+    const { uid } = await createDetectionUser(token, basePayload);
+
+    if (existing) {
+      await ctx.runMutation(
+        getInternal().healthplans.toothlens.updateToothlensUserUid,
+        { id: existing._id, toothlensUid: uid, company }
+      );
+    } else {
+      await ctx.runMutation(getInternal().healthplans.toothlens.saveToothlensUser, {
+        clerkUserId: identity.clerkUserId,
+        toothlensUid: uid,
+        company,
+        name: resolvedName,
+        email: identity.email,
+      });
+    }
+
+    return { uid, scanBaseUrl: `${SELFCHECK_BASE}/${company}` };
   },
 });
