@@ -70,17 +70,19 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
    * Returns the UID and base URL for the scanner.
    */
   const ensureToothlensUser = useCallback(async (): Promise<{ uid: string; scanBaseUrl: string }> => {
-    // Already cached in state
+    // Already cached in state (only valid after a successful action call this session)
     if (toothlensUid && scanBaseUrl) {
       return { uid: toothlensUid, scanBaseUrl };
     }
-    // Already in DB
-    if (toothlensUser) {
+    // Already in DB AND registered under idealhealth — safe to use directly
+    if (toothlensUser && toothlensUser.company === 'idealhealth') {
       const url = `https://selfcheck.toothlens.com/ai/idealhealth`;
       setScanBaseUrl(url);
+      setToothlensUid(toothlensUser.toothlensUid);
       return { uid: toothlensUser.toothlensUid, scanBaseUrl: url };
     }
-    // Call the action to register with the API
+    // No cached user, or the stored UID belongs to a different company (e.g. ryzehealth).
+    // Call the action which handles migration and creates a new UID under idealhealth.
     setIsRegistering(true);
     try {
       const result = await getOrCreateUser({});
