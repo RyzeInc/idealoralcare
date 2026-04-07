@@ -70,7 +70,7 @@ export default function MembersAdmin() {
   const updateProfile = useMutation(api.admin.members.updateMemberProfile);
   const bulkUpdate = useMutation(api.admin.members.bulkUpdateMemberStatus);
   const termListBillMember = useMutation(api.admin.members.termListBillMember);
-  const sendReenrollLink = useAction(api.admin.members.sendReenrollmentLink as any);
+  const sendReenrollLink = useAction((api as any).admin.members.sendReenrollmentLink);
   const generateIdCard = useAction(
     "admin/memberCards:generateMemberIdCardPdf" as unknown as FunctionReference<"action", "public", { memberId: Id<'memberProfiles'> }, any>
   );

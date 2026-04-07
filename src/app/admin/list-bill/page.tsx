@@ -65,7 +65,7 @@ export default function ListBillPage() {
   ) ?? [];
 
   const recordPayment = useMutation(api.admin.billing.recordListBillPayment);
-  const sendReenrollLink = useAction(api.admin.members.sendReenrollmentLink as any);
+  const sendReenrollLink = useAction((api as any).admin.members.sendReenrollmentLink);
 
   const selectedGroup = summary.find((g: any) => g.groupId === selectedGroupId);
 
