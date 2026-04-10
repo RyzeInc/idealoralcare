@@ -194,11 +194,16 @@ function getDuplicates(records: any[], field: string): Set<string> {
  * Parse a Careington pipe-delimited row into a normalized record
  */
 function parseCareingtonRow(line: string): {
+  title: string | undefined;
   firstName: string;
+  middleName: string | undefined;
   lastName: string;
+  suffix: string | undefined;
   email: string | undefined;
   phone: string | undefined;
+  workPhone: string | undefined;
   dateOfBirth: string | undefined;
+  effectiveDate: string | undefined;
   gender: string | undefined;
   uniqueId: string;
   seqNum: string;
@@ -214,6 +219,10 @@ function parseCareingtonRow(line: string): {
   const lastName = (fields[f.lastName] ?? "").trim();
   if (!firstName || !lastName) return null;
 
+  const title = (fields[f.title] ?? "").trim() || undefined;
+  const middleName = (fields[f.middleInitial] ?? "").trim() || undefined;
+  const suffix = (fields[f.suffix] ?? "").trim() || undefined;
+
   // Parse DOB from MMDDYYYY → ISO YYYY-MM-DD
   const rawDob = (fields[f.dob] ?? "").trim();
   let dateOfBirth: string | undefined;
@@ -224,11 +233,22 @@ function parseCareingtonRow(line: string): {
     dateOfBirth = `${yyyy}-${mm}-${dd}`;
   }
 
+  // Parse effective date from MMDDYYYY → ISO YYYY-MM-DD
+  const rawEff = (fields[f.effDate] ?? "").trim();
+  let effectiveDate: string | undefined;
+  if (rawEff.length === 8) {
+    const mm = rawEff.slice(0, 2);
+    const dd = rawEff.slice(2, 4);
+    const yyyy = rawEff.slice(4, 8);
+    effectiveDate = `${yyyy}-${mm}-${dd}`;
+  }
+
   const rawGender = (fields[f.gender] ?? "").trim().toUpperCase();
   const gender = rawGender === "M" ? "male" : rawGender === "F" ? "female" : undefined;
 
   const email = (fields[f.email] ?? "").trim() || undefined;
   const phone = (fields[f.homePhone] ?? "").trim().replace(/\D/g, "") || undefined;
+  const workPhone = (fields[f.workPhone] ?? "").trim().replace(/\D/g, "") || undefined;
 
   const addr1 = (fields[f.addr1] ?? "").trim();
   const addr2 = (fields[f.addr2] ?? "").trim();
@@ -259,11 +279,16 @@ function parseCareingtonRow(line: string): {
   }
 
   return {
+    title,
     firstName,
+    middleName,
     lastName,
+    suffix,
     email,
     phone,
+    workPhone,
     dateOfBirth,
+    effectiveDate,
     gender,
     uniqueId,
     seqNum,
@@ -348,11 +373,16 @@ export const processEligibilityFile = action({
 
       // ── Parse based on file type ──
       let primaryRecords: Array<{
+        title?: string;
         firstName: string;
+        middleName?: string;
         lastName: string;
+        suffix?: string;
         email?: string;
         phone?: string;
+        workPhone?: string;
         dateOfBirth?: string;
+        effectiveDate?: string;
         gender?: string;
         address?: any;
         dependents?: Array<{ firstName: string; lastName: string; dateOfBirth?: string; relationship: string }>;
@@ -406,11 +436,16 @@ export const processEligibilityFile = action({
             }));
 
           primaryRecords.push({
+            title: p.title,
             firstName: p.firstName,
+            middleName: p.middleName,
             lastName: p.lastName,
+            suffix: p.suffix,
             email: p.email,
             phone: p.phone,
+            workPhone: p.workPhone,
             dateOfBirth: p.dateOfBirth,
+            effectiveDate: p.effectiveDate,
             gender: p.gender,
             address: p.address,
             dependents: deps.length > 0 ? deps : undefined,
@@ -462,11 +497,16 @@ export const processEligibilityFile = action({
 
         // Serialize records for the mutation args
         const serializedRecords = batchRecords.map((r) => ({
+          title: r.title ?? "",
           firstName: r.firstName,
+          middleName: r.middleName ?? "",
           lastName: r.lastName,
+          suffix: r.suffix ?? "",
           email: r.email ?? "",
           phone: r.phone ?? "",
+          workPhone: r.workPhone ?? "",
           dateOfBirth: r.dateOfBirth ?? "",
+          effectiveDate: r.effectiveDate ?? "",
           gender: r.gender ?? "",
           address: r.address,
           dependents: r.dependents,
@@ -613,11 +653,16 @@ export const internalBatchCreateMembers = internalMutation({
     groupId: v.id("groups"),
     records: v.array(
       v.object({
+        title: v.string(),
         firstName: v.string(),
+        middleName: v.string(),
         lastName: v.string(),
+        suffix: v.string(),
         email: v.string(),
         phone: v.string(),
+        workPhone: v.string(),
         dateOfBirth: v.string(),
+        effectiveDate: v.string(),
         gender: v.string(),
         address: v.optional(v.any()),
         dependents: v.optional(v.any()),
@@ -683,11 +728,16 @@ export const internalBatchCreateMembers = internalMutation({
         if (existing) {
           // ── Update existing member ──
           await ctx.db.patch(existing._id, {
+            title: record.title || existing.title,
             firstName: record.firstName,
+            middleName: record.middleName || existing.middleName,
             lastName: record.lastName,
+            suffix: record.suffix || existing.suffix,
             email: record.email || existing.email,
             phone: record.phone || existing.phone,
+            workPhone: record.workPhone || existing.workPhone,
             dateOfBirth: record.dateOfBirth || existing.dateOfBirth,
+            effectiveDate: record.effectiveDate || existing.effectiveDate,
             gender: validGender ?? existing.gender,
             address: record.address || existing.address,
             dependents: dependents ?? existing.dependents,
@@ -709,11 +759,16 @@ export const internalBatchCreateMembers = internalMutation({
             siteId: args.siteId,
             accountId: args.accountId,
             groupId: args.groupId,
+            title: record.title || undefined,
             firstName: record.firstName,
+            middleName: record.middleName || undefined,
             lastName: record.lastName,
+            suffix: record.suffix || undefined,
             email: record.email || undefined,
             phone: record.phone || undefined,
+            workPhone: record.workPhone || undefined,
             dateOfBirth: record.dateOfBirth || undefined,
+            effectiveDate: record.effectiveDate || undefined,
             gender: validGender,
             address: record.address,
             dependents,

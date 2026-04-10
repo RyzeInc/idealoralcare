@@ -70,18 +70,18 @@ function toUniqueId(memberId: string): string {
  *
  * Column order (Version CI007, 07/21/2025):
  * Title | FirstName | MiddleName | LastName | PostName | UniqueID | SeqNum |
- * Addr1 | Addr2 | City | State | Zip | Plus4 | HomePhone | WorkPhone |
+ * Filler(SSN) | Addr1 | Addr2 | City | State | Zip | Plus4 | HomePhone | WorkPhone |
  * Coverage | GroupCode | TermDate | EffDate | DOB |
- * Relation | StudentStatus | Gender | Email | ReportingSegment | Guardian
+ * Relation | StudentStatus | Filler | Gender | Email | ReportingSegment | Guardian
  *
- * Notes per spec:
- * - Filler (SSN) field between SeqNum and Addr1 is omitted (not passing SSN)
- * - Filler field between StudentStatus and Gender is omitted
- * - Lines start with a leading | because Title is always empty
+ * 28 pipe-delimited fields per row (indices 0-27).
  */
 function buildCareingtonRow(f: {
+  title: string;
   firstName: string;
+  middleName: string;
   lastName: string;
+  suffix: string;
   uniqueId: string;
   seqNum: string;       // "00" for primary, "01"/"02"... for dependents
   addr1: string;
@@ -90,6 +90,7 @@ function buildCareingtonRow(f: {
   state: string;
   zip: string;          // 5-digit, numeric only
   phone: string;        // 10-digit, numeric only
+  workPhone: string;    // 10-digit, numeric only
   coverage: string;     // MF | MO | MD | MS
   groupCode: string;
   termDate: string;     // MMDDYYYY or empty
@@ -103,35 +104,34 @@ function buildCareingtonRow(f: {
   guardian: string;     // "1" for primary/guardian, "0" for dependent
 }): string {
   return [
-    "",              // Title (empty — produces leading pipe)
-    f.firstName,
-    "",              // Middle Name (empty)
-    f.lastName,
-    "",              // Post Name (empty)
-    f.uniqueId,
-    "",              // Filler (SSN field — leave empty per spec)
-    f.seqNum,
-    "",              // Filler (SSN field — leave empty per spec)
-    f.addr1,
-    f.addr2,
-    f.city,
-    f.state,
-    f.zip,
-    "",              // Plus 4 (empty)
-    f.phone,
-    "",              // Work Phone (empty)
-    f.coverage,
-    f.groupCode,
-    f.termDate,
-    f.effDate,
-    f.dob,
-    f.relation,
-    f.studentStatus,
-    "",              // Filler field (empty per spec)
-    f.gender,
-    f.email,
-    f.reportingSegment,
-    f.guardian,
+    f.title,         // [0]  Title
+    f.firstName,     // [1]  First Name
+    f.middleName,    // [2]  Middle Name
+    f.lastName,      // [3]  Last Name
+    f.suffix,        // [4]  Post Name / Suffix
+    f.uniqueId,      // [5]  Unique ID
+    f.seqNum,        // [6]  Sequence Number
+    "",              // [7]  Filler (SSN — leave empty)
+    f.addr1,         // [8]  Address Line 1
+    f.addr2,         // [9]  Address Line 2
+    f.city,          // [10] City
+    f.state,         // [11] State
+    f.zip,           // [12] Zip
+    "",              // [13] Plus 4
+    f.phone,         // [14] Home Phone
+    f.workPhone,     // [15] Work Phone
+    f.coverage,      // [16] Coverage
+    f.groupCode,     // [17] Group Code
+    f.termDate,      // [18] Termination Date
+    f.effDate,       // [19] Effective Date
+    f.dob,           // [20] Date of Birth
+    f.relation,      // [21] Relation
+    f.studentStatus, // [22] Student Status
+    "",              // [23] Filler
+    f.gender,        // [24] Gender
+    f.email,         // [25] Email Address
+    f.reportingSegment, // [26] Reporting Segment
+    f.guardian,      // [27] Guardian
   ].join("|");
 }
 
@@ -196,9 +196,14 @@ export const generateDentalDiscountNetworkFile: any = action({
       // Primary member coverage: MF if family on plan, MO if member only
       const coverage = hasDependents ? "MF" : "MO";
 
-      // Effective date: snap enrollment date to first of month
-      const rawEff = member.enrolledAt ?? member.createdAt ?? Date.now();
-      const effDate = formatDateCareington(snapToFirstOfMonth(rawEff));
+      // Effective date: use stored effectiveDate if available, else snap enrollment date to first of month
+      let effDate: string;
+      if (member.effectiveDate) {
+        effDate = formatDateCareington(new Date(member.effectiveDate + "T00:00:00Z"));
+      } else {
+        const rawEff = member.enrolledAt ?? member.createdAt ?? Date.now();
+        effDate = formatDateCareington(snapToFirstOfMonth(rawEff));
+      }
 
       const dob = member.dateOfBirth
         ? formatDateCareington(new Date(member.dateOfBirth + "T00:00:00Z"))
@@ -207,12 +212,16 @@ export const generateDentalDiscountNetworkFile: any = action({
       const addr = member.address;
       const zip = (addr?.postalCode ?? "").replace(/\D/g, "").slice(0, 5);
       const phone = (member.phone ?? "").replace(/\D/g, "").slice(0, 10);
+      const workPhone = (member.workPhone ?? "").replace(/\D/g, "").slice(0, 10);
       const gender = member.gender === "male" ? "M" : member.gender === "female" ? "F" : "";
 
       // Primary member row — Sequence 00, Guardian = 1
       rows.push(buildCareingtonRow({
+        title: member.title ?? "",
         firstName: member.firstName,
+        middleName: member.middleName ?? "",
         lastName: member.lastName,
+        suffix: member.suffix ?? "",
         uniqueId,
         seqNum: "00",
         addr1: addr?.line1 ?? "",
@@ -221,6 +230,7 @@ export const generateDentalDiscountNetworkFile: any = action({
         state: addr?.state ?? "",
         zip,
         phone,
+        workPhone,
         coverage,
         groupCode: group.groupCode,
         termDate: "",   // active members only; terminated are absent from full file
@@ -257,8 +267,11 @@ export const generateDentalDiscountNetworkFile: any = action({
         }
 
         rows.push(buildCareingtonRow({
+          title: "",
           firstName: dep.firstName,
+          middleName: "",
           lastName: dep.lastName,
+          suffix: "",
           uniqueId,           // same as primary per Careington spec
           seqNum,
           addr1: addr?.line1 ?? "",  // use primary's address
@@ -267,6 +280,7 @@ export const generateDentalDiscountNetworkFile: any = action({
           state: addr?.state ?? "",
           zip,
           phone,              // use primary's phone
+          workPhone,
           coverage,           // same plan-level coverage as primary
           groupCode: group.groupCode,
           termDate: "",
@@ -294,12 +308,17 @@ export const generateDentalDiscountNetworkFile: any = action({
 });
 
 /**
- * Generate Dial Care format eligibility CSV
- * Columns: member_id, name, email, phone, effective_date, active
+ * Generate DialCare eligibility file (Careington pipe-delimited format).
+ *
+ * DialCare is owned by Careington and uses the same pipe-delimited spec.
+ * Email is REQUIRED for DialCare/E-fulfillment plans.
+ * The only difference from the Dental Discount Network file is the group code
+ * (DialCare has its own Careington-assigned group code).
  */
 export const generateDialCareFile: any = action({
   args: {
     groupId: v.id("groups"),
+    fileType: v.optional(v.union(v.literal("full"), v.literal("delta"))),
   },
   handler: async (ctx, args) => {
     // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
@@ -309,23 +328,129 @@ export const generateDialCareFile: any = action({
 
     const members = await ctx.runQuery(api.admin.members.getActiveMembersByGroup, { groupId: args.groupId });
 
-    let csv = "member_id,name,email,phone,effective_date,active\n";
+    const fileType = args.fileType ?? "full";
+    const today = new Date();
+    const filename = `${group.groupCode}${formatDateForFilename(today)}_${fileType}.txt`;
+
+    const rows: string[] = [];
+    let totalRecords = 0;
+    const warnings: string[] = [];
 
     for (const member of members) {
-      const memberId = member.memberId ?? "UNKNOWN";
-      const name = `${member.firstName} ${member.lastName}`.replace(/"/g, '""');
-      const email = member.email ?? "";
-      const phone = member.phone ?? "";
-      const effectiveDate = member.createdAt ? formatDateForVendor(new Date(member.createdAt)) : formatDateForVendor(new Date());
-      const active = member.memberType === "active" ? "1" : "0";
+      const uniqueId = toUniqueId(member.memberId ?? "UNKNOWN");
+      const dependents = member.dependents ?? [];
+      const hasDependents = dependents.length > 0;
+      const coverage = hasDependents ? "MF" : "MO";
 
-      csv += `"${memberId}","${name}","${email}","${phone}","${effectiveDate}",${active}\n`;
+      // Effective date: use stored effectiveDate if available, else snap enrollment date
+      let effDate: string;
+      if (member.effectiveDate) {
+        effDate = formatDateCareington(new Date(member.effectiveDate + "T00:00:00Z"));
+      } else {
+        const rawEff = member.enrolledAt ?? member.createdAt ?? Date.now();
+        effDate = formatDateCareington(snapToFirstOfMonth(rawEff));
+      }
+
+      const dob = member.dateOfBirth
+        ? formatDateCareington(new Date(member.dateOfBirth + "T00:00:00Z"))
+        : "";
+
+      const addr = member.address;
+      const zip = (addr?.postalCode ?? "").replace(/\D/g, "").slice(0, 5);
+      const phone = (member.phone ?? "").replace(/\D/g, "").slice(0, 10);
+      const workPhone = (member.workPhone ?? "").replace(/\D/g, "").slice(0, 10);
+      const gender = member.gender === "male" ? "M" : member.gender === "female" ? "F" : "";
+
+      // Email is required for DialCare E-fulfillment
+      if (!member.email) {
+        warnings.push(`Member ${member.memberId} (${member.firstName} ${member.lastName}) has no email — required for DialCare`);
+      }
+
+      rows.push(buildCareingtonRow({
+        title: member.title ?? "",
+        firstName: member.firstName,
+        middleName: member.middleName ?? "",
+        lastName: member.lastName,
+        suffix: member.suffix ?? "",
+        uniqueId,
+        seqNum: "00",
+        addr1: addr?.line1 ?? "",
+        addr2: addr?.line2 ?? "",
+        city: addr?.city ?? "",
+        state: addr?.state ?? "",
+        zip,
+        phone,
+        workPhone,
+        coverage,
+        groupCode: group.groupCode,
+        termDate: "",
+        effDate,
+        dob,
+        relation: "",
+        studentStatus: "",
+        gender,
+        email: member.email ?? "",
+        reportingSegment: "",
+        guardian: "1",
+      }));
+      totalRecords++;
+
+      dependents.forEach((dep: any, idx: number) => {
+        const seqNum = String(idx + 1).padStart(2, "0");
+        const depDob = dep.dateOfBirth
+          ? formatDateCareington(new Date(dep.dateOfBirth + "T00:00:00Z"))
+          : "";
+
+        let relation: string;
+        switch (dep.relationship) {
+          case "spouse":
+          case "domestic_partner":
+            relation = "S";
+            break;
+          case "child":
+            relation = "C";
+            break;
+          default:
+            relation = "O";
+        }
+
+        rows.push(buildCareingtonRow({
+          title: "",
+          firstName: dep.firstName,
+          middleName: "",
+          lastName: dep.lastName,
+          suffix: "",
+          uniqueId,
+          seqNum,
+          addr1: addr?.line1 ?? "",
+          addr2: addr?.line2 ?? "",
+          city: addr?.city ?? "",
+          state: addr?.state ?? "",
+          zip,
+          phone,
+          workPhone,
+          coverage,
+          groupCode: group.groupCode,
+          termDate: "",
+          effDate,
+          dob: depDob,
+          relation,
+          studentStatus: "N",
+          gender: "",
+          email: member.email ?? "",
+          reportingSegment: "",
+          guardian: "0",
+        }));
+        totalRecords++;
+      });
     }
 
     return {
-      filename: `dialcare_${group.groupCode}_${formatDateForVendor(new Date())}.csv`,
-      content: csv,
+      filename,
+      content: rows.join("\n"),
       memberCount: members.length,
+      totalRecords,
+      warnings,
       generatedAt: Date.now(),
     };
   },
@@ -351,31 +476,15 @@ export const generateVendorFile: any = action({
       });
     }
 
-    const group = await ctx.runQuery(api.admin.hierarchy.getGroupById, { groupId: args.groupId });
-    if (!group) throw new Error("Group not found");
-
-    const members = await ctx.runQuery(api.admin.members.getActiveMembersByGroup, { groupId: args.groupId });
-
     if (args.vendor === "dialcare") {
-      let csv = "member_id,name,email,phone,effective_date,active\n";
-      for (const member of members) {
-        const memberId = member.memberId ?? "UNKNOWN";
-        const name = `${member.firstName} ${member.lastName}`.replace(/"/g, '""');
-        const email = member.email ?? "";
-        const phone = member.phone ?? "";
-        const effectiveDate = member.createdAt ? formatDateForVendor(new Date(member.createdAt)) : formatDateForVendor(new Date());
-        const active = member.memberType === "active" ? "1" : "0";
-        csv += `"${memberId}","${name}","${email}","${phone}","${effectiveDate}",${active}\n`;
-      }
-      return {
-        filename: `dialcare_${group.groupCode}_${formatDateForVendor(new Date())}.csv`,
-        content: csv,
-        memberCount: members.length,
-        generatedAt: Date.now(),
-      };
-    } else {
-      throw new Error(`Unknown vendor: ${args.vendor}`);
+      // DialCare uses the same Careington pipe-delimited format
+      // @ts-ignore
+      return await ctx.runAction(api.admin.vendorFiles.generateDialCareFile, {
+        groupId: args.groupId,
+      });
     }
+
+    throw new Error(`Unknown vendor: ${args.vendor}`);
   },
 });
 

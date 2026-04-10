@@ -911,11 +911,16 @@ export default defineSchema({
     externalMemberId: v.optional(v.string()), // Company system ID
     
     // PERSONAL INFORMATION
+    title: v.optional(v.string()), // Mr, Mrs, Ms, etc.
     firstName: v.string(),
+    middleName: v.optional(v.string()), // Middle name or initial
     lastName: v.string(),
+    suffix: v.optional(v.string()), // Jr, Sr, II, etc.
     email: v.optional(v.string()),
     phone: v.optional(v.string()),
+    workPhone: v.optional(v.string()),
     dateOfBirth: v.optional(v.string()), // ISO format: "1990-05-15"
+    effectiveDate: v.optional(v.string()), // Coverage effective date ISO: "2026-05-01"
     gender: v.optional(v.union(
       v.literal("male"),
       v.literal("female"),

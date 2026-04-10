@@ -74,15 +74,14 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
     if (toothlensUid && scanBaseUrl) {
       return { uid: toothlensUid, scanBaseUrl };
     }
-    // Already in DB AND registered under idealhealth — safe to use directly
-    if (toothlensUser && toothlensUser.company === 'idealhealth') {
-      const url = `https://selfcheck.toothlens.com/ai/idealhealth`;
+    // Already in DB — build scan URL from stored company
+    if (toothlensUser) {
+      const url = `https://selfcheck.toothlens.com/ai/${toothlensUser.company}`;
       setScanBaseUrl(url);
       setToothlensUid(toothlensUser.toothlensUid);
       return { uid: toothlensUser.toothlensUid, scanBaseUrl: url };
     }
-    // No cached user, or the stored UID belongs to a different company (e.g. ryzehealth).
-    // Call the action which handles migration and creates a new UID under idealhealth.
+    // Not registered yet — call the action to register with the API.
     setIsRegistering(true);
     try {
       const result = await getOrCreateUser({});
@@ -147,24 +146,13 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
   );
 
   const buildScanUrl = useCallback((scan: { toothlensUid: string; sessionId: string; scanUrl?: string }) => {
-    // Each scan record stores the full URL from creation time, which includes
-    // the correct company and UID that were active when the scan was taken.
-    // This ensures old scans under "ryzehealth" still open with that company
-    // URL, while new scans use "idealhealth".
+    // Use the stored full URL if available — it has the correct company from creation time
     if (scan.scanUrl) return scan.scanUrl;
 
-    // Fallback for records without a stored URL:
-    // If the scan's UID differs from the current user UID, it's a pre-migration
-    // scan (created under a previous company e.g. ryzehealth).
-    const currentUid = toothlensUid || toothlensUser?.toothlensUid;
-    if (currentUid && scan.toothlensUid !== currentUid) {
-      return `https://selfcheck.toothlens.com/ai/ryzehealth?uid=${encodeURIComponent(scan.toothlensUid)}&session_id=${encodeURIComponent(scan.sessionId)}`;
-    }
-
-    // Current company scan
-    const base = scanBaseUrl || 'https://selfcheck.toothlens.com/ai/idealhealth';
+    // Fallback: use the current session's scanBaseUrl (set by ensureToothlensUser / action)
+    const base = scanBaseUrl || 'https://selfcheck.toothlens.com/ai/ryzehealth';
     return `${base}?uid=${encodeURIComponent(scan.toothlensUid)}&session_id=${encodeURIComponent(scan.sessionId)}`;
-  }, [scanBaseUrl, toothlensUid, toothlensUser]);
+  }, [scanBaseUrl]);
 
   const handleRefreshRegistration = useCallback(async () => {
     setIsRefreshing(true);
@@ -184,7 +172,7 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
   // Build the scanner iframe URL
   const getScanUrl = useCallback(() => {
     if (!toothlensUid || !sessionId) return '';
-    const base = scanBaseUrl || 'https://selfcheck.toothlens.com/ai/idealhealth';
+    const base = scanBaseUrl || 'https://selfcheck.toothlens.com/ai/ryzehealth';
     return `${base}?uid=${encodeURIComponent(toothlensUid)}&session_id=${encodeURIComponent(sessionId)}`;
   }, [toothlensUid, sessionId, scanBaseUrl]);
 
