@@ -425,14 +425,21 @@ function SignInForm() {
 
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @media (max-width: 768px) {
+        @media (max-width: 1024px) {
           .health-landing section > .container {
-            grid-template-columns: 1fr !important;
+            display: flex !important;
+            flex-direction: column !important;
             gap: 2rem !important;
           }
           .health-landing section > .container > div {
             padding-left: 0 !important;
             padding-right: 0 !important;
+          }
+          .health-landing section > .container > div:first-child {
+            order: 2 !important;
+          }
+          .health-landing section > .container > div:last-child {
+            order: 1 !important;
           }
         }
       `}</style>

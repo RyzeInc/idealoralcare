@@ -38,6 +38,7 @@ import type * as catalog_queries from "../catalog/queries.js";
 import type * as contacts from "../contacts.js";
 import type * as crons from "../crons.js";
 import type * as enrollment from "../enrollment.js";
+import type * as enrollment_agents from "../enrollment/agents.js";
 import type * as enrollment_dependents from "../enrollment/dependents.js";
 import type * as enrollment_index from "../enrollment/index.js";
 import type * as enrollment_members from "../enrollment/members.js";
@@ -108,6 +109,7 @@ declare const fullApi: ApiFromModules<{
   contacts: typeof contacts;
   crons: typeof crons;
   enrollment: typeof enrollment;
+  "enrollment/agents": typeof enrollment_agents;
   "enrollment/dependents": typeof enrollment_dependents;
   "enrollment/index": typeof enrollment_index;
   "enrollment/members": typeof enrollment_members;
