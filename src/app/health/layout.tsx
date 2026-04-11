@@ -3,6 +3,7 @@ import HealthFlowBackground from '@/components/background/HealthFlowBackground';
 import { IdealHealthFooter } from '@/components/health/NexusHealthFooter';
 import { SiteThemeProvider } from '@/components/providers/SiteThemeProvider';
 import { CartProvider } from '@/lib/health-plans/cart-context';
+import { OrganizationJsonLd, WebSiteJsonLd } from '@/components/seo/JsonLd';
 
 export const metadata = {
   title: 'Ideal Health | Modern Health Plans Made Simple',
@@ -11,6 +12,10 @@ export const metadata = {
     icon: '/logo-shortcut-icon.png',
     shortcut: '/logo-shortcut-icon.png',
     apple: '/logo-apple-touch-icon.png',
+  },
+  openGraph: {
+    siteName: 'Ideal Health',
+    images: [{ url: '/health-assets/og-default.png', width: 1200, height: 630 }],
   },
 };
 
@@ -33,6 +38,8 @@ export default function HealthLayout({ children }: { children: React.ReactNode }
     <SiteThemeProvider defaultSlug="ideal-health">
       <CartProvider>
         <>
+          <OrganizationJsonLd />
+          <WebSiteJsonLd />
           <HealthFlowBackground />
           <div className="flex flex-col min-h-screen">
             <div className="flex-grow">

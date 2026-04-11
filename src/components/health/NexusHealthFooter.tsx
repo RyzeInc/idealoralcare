@@ -76,10 +76,14 @@ export function NexusHealthFooter() {
           {/* Terms & Conditions */}
           <div>
             <p style={{ fontSize: "0.875rem", fontWeight: 700, color: "#0066CC", marginBottom: "0.75rem", marginTop: 0 }}>
-              Terms and Conditions
+              Resources
             </p>
             <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
               {[
+                { label: "Blog", href: "/health/blog" },
+                { label: "FAQ", href: "/health/faq" },
+                { label: "How It Works", href: "/health/how-it-works" },
+                { label: "Compare Plans", href: "/health/compare" },
                 { label: "Terms and Conditions", href: "/health/terms" },
                 { label: "Privacy Policy", href: "/health/privacy" },
                 { label: "Program Disclosures", href: "/health/terms" },

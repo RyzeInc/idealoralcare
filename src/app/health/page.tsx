@@ -8,6 +8,14 @@ export const metadata = {
   title: "Ideal Oral Health Plan | Comprehensive Oral Health Coverage",
   description:
     "Ideal Oral Health Plan - AI Oral Scanning, 24/7 teledentistry, and Dental Discount Network dental access. Affordable monthly membership.",
+  alternates: { canonical: "/health" },
+  openGraph: {
+    title: "Ideal Oral Health Plan | Affordable Dental Care Alternative",
+    description:
+      "Save 20–58% on dental care with AI scanning, 24/7 teledentistry, and 140,000+ providers. No waiting periods, no annual maximums. Plans from $14.99/mo.",
+    url: "https://getidealoh.com/health",
+    images: [{ url: "/health-assets/og-default.png", width: 1200, height: 630 }],
+  },
 };
 
 export default function HealthLanding() {
