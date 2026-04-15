@@ -17,12 +17,12 @@ export const metadata = {
 
 const HELP_WITH = [
   { title: "Oral Pain", desc: "Immediate guidance for toothaches, jaw pain, and other acute oral discomfort." },
-  { title: "Broken, Chipped or Sensitive Teeth", desc: "Expert advice on damaged or temperature-sensitive teeth and next steps." },
+  { title: "Broken, Chipped or Sensitive Teeth", desc: "Top-quality dental advice on damaged or temperature-sensitive teeth and next steps." },
   { title: "Gum Swelling & Bleeding", desc: "Assess and advise on periodontal concerns including inflammation and bleeding gums." },
   { title: "Sores, Lesions & Infections", desc: "Evaluation of mouth sores, soft tissue lesions, swelling, and suspected infections." },
   { title: "Orthodontia Needs", desc: "Virtual screening and guidance on braces, aligners, and orthodontic concerns." },
   { title: "Second Opinions", desc: "Get an expert second opinion to ensure confidence in oral health diagnoses and treatment plans." },
-  { title: "Prescriptions", desc: "Clinically appropriate, non-DEA controlled prescriptions when indicated, in accordance with state regulations." },
+  { title: "Prescriptions", desc: "When medically appropriate, a DialCare doctor may prescribe a short-term, non-DEA controlled medication for the member to pick up at the pharmacy of their choice." },
   { title: "And Much More", desc: "Misaligned teeth, post-procedure questions, general dental guidance — covered." },
 ];
 
@@ -47,14 +47,14 @@ export default function TeledentistryPage() {
           <div className="row" style={{ alignItems: "center" }}>
             <div className="col-6">
               <div style={{ paddingRight: "2rem" }}>
-                <div style={{ fontSize: "0.875rem", fontWeight: 700, color: "rgba(255,255,255,0.75)", letterSpacing: "0.1em", marginBottom: "1rem" }}>
-                  IDEAL HEALTH TELEDENTISTRY
+                <div style={{ fontSize: "1rem", fontWeight: 700, color: "rgba(255,255,255,0.75)", letterSpacing: "0.1em", marginBottom: "1rem" }}>
+                  DialCare Teledentistry
                 </div>
                 <h1 style={{ fontSize: "3rem", lineHeight: 1.1, fontWeight: 800, color: "#fff", marginBottom: "1.5rem" }}>
-                  Expert Dental Care — 24/7/365
+                  DialCare dentists are available 24/7/365
                 </h1>
-                <p style={{ fontSize: "1.125rem", color: "rgba(255,255,255,0.95)", marginBottom: "2rem", lineHeight: 1.6 }}>
-                  Virtual consultations with licensed dentists via phone or video chat. Get answers to your dental questions and guidance on oral health concerns — anytime, anywhere.
+                <p style={{ fontSize: "1.125rem", color: "rgba(255,255,255,0.95)", marginBottom: "2rem", lineHeight: 1.7 }}>
+                  Via phone or video, providing members and their families convenient access to quality care from home, work or on the go, anywhere in the U.S.
                 </p>
                 <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
                   <Link className="button button--accent" href="/health/plans" style={{ padding: "12px 28px", fontSize: "0.9375rem" }}>
@@ -108,11 +108,13 @@ export default function TeledentistryPage() {
                 marginBottom: "0.5rem",
               }}
             >
-              Our Services
+              OUR SERVICES
             </p>
-            <h2 style={{ margin: "0 0 0.75rem" }}>What We Can Help With</h2>
+            <h3 style={{ margin: "0 0 1rem", fontSize: "1.75rem", color: "#0f172a" }}>
+              What We Can Help With
+            </h3>
             <p style={{ color: "#475569", maxWidth: "540px", margin: "0 auto" }}>
-              Licensed dentists available 24 hours a day to address a wide range of oral health concerns.
+              Licensed dentists available 24/7/365 to address a wide range of oral health concerns.
             </p>
           </div>
 
@@ -317,6 +319,50 @@ export default function TeledentistryPage() {
         </div>
       </section>
 
+      <section style={{ background: "#f8fafc", padding: "3rem 0", borderTop: "1px solid #e2e8f0" }}>
+        <div className="container" style={{ maxWidth: "940px", margin: "0 auto" }}>
+          <div style={{ display: "grid", gap: "2rem" }}>
+            <div>
+              <h2 style={{ margin: "0 0 0.75rem" }}>Get in Touch</h2>
+              <p style={{ margin: 0, fontSize: "1rem", color: "#1f2937" }}>
+                Customer Service line: 801-820-0010
+              </p>
+              <p style={{ margin: "0.5rem 0 0", fontSize: "1rem", color: "#1f2937" }}>
+                Email: info@getidealhealth.com
+              </p>
+              <p style={{ margin: "0.5rem 0 0", fontSize: "1rem", color: "#1f2937" }}>
+                Hours of Operation: Mon • Fri: 9am • 6pm
+              </p>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem" }}>
+              <div style={{ padding: "1rem", background: "#fff", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+                <strong>Locations</strong>
+                <p style={{ margin: "0.75rem 0 0", fontSize: "0.95rem", lineHeight: 1.6 }}>
+                  Northeast Office<br />
+                  116 S. Main St<br />
+                  Wallingford CT 06492
+                </p>
+              </div>
+              <div style={{ padding: "1rem", background: "#fff", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+                <p style={{ margin: 0, fontSize: "0.95rem", lineHeight: 1.6 }}>
+                  Southern Office<br />
+                  800 S Gay St STE 700<br />
+                  Knoxville TN 37929
+                </p>
+              </div>
+              <div style={{ padding: "1rem", background: "#fff", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+                <p style={{ margin: 0, fontSize: "0.95rem", lineHeight: 1.6 }}>
+                  Texas Office<br />
+                  1200 E Ridge Rd STE 1<br />
+                  McAllen TX 78503
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── DISCLOSURE ──────────────────────────────────────────────────── */}
       <section style={{ background: "#eff6ff", padding: "2.5rem 0", borderTop: "1px solid rgba(52,152,219,0.15)" }}>
         <div className="container">
@@ -330,7 +376,10 @@ export default function TeledentistryPage() {
               lineHeight: 1.6,
             }}
           >
-            <strong>Disclosure:</strong> THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance. State availability may vary. Please contact us for up-to-date information on availability in your state.
+            <strong>Disclosure:</strong> <span style={{ fontWeight: 700 }}>THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance.</span> State availability may vary. Please contact us for up-to-date information on availability in your state.
+          </p>
+          <p style={{ marginTop: "1rem", fontSize: "0.8125rem", color: "#64748b", textAlign: "center" }}>
+            Terms and Conditions · Privacy Policy · Program Disclosures
           </p>
         </div>
       </section>

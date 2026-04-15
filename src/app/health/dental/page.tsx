@@ -62,7 +62,7 @@ export default function OralHealthLanding() {
       <section className="our-use-case section bg--blue">
         <div className="container">
           <div className="heading-block">
-            <h2>What's Included in Your Oral Health Plan</h2>
+            <h2>What's Included in Your Oral Healthcare Discount Plan</h2>
           </div>
           <div className="our-use-case__content">
             <div className="our-use-case__image">
@@ -156,7 +156,7 @@ export default function OralHealthLanding() {
         <div className="container">
           <div className="for-organization__row">
             <div className="for-organization__col">
-              <h2>Oral Health Plan for Your Team</h2>
+              <h2>Oral Healthcare Discount Plan for Your Team</h2>
               <p>Offer your employees a modern oral health plan that actually works. AI-powered scanning, 24/7 teledentistry, and nationwide provider discounts reduce costs, improve preventative care, and boost employee satisfaction.</p>
               <div className="for-organization__btn_w">
                 <a className="button button--accent" href="/health">Learn About All Plans</a>

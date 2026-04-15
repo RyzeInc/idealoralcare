@@ -525,9 +525,7 @@ export default function DentalDiscountNetworkPage() {
               lineHeight: 1.6,
             }}
           >
-            THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance.
-            Discount amounts vary by provider and procedure. Savings shown are sample
-            estimates based on 2024 Fair Health Report data. Prices subject to change.
+            <strong style={{ fontWeight: 700 }}>THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance.</strong> This plan does not meet the minimum creditable coverage requirements under M.G.L. c.111M and 956 CMR 5.00. This plan is not a Qualified Health Plan under the Affordable Care Act. The range of discounts will vary depending on the type of provider and service. The plan does not pay providers directly. Plan members must pay for all services but will receive a discount from participating providers. The list of participating providers is at https://www.getidealoh.com/health/dashboard. A written list of participating providers is available upon request. You may cancel within the first 30 days after effective date or receipt of membership materials (whichever is later) and receive a full refund. Discount Plan Organization and administrator: Careington International Corporation, 7400 Gaylord Parkway, Frisco, TX 75034; phone 800-441-0380. This plan is not available in Vermont or Washington.
           </p>
         </div>
       </section>
