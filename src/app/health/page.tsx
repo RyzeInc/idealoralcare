@@ -36,10 +36,10 @@ export default function HealthLanding() {
             <div className="col-12">
               <div className="hero-home__heading">
                 <div className="hero-home__subtitle">Ideal Oral Health Plan</div>
-                <h1>Oral Health Care That Works Around Your Life — Not the Other Way Around.</h1>
+                <h1>Oral Healthcare Discount Plan That Works Around Your Life — Not the Other Way Around.</h1>
                 <p className="hero-home__descr">
                   AI Oral Scanning from home, licensed dentists available 24/7, and a
-                  nationwide provider network that saves members 25–50% on dental
+                  nationwide provider network that saves members 20–50% on dental
                   procedures — without the waiting rooms, surprise bills, or guesswork.
                 </p>
                 <a className="button button--primary" href="#whats-included">
@@ -83,7 +83,7 @@ export default function HealthLanding() {
       <section className="our-use-case section bg--blue" id="whats-included">
         <div className="container">
           <div className="heading-block">
-            <h2>What&apos;s Included in Your Oral Health Plan</h2>
+            <h2>What&apos;s Included in Your Oral Healthcare Discount Plan</h2>
           </div>
           <div className="our-use-case__content">
             <div className="our-use-case__image">
@@ -102,8 +102,8 @@ export default function HealthLanding() {
               </div>
               <div className="benefit-tile">
                 <div className="benefit-tile__icon"><Smile size={28} color="#F39C12" /></div>
-                <h4 className="benefit-tile__title">Network Discounts</h4>
-                <p className="benefit-tile__description">Access thousands of dentists nationwide through the Dental Discount Network with negotiated discount rates.</p>
+                <h4 className="benefit-tile__title">Dental Network Discounts</h4>
+                <p className="benefit-tile__description">Access thousands of dentists nationwide through the Careington POS Dental Discount Network with negotiated discount rates.</p>
               </div>
               <div className="benefit-tile">
                 <div className="benefit-tile__icon"><Heart size={28} color="#64748b" /></div>
@@ -131,7 +131,7 @@ export default function HealthLanding() {
           <h2>Built Around How You Actually Live</h2>
           <ul className="benefits__list">
             <li>Catch problems before they get costly — AI scans your mouth at home, so small issues don&apos;t turn into big ones.</li>
-            <li>50,000+ providers nationwide, already vetted — so you spend time getting care, not searching for it.</li>
+            <li>Providers nationwide, already vetted — so you spend time getting care, not searching for it.</li>
             <li>See exactly what you&apos;ll pay before you go. No mid-chair surprises, no mystery bills.</li>
             <li>Prevention is always cheaper than treatment — and we&apos;ve made it easy to actually do it.</li>
             <li>Toothache at 2am? A licensed dentist is available any time you need one.</li>
@@ -188,10 +188,10 @@ export default function HealthLanding() {
         <div className="container">
           <div className="for-organization__row">
             <div className="for-organization__col">
-              <h2>Oral Health Plan for Your Team</h2>
+              <h2>Oral Healthcare Discount Plan for Your Team</h2>
               <p>
                 Give your team a real edge in oral health. AI scanning, 24/7 dentist access,
-                and nationwide provider discounts help employees stay on top of their health
+                and nationwide provider dental discounts help employees stay on top of their health
                 without the hassle — and that makes a difference in how they show up every day.
               </p>
               <div className="for-organization__btn_w">
@@ -212,7 +212,7 @@ export default function HealthLanding() {
           <div className="faq__list">
             <div className="accordion">
               <h4>Is this real dental insurance?</h4>
-              <div>No — and that&apos;s actually a good thing. The Ideal Oral Health Plan is a membership, not an insurance plan. That means no deductibles, no waiting periods, no claim forms, and no annual coverage caps. You get AI scanning, 24/7 dentist access, and a nationwide discount network — starting the day after you enroll.</div>
+              <div>No — The Ideal Oral Healthcare Discount Plan is a membership, not an insurance plan. Because this is not insurance, there are no deductibles, no waiting periods, no claim forms, and no annual coverage caps. You get AI scanning, 24/7 dentist access, and a nationwide dental discount network — starting the day after you enroll.</div>
             </div>
             <div className="accordion">
               <h4>How does the AI scanning work — do I need any equipment?</h4>
@@ -224,7 +224,7 @@ export default function HealthLanding() {
             </div>
             <div className="accordion">
               <h4>How much can I actually save on dental procedures?</h4>
-              <div>Members typically save 25–50% on common procedures like cleanings, fillings, and root canals. You can search our provider network before your appointment to see exact member pricing — no surprises at checkout. For a cleaning that normally runs $150, you might pay $75–$100.</div>
+              <div>Members typically save 20%-50% on common procedures like cleanings, fillings, and root canals. You can search our provider network before your appointment to see exact member pricing — no surprises at checkout.</div>
             </div>
           </div>
         </div>

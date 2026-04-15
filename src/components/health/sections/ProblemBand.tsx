@@ -13,8 +13,8 @@ const problems = [
   },
   {
     Icon: DollarSign,
-    title: "Coverage That Falls Short",
-    body: "Even people with dental insurance still pay 40–50% out of pocket on major work. And tens of millions have no coverage at all.",
+    title: "Dental Benefits That Falls Short",
+    body: "Even people with dental insurance still pay 40–50% out of pocket on major work. And tens of millions have no dental benefits at all.",
   },
 ];
 

@@ -21,7 +21,7 @@ const TRUST_ITEMS = [
   {
     icon: Zap,
     title: "Access Within 24 Hours",
-    text: "Your benefits are active the day after you enroll. No waiting period.",
+    text: "Your benefits are active the day after you enroll. No waiting.",
   },
 ];
 
