@@ -13,7 +13,7 @@ const problems = [
   },
   {
     Icon: DollarSign,
-    title: "Dental Benefits That Falls Short",
+    title: "Dental Benefits That Fall Short",
     body: "Even people with dental insurance still pay 40–50% out of pocket on major work. And tens of millions have no dental benefits at all.",
   },
 ];
