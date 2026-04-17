@@ -129,9 +129,7 @@ export default function DentalDiscountNetworkPage() {
               marginBottom: "1.25rem",
             }}
           >
-            Save Up to<br />
-            <span style={{ color: "#10b981" }}>58%</span> on Dental<br />
-            Procedures
+            Save up to 20%-50% on Dental Procedures
           </h1>
           <p
             style={{
@@ -142,8 +140,7 @@ export default function DentalDiscountNetworkPage() {
               marginBottom: "2rem",
             }}
           >
-            One of the largest national provider networks — no waiting periods,
-            no annual maximums, no claim forms. Just savings, starting day one.
+            One of the largest national provider networks — No waiting, no limits on use, no forms.
           </p>
           <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
             <Link
@@ -194,27 +191,6 @@ export default function DentalDiscountNetworkPage() {
             }}
           />
           {/* Floating badge */}
-          <div
-            style={{
-              position: "absolute",
-              bottom: "2rem",
-              right: "2rem",
-              background: "rgba(255,255,255,0.95)",
-              borderRadius: "14px",
-              padding: "1rem 1.25rem",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-              backdropFilter: "blur(8px)",
-              textAlign: "center",
-              minWidth: "130px",
-            }}
-          >
-            <p style={{ margin: 0, fontSize: "2.25rem", fontWeight: 900, color: "#F39C12", lineHeight: 1 }}>
-              58%
-            </p>
-            <p style={{ margin: "4px 0 0", fontSize: "0.75rem", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              Max Savings
-            </p>
-          </div>
         </div>
       </section>
 
@@ -228,7 +204,7 @@ export default function DentalDiscountNetworkPage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
+            gridTemplateColumns: "repeat(3, 1fr)",
             maxWidth: "1200px",
             margin: "0 auto",
           }}
@@ -237,14 +213,13 @@ export default function DentalDiscountNetworkPage() {
             { num: "20–50%", label: "Off most procedures" },
             { num: "20%", label: "Off orthodontics" },
             { num: "20%", label: "Off specialist fees" },
-            { num: "$0", label: "Waiting period" },
           ].map((stat, i) => (
             <div
               key={stat.label}
               style={{
                 padding: "1.5rem 1rem",
                 textAlign: "center",
-                borderRight: i < 3 ? "1px solid rgba(255,255,255,0.2)" : "none",
+                borderRight: i < 2 ? "1px solid rgba(255,255,255,0.2)" : "none",
               }}
             >
               <p style={{ margin: 0, fontSize: "1.75rem", fontWeight: 900, color: "#fff", lineHeight: 1 }}>
@@ -481,16 +456,16 @@ export default function DentalDiscountNetworkPage() {
               </p>
               <h2 style={{ marginBottom: "1rem" }}>One of the Largest Dental Networks in the Nation</h2>
               <p style={{ color: "#475569", marginBottom: "1.5rem", lineHeight: 1.7 }}>
-                Our dental discount network is built around your neighborhood dentist —
+                Careington POS dental discount network is built around your neighborhood dentist —
                 one of the most recognized professional dental networks in the United States,
                 with member-transparent pricing and robust fee schedules so you always know
                 exactly what you'll pay before you sit in the chair.
               </p>
               <ul style={{ listStyle: "none", padding: 0, margin: "0 0 2rem", display: "flex", flexDirection: "column", gap: "0.625rem" }}>
                 {[
-                  "Nationwide coverage — find a dentist near you",
-                  "No waiting periods to start saving",
-                  "No annual maximums or claim forms",
+                  "Nationwide — find a dentist near you",
+                  "No waiting to start saving",
+                  "No limits on use or forms",
                   "Member-transparent pricing every visit",
                   "Change providers at any time, no referral needed",
                 ].map((item) => (
@@ -525,7 +500,7 @@ export default function DentalDiscountNetworkPage() {
               lineHeight: 1.6,
             }}
           >
-            <strong style={{ fontWeight: 700 }}>THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance.</strong> This plan does not meet the minimum creditable coverage requirements under M.G.L. c.111M and 956 CMR 5.00. This plan is not a Qualified Health Plan under the Affordable Care Act. The range of discounts will vary depending on the type of provider and service. The plan does not pay providers directly. Plan members must pay for all services but will receive a discount from participating providers. The list of participating providers is at https://www.getidealoh.com/health/dashboard. A written list of participating providers is available upon request. You may cancel within the first 30 days after effective date or receipt of membership materials (whichever is later) and receive a full refund. Discount Plan Organization and administrator: Careington International Corporation, 7400 Gaylord Parkway, Frisco, TX 75034; phone 800-441-0380. This plan is not available in Vermont or Washington.
+            <strong style={{ fontWeight: 700 }}>THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance.</strong> Discount amounts vary by provider and procedure. Savings shown are sample estimates based on 2024 Fair Health Report data. Prices subject to change.
           </p>
         </div>
       </section>
