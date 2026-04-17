@@ -1258,7 +1258,7 @@ function CheckoutContent() {
                     />
                     <span style={{ fontSize: "0.9375rem", color: "#475569", lineHeight: 1.6 }}>
                       I understand that I will be billed <strong>{formatPrice(totalDueToday)}</strong> today 
-                      and {formatPrice(totalDueToday)}{periodShort} on renewal. I can cancel 
+                      and {formatPrice(totalDueToday)}{periodShort} thereafter. I can cancel 
                       anytime and keep access until the end of my billing period.
                       {!agreedToTerms && (
                         <span style={{ display: "block", fontSize: "0.8125rem", color: "#0066CC", marginTop: "0.35rem", fontWeight: 500 }}>
@@ -1491,7 +1491,7 @@ function CheckoutContent() {
           memberAddress: "Address on file",
           email: user?.emailAddresses?.[0]?.emailAddress || "",
           planName: cart.items?.[0]?.product?.name || "Ideal Oral Health Plan",
-          groupCode: "IOHP",
+          groupCode: "IDEALDO",
           effectiveDate: new Date().toISOString().split("T")[0],
         }}
       />

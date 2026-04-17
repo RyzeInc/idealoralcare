@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
     memberFirstName: user.firstName ?? "Member",
     memberEmail: user.emailAddresses[0]?.emailAddress ?? "",
     memberId: memberProfile?.memberId ?? "—",
-    groupCode: memberProfile?.groupCode ?? "IOH-DTC",
+    groupCode: memberProfile?.groupCode ?? "IDEALDO",
     planName: memberProfile?.planName ?? "Ideal Oral Health Plan",
     effectiveDate:
       memberProfile?.effectiveDate ??

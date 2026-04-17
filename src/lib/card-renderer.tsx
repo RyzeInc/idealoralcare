@@ -73,7 +73,7 @@ export function renderCardFront(cardData: MemberCardData): RenderedCardSide {
         },
         {
           label: 'Group Code',
-          value: cardData.groupCode || 'IOH-DTC',
+          value: cardData.groupCode || 'IDEALDO',
           column: 1,
         },
         {

@@ -146,7 +146,7 @@ export const emailTemplates = {
           <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ffc107;">
             <p style="margin: 0;"><strong>Cancellation Policy:</strong></p>
             <p style="margin: 10px 0 0 0; font-size: 13px;">
-              You have the right to cancel within 30 days of your effective date for a full refund, less the processing fee. 
+              You have the right to cancel within 30 days of your effective date for a full refund. 
               Contact us at <a href="tel:801-820-0010" style="color: #ffc107; text-decoration: none;">801-820-0010</a> or 
               <a href="mailto:info@getidealoh.com" style="color: #ffc107; text-decoration: none;">info@getidealoh.com</a> to cancel.
             </p>

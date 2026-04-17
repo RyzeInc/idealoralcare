@@ -604,6 +604,9 @@ function MembershipAgreementPage({ data }: { data: FulfillmentPacketData }) {
       <Text style={s.bodySmall}>
         By joining a plan, for yourself or on behalf of a minor child for whom you are a parent or legal guardian, you confirm that you are at least 18 years old and you authorize Ryze LLC to charge your credit card or checking account for the plan you have selected. By joining, you indicate you have read and agree to the terms and conditions of the plan.
       </Text>
+      <Text style={s.bodySmall}>
+        This charge will automatically renew at the end of your membership term, and your credit card or checking account will be automatically charged for the appropriate amount, until you notify Ideal Health that you wish to cancel the plan.
+      </Text>
 
       {/* Termination Conditions */}
       <SectionHeadingGreen text="Termination Conditions" />
@@ -614,7 +617,7 @@ function MembershipAgreementPage({ data }: { data: FulfillmentPacketData }) {
       {/* Cancellation Conditions */}
       <SectionHeadingGreen text="Cancellation Conditions" />
       <Text style={s.bodySmall}>
-        You have the right to cancel within the first 30 days after effective date or receipt of membership materials (whichever is later) and receive a full refund, less the processing fee, if applicable. If for any reason you wish to cancel, submit a cancellation request with your name and member ID by mail to Ryze LLC, Ryze LLC, email to info@getidealoh.com or phone. Ryze LLC will stop collecting membership fees in a reasonable amount of time, but no later than 30 days after receiving a cancellation request.
+        You have the right to cancel within the first 30 days after effective date or receipt of membership materials (whichever is later) and receive a full refund, less the processing fee, if applicable. If for any reason you wish to cancel, submit a cancellation request with your name and member ID by mail to Ryze LLC, 1200 E Ridge Rd STE 1, McAllen TX 78503, email to info@getidealoh.com or phone. Ryze LLC will stop collecting membership fees in a reasonable amount of time, but no later than 30 days after receiving a cancellation request.
       </Text>
       <Text style={s.bodySmall}>
         When you cancel, you will continue to have access to the plan for the remainder of the period for which you have paid; your membership will terminate at the end of that period. The preceding sentence does not apply to quarterly, semi-annual or annual memberships in FL and OK, where you will receive a pro-rata refund whenever you cancel.
@@ -967,7 +970,7 @@ function MemberCardFrontPage({ data }: { data: FulfillmentPacketData }) {
   const fields: MemberCardField[] = [
     { label: "Member", value: data.memberName },
     { label: "Member ID", value: data.memberId },
-    { label: "Group Code", value: data.groupCode || "IOH-DTC" },
+    { label: "Group Code", value: data.groupCode || "IDEALDO" },
     { label: "Effective", value: data.effectiveDate },
   ];
 

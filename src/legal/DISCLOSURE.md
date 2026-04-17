@@ -2,7 +2,7 @@
 
 THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance. This plan does not meet the minimum creditable coverage requirements under M.G.L. c.111M and 956 CMR 5.00. This plan is not a Qualified Health Plan under the Affordable Care Act. The range of discounts will vary depending on the type of provider and service. The plan does not pay providers directly. Plan members must pay for all services but will receive a discount from participating providers. The list of participating providers is available at [www.careington.com](https://www.careington.com). A written list of participating providers is available upon request. 
 
-You may cancel within the first 30 days after effective date or receipt of membership materials (whichever is later) and receive a full refund, less a nominal processing fee (nominal fee for MD residents is $5, AR residents will be refunded the processing fee). 
+You may cancel within the first 30 days after effective date or receipt of membership materials (whichever is later) and receive a full refund. 
 
 ## Discount Plan Organization and Administrator
 **Ideal Oral Health**

@@ -16,7 +16,7 @@ Ideal Oral Health and DialCare reserve the right to terminate plan members from 
 
 ## Cancellation Conditions
 
-You have the right to cancel within the first 30 days after effective date or receipt of membership materials (whichever is later) and receive a full refund, less the processing fee, if applicable. 
+You have the right to cancel within the first 30 days after effective date or receipt of membership materials (whichever is later) and receive a full refund. 
 
 To cancel, submit a cancellation request with your name and member ID by:
 - **Mail:** Ideal Oral Health, One of the addresses below

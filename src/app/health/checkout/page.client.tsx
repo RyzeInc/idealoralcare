@@ -454,7 +454,7 @@ function CheckoutContent() {
                 />
                 <span className={styles.agreementText}>
                   I understand that I will be billed {formatPrice(totalDueToday)} today 
-                  and {formatPrice(totalDueToday)}{periodShort} on renewal{dependentList.length > 0 ? ` (includes ${dependentList.length} family member${dependentList.length > 1 ? "s" : ""})` : ""}. I can cancel 
+                  and {formatPrice(totalDueToday)}{periodShort} thereafter{dependentList.length > 0 ? ` (includes ${dependentList.length} family member${dependentList.length > 1 ? "s" : ""})` : ""}. I can cancel 
                   anytime and keep access until the end of my billing period.
                   {!membershipAgreed && (
                     <span style={{ display: "block", fontSize: "0.85rem", color: "#14b8a6", marginTop: "0.5rem", fontWeight: 500 }}>
@@ -615,7 +615,7 @@ function CheckoutContent() {
           memberAddress: "Address TBD",
           email: user?.emailAddresses[0]?.emailAddress || "email@example.com",
           planName: cart.items[0]?.product?.name || "Ideal Oral Health Plan",
-          groupCode: "IOHP",
+          groupCode: "IDEALDO",
           effectiveDate: new Date().toISOString().split('T')[0],
         }}
       />

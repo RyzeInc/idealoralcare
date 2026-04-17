@@ -147,7 +147,7 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
                   Group Code
                 </div>
                 <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', marginTop: '1px' }}>
-                  {cardData.groupCode || 'IOH-DTC'}
+                  {cardData.groupCode || 'IDEALDO'}
                 </div>
               </div>
               <div>

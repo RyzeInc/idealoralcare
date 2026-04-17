@@ -43,7 +43,7 @@ This charge will automatically renew at the end of your membership term, and you
 
 ### Cancellation Policy
 
-You have the right to cancel within the first 30 days after effective date or receipt of membership materials (whichever is later) and receive a full refund, less the processing fee, if applicable. 
+You have the right to cancel within the first 30 days after effective date or receipt of membership materials (whichever is later) and receive a full refund. 
 
 If you wish to cancel, submit a cancellation request with your name and member ID:
 - **Mail:** Ideal Oral Health

@@ -30,9 +30,9 @@ export const seedInitialData = mutation({
         name: "Ideal Oral Health Plan",
         category: "dental",
         description:
-          "Comprehensive oral health coverage with AI Oral Scanning, 24/7 teledentistry consultations, and access to the Dental Discount Network dental discount network.",
+          "Wide Ranging oral healthcare discount plan with AI Oral Scanning, 24/7 teledentistry consultations, and access to the Dental Discount Network dental discount network.",
         longDescription:
-          "Our Oral Health Plan provides comprehensive access to dental care through innovative technology and a nationwide network of providers. Features include AI Oral Scanning, 24/7 teledentistry consultations, and significant discounts on procedures through the Dental Discount Network dental provider network.",
+          "Our Oral Health Plan provides wide ranging access to dental care through innovative technology and a nationwide network of providers. Features include AI Oral Scanning, 24/7 teledentistry consultations, and significant discounts on procedures through the Dental Discount Network dental provider network.",
         inclusions: [
           "AI Oral Scanning",
           "24/7 Teledentistry Program",
@@ -44,7 +44,7 @@ export const seedInitialData = mutation({
         exclusions: ["Not traditional dental insurance", "Savings-based discount plan"],
         eligibilityRules: {
           requiresVerification: false,
-          disclosureText: "This is a savings-based discount plan, not insurance.",
+          disclosureText: "This plan is not insurance.",
         },
         activationBehavior: "immediate",
         pricing: {
@@ -72,7 +72,7 @@ export const seedInitialData = mutation({
         name: "Ideal Oral Health Plan \u2014 Family",
         category: "dental",
         description:
-          "Comprehensive oral health coverage for the whole family with AI Oral Scanning, 24/7 teledentistry, and the Dental Discount Network.",
+          "Wide Ranging oral healthcare discount plan for the whole family with AI Oral Scanning, 24/7 teledentistry, and the Dental Discount Network.",
         longDescription:
           "Everything in the Individual plan, extended to your entire family.",
         inclusions: [
@@ -86,7 +86,7 @@ export const seedInitialData = mutation({
         exclusions: ["Not traditional dental insurance", "Savings-based discount plan"],
         eligibilityRules: {
           requiresVerification: false,
-          disclosureText: "This is a savings-based discount plan, not insurance.",
+          disclosureText: "This plan is not insurance.",
         },
         activationBehavior: "immediate",
         pricing: {
@@ -152,9 +152,9 @@ export const reseedData = mutation({
         name: "Ideal Oral Health Plan",
         category: "dental",
         description:
-          "Comprehensive oral health coverage with AI Oral Scanning, 24/7 teledentistry consultations, and access to the Dental Discount Network dental discount network.",
+          "Wide Ranging oral healthcare discount plan with AI Oral Scanning, 24/7 teledentistry consultations, and access to the Dental Discount Network dental discount network.",
         longDescription:
-          "Our Oral Health Plan provides comprehensive access to dental care through innovative technology and a nationwide network of providers. Features include AI Oral Scanning, 24/7 teledentistry consultations, and significant discounts on procedures through the Dental Discount Network dental provider network.",
+          "Our Oral Health Plan provides wide ranging access to dental care through innovative technology and a nationwide network of providers. Features include AI Oral Scanning, 24/7 teledentistry consultations, and significant discounts on procedures through the Dental Discount Network dental provider network.",
         inclusions: [
           "AI Oral Scanning",
           "24/7 Teledentistry Program",
@@ -166,7 +166,7 @@ export const reseedData = mutation({
         exclusions: ["Not traditional dental insurance", "Savings-based discount plan"],
         eligibilityRules: {
           requiresVerification: false,
-          disclosureText: "This is a savings-based discount plan, not insurance.",
+          disclosureText: "This plan is not insurance.",
         },
         activationBehavior: "immediate",
         pricing: {
@@ -194,7 +194,7 @@ export const reseedData = mutation({
         name: "Ideal Oral Health Plan \u2014 Family",
         category: "dental",
         description:
-          "Comprehensive oral health coverage for the whole family with AI Oral Scanning, 24/7 teledentistry, and the Dental Discount Network.",
+          "Wide Ranging oral healthcare discount plan for the whole family with AI Oral Scanning, 24/7 teledentistry, and the Dental Discount Network.",
         longDescription:
           "Everything in the Individual plan, extended to your entire family.",
         inclusions: [
@@ -208,7 +208,7 @@ export const reseedData = mutation({
         exclusions: ["Not traditional dental insurance", "Savings-based discount plan"],
         eligibilityRules: {
           requiresVerification: false,
-          disclosureText: "This is a savings-based discount plan, not insurance.",
+          disclosureText: "This plan is not insurance.",
         },
         activationBehavior: "immediate",
         pricing: {
@@ -267,9 +267,9 @@ export const reseedInternal = internalMutation({
       name: "Ideal Oral Health Plan",
       category: "dental",
       description:
-        "Comprehensive oral health coverage with AI Oral Scanning, 24/7 teledentistry consultations, and access to the Dental Discount Network.",
+        "Wide Ranging oral healthcare discount plan with AI Oral Scanning, 24/7 teledentistry consultations, and access to the Dental Discount Network.",
       longDescription:
-        "Our Oral Health Plan provides comprehensive access to dental care through innovative technology and a nationwide network of providers. Features include AI Oral Scanning, 24/7 teledentistry consultations, and significant discounts on procedures through the Dental Discount Network.",
+        "Our Oral Health Plan provides wide ranging access to dental care through innovative technology and a nationwide network of providers. Features include AI Oral Scanning, 24/7 teledentistry consultations, and significant discounts on procedures through the Dental Discount Network.",
       inclusions: [
         "AI Oral Scanning",
         "24/7 Teledentistry Program",
@@ -281,7 +281,7 @@ export const reseedInternal = internalMutation({
       exclusions: ["Not traditional dental insurance", "Savings-based discount plan"],
       eligibilityRules: {
         requiresVerification: false,
-        disclosureText: "This is a savings-based discount plan, not insurance.",
+        disclosureText: "This plan is not insurance.",
       },
       activationBehavior: "immediate" as const,
       pricing: {
@@ -310,7 +310,7 @@ export const reseedInternal = internalMutation({
       name: "Ideal Oral Health Plan \u2014 Family",
       category: "dental",
       description:
-        "Comprehensive oral health coverage for the whole family with AI Oral Scanning, 24/7 teledentistry, and the Dental Discount Network.",
+        "Wide Ranging oral healthcare discount plan for the whole family with AI Oral Scanning, 24/7 teledentistry, and the Dental Discount Network.",
       longDescription:
         "Everything in the Individual plan, extended to your entire family. Add unlimited dependents and enjoy AI Oral Scanning, teledentistry, and dental discount network access.",
       inclusions: [
@@ -324,7 +324,7 @@ export const reseedInternal = internalMutation({
       exclusions: ["Not traditional dental insurance", "Savings-based discount plan"],
       eligibilityRules: {
         requiresVerification: false,
-        disclosureText: "This is a savings-based discount plan, not insurance.",
+        disclosureText: "This plan is not insurance.",
       },
       activationBehavior: "immediate" as const,
       pricing: {
@@ -395,7 +395,7 @@ export const upsertV07Products = internalMutation({
         slug: "oral-health-family",
         name: "Ideal Oral Health Plan \u2014 Family",
         category: "dental",
-        description: "Comprehensive oral health coverage for the whole family.",
+        description: "Wide Ranging oral healthcare discount plan for the whole family.",
         longDescription: "Everything in the Individual plan, extended to your entire family.",
         inclusions: [
           "Everything in Individual Plan",
@@ -408,7 +408,7 @@ export const upsertV07Products = internalMutation({
         exclusions: ["Not traditional dental insurance", "Savings-based discount plan"],
         eligibilityRules: {
           requiresVerification: false,
-          disclosureText: "This is a savings-based discount plan, not insurance.",
+          disclosureText: "This plan is not insurance.",
         },
         activationBehavior: "immediate",
         pricing: {

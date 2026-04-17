@@ -45,7 +45,7 @@ export async function GET() {
     memberFirstName: user.firstName ?? "Member",
     memberEmail: user.emailAddresses[0]?.emailAddress ?? "",
     memberId: memberProfile?.memberId ?? "—",
-    groupCode: "IOH-DTC",
+    groupCode: "IDEALDO",
     planName: memberProfile?.planName ?? "Ideal Oral Health Plan",
     effectiveDate: memberProfile?.effectiveDate ?? new Date().toLocaleDateString("en-US", {
       month: "long",

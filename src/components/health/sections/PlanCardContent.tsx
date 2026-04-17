@@ -11,7 +11,7 @@ interface PlanCardContentProps {
 
 export default function PlanCardContent({
   title = "Ideal Oral Health Plan",
-  description = "Comprehensive oral health coverage with AI scanning, teledentistry, and nationwide provider discounts.",
+  description = "Wide Ranging oral healthcare discount plan with AI scanning, teledentistry, and nationwide provider discounts.",
 }: PlanCardContentProps) {
   // Query for oral plan data from Convex
   const planData = useQuery(api.healthplans.oral.getOralPlan);

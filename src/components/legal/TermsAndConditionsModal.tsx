@@ -54,6 +54,9 @@ export const TermsAndConditionsModal: React.FC<TermsAndConditionsModalProps> = (
               you confirm that you are at least 18 years old and you authorize Ryze LLC to charge your credit card or checking account for the plan you have selected. 
               By joining, you indicate you have read and agree to the terms and conditions of the plan. 
             </p>
+            <p>
+              This charge will automatically renew at the end of your membership term, and your credit card or checking account will be automatically charged for the appropriate amount, until you notify Ideal Health that you wish to cancel the plan.
+            </p>
 
             <h3 className="font-semibold">Termination Conditions</h3>
             <p>
@@ -64,9 +67,9 @@ export const TermsAndConditionsModal: React.FC<TermsAndConditionsModalProps> = (
             <h3 className="font-semibold">Cancellation Conditions</h3>
             <p>
               You have the right to cancel within the first 30 days after effective date or receipt of membership materials (whichever is later) 
-              and receive a full refund, less the processing fee, if applicable. 
+              and receive a full refund. 
               If for any reason you wish to cancel, submit a cancellation request with your name and member ID by mail to Ryze LLC, 
-              Ryze LLC, email to info@getidealoh.com or phone. 
+              1200 E Ridge Rd STE 1, McAllen TX 78503, email to info@getidealoh.com or phone. 
               Ryze LLC will stop collecting membership fees in a reasonable amount of time, but no later than 30 days after receiving a cancellation request. 
               
             </p>

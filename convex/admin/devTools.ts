@@ -24,7 +24,7 @@ export const seedCatalog = mutation({
         name: "Ideal Oral Health Plan",
         category: "dental",
         description:
-          "Comprehensive oral health coverage with AI Oral Scanning, 24/7 teledentistry consultations, and access to the Dental Discount Network.",
+          "Wide Ranging oral healthcare discount plan with AI Oral Scanning, 24/7 teledentistry consultations, and access to the Dental Discount Network.",
         inclusions: [
           "AI Oral Scanning",
           "24/7 Teledentistry Program",
@@ -34,7 +34,7 @@ export const seedCatalog = mutation({
           "Emergency Access",
         ],
         exclusions: ["Not traditional dental insurance", "Savings-based discount plan"],
-        eligibilityRules: { requiresVerification: false, disclosureText: "This is a savings-based discount plan, not insurance." },
+        eligibilityRules: { requiresVerification: false, disclosureText: "This plan is not insurance." },
         activationBehavior: "immediate" as const,
         pricing: { monthlyCardCents: 1499, monthlyACHCents: 1499, annualCardCents: 16499, annualACHCents: 16499 },
         metadata: { icon: "Heart", bestFor: ["Individuals"] },
@@ -49,7 +49,7 @@ export const seedCatalog = mutation({
         name: "Ideal Oral Health Plan — Family",
         category: "dental",
         description:
-          "Comprehensive oral health coverage for the whole family with AI Oral Scanning, 24/7 teledentistry, and the Dental Discount Network.",
+          "Wide Ranging oral healthcare discount plan for the whole family with AI Oral Scanning, 24/7 teledentistry, and the Dental Discount Network.",
         inclusions: [
           "Everything in Individual Plan",
           "Unlimited Dependents Covered",
@@ -59,7 +59,7 @@ export const seedCatalog = mutation({
           "Family Member ID Cards",
         ],
         exclusions: ["Not traditional dental insurance", "Savings-based discount plan"],
-        eligibilityRules: { requiresVerification: false, disclosureText: "This is a savings-based discount plan, not insurance." },
+        eligibilityRules: { requiresVerification: false, disclosureText: "This plan is not insurance." },
         activationBehavior: "immediate" as const,
         pricing: { monthlyCardCents: 2499, monthlyACHCents: 2499, annualCardCents: 27499, annualACHCents: 27499 },
         metadata: { icon: "Users", bestFor: ["Families"] },

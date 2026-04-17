@@ -79,7 +79,7 @@ export default function IdealHealthTermsPage() {
                   <strong>Provider Changes:</strong> Provider availability and participation may change without notice.
                 </li>
                 <li>
-                  <strong>Cancellation Rights:</strong> You may cancel your membership within 30 days of the effective date or receipt of membership materials (whichever is later) for a refund, less any applicable processing or administrative fees, where permitted.
+                  <strong>Cancellation Rights:</strong> You may cancel your membership within 30 days of the effective date or receipt of membership materials (whichever is later) for a full refund.
                 </li>
               </ul>
             </div>

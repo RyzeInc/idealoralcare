@@ -5,7 +5,7 @@ import { TrustAnchors, ProblemBand } from "@/components/health/sections";
 import { Zap, Clock, Smile, Heart, Shield } from "lucide-react";
 
 export const metadata = {
-  title: "Ideal Oral Health Plan | Comprehensive Oral Health Coverage",
+  title: "Ideal Oral Health Plan | Wide Ranging Oral Healthcare Discount Plan",
   description:
     "Ideal Oral Health Plan - AI Oral Scanning, 24/7 teledentistry, and Dental Discount Network dental access. Affordable monthly membership.",
   alternates: { canonical: "/health" },

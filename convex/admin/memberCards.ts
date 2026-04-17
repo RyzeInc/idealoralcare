@@ -44,7 +44,7 @@ export const getMemberCardData: any = action({
       planName: "Oral Health Plan",
       effectiveDate: firstOfNextMonth(member.createdAt),
       barcode: member.barcode,
-      groupCode: "IOH-DTC",
+      groupCode: "IDEALDO",
       subscriberId: member.memberId,
       networks: {
         careington: {
