@@ -23,7 +23,7 @@ const HELP_WITH = [
   { title: "Orthodontia Needs", desc: "Virtual screening and guidance on braces, aligners, and orthodontic concerns." },
   { title: "Second Opinions", desc: "Get an expert second opinion to ensure confidence in oral health diagnoses and treatment plans." },
   { title: "Prescriptions", desc: "When medically appropriate, a DialCare doctor may prescribe a short-term, non-DEA controlled medication for the member to pick up at the pharmacy of their choice." },
-  { title: "And Much More", desc: "Misaligned teeth, post-procedure questions, general dental guidance — covered." },
+  { title: "And Much More", desc: "Misaligned teeth, post-procedure questions, general dental guidance." },
 ];
 
 const WHEN_TO_USE = [
@@ -182,7 +182,7 @@ export default function TeledentistryPage() {
               </p>
               <h2 style={{ marginTop: 0, marginBottom: "1.5rem" }}>When to Use Teledentistry</h2>
               <p style={{ color: "#475569", marginBottom: "2rem", lineHeight: 1.7 }}>
-                Teledentistry is perfect for non-emergency dental issues, convenient access when you can't get to an office, and expert guidance whenever you need it.
+                DialCare Teledentistry provides a comprehensive virtual dental solution. Teledentistry offers convenient, robust care through 24/7/365 virtual consultations with licensed dentists via phone or video sessions for advice and diagnoses on a wide variety of oral health ailments, urgent care, dental-related questions and second opinions. With Teledentistry, members can access the care they need on their schedule.
               </p>
             </div>
 
@@ -262,16 +262,16 @@ export default function TeledentistryPage() {
               </p>
               <h2 style={{ color: "#fff", marginTop: 0, marginBottom: "1.5rem" }}>Live Video Consultations</h2>
               <p style={{ color: "rgba(255,255,255,0.85)", marginBottom: "1.5rem", lineHeight: 1.7 }}>
-                Connect face-to-face with a licensed dentist from home, work, or anywhere. Our platform supports both phone and video consultations — your choice, your schedule.
+                Connect face-to-face with a licensed dentist from home, work, or anywhere in the U.S. Our platform supports both phone and video consultations — your choice, your schedule.
               </p>
               <ul style={{ listStyle: "none", padding: 0, margin: "0 0 2rem", display: "flex", flexDirection: "column", gap: "0.625rem" }}>
                 {[
-                  "Emergencies & urgent dental concerns",
+                  "Non-emergency & urgent dental concerns",
                   "General dental questions & guidance",
                   "After-hours and weekend access",
                   "Orthodontic screening",
                   "Triage and dental screening",
-                  "Prescriptions when clinically appropriate",
+                  "Non-DEA controlled substance prescriptions when medically appropriate.",
                 ].map((item) => (
                   <li key={item} style={{ display: "flex", gap: "0.625rem", alignItems: "flex-start", fontSize: "0.9375rem", color: "rgba(255,255,255,0.85)" }}>
                     <span style={{ fontWeight: 700, color: "#5dade2", flexShrink: 0, marginTop: "1px" }}>✓</span>
@@ -308,9 +308,9 @@ export default function TeledentistryPage() {
       <section style={{ background: "#fff", padding: "4rem 0" }}>
         <div className="container">
           <div style={{ textAlign: "center", maxWidth: "700px", margin: "0 auto" }}>
-            <h2>Care on Your Schedule</h2>
+            <h2>Virtual Care on Your Schedule</h2>
             <p style={{ color: "#475569", fontSize: "1.0625rem", lineHeight: 1.7, marginBottom: "2rem" }}>
-              Access expert dental guidance 24 hours a day, 7 days a week, 365 days a year. No waiting rooms, no scheduling headaches — just the answers you need, when you need them.
+              Access top-quality dental guidance 24 hours a day, 7 days a week, 365 days a year. No waiting rooms, no scheduling headaches — just the answers you need, when you need them.
             </p>
             <Link className="button button--primary" href="/health/plans">
               Explore Plans
@@ -376,7 +376,7 @@ export default function TeledentistryPage() {
               lineHeight: 1.6,
             }}
           >
-            <strong>Disclosure:</strong> <span style={{ fontWeight: 700 }}>THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance.</span> State availability may vary. Please contact us for up-to-date information on availability in your state.
+            <strong>Disclosure:</strong> <span style={{ fontWeight: 700 }}>THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance.</span> State availability may vary. Please visit dialcare.com/states for up-to-date information.
           </p>
           <p style={{ marginTop: "1rem", fontSize: "0.8125rem", color: "#64748b", textAlign: "center" }}>
             Terms and Conditions · Privacy Policy · Program Disclosures

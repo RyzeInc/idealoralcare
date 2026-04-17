@@ -632,7 +632,7 @@ function PlansContent() {
               margin: '0 0 0.75rem 0',
               lineHeight: '1.2'
             }}>
-              Affordable Oral Health Coverage
+              Affordable Oral Health Savings Plan
             </h1>
             <p style={{
               fontSize: '1rem',
