@@ -109,6 +109,7 @@ export async function POST(req: NextRequest) {
           planName: TEST_MEMBER.planName,
           effectiveDate: TEST_MEMBER.effectiveDate,
           memberId: TEST_MEMBER.memberId,
+          portalUrl,
         });
         break;
       }
@@ -293,7 +294,7 @@ function generateFulfillmentEmailHTML(data: {
 
 function generateWelcomeEmailHTML(data: {
   memberName: string; memberEmail: string; planName: string;
-  effectiveDate: string; memberId: string;
+  effectiveDate: string; memberId: string; portalUrl: string;
 }): string {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
