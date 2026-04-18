@@ -143,9 +143,11 @@ export const sendMembershipWelcomeEmail = action({
     planName: v.string(),
     effectiveDate: v.string(),
     memberId: v.string(),
+    appUrl: v.optional(v.string()),
   },
   handler: async (ctx: any, args: any) => {
     try {
+      const baseUrl = args.appUrl ?? getBaseUrl();
       const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
@@ -157,7 +159,7 @@ export const sendMembershipWelcomeEmail = action({
           to: args.memberEmail,
           replyTo: "support@getidealoh.com",
           subject: "Welcome to Ideal Oral Health - Your Membership is Active",
-          html: generateWelcomeEmailHTML(args),
+          html: generateWelcomeEmailHTML({ ...args, portalUrl: baseUrl }),
         }),
       });
 
@@ -305,6 +307,7 @@ interface WelcomeEmailData {
   planName: string;
   effectiveDate: string;
   memberId: string;
+  portalUrl: string;
 }
 
 interface ConfirmationEmailData extends WelcomeEmailData {
