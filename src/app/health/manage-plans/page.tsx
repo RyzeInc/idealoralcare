@@ -75,6 +75,7 @@ const FAMILY_PLAN = {
 const COMPARISON_ROWS = [
   { label: "Monthly Price", individual: "$14.99/mo", family: "$24.99/mo" },
   { label: "Annual Price", individual: "$164.99/yr", family: "$274.99/yr" },
+  { label: "Payment Term", individual: "Monthly or Annual", family: "Monthly or Annual" },
   { label: "AI Dental Scan", individual: true, family: true },
   { label: "Teledentistry (24/7)", individual: true, family: true },
   { label: "Dental Discount Network", individual: true, family: true },

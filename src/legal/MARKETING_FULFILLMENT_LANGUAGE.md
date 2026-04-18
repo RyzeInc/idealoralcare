@@ -21,7 +21,7 @@ Careington International Corporation is one of the most recognized professional 
 
 ### How to Access Careington Benefits (Post-Purchase)
 
-**Step 1:** To locate a participating provider, call **(800) 290-0523** or visit **www.careington.com** to access the online provider search.
+**Step 1:** To locate a participating provider, visit **ryse.telemedsimplified.com** or call **(800) 290-0523** to access the online provider search.
 
 **Step 2:** When scheduling an appointment, inform the participating provider's office you are an **Ideal Oral Health** member with Careington.
 
@@ -96,4 +96,4 @@ State availability may vary. Please visit [dialcare.com/states](https://dialcare
 
 ---
 
-_For more information about Ideal Oral Health plans, visit www.getidealoh.com or contact 801-820-0010_
+_For more information about Ideal Oral Health plans, visit www.getidealoh.com or contact support@getidealoh.com_

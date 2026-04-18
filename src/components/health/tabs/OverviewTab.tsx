@@ -65,7 +65,7 @@ export default function OverviewTab({
     planName: subscriptions[0]?.name ?? 'Ideal Oral Health Plan',
     effectiveDate: subscriptions[0]?.renewDate ?? '—',
     networks: {
-      careington: { name: 'Dental Discount Network', memberUrl: 'https://www.careington.com' },
+      careington: { name: 'Dental Discount Network', memberUrl: 'https://ryse.telemedsimplified.com' },
       dialCare: { name: 'Teledentistry Program', memberUrl: 'https://www.dialcare.com' },
       toothlens: { name: 'AI Oral Scanning', memberUrl: 'https://toothlens.com' },
     },

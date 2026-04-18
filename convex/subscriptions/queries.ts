@@ -598,7 +598,7 @@ export const getMemberCardDataPublic = query({
       effectiveDate,
       barcode: profile.barcode,
       networks: {
-        careington: { name: "Dental Discount Network", memberUrl: "https://www.careington.com" },
+        careington: { name: "Dental Discount Network", memberUrl: "https://ryse.telemedsimplified.com" },
         dialCare: { name: "Teledentistry Program", memberUrl: "https://www.dialcare.com" },
         toothlens: { name: "AI Oral Scanning", memberUrl: "https://toothlens.com" },
       },

@@ -81,8 +81,7 @@ export const sendDependentInviteEmail = internalAction({
           <p style="font-size: 13px; color: #6b7280; line-height: 1.5;">
             If you don&apos;t want to be added to this plan, you can simply ignore this email.
             Questions? Contact us at
-            <a href="mailto:info@getidealoh.com" style="color: #0066CC;">info@getidealoh.com</a>
-            or <a href="tel:801-820-0010" style="color: #0066CC;">801-820-0010</a>.
+            <a href="mailto:support@getidealoh.com" style="color: #0066CC;">support@getidealoh.com</a>.
           </p>
         </div>
       </div>`;

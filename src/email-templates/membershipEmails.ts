@@ -45,7 +45,7 @@ export const emailTemplates = {
           <ol style="line-height: 1.8;">
             <li><strong>Log In to Your Portal:</strong> Visit <a href="https://www.getidealoh.com/health/dashboard" style="color: #667eea; text-decoration: none;">getidealoh.com/health/dashboard</a> to access your AI Oral Scan, digital ID card, and member tools.</li>
             <li><strong>Download Your ID Card:</strong> Your digital ID card is attached. You can also view it anytime in your member portal.</li>
-            <li><strong>Find a Provider:</strong> Visit <a href="https://www.getidealoh.com" style="color: #667eea; text-decoration: none;">getidealoh.com</a> or call (800) 290-0523 to locate a dentist near you.</li>
+            <li><strong>Find a Provider:</strong> Search in your <a href="https://www.getidealoh.com/health/dashboard" style="color: #667eea; text-decoration: none;">Member Portal</a> or visit <a href="https://ryse.telemedsimplified.com" style="color: #667eea; text-decoration: none;">ryse.telemedsimplified.com</a> or call (800) 290-0523 to locate a dentist near you.</li>
             <li><strong>Schedule Your Appointment:</strong> Call to book and mention you are an Ideal Oral Health member.</li>
             <li><strong>Present Your ID:</strong> Show your card at your appointment to receive your member discount.</li>
           </ol>
@@ -64,11 +64,7 @@ export const emailTemplates = {
           </div>
 
           <div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0;">
-            <p style="margin: 0;"><strong>Need Help?</strong></p>
-            <p style="margin: 5px 0;">
-              Contact Ideal Oral Health at <a href="tel:801-820-0010" style="color: #667eea; text-decoration: none;">801-820-0010</a> 
-              or <a href="mailto:info@getidealoh.com" style="color: #667eea; text-decoration: none;">info@getidealoh.com</a>
-            </p>
+            <p style="margin: 0;">Contact Member Services at <a href="mailto:support@getidealoh.com" style="color: #667eea; text-decoration: none;">support@getidealoh.com</a></p>
           </div>
 
           <p style="margin-top: 30px; font-size: 12px; color: #666;">
@@ -147,15 +143,13 @@ export const emailTemplates = {
             <p style="margin: 0;"><strong>Cancellation Policy:</strong></p>
             <p style="margin: 10px 0 0 0; font-size: 13px;">
               You have the right to cancel within 30 days of your effective date for a full refund. 
-              Contact us at <a href="tel:801-820-0010" style="color: #ffc107; text-decoration: none;">801-820-0010</a> or 
-              <a href="mailto:info@getidealoh.com" style="color: #ffc107; text-decoration: none;">info@getidealoh.com</a> to cancel.
+              Contact us at <a href="mailto:support@getidealoh.com" style="color: #ffc107; text-decoration: none;">support@getidealoh.com</a> to cancel.
             </p>
           </div>
 
           <p style="margin-top: 30px;">Questions? We're here to help!</p>
           <p>
-            <strong>Phone:</strong> <a href="tel:801-820-0010" style="color: #667eea; text-decoration: none;">801-820-0010</a><br>
-            <strong>Email:</strong> <a href="mailto:info@getidealoh.com" style="color: #667eea; text-decoration: none;">info@getidealoh.com</a>
+            <strong>Email:</strong> <a href="mailto:support@getidealoh.com" style="color: #667eea; text-decoration: none;">support@getidealoh.com</a>
           </p>
         </div>
       </div>
@@ -194,8 +188,7 @@ export const emailTemplates = {
           <p>If you have any questions about your cancellation or would like to re-enroll, please don't hesitate to contact us.</p>
 
           <p>
-            <strong>Phone:</strong> <a href="tel:801-820-0010" style="color: #667eea; text-decoration: none;">801-820-0010</a><br>
-            <strong>Email:</strong> <a href="mailto:info@getidealoh.com" style="color: #667eea; text-decoration: none;">info@getidealoh.com</a>
+            <strong>Email:</strong> <a href="mailto:support@getidealoh.com" style="color: #667eea; text-decoration: none;">support@getidealoh.com</a>
           </p>
 
           <p style="margin-top: 30px; font-size: 12px; color: #666;">
@@ -262,8 +255,7 @@ export const emailTemplates = {
             <p style="font-size: 13px; color: #6b7280; line-height: 1.5;">
               If you don&apos;t want to be added to this plan, you can simply ignore this email.
               If you have questions, contact us at
-              <a href="mailto:info@getidealoh.com" style="color: #0066CC; text-decoration: none;">info@getidealoh.com</a>
-              or <a href="tel:801-820-0010" style="color: #0066CC; text-decoration: none;">801-820-0010</a>.
+              <a href="mailto:support@getidealoh.com" style="color: #0066CC; text-decoration: none;">support@getidealoh.com</a>.
             </p>
 
             <p style="font-size: 11px; color: #9ca3af; margin-top: 16px;">

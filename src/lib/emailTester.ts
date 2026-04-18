@@ -104,7 +104,7 @@ export async function testFulfillmentEmail(to: string, memberData?: {
               <ol>
                 <li>Download and review your membership agreement (attached)</li>
                 <li>Visit a participating provider to start saving</li>
-                <li>Contact us at 801-820-0010 with any questions</li>
+                <li>Contact us at <a href="mailto:support@getidealoh.com">support@getidealoh.com</a> with any questions</li>
               </ol>
               
               <p style="color: #666; font-size: 14px;"><em>📎 Your membership package PDF is attached to this email.</em></p>
@@ -113,7 +113,7 @@ export async function testFulfillmentEmail(to: string, memberData?: {
               
               <footer style="color: #999; font-size: 12px;">
                 <p><strong>Ideal Oral Health</strong></p>
-                <p>📞 801-820-0010<br>✉️ info@getidealoh.com</p>
+                <p>✉️ support@getidealoh.com</p>
                 <p><em>[TEST EMAIL] This is a test to verify fulfillment email delivery is working.</em></p>
               </footer>
             </div>

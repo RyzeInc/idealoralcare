@@ -20,13 +20,7 @@ You have the right to cancel within the first 30 days after effective date or re
 
 To cancel, submit a cancellation request with your name and member ID by:
 - **Mail:** Ideal Oral Health, One of the addresses below
-- **Email:** info@getidealoh.com
-- **Phone:** 801-820-0010
-
-**Ideal Oral Health Office Locations:**
-- Northeast Office: 116 S. Main St, Wallingford CT 06492
-- Southern Office: 800 S Gay St STE 700, Knoxville TN 37929
-- Texas Office: 1200 E Ridge Rd STE 1, McAllen TX 78503
+- **Email:** support@getidealoh.com
 
 Ideal Oral Health will stop collecting membership fees in a reasonable amount of time, but no later than 30 days after receiving a cancellation request. When you cancel, you will continue to have access to the plan for the remainder of the period for which you have paid; your membership will terminate at the end of that period. The preceding sentence does not apply to quarterly, semi-annual or annual memberships in FL and OK, where you will receive a pro-rata refund whenever you cancel.
 
@@ -55,8 +49,7 @@ Frisco, TX 75034
 You have the right to request an appeal if you are dissatisfied with the complaint resolution. After completing the complaint resolution process, if you remain dissatisfied you may contact your state insurance department. Contact information for your state insurance department is available upon request.
 
 For inquiries related to Ideal Oral Health services, please contact:
-- **Phone:** 801-820-0010
-- **Email:** info@getidealoh.com
+- **Email:** support@getidealoh.com
 
 ---
 _Last Updated: March 2026_

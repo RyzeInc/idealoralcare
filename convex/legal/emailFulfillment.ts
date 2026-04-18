@@ -109,7 +109,7 @@ export const sendFulfillmentPacketEmail = action({
           planName: args.planName,
           effectiveDate: args.effectiveDate,
           groupCode: args.groupCode,
-          memberServicesPhone: args.memberServicesPhone ?? "801-820-0010",
+          memberServicesPhone: args.memberServicesPhone ?? "(800) 290-0523",
           portalUrl: baseUrl,
         }),
         attachments: [
@@ -350,16 +350,12 @@ function generateWelcomeEmailHTML(data: WelcomeEmailData): string {
         <h3 style="color: #667eea;">Getting Started:</h3>
         <ol style="line-height: 1.8;">
           <li>Log in to your <a href="https://www.getidealoh.com/health/dashboard" style="color: #667eea; text-decoration: none;">Member Portal</a> for your AI Oral Scan and digital ID card</li>
-          <li>Visit <a href="https://www.getidealoh.com" style="color: #667eea; text-decoration: none;">getidealoh.com</a> or call (800) 290-0523 to find a dentist near you</li>
+          <li>Find a provider in your <a href="${data.portalUrl}/health/dashboard" style="color: #667eea; text-decoration: none;">Member Portal</a> or at <a href="https://ryse.telemedsimplified.com" style="color: #667eea; text-decoration: none;">ryse.telemedsimplified.com</a> or call (800) 290-0523</li>
           <li>Present your ID card to receive discounts</li>
         </ol>
 
         <div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0;">
-          <p style="margin: 0;"><strong>Need Help?</strong></p>
-          <p style="margin: 5px 0;">
-            Phone: <a href="tel:801-820-0010" style="color: #667eea; text-decoration: none;">801-820-0010</a> | 
-            Email: <a href="mailto:info@getidealoh.com" style="color: #667eea; text-decoration: none;">info@getidealoh.com</a>
-          </p>
+          <p style="margin: 0;">Contact Member Services at <a href="mailto:support@getidealoh.com" style="color: #667eea; text-decoration: none;">support@getidealoh.com</a></p>
         </div>
 
         <p>Best regards,<br><strong>The Ideal Oral Health Team</strong></p>
@@ -417,7 +413,7 @@ function generateConfirmationEmailHTML(data: ConfirmationEmailData): string {
         <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ffc107;">
           <p style="margin: 0;"><strong>Cancellation Policy:</strong></p>
           <p style="margin: 10px 0 0 0; font-size: 13px;">
-            30-day cancellation window available. Contact: <a href="tel:801-820-0010" style="color: #ffc107; text-decoration: none;">801-820-0010</a>
+            30-day cancellation window available. Contact: <a href="mailto:support@getidealoh.com" style="color: #ffc107; text-decoration: none;">support@getidealoh.com</a>
           </p>
         </div>
 
@@ -502,8 +498,7 @@ function generateDependentInviteEmailHTML(data: {
 
         <p style="font-size: 13px; color: #6b7280; line-height: 1.5;">
           If you don't want to be added to this plan, you can simply ignore this email.
-          Questions? Contact us at <a href="mailto:info@getidealoh.com" style="color: #0066CC; text-decoration: none;">info@getidealoh.com</a>
-          or <a href="tel:801-820-0010" style="color: #0066CC; text-decoration: none;">801-820-0010</a>.
+          Questions? Contact us at <a href="mailto:support@getidealoh.com" style="color: #0066CC; text-decoration: none;">support@getidealoh.com</a>.
         </p>
 
         <p style="font-size: 11px; color: #9ca3af; margin-top: 16px;">
@@ -573,7 +568,6 @@ function generateFulfillmentEmailHTML(data: FulfillmentEmailData): string {
           <li>AI Oral Scan &mdash; how to access and use</li>
           <li>DialCare Teledentistry program details &amp; how to access</li>
           <li>Dental Discount Network program details &amp; how to access savings</li>
-          <li>Sample schedule of dental services and member-pay amounts</li>
           <li>Member ID card (front &amp; back)</li>
         </ul>
         <p style="font-size: 13px; color: #374151; line-height: 1.7;">
@@ -622,9 +616,9 @@ function generateFulfillmentEmailHTML(data: FulfillmentEmailData): string {
 
         <!-- Benefit 3: Dental Discount Network -->
         <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px;">
-          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${TEAL};">3. Dental Discount Network</h3>
+          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${TEAL};">3. Dental Savings Network</h3>
           <ol style="margin: 0; padding: 0 0 0 20px; font-size: 13px; line-height: 2.0; color: #374151;">
-            <li>Search for a participating provider at <a href="https://www.getidealoh.com" style="color: ${TEAL}; text-decoration: none;">getidealoh.com</a> or call (800) 290-0523.</li>
+            <li>Search for a participating provider in your <a href="${data.portalUrl}/health/dashboard" style="color: ${TEAL}; text-decoration: none;">Member Portal</a> or at <a href="https://ryse.telemedsimplified.com" style="color: ${TEAL}; text-decoration: none;">ryse.telemedsimplified.com</a> or call (800) 290-0523.</li>
             <li>Confirm the provider accepts the discount program <strong>before</strong> your visit.</li>
             <li>Present your Member ID card at your appointment.</li>
             <li>Pay the discounted member amount directly at time of service.</li>
@@ -658,7 +652,7 @@ function generateFulfillmentEmailHTML(data: FulfillmentEmailData): string {
           <p style="font-size: 13px; color: #6b7280; margin: 0 0 14px; line-height: 1.5;">No. It is a screening tool. Always consult a licensed dentist for professional evaluation.</p>
 
           <p style="font-size: 13px; font-weight: 700; color: #374151; margin: 0 0 4px;">How do I know what services are eligible for savings?</p>
-          <p style="font-size: 13px; color: #6b7280; margin: 0 0 0; line-height: 1.5;">Your attached packet includes a sample schedule. You can also ask any participating provider for a discounted treatment plan.</p>
+          <p style="font-size: 13px; color: #6b7280; margin: 0 0 0; line-height: 1.5;">You can ask any participating provider for a discounted treatment plan before your visit.</p>
         </div>
 
         <!-- CTA + QR Code -->
@@ -674,10 +668,7 @@ function generateFulfillmentEmailHTML(data: FulfillmentEmailData): string {
 
         <!-- Support -->
         <div style="background: #EAF4FD; border-radius: 6px; padding: 14px; margin-bottom: 12px; font-size: 13px;">
-          <strong>Need help?</strong> Call Member Services at
-          <a href="tel:${data.memberServicesPhone}" style="color: #1E88E5; text-decoration: none;">${data.memberServicesPhone}</a>
-          or email <a href="mailto:support@getidealoh.com" style="color: #1E88E5; text-decoration: none;">support@getidealoh.com</a>.
-          Mon–Fri, 8am–6pm CT.
+          Contact Member Services at <a href="mailto:support@getidealoh.com" style="color: #1E88E5; text-decoration: none;">support@getidealoh.com</a>.
         </div>
 
         <!-- Disclaimer -->

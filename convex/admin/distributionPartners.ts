@@ -361,8 +361,7 @@ async function dispatchInviteEmail(opts: {
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
         <p style="font-size: 13px; color: #6b7280; line-height: 1.5;">
           Questions? Contact us at
-          <a href="mailto:info@getidealoh.com" style="color: #0066CC;">info@getidealoh.com</a>
-          or <a href="tel:801-820-0010" style="color: #0066CC;">801-820-0010</a>.
+          <a href="mailto:support@getidealoh.com" style="color: #0066CC;">support@getidealoh.com</a>.
         </p>
       </div>
     </div>`;

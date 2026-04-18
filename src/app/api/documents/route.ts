@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
       new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
     term: bundleData?.pricingSnapshot?.totalCents > 2000 ? "Annual" : "Monthly",
     memberServicesPhone: "(800) 290-0523",
-    memberWebsite: "www.careington.com",
+    memberWebsite: "ryse.telemedsimplified.com",
   };
 
   // Load logo

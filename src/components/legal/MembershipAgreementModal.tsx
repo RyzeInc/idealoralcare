@@ -164,7 +164,7 @@ export const MembershipAgreementModal: React.FC<MembershipAgreementModalProps> =
                 You have the right to cancel within the first 30 days after effective date or receipt of membership materials (whichever is later) 
                 and receive a full refund. 
                 If for any reason you wish to cancel, submit a cancellation request with your name and member ID by mail to Ryze LLC, 
-                1200 E Ridge Rd STE 1, McAllen TX 78503, email to info@getidealoh.com or phone. 
+                1200 E Ridge Rd STE 1, McAllen TX 78503, or email support@getidealoh.com. 
                 Ryze LLC will stop collecting membership fees in a reasonable amount of time, but no later than 30 days after receiving a cancellation request. 
                 
               </p>

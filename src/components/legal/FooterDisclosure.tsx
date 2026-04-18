@@ -20,8 +20,8 @@ export const FooterDisclosure: React.FC = () => {
             <div className="space-y-1 text-xs">
               <p>
                 <strong>Phone:</strong>{" "}
-                <a href="tel:801-820-0010" className="text-blue-400 hover:text-blue-300">
-                  801-820-0010
+                <a href="mailto:support@getidealoh.com" className="text-blue-400 hover:text-blue-300">
+                  support@getidealoh.com
                 </a>
               </p>
               <p>

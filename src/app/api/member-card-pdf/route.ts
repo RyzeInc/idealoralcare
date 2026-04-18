@@ -54,7 +54,7 @@ export async function GET() {
     }),
     term: bundleData?.pricingSnapshot?.totalCents > 2000 ? "Annual" : "Monthly",
     memberServicesPhone: "(800) 290-0523",
-    memberWebsite: "www.careington.com",
+    memberWebsite: "ryse.telemedsimplified.com",
   };
 
   // Load logo as base64 data URI

@@ -348,7 +348,6 @@ function WelcomePage({ data }: { data: FulfillmentPacketData }) {
         "AI Oral Scan — how to access and use",
         "Teledentistry program details and how to access",
         "Dental Discount Network program details and how to access savings",
-        "Sample schedule of dental services and member-pay amounts",
         "Member ID card (front and back)",
       ].map((item) => (
         <Bullet key={item} text={item} />
@@ -361,7 +360,7 @@ function WelcomePage({ data }: { data: FulfillmentPacketData }) {
       <View style={{ backgroundColor: LIGHT_GREEN, padding: 8, marginBottom: 8, borderRadius: 4 }}>
         {[
           { n: 1, text: "Log in to your Member Portal at www.getidealoh.com/health/dashboard to access your AI Oral Scan, view your card, and manage your membership." },
-          { n: 2, text: "To locate a participating dental provider, call (800) 290-0523 or visit www.getidealoh.com to search the provider directory." },
+          { n: 2, text: "To locate a participating dental provider, visit your Member Portal at getidealoh.com/health/dashboard or ryse.telemedsimplified.com, or call (800) 290-0523." },
           { n: 3, text: "When scheduling an appointment, inform the provider\u2019s office you are an Ideal Oral Health member." },
           { n: 4, text: "Present your Member ID card upon arrival to receive savings. The provider will collect payment at the time of service." },
         ].map((item) => (
@@ -467,7 +466,7 @@ function ProgramSummaryPage({ data }: { data: FulfillmentPacketData }) {
     <Page size="LETTER" style={s.page}>
       <PageHeader logoDataUri={data.logoDataUri} />
 
-      <Text style={s.h2}>4. Dental Discount Network</Text>
+      <Text style={s.h2}>4. Dental Savings Network</Text>
 
       <Text style={s.body}>
         Your Ideal Oral Health membership includes access to one of the largest dental discount networks in the nation, with a focus on neighborhood dentists and transparent, member-friendly pricing.
@@ -485,17 +484,11 @@ function ProgramSummaryPage({ data }: { data: FulfillmentPacketData }) {
         <Bullet key={item.slice(0, 40)} text={item} />
       ))}
 
-      <Text style={{ ...s.h4, color: GREEN, marginTop: 6 }}>How to Access the Discount:</Text>
-      {[
-        { n: 1, text: "To locate a participating provider, call (800) 290-0523 or visit www.getidealoh.com to search the provider directory." },
-        { n: 2, text: "When scheduling an appointment, inform the provider\u2019s office you are an Ideal Oral Health member." },
-        { n: 3, text: "Present your Member ID card upon arrival to receive savings." },
-        { n: 4, text: "The provider will collect payment at the time of service. You are responsible for paying the total bill, less the applicable savings, when service is provided." },
-      ].map((item) => (
-        <Numbered key={item.n} n={item.n} text={item.text} />
-      ))}
+      <Text style={{ fontSize: 8, fontFamily: "Helvetica-Oblique", color: GRAY, marginTop: 14, lineHeight: 1.5 }}>
+        THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance. This plan does not meet the minimum creditable coverage requirements under M.G.L. c.111M and 956 CMR 5.00. This plan is not a Qualified Health Plan under the Affordable Care Act. The range of discounts will vary depending on the type of provider and service. The plan does not pay providers directly. Plan members must pay for all services but will receive a discount from participating providers. The list of participating providers is at ryse.telemedsimplified.com. A written list of participating providers is available upon request. You may cancel within the first 30 days after effective date or receipt of membership materials (whichever is later) and receive a full refund. Discount Plan Organization and administrator: Careington International Corporation, 7400 Gaylord Parkway, Frisco, TX 75034; phone 800-441-0380.{"\n\n"}This plan is not available in Vermont or Washington.
+      </Text>
 
-      <Text style={s.footer}>Ideal Oral Health | Dental Discount Network</Text>
+      <Text style={s.footer}>Ideal Oral Health | Dental Savings Network</Text>
     </Page>
   );
 }
@@ -605,6 +598,9 @@ function MembershipAgreementPage({ data }: { data: FulfillmentPacketData }) {
         By joining a plan, for yourself or on behalf of a minor child for whom you are a parent or legal guardian, you confirm that you are at least 18 years old and you authorize Ryze LLC to charge your credit card or checking account for the plan you have selected. By joining, you indicate you have read and agree to the terms and conditions of the plan.
       </Text>
       <Text style={s.bodySmall}>
+        Payment Term: Members on a monthly plan are billed on a recurring monthly basis. Members on an annual plan are billed once per year for the full membership term. All plan benefits — including AI Dental Scan, Teledentistry, and Dental Savings Network — are included under both payment terms.
+      </Text>
+      <Text style={s.bodySmall}>
         This charge will automatically renew at the end of your membership term, and your credit card or checking account will be automatically charged for the appropriate amount, until you notify Ideal Health that you wish to cancel the plan.
       </Text>
 
@@ -617,7 +613,7 @@ function MembershipAgreementPage({ data }: { data: FulfillmentPacketData }) {
       {/* Cancellation Conditions */}
       <SectionHeadingGreen text="Cancellation Conditions" />
       <Text style={s.bodySmall}>
-        You have the right to cancel within the first 30 days after effective date or receipt of membership materials (whichever is later) and receive a full refund, less the processing fee, if applicable. If for any reason you wish to cancel, submit a cancellation request with your name and member ID by mail to Ryze LLC, 1200 E Ridge Rd STE 1, McAllen TX 78503, email to info@getidealoh.com or phone. Ryze LLC will stop collecting membership fees in a reasonable amount of time, but no later than 30 days after receiving a cancellation request.
+        You have the right to cancel within the first 30 days after effective date or receipt of membership materials (whichever is later) and receive a full refund, less the processing fee, if applicable. If for any reason you wish to cancel, submit a cancellation request with your name and member ID by mail to Ryze LLC, 1200 E Ridge Rd STE 1, McAllen TX 78503, or email support@getidealoh.com. Ryze LLC will stop collecting membership fees in a reasonable amount of time, but no later than 30 days after receiving a cancellation request.
       </Text>
       <Text style={s.bodySmall}>
         When you cancel, you will continue to have access to the plan for the remainder of the period for which you have paid; your membership will terminate at the end of that period. The preceding sentence does not apply to quarterly, semi-annual or annual memberships in FL and OK, where you will receive a pro-rata refund whenever you cancel.
@@ -1119,7 +1115,6 @@ export function FulfillmentPacketPdf({ data }: { data: FulfillmentPacketData }) 
       <AIScanningSummaryPage data={data} />
       <DialCareSummaryPage data={data} />
       <ProgramSummaryPage data={data} />
-      <SchedulePage data={data} />
       <MemberCardTitlePage data={data} />
       <MemberCardFrontPage data={data} />
       <MemberCardBackPage data={data} />

@@ -10,7 +10,7 @@ const TEST_MEMBER = {
   groupCode: 'IOH-100',
   effectiveDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
   billingAmount: '$19.95/mo',
-  memberServicesPhone: '801-820-0010',
+  memberServicesPhone: '(800) 290-0523',
 };
 
 type EmailType = 'fulfillment-packet' | 'welcome' | 'confirmation' | 'cancelled';
@@ -220,7 +220,6 @@ function generateFulfillmentEmailHTML(data: {
           <li>Welcome letter &amp; member summary card</li>
           <li>Program summary and how to use your discount plan</li>
           <li>Membership agreement</li>
-          <li>Sample schedule of dental services and member-pay amounts</li>
         </ul>
         <div style="border-top: 2px solid #e2e8f0; margin: 28px 0 20px; padding-top: 24px;">
           <h2 style="margin: 0 0 6px; font-size: 18px; color: #0f172a;">How to Use Your Program</h2>
@@ -247,9 +246,9 @@ function generateFulfillmentEmailHTML(data: {
           <p style="font-size: 12px; color: #6b7280; margin: 10px 0 0; line-height: 1.5;"><strong>Best for:</strong> Questions about dental concerns, guidance after an AI scan, and deciding if in-person care is needed.</p>
         </div>
         <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px;">
-          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${TEAL};">3. Dental Discount Network</h3>
+          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${TEAL};">3. Dental Savings Network</h3>
           <ol style="margin: 0; padding: 0 0 0 20px; font-size: 13px; line-height: 2.0; color: #374151;">
-            <li>Search for a participating provider at <a href="https://www.getidealoh.com" style="color: ${TEAL}; text-decoration: none;">getidealoh.com</a> or call (800) 290-0523.</li>
+            <li>Search for a participating provider in your <a href="${data.portalUrl}/health/dashboard" style="color: ${TEAL}; text-decoration: none;">Member Portal</a> or at <a href="https://ryse.telemedsimplified.com" style="color: ${TEAL}; text-decoration: none;">ryse.telemedsimplified.com</a> or call (800) 290-0523.</li>
             <li>Confirm the provider accepts the discount program <strong>before</strong> your visit.</li>
             <li>Present your Member ID card at your appointment.</li>
             <li>Pay the discounted member amount directly at time of service.</li>
@@ -273,7 +272,7 @@ function generateFulfillmentEmailHTML(data: {
           <p style="font-size: 13px; font-weight: 700; color: #374151; margin: 0 0 4px;">Is the AI scan a diagnosis?</p>
           <p style="font-size: 13px; color: #6b7280; margin: 0 0 14px; line-height: 1.5;">No. It is a screening tool. Always consult a licensed dentist for professional evaluation.</p>
           <p style="font-size: 13px; font-weight: 700; color: #374151; margin: 0 0 4px;">How do I know what services are eligible for savings?</p>
-          <p style="font-size: 13px; color: #6b7280; margin: 0 0 0; line-height: 1.5;">Your attached packet includes a sample schedule. You can also ask any participating provider for a discounted treatment plan.</p>
+          <p style="font-size: 13px; color: #6b7280; margin: 0 0 0; line-height: 1.5;">You can ask any participating provider for a discounted treatment plan before your visit.</p>
         </div>
         <div style="text-align: center; margin: 24px 0 16px;">
           <a href="${data.portalUrl}/health/dashboard" style="display: inline-block; padding: 14px 36px; background: ${BLUE}; color: white; font-weight: 700; font-size: 15px; text-decoration: none; border-radius: 8px;">
@@ -281,10 +280,7 @@ function generateFulfillmentEmailHTML(data: {
           </a>
         </div>
         <div style="background: #EAF4FD; border-radius: 6px; padding: 14px; margin-bottom: 12px; font-size: 13px;">
-          <strong>Need help?</strong> Call Member Services at
-          <a href="tel:${data.memberServicesPhone}" style="color: #1E88E5; text-decoration: none;">${data.memberServicesPhone}</a>
-          or email <a href="mailto:support@getidealoh.com" style="color: #1E88E5; text-decoration: none;">support@getidealoh.com</a>.
-          Mon–Fri, 8am–6pm CT.
+          Contact Member Services at <a href="mailto:support@getidealoh.com" style="color: #1E88E5; text-decoration: none;">support@getidealoh.com</a>.
         </div>
         <p style="font-size: 11px; color: #9ca3af; line-height: 1.5; margin: 0;">
           This plan is not insurance. Members are responsible for payment at the time of service
@@ -324,15 +320,11 @@ function generateWelcomeEmailHTML(data: {
         <h3 style="color: #667eea;">Getting Started:</h3>
         <ol style="line-height: 1.8;">
           <li>Log in to your <a href="https://www.getidealoh.com/health/dashboard" style="color: #667eea; text-decoration: none;">Member Portal</a></li>
-          <li>Visit <a href="https://www.getidealoh.com" style="color: #667eea; text-decoration: none;">getidealoh.com</a> or call (800) 290-0523 to find a dentist</li>
+          <li>Find a provider in your <a href="${data.portalUrl}/health/dashboard" style="color: #667eea; text-decoration: none;">Member Portal</a> or at <a href="https://ryse.telemedsimplified.com" style="color: #667eea; text-decoration: none;">ryse.telemedsimplified.com</a> or call (800) 290-0523</li>
           <li>Present your ID card to receive discounts</li>
         </ol>
         <div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0;">
-          <p style="margin: 0;"><strong>Need Help?</strong></p>
-          <p style="margin: 5px 0;">
-            Phone: <a href="tel:801-820-0010" style="color: #667eea; text-decoration: none;">801-820-0010</a> |
-            Email: <a href="mailto:info@getidealoh.com" style="color: #667eea; text-decoration: none;">info@getidealoh.com</a>
-          </p>
+          <p style="margin: 0;">Contact Member Services at <a href="mailto:support@getidealoh.com" style="color: #667eea; text-decoration: none;">support@getidealoh.com</a></p>
         </div>
         <p>Best regards,<br><strong>The Ideal Oral Health Team</strong></p>
       </div>
