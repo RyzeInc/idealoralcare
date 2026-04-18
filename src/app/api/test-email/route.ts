@@ -42,12 +42,13 @@ export async function POST(req: NextRequest) {
     let html: string;
     let attachments: { filename: string; content: string }[] | undefined;
 
+    // Public-facing URL for links in emails (never localhost)
+    const portalUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://getidealoh.com';
+
     switch (type) {
       case 'fulfillment-packet': {
         // Internal server URL for PDF generation (can be localhost in dev)
         const serverUrl = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${process.env.PORT || 3000}`;
-        // Public-facing URL for links in emails (never localhost)
-        const portalUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://getidealoh.com';
         const pdfPayload = {
           memberName,
           memberFirstName: memberFirst,
