@@ -55,7 +55,8 @@ export async function GET(req: NextRequest) {
     }
 
     const data = await clerkResponse.json();
-    const users = data.data || [];
+    // Clerk /v1/users returns a flat array, not { data: [] }
+    const users = Array.isArray(data) ? data : data.data || [];
 
     // Transform to clean format
     const formattedUsers = users.map((user: any) => ({
