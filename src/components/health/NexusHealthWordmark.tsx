@@ -15,8 +15,8 @@ export default function IdealHealthWordmark() {
       <Image
         src="/ideal-oral-health-logo.png"
         alt="Ideal Oral Health"
-        width={113}
-        height={54}
+        width={136}
+        height={65}
         style={{ objectFit: 'contain' }}
         priority
       />

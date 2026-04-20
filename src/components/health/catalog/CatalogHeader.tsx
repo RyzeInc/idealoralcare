@@ -41,8 +41,8 @@ export function CatalogHeader() {
           <Image
             src="/ideal-oral-health-logo.png"
             alt="Ideal Oral Health"
-            width={105}
-            height={50}
+            width={126}
+            height={60}
             style={{ objectFit: "contain" }}
             priority
           />

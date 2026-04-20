@@ -103,8 +103,8 @@ export default function HowToUseProgram() {
         <Image
           src="/ideal-oral-health-logo.png"
           alt="Ideal Oral Health"
-          width={150}
-          height={50}
+          width={180}
+          height={60}
           style={{ objectFit: "contain" }}
           priority
         />

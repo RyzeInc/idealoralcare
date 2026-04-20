@@ -18,8 +18,8 @@ export function NexusHealthFooter() {
             <Image
               src="/ideal-oral-health-logo.png"
               alt="Ideal Oral Health"
-              width={121}
-              height={58}
+              width={145}
+              height={70}
               style={{ objectFit: "contain", marginBottom: "0" }}
             />
           </div>
