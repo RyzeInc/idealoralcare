@@ -18,6 +18,7 @@ import {
   Headphones,
   Receipt,
   Terminal,
+  ClipboardList,
 } from "lucide-react";
 
 type NavItem = { label: string; href: string; icon: typeof LayoutDashboard };
@@ -64,6 +65,7 @@ const ADMIN_NAVIGATION: NavSection[] = [
     section: "System",
     items: [
       { label: "Admin Users", href: "/admin/users", icon: ShieldCheck },
+      { label: "User Audit", href: "/admin/user-audit", icon: ClipboardList },
       { label: "Site Settings", href: "/admin/settings", icon: Settings },
       { label: "Dev Tools", href: "/admin/dev-tools", icon: Terminal },
     ],

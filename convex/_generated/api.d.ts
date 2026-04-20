@@ -27,6 +27,7 @@ import type * as admin_repCodes from "../admin/repCodes.js";
 import type * as admin_sftpDelivery from "../admin/sftpDelivery.js";
 import type * as admin_siteSettings from "../admin/siteSettings.js";
 import type * as admin_teamMembers from "../admin/teamMembers.js";
+import type * as admin_userAudit from "../admin/userAudit.js";
 import type * as admin_vendorFiles from "../admin/vendorFiles.js";
 import type * as admin_ventures from "../admin/ventures.js";
 import type * as admin_walletPasses from "../admin/walletPasses.js";
@@ -98,6 +99,7 @@ declare const fullApi: ApiFromModules<{
   "admin/sftpDelivery": typeof admin_sftpDelivery;
   "admin/siteSettings": typeof admin_siteSettings;
   "admin/teamMembers": typeof admin_teamMembers;
+  "admin/userAudit": typeof admin_userAudit;
   "admin/vendorFiles": typeof admin_vendorFiles;
   "admin/ventures": typeof admin_ventures;
   "admin/walletPasses": typeof admin_walletPasses;
