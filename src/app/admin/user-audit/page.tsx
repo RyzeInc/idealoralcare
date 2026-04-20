@@ -17,6 +17,15 @@ import {
   AlertTriangle,
   Filter,
   Users,
+  ChevronDown,
+  ChevronUp,
+  CreditCard,
+  Package,
+  User,
+  ScanLine,
+  Building2,
+  Clock,
+  DollarSign,
 } from 'lucide-react';
 
 interface ClerkUser {
@@ -51,6 +60,9 @@ export default function UserAuditPage() {
 
   // Status filter
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+
+  // Expanded user detail
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
 
   // Convex statuses — keyed by clerk ID
   const clerkIds = clerkUsers.map((u) => u.id);
@@ -229,6 +241,7 @@ export default function UserAuditPage() {
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase w-8"></th>
                     <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">User</th>
                     <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Clerk ID</th>
                     <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Created</th>
@@ -240,81 +253,23 @@ export default function UserAuditPage() {
                 <tbody className="divide-y divide-slate-100">
                   {filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-500">
+                      <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
                         {loading ? 'Loading...' : 'No users match the current filter.'}
                       </td>
                     </tr>
                   ) : (
                     filteredUsers.map((u) => {
                       const s = statuses?.[u.id];
+                      const isExpanded = expandedUserId === u.id;
                       return (
-                        <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
-                          {/* User */}
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2.5">
-                              {u.imageUrl ? (
-                                <img src={u.imageUrl} alt="" className="w-7 h-7 rounded-full" />
-                              ) : (
-                                <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-500">
-                                  {(u.name || u.email).charAt(0).toUpperCase()}
-                                </div>
-                              )}
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium text-slate-900 truncate">{u.name || '—'}</p>
-                                <p className="text-xs text-slate-500 truncate">{u.email}</p>
-                              </div>
-                            </div>
-                          </td>
-                          {/* Clerk ID */}
-                          <td className="px-4 py-3">
-                            <code className="text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded font-mono">
-                              {u.id}
-                            </code>
-                          </td>
-                          {/* Created */}
-                          <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
-                            {new Date(u.createdAt).toLocaleDateString()}
-                          </td>
-                          {/* Dashboard Access */}
-                          <td className="px-4 py-3 text-center">
-                            {!statuses ? (
-                              <Loader size={14} className="animate-spin text-slate-300 mx-auto" />
-                            ) : s?.hasDashboard ? (
-                              <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full font-medium">
-                                <LayoutDashboard size={12} />
-                                Yes
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 text-xs text-red-500 bg-red-50 px-2 py-0.5 rounded-full font-medium">
-                                <XCircle size={12} />
-                                No
-                              </span>
-                            )}
-                          </td>
-                          {/* Admin Access */}
-                          <td className="px-4 py-3 text-center">
-                            {!statuses ? (
-                              <Loader size={14} className="animate-spin text-slate-300 mx-auto" />
-                            ) : s?.isAdmin ? (
-                              <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full font-medium">
-                                <ShieldCheck size={12} />
-                                {s.adminRole === 'owner' ? 'Owner' : 'Editor'}
-                              </span>
-                            ) : (
-                              <span className="text-xs text-slate-400">—</span>
-                            )}
-                          </td>
-                          {/* Subscription */}
-                          <td className="px-4 py-3">
-                            {!statuses ? (
-                              <Loader size={14} className="animate-spin text-slate-300" />
-                            ) : s?.subscriptionStatus ? (
-                              <SubscriptionBadge status={s.subscriptionStatus} entitlements={s.entitlementCount} />
-                            ) : (
-                              <span className="text-xs text-slate-400">None</span>
-                            )}
-                          </td>
-                        </tr>
+                        <UserRow
+                          key={u.id}
+                          user={u}
+                          status={s}
+                          statusesLoaded={!!statuses}
+                          isExpanded={isExpanded}
+                          onToggle={() => setExpandedUserId(isExpanded ? null : u.id)}
+                        />
                       );
                     })
                   )}
@@ -392,6 +347,311 @@ function SubscriptionBadge({ status, entitlements }: { status: string; entitleme
       {entitlements > 0 && (
         <span className="text-xs text-slate-400">{entitlements} plan{entitlements !== 1 ? 's' : ''}</span>
       )}
+    </div>
+  );
+}
+
+// ─── Clickable Row + Expandable Detail ────────────────────────────────
+
+interface UserRowProps {
+  user: ClerkUser;
+  status?: { isAdmin: boolean; adminRole?: string; hasDashboard: boolean; subscriptionStatus?: string; entitlementCount: number };
+  statusesLoaded: boolean;
+  isExpanded: boolean;
+  onToggle: () => void;
+}
+
+function UserRow({ user: u, status: s, statusesLoaded, isExpanded, onToggle }: UserRowProps) {
+  return (
+    <>
+      <tr onClick={onToggle} className="hover:bg-slate-50/50 transition-colors cursor-pointer">
+        {/* Expand chevron */}
+        <td className="px-4 py-3 text-slate-400">
+          {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </td>
+        {/* User */}
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-2.5">
+            {u.imageUrl ? (
+              <img src={u.imageUrl} alt="" className="w-7 h-7 rounded-full" />
+            ) : (
+              <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-500">
+                {(u.name || u.email).charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-slate-900 truncate">{u.name || '—'}</p>
+              <p className="text-xs text-slate-500 truncate">{u.email}</p>
+            </div>
+          </div>
+        </td>
+        {/* Clerk ID */}
+        <td className="px-4 py-3">
+          <code className="text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded font-mono">
+            {u.id}
+          </code>
+        </td>
+        {/* Created */}
+        <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
+          {new Date(u.createdAt).toLocaleDateString()}
+        </td>
+        {/* Dashboard Access */}
+        <td className="px-4 py-3 text-center">
+          {!statusesLoaded ? (
+            <Loader size={14} className="animate-spin text-slate-300 mx-auto" />
+          ) : s?.hasDashboard ? (
+            <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full font-medium">
+              <LayoutDashboard size={12} />
+              Yes
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-xs text-red-500 bg-red-50 px-2 py-0.5 rounded-full font-medium">
+              <XCircle size={12} />
+              No
+            </span>
+          )}
+        </td>
+        {/* Admin Access */}
+        <td className="px-4 py-3 text-center">
+          {!statusesLoaded ? (
+            <Loader size={14} className="animate-spin text-slate-300 mx-auto" />
+          ) : s?.isAdmin ? (
+            <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full font-medium">
+              <ShieldCheck size={12} />
+              {s.adminRole === 'owner' ? 'Owner' : 'Editor'}
+            </span>
+          ) : (
+            <span className="text-xs text-slate-400">—</span>
+          )}
+        </td>
+        {/* Subscription */}
+        <td className="px-4 py-3">
+          {!statusesLoaded ? (
+            <Loader size={14} className="animate-spin text-slate-300" />
+          ) : s?.subscriptionStatus ? (
+            <SubscriptionBadge status={s.subscriptionStatus} entitlements={s.entitlementCount} />
+          ) : (
+            <span className="text-xs text-slate-400">None</span>
+          )}
+        </td>
+      </tr>
+      {isExpanded && (
+        <tr>
+          <td colSpan={7} className="p-0">
+            <UserDetailPanel clerkUserId={u.id} />
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+// ─── Detail Panel ─────────────────────────────────────────────────────
+
+function UserDetailPanel({ clerkUserId }: { clerkUserId: string }) {
+  const detail = useQuery(api.admin.userAudit.getUserDetail, { clerkUserId });
+
+  if (!detail) {
+    return (
+      <div className="bg-slate-50 px-8 py-6 flex items-center gap-2 text-sm text-slate-400">
+        <Loader size={14} className="animate-spin" /> Loading details…
+      </div>
+    );
+  }
+
+  const fmt = (ms: number) => new Date(ms).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  const fmtCents = (c: number) => `$${(c / 100).toFixed(2)}`;
+
+  return (
+    <div className="bg-slate-50 border-t border-slate-200 px-8 py-5 space-y-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+
+        {/* Admin Info */}
+        <DetailCard
+          icon={<ShieldCheck size={16} className="text-blue-500" />}
+          title="Admin Access"
+          empty={!detail.admin}
+          emptyText="Not an admin"
+        >
+          {detail.admin && (
+            <div className="space-y-1 text-sm">
+              <Row label="Role" value={detail.admin.role} />
+              <Row label="Departments" value={detail.admin.departments?.join(', ') || '—'} />
+              <Row label="Admin Since" value={fmt(detail.admin.createdAt)} />
+            </div>
+          )}
+        </DetailCard>
+
+        {/* Subscription Bundle */}
+        <DetailCard
+          icon={<CreditCard size={16} className="text-green-500" />}
+          title="Subscription Bundle"
+          empty={!detail.bundle}
+          emptyText="No subscription"
+        >
+          {detail.bundle && (
+            <div className="space-y-1 text-sm">
+              <Row label="Status" value={<SubscriptionBadge status={detail.bundle.status} entitlements={0} />} />
+              <Row label="Cadence" value={detail.bundle.cadence} />
+              <Row label="Payment" value={detail.bundle.paymentMethod} />
+              <Row label="Total" value={fmtCents(detail.bundle.pricingSnapshot.totalCents)} />
+              <Row label="Plans in Bundle" value={String(detail.bundle.pricingSnapshot.planCount)} />
+              <Row label="Period" value={`${fmt(detail.bundle.currentPeriodStart)} → ${fmt(detail.bundle.currentPeriodEnd)}`} />
+              {detail.bundle.stripeCustomerId && (
+                <Row label="Stripe Customer" value={<code className="text-xs font-mono">{detail.bundle.stripeCustomerId}</code>} />
+              )}
+              {detail.bundle.stripeSubscriptionId && (
+                <Row label="Stripe Sub" value={<code className="text-xs font-mono">{detail.bundle.stripeSubscriptionId}</code>} />
+              )}
+              {detail.bundle.cancelledAt && (
+                <Row label="Cancelled" value={`${fmt(detail.bundle.cancelledAt)}${detail.bundle.cancellationReason ? ` — ${detail.bundle.cancellationReason}` : ''}`} />
+              )}
+            </div>
+          )}
+        </DetailCard>
+
+        {/* Member Profiles */}
+        <DetailCard
+          icon={<User size={16} className="text-violet-500" />}
+          title={`Member Profile${(detail.memberProfiles?.length ?? 0) > 1 ? 's' : ''}`}
+          empty={!detail.memberProfiles?.length}
+          emptyText="No member profile"
+        >
+          {detail.memberProfiles?.map((mp) => (
+            <div key={mp._id} className="space-y-1 text-sm border-b border-slate-200 pb-2 last:border-b-0 last:pb-0 mb-2 last:mb-0">
+              <Row label="Member ID" value={<code className="text-xs font-mono">{mp.memberId}</code>} />
+              <Row label="Name" value={`${mp.firstName} ${mp.lastName}`} />
+              <Row label="Type" value={mp.memberType} />
+              <Row label="Role" value={mp.memberRole || '—'} />
+              <Row label="Status" value={mp.status} />
+              {mp.enrolledAt && <Row label="Enrolled" value={fmt(mp.enrolledAt)} />}
+            </div>
+          ))}
+        </DetailCard>
+
+        {/* Toothlens */}
+        <DetailCard
+          icon={<ScanLine size={16} className="text-teal-500" />}
+          title="Toothlens / Oral Scan"
+          empty={!detail.toothlens}
+          emptyText="Not registered"
+        >
+          {detail.toothlens && (
+            <div className="space-y-1 text-sm">
+              <Row label="UID" value={<code className="text-xs font-mono">{detail.toothlens.toothlensUid}</code>} />
+              <Row label="Company" value={detail.toothlens.company || '—'} />
+              <Row label="Registered" value={fmt(detail.toothlens.createdAt)} />
+            </div>
+          )}
+        </DetailCard>
+
+        {/* Distribution Partner */}
+        {detail.distributionPartner && (
+          <DetailCard
+            icon={<Building2 size={16} className="text-amber-500" />}
+            title="Distribution Partner"
+            empty={false}
+          >
+            <div className="space-y-1 text-sm">
+              <Row label="Company" value={detail.distributionPartner.name || '—'} />
+              <Row label="Type" value={detail.distributionPartner.type} />
+              <Row label="Status" value={detail.distributionPartner.status} />
+            </div>
+          </DetailCard>
+        )}
+      </div>
+
+      {/* Entitlements Table */}
+      {detail.entitlements.length > 0 && (
+        <div>
+          <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+            <Package size={14} />
+            Entitlements ({detail.entitlements.length})
+          </h4>
+          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="bg-slate-100 border-b border-slate-200">
+                  <th className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase">Product</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase">Status</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase">End Condition</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase">Period</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase">Created Via</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase">Notes</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {detail.entitlements.map((ent) => {
+                  const entStatusStyles: Record<string, string> = {
+                    active: 'text-green-700 bg-green-50',
+                    cancel_at_period_end: 'text-amber-700 bg-amber-50',
+                    expired: 'text-slate-500 bg-slate-100',
+                    suspended: 'text-orange-600 bg-orange-50',
+                    revoked: 'text-red-600 bg-red-50',
+                  };
+                  return (
+                    <tr key={ent._id} className="hover:bg-slate-50/50">
+                      <td className="px-3 py-2">
+                        <span className="font-medium text-slate-900">{ent.productName}</span>
+                        <span className="text-xs text-slate-400 ml-1.5">{ent.productCategory}</span>
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className={`inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium ${entStatusStyles[ent.status] || 'text-slate-500 bg-slate-50'}`}>
+                          {ent.status.replace(/_/g, ' ')}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-xs text-slate-500">{ent.endCondition}</td>
+                      <td className="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">
+                        {fmt(ent.periodStart)} → {fmt(ent.periodEnd)}
+                      </td>
+                      <td className="px-3 py-2 text-xs text-slate-500">{ent.createdVia.replace(/_/g, ' ')}</td>
+                      <td className="px-3 py-2 text-xs text-slate-400 max-w-[200px] truncate">{ent.notes || '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Shared UI Helpers ────────────────────────────────────────────────
+
+function DetailCard({
+  icon,
+  title,
+  empty,
+  emptyText,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  empty: boolean;
+  emptyText?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="bg-white border border-slate-200 rounded-lg p-4">
+      <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2 flex items-center gap-1.5">
+        {icon} {title}
+      </h4>
+      {empty ? (
+        <p className="text-sm text-slate-400 italic">{emptyText || 'None'}</p>
+      ) : (
+        children
+      )}
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <span className="text-slate-500 text-xs shrink-0">{label}</span>
+      <span className="text-slate-900 text-xs text-right">{value}</span>
     </div>
   );
 }

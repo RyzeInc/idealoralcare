@@ -433,16 +433,33 @@ export const migrateAllUsers = action({
     migrated: number;
     skipped: number;
     failed: { clerkUserId: string; error: string }[];
+    error?: string;
   }> => {
     const company = process.env.RYZEHEALTH_COMPANY;
-    if (!company) throw new Error("RYZEHEALTH_COMPANY env var not set");
+    const accessKey = process.env.RYZEHEALTH_ACCESS_KEY;
+    if (!company) return { migrated: 0, skipped: 0, failed: [], error: "RYZEHEALTH_COMPANY env var not set" };
+    if (!accessKey) return { migrated: 0, skipped: 0, failed: [], error: "RYZEHEALTH_ACCESS_KEY env var not set" };
 
     const allUsers = await ctx.runQuery(
       getInternal().healthplans.toothlens.listAllToothlensUsers,
       {}
     );
 
-    const token = await authenticateRyzeHealth();
+    if (allUsers.length === 0) {
+      return { migrated: 0, skipped: 0, failed: [], error: "No toothlensUsers records found in database" };
+    }
+
+    let token: string;
+    try {
+      token = await authenticateRyzeHealth();
+    } catch (err: any) {
+      return {
+        migrated: 0,
+        skipped: 0,
+        failed: [],
+        error: `Auth failed for company "${company}": ${err?.message ?? String(err)}`,
+      };
+    }
 
     let migrated = 0;
     let skipped = 0;
