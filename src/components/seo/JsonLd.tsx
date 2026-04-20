@@ -34,7 +34,7 @@ export function OrganizationJsonLd() {
           "@type": "ContactPoint",
           telephone: "+1-801-820-0010",
           contactType: "customer service",
-          email: "info@getidealoh.com",
+          email: "support@getidealoh.com",
           availableLanguage: "English",
         },
         sameAs: [

@@ -229,7 +229,7 @@ export default function FAQPage() {
               Everything you need to know about Ideal Health oral health plans.
               Can&apos;t find what you&apos;re looking for?{" "}
               <a
-                href="mailto:info@getidealoh.com"
+                href="mailto:support@getidealoh.com"
                 style={{ color: "var(--primary-blue)" }}
               >
                 Contact us

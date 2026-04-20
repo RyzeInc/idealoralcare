@@ -26,8 +26,8 @@ export const FooterDisclosure: React.FC = () => {
               </p>
               <p>
                 <strong>Email:</strong>{" "}
-                <a href="mailto:info@getidealoh.com" className="text-blue-400 hover:text-blue-300">
-                  info@getidealoh.com
+                <a href="mailto:support@getidealoh.com" className="text-blue-400 hover:text-blue-300">
+                  support@getidealoh.com
                 </a>
               </p>
               <div className="mt-2">

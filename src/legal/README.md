@@ -476,7 +476,7 @@ Ideal Oral Health <onboarding@resend.dev>
 
 **Ideal Oral Health**
 - Phone: 801-820-0010
-- Email: info@getidealoh.com
+- Email: support@getidealoh.com
 - Locations:
   - Northeast: 116 S. Main St, Wallingford CT 06492
   - Southern: 800 S Gay St STE 700, Knoxville TN 37929
