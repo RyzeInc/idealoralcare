@@ -150,7 +150,7 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
     if (scan.scanUrl) return scan.scanUrl;
 
     // Fallback: use the current session's scanBaseUrl (set by ensureToothlensUser / action)
-    const base = scanBaseUrl || 'https://selfcheck.toothlens.com/ai/ryzehealth';
+    const base = scanBaseUrl || 'https://selfcheck.toothlens.com/ai/idealhealth';
     return `${base}?uid=${encodeURIComponent(scan.toothlensUid)}&session_id=${encodeURIComponent(scan.sessionId)}`;
   }, [scanBaseUrl]);
 
@@ -172,7 +172,7 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
   // Build the scanner iframe URL
   const getScanUrl = useCallback(() => {
     if (!toothlensUid || !sessionId) return '';
-    const base = scanBaseUrl || 'https://selfcheck.toothlens.com/ai/ryzehealth';
+    const base = scanBaseUrl || 'https://selfcheck.toothlens.com/ai/idealhealth';
     return `${base}?uid=${encodeURIComponent(toothlensUid)}&session_id=${encodeURIComponent(sessionId)}`;
   }, [toothlensUid, sessionId, scanBaseUrl]);
 

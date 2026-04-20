@@ -57,7 +57,7 @@ export const getMemberCardData: any = action({
         },
         toothlens: {
           name: "AI Oral Scanning",
-          memberUrl: `https://smartcheck.toothlens.com/verify?memberId=${member.memberId}`,
+          memberUrl: `https://selfcheck.toothlens.com/ai/idealhealth?uid=${member.memberId}`,
         },
       },
       supportPhone: "(800) IDEAL-CARE",

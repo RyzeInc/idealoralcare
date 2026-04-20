@@ -29,7 +29,7 @@ function GoogleIcon() {
 
 function FacebookIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="#1877F2">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="#ffffff">
       <path d="M24 12.073c0-6.627-5.373-12-12-12S0 5.446 0 12.073c0 5.989 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
     </svg>
   );
@@ -46,7 +46,7 @@ const inputBase: React.CSSProperties = {
 };
 
 const focusStyle = (e: React.FocusEvent<HTMLInputElement>) => {
-  e.currentTarget.style.borderColor = "#14b8a6";
+  e.currentTarget.style.borderColor = "#0066CC";
   e.currentTarget.style.backgroundColor = "#fff";
 };
 
@@ -160,7 +160,8 @@ function PlanShowcase() {
 function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect_url") || "/health/dashboard";
+  const rawRedirect = searchParams.get("redirect_url");
+  const redirectTo = rawRedirect && rawRedirect.startsWith("/") ? rawRedirect : "/health/dashboard";
   const { signIn, isLoaded, setActive } = useSignIn();
 
   const [mode, setMode] = useState<"email" | "phone">("email");
@@ -183,10 +184,10 @@ function SignInForm() {
   }, [error]);
 
   const handleOAuth = async (strategy: "oauth_apple" | "oauth_google" | "oauth_facebook") => {
-    if (!isLoaded) return;
+    if (!isLoaded || !signIn) return;
     setOauthLoading(strategy);
     try {
-      await signIn!.authenticateWithRedirect({
+      await signIn.authenticateWithRedirect({
         strategy,
         redirectUrl: "/health/sso-callback",
         redirectUrlComplete: redirectTo,
@@ -201,14 +202,14 @@ function SignInForm() {
     e.preventDefault();
     setError("");
     setIsLoading(true);
-    if (!isLoaded) { setError("Loading. Please wait."); setIsLoading(false); return; }
+    if (!isLoaded || !signIn || !setActive) { setError("Loading. Please wait."); setIsLoading(false); return; }
     const id = mode === "phone" && !identifier.startsWith("+")
       ? `+1${identifier.replace(/\D/g, "")}`
       : identifier;
     try {
-      const result = await signIn!.create({ identifier: id, password });
+      const result = await signIn.create({ identifier: id, password });
       if (result.status === "complete") {
-        await setActive!({ session: result.createdSessionId });
+        await setActive({ session: result.createdSessionId });
         router.push(redirectTo);
       } else {
         setError("Sign-in requires additional verification. Please try again.");
@@ -317,7 +318,7 @@ function SignInForm() {
                     <button
                       type="button"
                       onClick={() => { setMode(m => m === "email" ? "phone" : "email"); setIdentifier(""); }}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "#14b8a6", fontSize: "0.8125rem", fontWeight: 500, padding: 0 }}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "#0066CC", fontSize: "0.8125rem", fontWeight: 500, padding: 0 }}
                     >
                       {mode === "phone" ? "Use email" : "Use phone"}
                     </button>
@@ -351,7 +352,7 @@ function SignInForm() {
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
                     <label htmlFor="password" style={{ fontWeight: 600, color: "#0f172a", fontSize: "0.95rem" }}>Password</label>
-                    <Link href="/health/forgot-password" style={{ color: "#14b8a6", fontSize: "0.8125rem", fontWeight: 500, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "3px" }}>
+                    <Link href="/health/forgot-password" style={{ color: "#0066CC", fontSize: "0.8125rem", fontWeight: 500, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "3px" }}>
                       <KeyRound size={13} /> Forgot password?
                     </Link>
                   </div>
@@ -383,9 +384,9 @@ function SignInForm() {
                 <button
                   type="submit"
                   disabled={busy || !formValid}
-                  style={{ padding: "0.875rem 1.5rem", background: busy || !formValid ? "#cbd5e1" : "#14b8a6", color: "#fff", border: "none", borderRadius: "12px", fontWeight: 600, fontSize: "1rem", cursor: busy ? "wait" : "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", marginTop: "0.25rem" }}
-                  onMouseEnter={(e) => { if (!busy && formValid) e.currentTarget.style.background = "#0d9488"; }}
-                  onMouseLeave={(e) => { if (!busy && formValid) e.currentTarget.style.background = "#14b8a6"; }}
+                  style={{ padding: "0.875rem 1.5rem", background: busy || !formValid ? "#cbd5e1" : "#0066CC", color: "#fff", border: "none", borderRadius: "12px", fontWeight: 600, fontSize: "1rem", cursor: busy ? "wait" : "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", marginTop: "0.25rem" }}
+                  onMouseEnter={(e) => { if (!busy && formValid) e.currentTarget.style.background = "#0055AA"; }}
+                  onMouseLeave={(e) => { if (!busy && formValid) e.currentTarget.style.background = "#0066CC"; }}
                 >
                   {isLoading
                     ? <><Loader size={18} style={{ animation: "spin 1s linear infinite" }} /> Signing in...</>
@@ -405,8 +406,8 @@ function SignInForm() {
 
               <Link
                 href={signUpHref}
-                style={{ display: "block", textAlign: "center", padding: "0.875rem 1.5rem", background: "#f0f4f8", color: "#14b8a6", border: "1px solid #e2e8f0", borderRadius: "12px", fontWeight: 600, fontSize: "1rem", textDecoration: "none", transition: "all 0.2s" }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "#e0f2f1"; e.currentTarget.style.borderColor = "#14b8a6"; }}
+                style={{ display: "block", textAlign: "center", padding: "0.875rem 1.5rem", background: "#f0f4f8", color: "#0066CC", border: "1px solid #e2e8f0", borderRadius: "12px", fontWeight: 600, fontSize: "1rem", textDecoration: "none", transition: "all 0.2s" }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "#e8f0fe"; e.currentTarget.style.borderColor = "#0066CC"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "#f0f4f8"; e.currentTarget.style.borderColor = "#e2e8f0"; }}
               >
                 Create Account
@@ -414,7 +415,7 @@ function SignInForm() {
 
               <div style={{ textAlign: "center", marginTop: "1rem" }}>
                 <p style={{ color: "#64748b", fontSize: "0.875rem", marginBottom: "0.5rem" }}>Need help signing in?</p>
-                <a href="mailto:support@idealhealth.com" style={{ color: "#14b8a6", textDecoration: "none", fontWeight: 500 }}>
+                <a href="mailto:support@idealhealth.com" style={{ color: "#0066CC", textDecoration: "none", fontWeight: 500 }}>
                   Contact support
                 </a>
               </div>

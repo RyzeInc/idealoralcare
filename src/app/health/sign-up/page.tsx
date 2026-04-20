@@ -51,7 +51,7 @@ function GoogleIcon() {
 }
 function FacebookIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="#1877F2">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="#ffffff">
       <path d="M24 12.073c0-6.627-5.373-12-12-12S0 5.446 0 12.073c0 5.989 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
     </svg>
   );
@@ -94,10 +94,10 @@ function PortalSignUpForm({ redirectTo }: { redirectTo: string }) {
   useEffect(() => { if (error) window.scrollTo({ top: 0, behavior: "smooth" }); }, [error]);
 
   const handleOAuth = async (strategy: "oauth_apple" | "oauth_google" | "oauth_facebook") => {
-    if (!isLoaded) return;
+    if (!isLoaded || !signUp) return;
     setOauthLoading(strategy);
     try {
-      await signUp!.authenticateWithRedirect({
+      await signUp.authenticateWithRedirect({
         strategy,
         redirectUrl: "/health/sso-callback",
         redirectUrlComplete: redirectTo,
@@ -114,18 +114,18 @@ function PortalSignUpForm({ redirectTo }: { redirectTo: string }) {
     if (password !== confirmPassword) { setError("Passwords do not match."); return; }
     if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
     setIsLoading(true);
-    if (!isLoaded) { setError("Loading. Please wait."); setIsLoading(false); return; }
+    if (!isLoaded || !signUp || !setActive) { setError("Loading. Please wait."); setIsLoading(false); return; }
     try {
       const params: Record<string, string> = { emailAddress: email, password };
       if (firstName) params.firstName = firstName;
       if (lastName)  params.lastName  = lastName;
       if (phone)     params.phoneNumber = phone.startsWith("+") ? phone : `+1${phone.replace(/\D/g, "")}`;
-      const result = await signUp!.create(params);
+      const result = await signUp.create(params);
       if (result.status === "complete") {
-        await setActive!({ session: result.createdSessionId });
+        await setActive({ session: result.createdSessionId });
         router.push(redirectTo);
       } else if (result.unverifiedFields?.includes("email_address")) {
-        await signUp!.prepareEmailAddressVerification({ strategy: "email_code" });
+        await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
         setStep("verify");
       } else {
         setError("Sign-up requires additional steps. Please try again.");
@@ -142,9 +142,10 @@ function PortalSignUpForm({ redirectTo }: { redirectTo: string }) {
     setError("");
     setIsLoading(true);
     try {
-      const result = await signUp!.attemptEmailAddressVerification({ code: verificationCode });
+      if (!signUp || !setActive) { setError("Loading. Please wait."); setIsLoading(false); return; }
+      const result = await signUp.attemptEmailAddressVerification({ code: verificationCode });
       if (result.status === "complete") {
-        await setActive!({ session: result.createdSessionId });
+        await setActive({ session: result.createdSessionId });
         router.push(redirectTo);
       } else {
         setError("Verification failed. Please check your code.");
@@ -322,7 +323,8 @@ function PortalSignUpForm({ redirectTo }: { redirectTo: string }) {
 /* ── Main page ───────────────────────────────────────────────────────────── */
 function GetStartedPage() {
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect_url") || "/health/dashboard";
+  const rawRedirect = searchParams.get("redirect_url");
+  const redirectTo = rawRedirect && rawRedirect.startsWith("/") ? rawRedirect : "/health/dashboard";
   const [showPortalForm, setShowPortalForm] = useState(false);
 
   const enrollHref = "/health/checkout";

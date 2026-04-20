@@ -404,3 +404,78 @@ export const refreshToothlensUser = action({
     return { uid, scanBaseUrl: `${SELFCHECK_BASE}/${company}` };
   },
 });
+
+// ─── Admin: Bulk Migration ───────────────────────────────────────────────
+
+/**
+ * Internal query: list ALL toothlensUsers records.
+ */
+export const listAllToothlensUsers = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    return ctx.db.query("toothlensUsers").collect();
+  },
+});
+
+/**
+ * Admin action: Re-register ALL existing Toothlens users under the current
+ * RYZEHEALTH_COMPANY. Use this after changing the company slug / access key
+ * in the Convex environment variables.
+ *
+ * Each user gets a new UID under the new company. Old UIDs (and old scan
+ * report links) will no longer work on the new company endpoint.
+ *
+ * Call from Convex Dashboard → Functions → healthplans/toothlens:migrateAllUsers
+ */
+export const migrateAllUsers = action({
+  args: {},
+  handler: async (ctx): Promise<{
+    migrated: number;
+    skipped: number;
+    failed: { clerkUserId: string; error: string }[];
+  }> => {
+    const company = process.env.RYZEHEALTH_COMPANY;
+    if (!company) throw new Error("RYZEHEALTH_COMPANY env var not set");
+
+    const allUsers = await ctx.runQuery(
+      getInternal().healthplans.toothlens.listAllToothlensUsers,
+      {}
+    );
+
+    const token = await authenticateRyzeHealth();
+
+    let migrated = 0;
+    let skipped = 0;
+    const failed: { clerkUserId: string; error: string }[] = [];
+
+    for (const user of allUsers) {
+      // Already on the current company — skip
+      if (user.company === company) {
+        skipped++;
+        continue;
+      }
+
+      try {
+        const { uid } = await createDetectionUser(token, {
+          company,
+          name: user.name ?? "Member",
+          email: user.email,
+        });
+
+        await ctx.runMutation(
+          getInternal().healthplans.toothlens.updateToothlensUserUid,
+          { id: user._id, toothlensUid: uid, company }
+        );
+
+        migrated++;
+      } catch (err: any) {
+        failed.push({
+          clerkUserId: user.clerkUserId,
+          error: err?.message ?? String(err),
+        });
+      }
+    }
+
+    return { migrated, skipped, failed };
+  },
+});

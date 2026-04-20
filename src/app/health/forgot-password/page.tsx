@@ -49,13 +49,18 @@ export default function ForgotPasswordPage() {
     setError("");
     setIsLoading(true);
     try {
-      await signIn!.create({
+      if (!signIn) {
+        setError("Authentication service not ready. Please refresh and try again.");
+        return;
+      }
+      await signIn.create({
         strategy: "reset_password_email_code",
         identifier: email,
       });
       setStep("verify");
     } catch (err: any) {
-      setError(err?.errors?.[0]?.message || "Could not send reset email. Please try again.");
+      const msg = err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message;
+      setError(msg || "Could not send reset email. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -78,20 +83,25 @@ export default function ForgotPasswordPage() {
     setError("");
     setIsLoading(true);
     try {
-      const result = await signIn!.attemptFirstFactor({
+      if (!signIn || !setActive) {
+        setError("Authentication service not ready. Please refresh and try again.");
+        return;
+      }
+      const result = await signIn.attemptFirstFactor({
         strategy: "reset_password_email_code",
         code,
         password: newPassword,
       });
 
       if (result.status === "complete") {
-        await setActive!({ session: result.createdSessionId });
+        await setActive({ session: result.createdSessionId });
         router.push("/health/dashboard");
       } else {
         setError("Verification failed. Please check your code and try again.");
       }
     } catch (err: any) {
-      setError(err?.errors?.[0]?.message || "Invalid code. Please try again.");
+      const msg = err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message;
+      setError(msg || "Invalid code. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -113,14 +123,14 @@ export default function ForgotPasswordPage() {
               display: "inline-flex",
               alignItems: "center",
               gap: "0.5rem",
-              color: "rgba(255,255,255,0.8)",
+              color: "#64748b",
               textDecoration: "none",
               marginBottom: "1.5rem",
               fontSize: "0.9375rem",
               transition: "color 0.2s",
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.8)")}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "#0f172a")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "#64748b")}
           >
             <ArrowLeft size={18} />
             Back to Sign In
@@ -129,7 +139,7 @@ export default function ForgotPasswordPage() {
             style={{
               fontSize: "clamp(2rem, 5vw, 2.75rem)",
               fontWeight: 700,
-              color: "#fff",
+              color: "#0f172a",
               marginBottom: "0.75rem",
             }}
           >
@@ -137,7 +147,7 @@ export default function ForgotPasswordPage() {
           </h1>
           <p
             style={{
-              color: "rgba(255,255,255,0.85)",
+              color: "#475569",
               fontSize: "1.125rem",
               maxWidth: "500px",
               margin: "0 auto",
