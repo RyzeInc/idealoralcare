@@ -83,7 +83,8 @@ export function NexusHealthFooter() {
                 { label: "Blog", href: "/health/blog" },
                 { label: "FAQ", href: "/health/faq" },
                 { label: "How It Works", href: "/health/how-it-works" },
-                { label: "Compare Plans", href: "/health/compare" },
+                // Compare Plans hidden in live site
+                // { label: "Compare Plans", href: "/health/compare" },
                 { label: "Terms and Conditions", href: "/health/terms" },
                 { label: "Privacy Policy", href: "/health/privacy" },
                 { label: "Program Disclosures", href: "/health/terms" },
