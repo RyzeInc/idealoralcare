@@ -5,7 +5,7 @@ import { useQuery, useMutation, useAction } from 'convex/react';
 import { useUser } from '@clerk/nextjs';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
-import { UserPlus, Trash2, Shield, Users, Crown, AlertCircle, CheckCircle, Loader, Mail, RotateCw, XCircle, Clock } from 'lucide-react';
+import { UserPlus, Trash2, Shield, Users, Crown, AlertCircle, CheckCircle, Loader, Mail, RotateCw, XCircle, Clock, Search } from 'lucide-react';
 
 type Role = 'owner' | 'editor';
 
@@ -33,7 +33,10 @@ export default function UsersAdmin() {
   const resendInvite = useAction(api.admin.adminUsers.resendAdminInvite);
   const cancelInvite = useMutation(api.admin.adminUsers.cancelAdminInvite);
 
+  const addAdmin = useMutation(api.admin.adminUsers.add);
+
   const [showInviteForm, setShowInviteForm] = useState(false);
+  const [showAddExisting, setShowAddExisting] = useState(false);
   const [showBootstrap, setShowBootstrap] = useState(false);
   const [notification, setNotification] = useState<Notification | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -41,6 +44,13 @@ export default function UsersAdmin() {
 
   // Invite form state (no Clerk ID needed!)
   const [form, setForm] = useState({ email: '', name: '', role: 'editor' as Role, departments: [] as string[] });
+
+  // Add existing user state
+  const [clerkSearch, setClerkSearch] = useState('');
+  const [clerkResults, setClerkResults] = useState<{ id: string; email: string; name: string; imageUrl?: string }[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [addExistingRole, setAddExistingRole] = useState<Role>('editor');
+  const [addExistingDepts, setAddExistingDepts] = useState<string[]>([]);
 
   const DEPT_OPTIONS = [
     { value: 'admin', label: 'Admin' },
@@ -151,6 +161,49 @@ export default function UsersAdmin() {
     }
   }
 
+  async function handleSearchClerkUsers(query: string) {
+    setClerkSearch(query);
+    if (query.trim().length < 2) { setClerkResults([]); return; }
+    setSearching(true);
+    try {
+      const res = await fetch(`/api/clerk/users?search=${encodeURIComponent(query.trim())}&limit=10`);
+      if (!res.ok) throw new Error('Search failed');
+      const data = await res.json();
+      // Filter out users already in the admin list
+      const existingIds = new Set(admins.map((a) => a.clerkUserId));
+      setClerkResults(
+        (data.users || []).filter((u: { id: string }) => !existingIds.has(u.id))
+      );
+    } catch {
+      setClerkResults([]);
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  async function handleAddExistingUser(user: { id: string; email: string; name: string }) {
+    setSubmitting(true);
+    try {
+      await addAdmin({
+        clerkUserId: user.id,
+        email: user.email,
+        name: user.name || user.email.split('@')[0],
+        role: addExistingRole,
+        departments: addExistingDepts.length > 0 ? addExistingDepts as any[] : ['admin'],
+      });
+      notify('success', `${user.name || user.email} added as ${addExistingRole}`);
+      setShowAddExisting(false);
+      setClerkSearch('');
+      setClerkResults([]);
+      setAddExistingRole('editor');
+      setAddExistingDepts([]);
+    } catch (err: any) {
+      notify('error', err?.message ?? 'Failed to add user');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function handleBootstrap(e: React.FormEvent) {
     e.preventDefault();
     if (!bootstrapForm.clerkUserId.trim() || !bootstrapForm.email.trim() || !bootstrapForm.name.trim()) return;
@@ -204,6 +257,13 @@ export default function UsersAdmin() {
               Initialize First Admin
             </button>
           )}
+          <button
+            onClick={() => setShowAddExisting(true)}
+            className="flex items-center gap-2 bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-800 transition-colors text-sm font-medium"
+          >
+            <Search size={16} />
+            Add Existing User
+          </button>
           <button
             onClick={() => setShowInviteForm(true)}
             className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
@@ -491,6 +551,113 @@ export default function UsersAdmin() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Existing User Modal */}
+      {showAddExisting && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl">
+            <h2 className="text-xl font-bold text-slate-900 mb-1">Add Existing User</h2>
+            <p className="text-sm text-slate-500 mb-6">Search for a Clerk user by name or email and add them as an admin.</p>
+
+            {/* Search Input */}
+            <div className="relative mb-4">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search by name or email..."
+                value={clerkSearch}
+                onChange={(e) => handleSearchClerkUsers(e.target.value)}
+                className="w-full border border-slate-300 rounded-lg pl-10 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autoFocus
+              />
+              {searching && <Loader size={14} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-slate-400" />}
+            </div>
+
+            {/* Search Results */}
+            {clerkSearch.trim().length >= 2 && (
+              <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg mb-4">
+                {clerkResults.length === 0 && !searching ? (
+                  <p className="text-sm text-slate-500 p-4 text-center">No matching users found</p>
+                ) : (
+                  clerkResults.map((u) => (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => handleAddExistingUser(u)}
+                      disabled={submitting}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left border-b border-slate-100 last:border-b-0 disabled:opacity-50"
+                    >
+                      {u.imageUrl ? (
+                        <img src={u.imageUrl} alt="" className="w-8 h-8 rounded-full" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600">
+                          {(u.name || u.email).charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-900 truncate">{u.name || 'No name'}</p>
+                        <p className="text-xs text-slate-500 truncate">{u.email}</p>
+                      </div>
+                      <span className="text-xs text-blue-600 font-medium shrink-0">Add →</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Role & Departments */}
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Role</label>
+                <select
+                  value={addExistingRole}
+                  onChange={(e) => setAddExistingRole(e.target.value as Role)}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="editor">Editor — Operational access</option>
+                  <option value="owner">Owner — Full access</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Departments</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {DEPT_OPTIONS.map((dept) => (
+                    <label key={dept.value} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={addExistingDepts.includes(dept.value)}
+                        onChange={(e) => {
+                          setAddExistingDepts((prev) =>
+                            e.target.checked
+                              ? [...prev, dept.value]
+                              : prev.filter((d) => d !== dept.value)
+                          );
+                        }}
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-slate-700">{dept.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddExisting(false);
+                setClerkSearch('');
+                setClerkResults([]);
+                setAddExistingRole('editor');
+                setAddExistingDepts([]);
+              }}
+              className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              Close
+            </button>
           </div>
         </div>
       )}
