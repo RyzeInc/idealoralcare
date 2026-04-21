@@ -21,8 +21,6 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
   const [toothlensUid, setToothlensUid] = useState<string | null>(null);
   const [scanBaseUrl, setScanBaseUrl] = useState<string | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [refreshError, setRefreshError] = useState<string | null>(null);
 
   // Convex queries
   const toothlensUser = useQuery(
@@ -39,7 +37,6 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
   const recordScanStartedMut = useMutation(api.healthplans.toothlens.recordScanStarted);
   const markScanCompletedMut = useMutation(api.healthplans.toothlens.markScanCompleted);
   const forwardToTeledentistMut = useMutation(api.healthplans.toothlens.forwardToTeledentist);
-  const refreshUser = useAction(api.healthplans.toothlens.refreshToothlensUser);
 
   useEffect(() => {
     setIsMounted(true);
@@ -153,21 +150,6 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
     const base = scanBaseUrl || 'https://selfcheck.toothlens.com/ai/idealhealth';
     return `${base}?uid=${encodeURIComponent(scan.toothlensUid)}&session_id=${encodeURIComponent(scan.sessionId)}`;
   }, [scanBaseUrl]);
-
-  const handleRefreshRegistration = useCallback(async () => {
-    setIsRefreshing(true);
-    setRefreshError(null);
-    try {
-      const result = await refreshUser({});
-      setToothlensUid(result.uid);
-      setScanBaseUrl(result.scanBaseUrl);
-    } catch (err) {
-      console.error('[OralScan] Failed to refresh Toothlens registration:', err);
-      setRefreshError('Unable to refresh registration. Please try again later.');
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [refreshUser]);
 
   // Build the scanner iframe URL
   const getScanUrl = useCallback(() => {
@@ -790,29 +772,6 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
           Every SmileScan you start is logged here. Completed scans can be forwarded to a teledentist when
           you&apos;re ready for a virtual consultation.
         </p>
-
-        {/* Refresh registration block — shown if reports may be inaccessible */}
-        <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <button
-            onClick={handleRefreshRegistration}
-            disabled={isRefreshing}
-            style={{
-              padding: '0.375rem 0.75rem',
-              background: isRefreshing ? '#f1f5f9' : '#fff',
-              color: isRefreshing ? '#94a3b8' : '#3b82f6',
-              border: '1px solid #cbd5e1',
-              borderRadius: '8px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              cursor: isRefreshing ? 'default' : 'pointer',
-            }}
-          >
-            {isRefreshing ? 'Refreshing…' : 'Refresh Registration'}
-          </button>
-          {refreshError && (
-            <span style={{ color: '#dc2626', fontSize: '0.75rem' }}>{refreshError}</span>
-          )}
-        </div>
 
         {scanHistory === undefined && <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Loading scan history…</p>}
 
