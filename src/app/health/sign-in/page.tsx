@@ -239,8 +239,12 @@ function SignInForm() {
       } else if (result.status === "needs_first_factor") {
         // Email/phone code required as first factor — find and prepare it
         const supported = result.supportedFirstFactors ?? [];
-        const emailCode = supported.find((f: any) => f.strategy === "email_code");
-        const phoneCode = supported.find((f: any) => f.strategy === "phone_code");
+        type FirstFactor = (typeof supported)[number];
+        type EmailCodeFactor = Extract<FirstFactor, { strategy: "email_code" }>;
+        type PhoneCodeFactor = Extract<FirstFactor, { strategy: "phone_code" }>;
+
+        const emailCode = supported.find((f): f is EmailCodeFactor => f.strategy === "email_code");
+        const phoneCode = supported.find((f): f is PhoneCodeFactor => f.strategy === "phone_code");
         if (emailCode) {
           await signIn.prepareFirstFactor({ strategy: "email_code", emailAddressId: emailCode.emailAddressId });
           setVerificationMethod("email_code");
@@ -277,12 +281,15 @@ function SignInForm() {
     }
     try {
       const isSecondFactor = signIn.status === "needs_second_factor";
-      const attemptFn = isSecondFactor ? signIn.attemptSecondFactor : signIn.attemptFirstFactor;
-      
-      const result = await attemptFn({
-        strategy: verificationMethod,
-        code: verificationCode,
-      });
+      const result = isSecondFactor
+        ? await signIn.attemptSecondFactor({
+            strategy: verificationMethod === "totp" ? "totp" : "phone_code",
+            code: verificationCode,
+          })
+        : await signIn.attemptFirstFactor({
+            strategy: verificationMethod === "email_code" ? "email_code" : "phone_code",
+            code: verificationCode,
+          });
 
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
