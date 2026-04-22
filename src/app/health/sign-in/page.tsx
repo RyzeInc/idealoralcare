@@ -172,6 +172,10 @@ function SignInForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
   const [clerkTimeout, setClerkTimeout] = useState(false);
+  // Verification flow state
+  const [step, setStep] = useState<"credentials" | "verification">("credentials");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationMethod, setVerificationMethod] = useState<"email_code" | "phone_code" | "totp">("email_code");
 
   useEffect(() => {
     if (isLoaded) return;
@@ -208,17 +212,103 @@ function SignInForm() {
       : identifier;
     try {
       const result = await signIn.create({ identifier: id, password });
+      console.log("[sign-in] result.status:", result.status, "supportedFirstFactors:", result.supportedFirstFactors, "supportedSecondFactors:", result.supportedSecondFactors);
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
         router.push(redirectTo);
+      } else if (result.status === "needs_second_factor") {
+        // MFA required — prepare the second factor and show code input
+        const supported = result.supportedSecondFactors ?? [];
+        const totp = supported.find((f: any) => f.strategy === "totp");
+        const phoneCode = supported.find((f: any) => f.strategy === "phone_code");
+        if (totp) {
+          setVerificationMethod("totp");
+          // TOTP doesn't need preparation (user reads from authenticator app)
+          setStep("verification");
+          setVerificationCode("");
+          setError("");
+        } else if (phoneCode) {
+          await signIn.prepareSecondFactor({ strategy: "phone_code" });
+          setVerificationMethod("phone_code");
+          setStep("verification");
+          setVerificationCode("");
+          setError("");
+        } else {
+          setError("Multi-factor verification is required but no supported method was found. Please contact support.");
+        }
+      } else if (result.status === "needs_first_factor") {
+        // Email/phone code required as first factor — find and prepare it
+        const supported = result.supportedFirstFactors ?? [];
+        const emailCode = supported.find((f: any) => f.strategy === "email_code");
+        const phoneCode = supported.find((f: any) => f.strategy === "phone_code");
+        if (emailCode) {
+          await signIn.prepareFirstFactor({ strategy: "email_code", emailAddressId: emailCode.emailAddressId });
+          setVerificationMethod("email_code");
+          setStep("verification");
+          setVerificationCode("");
+          setError("");
+        } else if (phoneCode) {
+          await signIn.prepareFirstFactor({ strategy: "phone_code", phoneNumberId: phoneCode.phoneNumberId });
+          setVerificationMethod("phone_code");
+          setStep("verification");
+          setVerificationCode("");
+          setError("");
+        } else {
+          setError("Verification is required but no supported method was found. Please contact support.");
+        }
       } else {
-        setError("Sign-in requires additional verification. Please try again.");
+        setError("Sign-in failed. Please try again.");
       }
     } catch (err: any) {
       setError(err?.errors?.[0]?.message || "Invalid credentials. Please try again.");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleVerification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
+    if (!isLoaded || !signIn || !setActive || !verificationCode) { 
+      setError("Please enter the verification code."); 
+      setIsLoading(false); 
+      return; 
+    }
+    try {
+      const isSecondFactor = signIn.status === "needs_second_factor";
+      const attemptFn = isSecondFactor ? signIn.attemptSecondFactor : signIn.attemptFirstFactor;
+      
+      const result = await attemptFn({
+        strategy: verificationMethod,
+        code: verificationCode,
+      });
+
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
+        router.push(redirectTo);
+      } else if (result.status === "needs_second_factor") {
+        // Additional verification needed
+        setStep("verification");
+        setVerificationCode("");
+        const factorVerification = result.secondFactorVerification;
+        if (factorVerification?.strategy) {
+          setVerificationMethod(factorVerification.strategy as "email_code" | "phone_code" | "totp");
+        }
+      } else {
+        setError("Verification failed. Please try again.");
+      }
+    } catch (err: any) {
+      setError(err?.errors?.[0]?.message || "Invalid verification code. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBackToCredentials = () => {
+    setStep("credentials");
+    setVerificationCode("");
+    setError("");
   };
 
   const busy = isLoading || !!oauthLoading;
@@ -280,49 +370,55 @@ function SignInForm() {
               </p>
 
               {/* SSO Buttons */}
-              <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem" }}>
-                {[
-                  { label: "Apple",    strategy: "oauth_apple" as const,    icon: <AppleIcon />,    bg: "#000",    color: "#fff",    border: "none" },
-                  { label: "Facebook", strategy: "oauth_facebook" as const, icon: <FacebookIcon />, bg: "#1877F2", color: "#fff",    border: "none" },
-                  { label: "Google",   strategy: "oauth_google" as const,   icon: <GoogleIcon />,   bg: "#fff",   color: "#374151", border: "1px solid #d1d5db" },
-                ].map(({ label, strategy, icon, bg, color, border }) => (
-                  <button
-                    key={strategy}
-                    type="button"
-                    title={`Continue with ${label}`}
-                    onClick={() => handleOAuth(strategy)}
-                    disabled={busy}
-                    style={{ flex: 1, padding: "0.625rem", borderRadius: "10px", background: bg, color, border, cursor: busy ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: oauthLoading && oauthLoading !== strategy ? 0.4 : 1, transition: "opacity 0.2s, transform 0.1s", boxShadow: "0 1px 3px rgba(0,0,0,0.12)" }}
-                    onMouseEnter={(e) => { if (!busy) e.currentTarget.style.transform = "translateY(-1px)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
-                  >
-                    {oauthLoading === strategy ? <Loader size={18} style={{ animation: "spin 1s linear infinite" }} /> : icon}
-                  </button>
-                ))}
-              </div>
-
-              {/* Divider */}
-              <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
-                <div style={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
-                <span style={{ color: "#94a3b8", fontSize: "0.8125rem" }}>or</span>
-                <div style={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
-              </div>
-
-              <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                {/* Identifier */}
-                <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                    <label htmlFor="identifier" style={{ fontWeight: 600, color: "#0f172a", fontSize: "0.95rem" }}>
-                      {mode === "phone" ? "Phone number" : "Email address or username"}
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => { setMode(m => m === "email" ? "phone" : "email"); setIdentifier(""); }}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "#0066CC", fontSize: "0.8125rem", fontWeight: 500, padding: 0 }}
-                    >
-                      {mode === "phone" ? "Use email" : "Use phone"}
-                    </button>
+              {step === "credentials" && (
+                <>
+                  <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem" }}>
+                    {[
+                      { label: "Apple",    strategy: "oauth_apple" as const,    icon: <AppleIcon />,    bg: "#000",    color: "#fff",    border: "none" },
+                      { label: "Facebook", strategy: "oauth_facebook" as const, icon: <FacebookIcon />, bg: "#1877F2", color: "#fff",    border: "none" },
+                      { label: "Google",   strategy: "oauth_google" as const,   icon: <GoogleIcon />,   bg: "#fff",   color: "#374151", border: "1px solid #d1d5db" },
+                    ].map(({ label, strategy, icon, bg, color, border }) => (
+                      <button
+                        key={strategy}
+                        type="button"
+                        title={`Continue with ${label}`}
+                        onClick={() => handleOAuth(strategy)}
+                        disabled={busy}
+                        style={{ flex: 1, padding: "0.625rem", borderRadius: "10px", background: bg, color, border, cursor: busy ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: oauthLoading && oauthLoading !== strategy ? 0.4 : 1, transition: "opacity 0.2s, transform 0.1s", boxShadow: "0 1px 3px rgba(0,0,0,0.12)" }}
+                        onMouseEnter={(e) => { if (!busy) e.currentTarget.style.transform = "translateY(-1px)"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+                      >
+                        {oauthLoading === strategy ? <Loader size={18} style={{ animation: "spin 1s linear infinite" }} /> : icon}
+                      </button>
+                    ))}
                   </div>
+
+                  {/* Divider */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
+                    <div style={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
+                    <span style={{ color: "#94a3b8", fontSize: "0.8125rem" }}>or</span>
+                    <div style={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
+                  </div>
+                </>
+              )}
+
+              <form onSubmit={step === "credentials" ? handleSubmit : handleVerification} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                {step === "credentials" ? (
+                  <>
+                    {/* Identifier */}
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                        <label htmlFor="identifier" style={{ fontWeight: 600, color: "#0f172a", fontSize: "0.95rem" }}>
+                          {mode === "phone" ? "Phone number" : "Email address or username"}
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => { setMode(m => m === "email" ? "phone" : "email"); setIdentifier(""); }}
+                          style={{ background: "none", border: "none", cursor: "pointer", color: "#0066CC", fontSize: "0.8125rem", fontWeight: 500, padding: 0 }}
+                        >
+                          {mode === "phone" ? "Use email" : "Use phone"}
+                        </button>
+                      </div>
                   <div style={{ position: "relative" }}>
                     {mode === "phone"
                       ? <Phone size={18} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b", pointerEvents: "none" }} />
@@ -349,52 +445,97 @@ function SignInForm() {
                 </div>
 
                 {/* Password */}
-                <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                    <label htmlFor="password" style={{ fontWeight: 600, color: "#0f172a", fontSize: "0.95rem" }}>Password</label>
-                    <Link href="/health/forgot-password" style={{ color: "#0066CC", fontSize: "0.8125rem", fontWeight: 500, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "3px" }}>
-                      <KeyRound size={13} /> Forgot password?
-                    </Link>
-                  </div>
-                  <div style={{ position: "relative" }}>
-                    <Lock size={18} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b", pointerEvents: "none" }} />
-                    <input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      disabled={busy}
-                      autoComplete="current-password"
-                      style={{ ...inputBase, padding: "0.75rem 2.75rem" }}
-                      onFocus={focusStyle}
-                      onBlur={blurStyle}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(s => !s)}
-                      style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#64748b", padding: "4px", display: "flex" }}
-                    >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                </div>
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                        <label htmlFor="password" style={{ fontWeight: 600, color: "#0f172a", fontSize: "0.95rem" }}>Password</label>
+                        <Link href="/health/forgot-password" style={{ color: "#0066CC", fontSize: "0.8125rem", fontWeight: 500, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "3px" }}>
+                          <KeyRound size={13} /> Forgot password?
+                        </Link>
+                      </div>
+                      <div style={{ position: "relative" }}>
+                        <Lock size={18} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b", pointerEvents: "none" }} />
+                        <input
+                          id="password"
+                          type={showPassword ? "text" : "password"}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••"
+                          disabled={busy}
+                          autoComplete="current-password"
+                          style={{ ...inputBase, padding: "0.75rem 2.75rem" }}
+                          onFocus={focusStyle}
+                          onBlur={blurStyle}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(s => !s)}
+                          style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#64748b", padding: "4px", display: "flex" }}
+                        >
+                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Verification Code Step */}
+                    <div>
+                      <label htmlFor="verificationCode" style={{ fontWeight: 600, color: "#0f172a", fontSize: "0.95rem", display: "block", marginBottom: "0.5rem" }}>
+                        Verification Code
+                      </label>
+                      <p style={{ color: "#64748b", fontSize: "0.875rem", marginBottom: "1rem" }}>
+                        {verificationMethod === "email_code" && "Enter the code sent to your email"}
+                        {verificationMethod === "phone_code" && "Enter the code sent to your phone"}
+                        {verificationMethod === "totp" && "Enter your authenticator app code"}
+                      </p>
+                      <input
+                        id="verificationCode"
+                        type="text"
+                        value={verificationCode}
+                        onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        placeholder={verificationMethod === "totp" ? "000000" : "000000"}
+                        disabled={busy}
+                        autoComplete="one-time-code"
+                        inputMode="numeric"
+                        maxLength={6}
+                        style={{ ...inputBase, padding: "0.75rem", textAlign: "center", fontSize: "1.5rem", letterSpacing: "0.5rem", fontWeight: 600 }}
+                        onFocus={focusStyle}
+                        onBlur={blurStyle}
+                      />
+                    </div>
+                  </>
+                )}
 
-                {/* Submit */}
+                {/* Submit Button */}
                 <button
                   type="submit"
-                  disabled={busy || !formValid}
-                  style={{ padding: "0.875rem 1.5rem", background: busy || !formValid ? "#cbd5e1" : "#0066CC", color: "#fff", border: "none", borderRadius: "12px", fontWeight: 600, fontSize: "1rem", cursor: busy ? "wait" : "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", marginTop: "0.25rem" }}
-                  onMouseEnter={(e) => { if (!busy && formValid) e.currentTarget.style.background = "#0055AA"; }}
-                  onMouseLeave={(e) => { if (!busy && formValid) e.currentTarget.style.background = "#0066CC"; }}
+                  disabled={busy || (step === "credentials" && !formValid) || (step === "verification" && verificationCode.length < 6)}
+                  style={{ padding: "0.875rem 1.5rem", background: (busy || (step === "credentials" && !formValid) || (step === "verification" && verificationCode.length < 6)) ? "#cbd5e1" : "#0066CC", color: "#fff", border: "none", borderRadius: "12px", fontWeight: 600, fontSize: "1rem", cursor: busy ? "wait" : "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", marginTop: "0.25rem" }}
+                  onMouseEnter={(e) => { if (!busy && ((step === "credentials" && formValid) || (step === "verification" && verificationCode.length === 6))) e.currentTarget.style.background = "#0055AA"; }}
+                  onMouseLeave={(e) => { if (!busy && ((step === "credentials" && formValid) || (step === "verification" && verificationCode.length === 6))) e.currentTarget.style.background = "#0066CC"; }}
                 >
                   {isLoading
-                    ? <><Loader size={18} style={{ animation: "spin 1s linear infinite" }} /> Signing in...</>
+                    ? <><Loader size={18} style={{ animation: "spin 1s linear infinite" }} /> {step === "verification" ? "Verifying..." : "Signing in..."}</>
                     : !isLoaded
                       ? <><Loader size={18} style={{ animation: "spin 1s linear infinite" }} /> Initializing...</>
-                      : "Sign In"
+                      : step === "verification"
+                        ? "Verify Code"
+                        : "Sign In"
                   }
                 </button>
+                
+                {step === "verification" && (
+                  <button
+                    type="button"
+                    onClick={handleBackToCredentials}
+                    disabled={busy}
+                    style={{ padding: "0.875rem 1.5rem", background: "#f0f4f8", color: "#0066CC", border: "1px solid #e2e8f0", borderRadius: "12px", fontWeight: 600, fontSize: "1rem", cursor: "pointer", transition: "all 0.2s" }}
+                    onMouseEnter={(e) => { if (!busy) e.currentTarget.style.background = "#e8f0fe"; }}
+                    onMouseLeave={(e) => { if (!busy) e.currentTarget.style.background = "#f0f4f8"; }}
+                  >
+                    Back to Sign In
+                  </button>
+                )}
               </form>
 
               {/* Sign up link */}

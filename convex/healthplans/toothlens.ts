@@ -148,18 +148,20 @@ export const getScanById = query({
  * This is an internal helper called by getOrCreateToothlensUser.
  */
 async function authenticateRyzeHealth(): Promise<string> {
-  const company = process.env.RYZEHEALTH_COMPANY;
+  // Auth uses the RyzeHealth platform company ("ryzehealth"), NOT the client company.
+  // The client company ("idealhealth") is only used when creating detection users.
+  const authCompany = process.env.RYZEHEALTH_AUTH_COMPANY ?? "ryzehealth";
   const accessKey = process.env.RYZEHEALTH_ACCESS_KEY;
 
-  if (!company || !accessKey) {
-    throw new Error("RyzeHealth credentials not configured (RYZEHEALTH_COMPANY, RYZEHEALTH_ACCESS_KEY)");
+  if (!accessKey) {
+    throw new Error("RyzeHealth credentials not configured (RYZEHEALTH_ACCESS_KEY)");
   }
 
   const response = await fetch(`${TOOTHLENS_API_BASE}/detection-users/auth`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      company,
+      company: authCompany,
       access_key: accessKey,
     }),
   });
