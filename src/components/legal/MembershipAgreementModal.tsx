@@ -121,13 +121,17 @@ export const MembershipAgreementModal: React.FC<MembershipAgreementModalProps> =
               <h3 className="font-semibold mb-2">Plan Details</h3>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
-                  <span className="font-medium">Group Code:</span> {memberData.groupCode}
-                </div>
-                <div>
                   <span className="font-medium">Plan Name:</span> {memberData.planName}
                 </div>
                 <div>
                   <span className="font-medium">Classification:</span> Member Only
+                </div>
+                <div>
+                  <span className="font-medium">Group Code:</span> {memberData.groupCode}
+                </div>
+                <div>
+                  <span className="font-medium">Mode of Payment:</span>{" "}
+                  {memberData.billingInterval === "monthly" ? "Monthly" : "Annually"}
                 </div>
                 <div>
                   <span className="font-medium">Effective Date:</span>{" "}
@@ -136,10 +140,6 @@ export const MembershipAgreementModal: React.FC<MembershipAgreementModalProps> =
                 <div>
                   <span className="font-medium">Periodic Charge:</span>{" "}
                   {memberData.billingInterval === "monthly" ? "$14.99" : "$164.99"}
-                </div>
-                <div>
-                  <span className="font-medium">Mode of Payment:</span>{" "}
-                  {memberData.billingInterval === "monthly" ? "Monthly" : "Annually"}
                 </div>
                 <div>
                   <span className="font-medium">Processing Fee:</span> $0.00
