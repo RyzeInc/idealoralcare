@@ -132,6 +132,27 @@ export const forwardToTeledentist = mutation({
 });
 
 /**
+ * Store a report URL captured from a postMessage event sent by the Toothlens iframe.
+ * Also marks the scan as completed if it is still in "started" state.
+ */
+export const storeReportUrl = mutation({
+  args: {
+    scanId: v.id("toothlensScans"),
+    reportUrl: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const scan = await ctx.db.get(args.scanId);
+    if (!scan) return;
+    await ctx.db.patch(args.scanId, {
+      reportUrl: args.reportUrl,
+      ...(scan.status === "started"
+        ? { status: "completed" as const, completedAt: Date.now() }
+        : {}),
+    });
+  },
+});
+
+/**
  * Get a single scan by ID (for viewing report).
  */
 export const getScanById = query({

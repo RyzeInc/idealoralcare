@@ -21,6 +21,10 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
   const [toothlensUid, setToothlensUid] = useState<string | null>(null);
   const [scanBaseUrl, setScanBaseUrl] = useState<string | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
+  // When viewing a historical scan in the overlay, we store its URL here
+  const [overlayUrl, setOverlayUrl] = useState<string | null>(null);
+  // True when the overlay is resuming an in-progress scan (Done should mark it complete)
+  const [overlayIsResume, setOverlayIsResume] = useState(false);
 
   // Convex queries
   const toothlensUser = useQuery(
@@ -37,6 +41,7 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
   const recordScanStartedMut = useMutation(api.healthplans.toothlens.recordScanStarted);
   const markScanCompletedMut = useMutation(api.healthplans.toothlens.markScanCompleted);
   const forwardToTeledentistMut = useMutation(api.healthplans.toothlens.forwardToTeledentist);
+  const storeReportUrlMut = useMutation(api.healthplans.toothlens.storeReportUrl);
 
   useEffect(() => {
     setIsMounted(true);
@@ -61,6 +66,58 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
       document.documentElement.style.overflow = prevHtml;
     };
   }, [showMobileOverlay]);
+
+  /**
+   * Listen for postMessage events from the Toothlens iframe.
+   * Toothlens may emit events such as:
+   *   { type: 'scan_completed', reportUrl?: string }
+   *   { type: 'report_ready',   reportUrl?: string }
+   *   { type: 'report_downloaded', reportUrl?: string }
+   * We trust only messages originating from selfcheck.toothlens.com.
+   */
+  useEffect(() => {
+    const TOOTHLENS_ORIGIN = 'https://selfcheck.toothlens.com';
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== TOOTHLENS_ORIGIN) return;
+
+      let data: Record<string, unknown>;
+      try {
+        data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+      } catch {
+        return;
+      }
+
+      const type = data?.type as string | undefined;
+      const reportUrl = data?.reportUrl as string | undefined;
+
+      const isCompletionEvent =
+        type === 'scan_completed' ||
+        type === 'report_ready' ||
+        type === 'report_downloaded';
+
+      if (!isCompletionEvent) return;
+
+      // Auto-complete the active scan
+      if (convexScanId) {
+        markScanCompletedMut({ scanId: convexScanId as any, completed: true }).catch(() => {});
+        if (reportUrl) {
+          storeReportUrlMut({ scanId: convexScanId as any, reportUrl }).catch(() => {});
+        }
+      }
+
+      // Close overlays — scan is done or report was captured
+      setScannerActive(false);
+      setSessionId(null);
+      setConvexScanId(null);
+      setShowMobileOverlay(false);
+      setOverlayUrl(null);
+      setOverlayIsResume(false);
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [convexScanId, markScanCompletedMut, storeReportUrlMut]);
 
   /**
    * Ensure the user is registered with Toothlens/RyzeHealth.
@@ -122,6 +179,43 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
     [convexScanId, markScanCompletedMut]
   );
 
+  const buildScanUrl = useCallback((scan: { toothlensUid: string; sessionId: string; scanUrl?: string }) => {
+    // Use the stored full URL if available — it has the correct company from creation time
+    if (scan.scanUrl) return scan.scanUrl;
+
+    // Fallback: use the current session's scanBaseUrl (set by ensureToothlensUser / action)
+    const base = scanBaseUrl || 'https://selfcheck.toothlens.com/ai/idealhealth';
+    return `${base}?uid=${encodeURIComponent(scan.toothlensUid)}&session_id=${encodeURIComponent(scan.sessionId)}`;
+  }, [scanBaseUrl]);
+
+  /**
+   * Open a historical completed scan in the mobile overlay so the postMessage
+   * listener can retroactively capture the reportUrl when Toothlens fires it.
+   */
+  const openReportOverlay = useCallback(
+    (scan: { _id: string; scanUrl?: string; toothlensUid: string; sessionId: string; status?: string }) => {
+      const url = buildScanUrl(scan);
+      setOverlayUrl(url);
+      setConvexScanId(scan._id);
+      setOverlayIsResume(scan.status === 'started');
+      setShowMobileOverlay(true);
+    },
+    [buildScanUrl]
+  );
+
+  const closeReportOverlay = useCallback(
+    (markComplete = false) => {
+      if (markComplete && convexScanId) {
+        markScanCompletedMut({ scanId: convexScanId as any, completed: true }).catch(() => {});
+      }
+      setShowMobileOverlay(false);
+      setOverlayUrl(null);
+      setOverlayIsResume(false);
+      setConvexScanId(null);
+    },
+    [convexScanId, markScanCompletedMut]
+  );
+
   const handleForwardToTeledentist = useCallback(
     async (scanId: string) => {
       setForwardingIds((prev) => new Set(prev).add(scanId));
@@ -141,15 +235,6 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
     },
     [forwardToTeledentistMut, onTabChange]
   );
-
-  const buildScanUrl = useCallback((scan: { toothlensUid: string; sessionId: string; scanUrl?: string }) => {
-    // Use the stored full URL if available — it has the correct company from creation time
-    if (scan.scanUrl) return scan.scanUrl;
-
-    // Fallback: use the current session's scanBaseUrl (set by ensureToothlensUser / action)
-    const base = scanBaseUrl || 'https://selfcheck.toothlens.com/ai/idealhealth';
-    return `${base}?uid=${encodeURIComponent(scan.toothlensUid)}&session_id=${encodeURIComponent(scan.sessionId)}`;
-  }, [scanBaseUrl]);
 
   // Build the scanner iframe URL
   const getScanUrl = useCallback(() => {
@@ -405,11 +490,11 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
                     textOverflow: 'ellipsis',
                   }}
                 >
-                  SmileScan
+                  {overlayUrl ? 'View Report' : 'SmileScan'}
                 </span>
               </div>
               <button
-                onClick={() => setShowMobileOverlay(false)}
+                onClick={() => overlayIsResume || overlayUrl ? closeReportOverlay(false) : setShowMobileOverlay(false)}
                 style={{
                   background: 'rgba(255,255,255,0.1)',
                   border: '1px solid rgba(255,255,255,0.2)',
@@ -429,8 +514,8 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
             {/* Iframe */}
             <div style={{ flex: 1, overflow: 'hidden', position: 'relative', width: '100%' }}>
               <iframe
-                key={sessionId ?? 'mobile-overlay'}
-                src={getScanUrl()}
+                key={overlayUrl ?? sessionId ?? 'mobile-overlay'}
+                src={overlayUrl ?? getScanUrl()}
                 style={{
                   position: 'absolute',
                   top: 0,
@@ -441,7 +526,7 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
                   background: '#fff',
                   display: 'block',
                 }}
-                allow="camera; microphone; accelerometer; gyroscope; clipboard-write"
+                allow="camera; microphone; accelerometer; gyroscope; clipboard-write; downloads; fullscreen"
                 referrerPolicy="origin"
                 title="AI Oral Scanning SmileScan — Mobile"
               />
@@ -460,11 +545,21 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
                 minHeight: '44px',
               }}
             >
-              <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>Finished your scan?</span>
+              <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>
+                {overlayIsResume ? 'Finished your scan?' : overlayUrl ? 'Done viewing your report?' : 'Finished your scan?'}
+              </span>
               <button
                 onClick={() => {
-                  setShowMobileOverlay(false);
-                  closeScan(true);
+                  if (overlayIsResume) {
+                    // Resuming an in-progress scan — mark complete on Done
+                    closeReportOverlay(true);
+                  } else if (overlayUrl) {
+                    // Viewing a completed historical report — just close
+                    closeReportOverlay(false);
+                  } else {
+                    setShowMobileOverlay(false);
+                    closeScan(true);
+                  }
                 }}
                 style={{
                   background: 'linear-gradient(135deg, #16a34a, #15803d)',
@@ -478,7 +573,7 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
                   flexShrink: 0,
                 }}
               >
-                Done
+                {overlayIsResume ? 'Done' : overlayUrl ? 'Close' : 'Done'}
               </button>
             </div>
           </div>,
@@ -858,7 +953,7 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
                     </span>
                     {scan.status === 'completed' && (
                       <button
-                        onClick={() => window.open(buildScanUrl(scan), '_blank', 'noopener,noreferrer')}
+                        onClick={() => openReportOverlay(scan as any)}
                         style={{
                           padding: '0.5rem 0.875rem',
                           background: '#3b82f6',
@@ -872,6 +967,47 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
                       >
                         View Report
                       </button>
+                    )}
+                    {scan.status === 'started' && (
+                      <button
+                        onClick={() => openReportOverlay(scan as any)}
+                        style={{
+                          padding: '0.5rem 0.875rem',
+                          background: '#f59e0b',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Resume Scan
+                      </button>
+                    )}
+                    {scan.status === 'completed' && scan.reportUrl && (
+                      <a
+                        href={scan.reportUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download
+                        style={{
+                          padding: '0.5rem 0.875rem',
+                          background: '#0f172a',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          textDecoration: 'none',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                        }}
+                      >
+                        ↓ Download PDF
+                      </a>
                     )}
                     {scan.status === 'completed' && !scan.forwardedToTeledentist && (
                       <button
