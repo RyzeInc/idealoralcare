@@ -220,7 +220,7 @@ export default function HealthLanding() {
             </div>
             <div className="accordion">
               <h4>What if I have a dental emergency?</h4>
-              <div>Call or message through the app any time — 24/7. You&apos;ll be connected with a licensed dentist who can assess your situation, provide pain management guidance, write a prescription if needed, and refer you to an in-person provider. You don&apos;t have to wait until Monday morning.</div>
+              <div>Use Dialcare Teledensistry - 24/7. You&apos;ll be connected with a licensed dentist who can assess your situation, provide pain management guidance, write a prescription if needed, and refer you to an in-person provider. You don&apos;t have to wait until Monday morning.</div>
             </div>
             <div className="accordion">
               <h4>How much can I actually save on dental procedures?</h4>

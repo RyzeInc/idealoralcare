@@ -143,6 +143,10 @@ export const MembershipAgreementModal: React.FC<MembershipAgreementModalProps> =
                 and deny access to individuals who do not abide by the Terms and Conditions. 
               </p>
 
+              <p>
+                To add a family member to your plan or change mode of payment, contact Ideal Oral Health at support@getidealoh.com. For assistance using your plan, please call Member Services at 1-855-335-2255.
+              </p>
+
               <h3 className="font-semibold">Purchase and Renewal Conditions</h3>
               <p>
                 By joining a plan, for yourself or on behalf of a minor child for whom you are a parent or legal guardian, 
@@ -150,7 +154,7 @@ export const MembershipAgreementModal: React.FC<MembershipAgreementModalProps> =
                 By joining, you indicate you have read and agree to the terms and conditions of the plan. 
               </p>
               <p>
-                This charge will automatically renew at the end of your membership term, and your credit card or checking account will be automatically charged for the appropriate amount, until you notify Ideal Health that you wish to cancel the plan.
+                <em>This charge will automatically renew at the end of your membership term, and your credit card or checking account will be automatically charged for the appropriate amount, until you notify Ideal Health that you wish to cancel the plan.</em>
               </p>
 
               <h3 className="font-semibold">Termination Conditions</h3>

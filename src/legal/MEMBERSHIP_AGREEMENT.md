@@ -35,13 +35,15 @@
 
 The Terms and Conditions you have accepted or will accept upon registering at www.dialcare.com are part of this membership agreement (Agreement) between you and DialCare, LLC ("DialCare"). DialCare provides administrative services to DialCare clinicians and does not provide professional medical services.
 
+To add a family member to your plan or change mode of payment, contact Ideal Oral Health at support@getidealoh.com. For assistance using your plan, please call Member Services at 1-855-335-2255.
+
 ### Purchase Agreement
 
 By enrolling in this Ideal Oral Health plan, for yourself or on behalf of a minor child for whom you are a parent or legal guardian, you confirm that you are at least 18 years old and you authorize Ideal Oral Health to charge your credit card or checking account for the plan you have selected. By enrolling, you indicate you have read and agree to the terms and conditions of the plan.
 
 **Payment Term:** Members on a monthly plan are billed on a recurring monthly basis. Members on an annual plan are billed once per year for the full membership term. All plan benefits — including AI Dental Scan, Teledentistry, and Dental Savings Network — are included under both payment terms.
 
-This charge will automatically renew at the end of your membership term, and your credit card or checking account will be automatically charged for the appropriate amount, until you notify Ideal Oral Health that you wish to cancel the plan.
+*This charge will automatically renew at the end of your membership term, and your credit card or checking account will be automatically charged for the appropriate amount, until you notify Ideal Oral Health that you wish to cancel the plan.*
 
 ### Cancellation Policy
 

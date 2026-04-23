@@ -592,6 +592,10 @@ function MembershipAgreementPage({ data }: { data: FulfillmentPacketData }) {
         The Terms and Conditions you have accepted or will accept upon registering at www.dialcare.com, are part of this membership agreement (Agreement) between you and DialCare, LLC (&quot;DialCare&quot;). DialCare provides administrative services to DialCare clinicians and does not provide professional medical services. The Terms and Conditions define the obligations of DialCare, its authorized agents and yourself, and they establish the basic rules of safe and fair use of DialCare&apos;s public website, member website, and services (Services). DialCare and its authorized agents reserve the right to immediately and without advance notice terminate the Services and deny access to individuals who do not abide by the Terms and Conditions.
       </Text>
 
+      <Text style={s.bodySmall}>
+        To add a family member to your plan or change mode of payment, contact Ideal Oral Health at support@getidealoh.com. For assistance using your plan, please call Member Services at 1-855-335-2255.
+      </Text>
+
       {/* Purchase and Renewal Conditions */}
       <SectionHeadingGreen text="Purchase and Renewal Conditions" />
       <Text style={s.bodySmall}>
@@ -600,7 +604,7 @@ function MembershipAgreementPage({ data }: { data: FulfillmentPacketData }) {
       <Text style={s.bodySmall}>
         Payment Term: Members on a monthly plan are billed on a recurring monthly basis. Members on an annual plan are billed once per year for the full membership term. All plan benefits — including AI Dental Scan, Teledentistry, and Dental Savings Network — are included under both payment terms.
       </Text>
-      <Text style={s.bodySmall}>
+      <Text style={{ ...s.bodySmall, fontStyle: 'italic' }}>
         This charge will automatically renew at the end of your membership term, and your credit card or checking account will be automatically charged for the appropriate amount, until you notify Ideal Health that you wish to cancel the plan.
       </Text>
 

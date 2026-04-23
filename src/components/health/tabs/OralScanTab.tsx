@@ -13,32 +13,33 @@ interface OralScanTabProps {
 
 export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
   const [scannerActive, setScannerActive] = useState(false);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  // Full scanner URL for the active scan, returned by startScan (server-built)
+  const [activeScanUrl, setActiveScanUrl] = useState<string | null>(null);
   const [convexScanId, setConvexScanId] = useState<string | null>(null);
   const [forwardingIds, setForwardingIds] = useState<Set<string>>(new Set());
   const [showMobileOverlay, setShowMobileOverlay] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const [toothlensUid, setToothlensUid] = useState<string | null>(null);
-  const [scanBaseUrl, setScanBaseUrl] = useState<string | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isStartingScan, setIsStartingScan] = useState(false);
   // When viewing a historical scan in the overlay, we store its URL here
   const [overlayUrl, setOverlayUrl] = useState<string | null>(null);
   // True when the overlay is resuming an in-progress scan (Done should mark it complete)
   const [overlayIsResume, setOverlayIsResume] = useState(false);
 
-  // Convex queries
+  // Convex queries — server derives the caller from auth; gate on userId to
+  // avoid firing until Clerk is ready.
   const toothlensUser = useQuery(
     api.healthplans.toothlens.getToothlensUser,
-    userId ? { clerkUserId: userId } : "skip"
+    userId ? {} : "skip"
   );
   const scanHistory = useQuery(
     api.healthplans.toothlens.getScanHistory,
-    userId ? { clerkUserId: userId } : "skip"
+    userId ? {} : "skip"
   ) ?? [];
 
   // Convex mutations & actions
   const getOrCreateUser = useAction(api.healthplans.toothlens.getOrCreateToothlensUser);
-  const recordScanStartedMut = useMutation(api.healthplans.toothlens.recordScanStarted);
+  const startScanMut = useMutation(api.healthplans.toothlens.startScan);
   const markScanCompletedMut = useMutation(api.healthplans.toothlens.markScanCompleted);
   const forwardToTeledentistMut = useMutation(api.healthplans.toothlens.forwardToTeledentist);
   const storeReportUrlMut = useMutation(api.healthplans.toothlens.storeReportUrl);
@@ -46,13 +47,6 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
   useEffect(() => {
     setIsMounted(true);
   }, []);
-
-  // Sync existing Toothlens user from DB
-  useEffect(() => {
-    if (toothlensUser) {
-      setToothlensUid(toothlensUser.toothlensUid);
-    }
-  }, [toothlensUser]);
 
   // Lock body scroll when mobile overlay is open
   useEffect(() => {
@@ -108,7 +102,7 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
 
       // Close overlays — scan is done or report was captured
       setScannerActive(false);
-      setSessionId(null);
+      setActiveScanUrl(null);
       setConvexScanId(null);
       setShowMobileOverlay(false);
       setOverlayUrl(null);
@@ -120,73 +114,77 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
   }, [convexScanId, markScanCompletedMut, storeReportUrlMut]);
 
   /**
-   * Ensure the user is registered with Toothlens/RyzeHealth.
-   * Returns the UID and base URL for the scanner.
+   * Ensure the user is registered with Toothlens. Safe to call multiple times —
+   * the server returns the existing record when already registered.
    */
-  const ensureToothlensUser = useCallback(async (): Promise<{ uid: string; scanBaseUrl: string }> => {
-    // Already cached in state (only valid after a successful action call this session)
-    if (toothlensUid && scanBaseUrl) {
-      return { uid: toothlensUid, scanBaseUrl };
-    }
-    // Already in DB — build scan URL from stored company
-    if (toothlensUser) {
-      const url = `https://selfcheck.toothlens.com/ai/${toothlensUser.company}`;
-      setScanBaseUrl(url);
-      setToothlensUid(toothlensUser.toothlensUid);
-      return { uid: toothlensUser.toothlensUid, scanBaseUrl: url };
-    }
-    // Not registered yet — call the action to register with the API.
+  const ensureToothlensUser = useCallback(async (): Promise<void> => {
+    if (toothlensUser) return; // already registered
     setIsRegistering(true);
     try {
-      const result = await getOrCreateUser({});
-      setToothlensUid(result.uid);
-      setScanBaseUrl(result.scanBaseUrl);
-      return result;
+      await getOrCreateUser({});
     } finally {
       setIsRegistering(false);
     }
-  }, [toothlensUid, scanBaseUrl, toothlensUser, getOrCreateUser]);
+  }, [toothlensUser, getOrCreateUser]);
 
   const openScan = useCallback(async () => {
-    if (!userId) return;
+    if (!userId || isStartingScan) return;
+    setIsStartingScan(true);
     try {
-      const { uid, scanBaseUrl: baseUrl } = await ensureToothlensUser();
-      const newSessionId = crypto.randomUUID().replace(/-/g, '').slice(0, 20);
-      setSessionId(newSessionId);
+      await ensureToothlensUser();
+      // Server creates the scan row and returns the authoritative URL.
+      // Only enable the iframe/QR after the DB row exists (no race).
+      const result = await startScanMut({});
+      setConvexScanId(result.scanId);
+      setActiveScanUrl(result.scanUrl);
       setScannerActive(true);
-
-      const scanId = await recordScanStartedMut({
-        clerkUserId: userId,
-        toothlensUid: uid,
-        sessionId: newSessionId,
-        scanUrl: `${baseUrl}?uid=${encodeURIComponent(uid)}&session_id=${encodeURIComponent(newSessionId)}`,
-      });
-      setConvexScanId(scanId);
     } catch (err) {
       console.error('[OralScan] Failed to start scan:', err);
+    } finally {
+      setIsStartingScan(false);
     }
-  }, [userId, ensureToothlensUser, recordScanStartedMut]);
+  }, [userId, isStartingScan, ensureToothlensUser, startScanMut]);
 
-  const closeScan = useCallback(
-    (completed = false) => {
-      if (convexScanId) {
-        markScanCompletedMut({ scanId: convexScanId as any, completed }).catch(() => {});
+  /**
+   * Minimize the inline scanner UI without touching the scan record. The user
+   * may still be scanning on their phone — we only update status when they
+   * explicitly mark complete or the iframe signals completion.
+   */
+  const minimizeScan = useCallback(() => {
+    setScannerActive(false);
+    setActiveScanUrl(null);
+    setConvexScanId(null);
+  }, []);
+
+  /** Mark the active scan complete and close the UI. */
+  const completeScan = useCallback(() => {
+    if (convexScanId) {
+      markScanCompletedMut({ scanId: convexScanId as any, completed: true }).catch(() => {});
+    }
+    setScannerActive(false);
+    setActiveScanUrl(null);
+    setConvexScanId(null);
+  }, [convexScanId, markScanCompletedMut]);
+
+  /**
+   * Build a scanner URL for a historical scan. Historical rows always persist
+   * `scanUrl` so we never have to guess the company.
+   */
+  const buildScanUrl = useCallback(
+    (scan: { scanUrl?: string; toothlensUid: string; sessionId: string }): string | null => {
+      if (scan.scanUrl) return scan.scanUrl;
+      // Legacy rows without scanUrl — fall back to the caller's stored company.
+      if (toothlensUser?.company) {
+        return (
+          `https://selfcheck.toothlens.com/ai/${toothlensUser.company}` +
+          `?uid=${encodeURIComponent(scan.toothlensUid)}` +
+          `&session_id=${encodeURIComponent(scan.sessionId)}`
+        );
       }
-      setScannerActive(false);
-      setSessionId(null);
-      setConvexScanId(null);
+      return null;
     },
-    [convexScanId, markScanCompletedMut]
+    [toothlensUser]
   );
-
-  const buildScanUrl = useCallback((scan: { toothlensUid: string; sessionId: string; scanUrl?: string }) => {
-    // Use the stored full URL if available — it has the correct company from creation time
-    if (scan.scanUrl) return scan.scanUrl;
-
-    // Fallback: use the current session's scanBaseUrl (set by ensureToothlensUser / action)
-    const base = scanBaseUrl || 'https://selfcheck.toothlens.com/ai/idealhealth';
-    return `${base}?uid=${encodeURIComponent(scan.toothlensUid)}&session_id=${encodeURIComponent(scan.sessionId)}`;
-  }, [scanBaseUrl]);
 
   /**
    * Open a historical completed scan in the mobile overlay so the postMessage
@@ -195,6 +193,7 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
   const openReportOverlay = useCallback(
     (scan: { _id: string; scanUrl?: string; toothlensUid: string; sessionId: string; status?: string }) => {
       const url = buildScanUrl(scan);
+      if (!url) return;
       setOverlayUrl(url);
       setConvexScanId(scan._id);
       setOverlayIsResume(scan.status === 'started');
@@ -236,12 +235,8 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
     [forwardToTeledentistMut, onTabChange]
   );
 
-  // Build the scanner iframe URL
-  const getScanUrl = useCallback(() => {
-    if (!toothlensUid || !sessionId) return '';
-    const base = scanBaseUrl || 'https://selfcheck.toothlens.com/ai/idealhealth';
-    return `${base}?uid=${encodeURIComponent(toothlensUid)}&session_id=${encodeURIComponent(sessionId)}`;
-  }, [toothlensUid, sessionId, scanBaseUrl]);
+  // URL for the scanner iframe / QR code — always set server-side.
+  const getScanUrl = useCallback(() => activeScanUrl ?? '', [activeScanUrl]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -284,7 +279,7 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
               </div>
             </div>
             <button
-              onClick={() => closeScan(false)}
+              onClick={minimizeScan}
               style={{
                 background: '#f1f5f9',
                 border: '1px solid #e2e8f0',
@@ -424,7 +419,7 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
               </p>
             </div>
             <button
-              onClick={() => closeScan(true)}
+              onClick={completeScan}
               style={{
                 background: 'linear-gradient(135deg, #2ECC71, #27AE60)',
                 color: '#fff',
@@ -514,7 +509,7 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
             {/* Iframe */}
             <div style={{ flex: 1, overflow: 'hidden', position: 'relative', width: '100%' }}>
               <iframe
-                key={overlayUrl ?? sessionId ?? 'mobile-overlay'}
+                key={overlayUrl ?? activeScanUrl ?? 'mobile-overlay'}
                 src={overlayUrl ?? getScanUrl()}
                 style={{
                   position: 'absolute',
@@ -558,7 +553,7 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
                     closeReportOverlay(false);
                   } else {
                     setShowMobileOverlay(false);
-                    closeScan(true);
+                    completeScan();
                   }
                 }}
                 style={{
@@ -635,24 +630,24 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
             </p>
             <button
               onClick={openScan}
-              disabled={isRegistering}
+              disabled={isRegistering || isStartingScan}
               className="button"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '0.5rem',
-                background: isRegistering ? '#94a3b8' : '#2ECC71',
+                background: (isRegistering || isStartingScan) ? '#94a3b8' : '#2ECC71',
                 color: '#fff',
                 padding: '0.75rem 1.5rem',
                 borderRadius: '10px',
                 border: 'none',
                 fontWeight: 700,
                 fontSize: '0.9375rem',
-                cursor: isRegistering ? 'default' : 'pointer',
+                cursor: (isRegistering || isStartingScan) ? 'default' : 'pointer',
               }}
             >
               <Scan size={18} />
-              {isRegistering ? 'Setting up…' : 'Start Free SmileScan'}
+              {isRegistering ? 'Setting up…' : isStartingScan ? 'Starting…' : 'Start Free SmileScan'}
             </button>
           </div>
 
@@ -834,18 +829,18 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
             </p>
             <button
               onClick={openScan}
-              disabled={isRegistering}
+              disabled={isRegistering || isStartingScan}
               className="button button--primary"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '0.5rem',
                 border: 'none',
-                cursor: isRegistering ? 'default' : 'pointer',
+                cursor: (isRegistering || isStartingScan) ? 'default' : 'pointer',
               }}
             >
               <Scan size={18} />
-              {isRegistering ? 'Setting up…' : 'Start SmileScan'}
+              {isRegistering ? 'Setting up…' : isStartingScan ? 'Starting…' : 'Start SmileScan'}
             </button>
           </div>
         </>

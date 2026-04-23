@@ -1428,6 +1428,15 @@ export default defineSchema({
     .index("by_session", ["sessionId"])
     .index("by_uid", ["toothlensUid"]),
 
+  // Cached RyzeHealth JWT tokens — reuse until expiry per spec
+  // (§2 Authentication: "Reuse the token until it expires")
+  ryzehealthTokenCache: defineTable({
+    authCompany: v.string(),                // e.g. "ryzehealth"
+    token: v.string(),                      // JWT
+    expiresAt: v.number(),                  // ms epoch — token TTL (conservative)
+    updatedAt: v.number(),
+  }).index("by_auth_company", ["authCompany"]),
+
   // ============================================
   // MEMBERSHIP AGREEMENTS & LEGAL DOCUMENTS
   // ============================================
