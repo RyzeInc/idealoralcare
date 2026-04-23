@@ -617,6 +617,7 @@ function CheckoutContent() {
           planName: cart.items[0]?.product?.name || "Ideal Oral Health Plan",
           groupCode: "IDEALDO",
           effectiveDate: new Date().toISOString().split('T')[0],
+          billingInterval: cart.cadence,
         }}
       />
       

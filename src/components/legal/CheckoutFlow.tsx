@@ -12,6 +12,7 @@ interface CheckoutFlowProps {
     planName: string;
     groupCode: string;
     effectiveDate: string;
+    billingInterval?: "monthly" | "annual";
   };
   onCheckoutComplete: (agreementData: {
     membershipTermsSigned: boolean;
