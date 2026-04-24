@@ -331,6 +331,17 @@ function toothlensName(base: string | undefined, identityKey: string): string {
   return `${safeBase} (${suffix})`;
 }
 
+function toothlensRepairName(base: string | undefined): string {
+  const safeBase = (base?.trim() || "Member").slice(0, 72);
+  const repairSuffix = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+  return `${safeBase} [repair-${repairSuffix}]`;
+}
+
+function isToothlensConflictError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.includes("(409)");
+}
+
 async function createDetectionUserRaw(
   token: string,
   payload: CreateUserPayload,
@@ -380,6 +391,31 @@ async function createDetectionUser(
   return { uid: result.uid };
 }
 
+async function provisionDetectionUser(
+  ctx: ActionCtx,
+  payload: CreateUserPayload,
+): Promise<{ uid: string; resolvedName?: string }> {
+  try {
+    const created = await createDetectionUser(ctx, payload);
+    return { uid: created.uid, resolvedName: payload.name };
+  } catch (err) {
+    if (!payload.name || !isToothlensConflictError(err)) {
+      throw err;
+    }
+
+    // Toothlens does not expose a lookup API that lets us recover the upstream
+    // UID from a name conflict. Provision a replacement user with a unique name
+    // so local state always points at a confirmed, current-company UID.
+    const repairedName = toothlensRepairName(payload.name);
+    const created = await createDetectionUser(ctx, {
+      ...payload,
+      uid: undefined,
+      name: repairedName,
+    });
+    return { uid: created.uid, resolvedName: repairedName };
+  }
+}
+
 // ─── Internal: user-record helpers ───────────────────────────────────────
 
 export const getToothlensUserInternal = internalQuery({
@@ -419,12 +455,16 @@ export const updateToothlensUserUid = internalMutation({
     id: v.id("toothlensUsers"),
     toothlensUid: v.string(),
     company: v.optional(v.string()),
+    name: v.optional(v.string()),
+    email: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const patch: Partial<Doc<"toothlensUsers">> = {
       toothlensUid: args.toothlensUid,
     };
     if (args.company) patch.company = args.company;
+    if (args.name !== undefined) patch.name = args.name;
+    if (args.email !== undefined) patch.email = args.email;
     await ctx.db.patch(args.id, patch);
   },
 });
@@ -454,6 +494,7 @@ export const getOrCreateToothlensUser = action({
     state: v.optional(v.string()),
     country: v.optional(v.string()),
     zipCode: v.optional(v.string()),
+    forceReprovision: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<{ uid: string; scanBaseUrl: string }> => {
     const identity = await requireAuthAction(ctx);
@@ -464,7 +505,7 @@ export const getOrCreateToothlensUser = action({
       { clerkUserId: identity.clerkUserId },
     )) as Doc<"toothlensUsers"> | null;
 
-    if (existing && existing.company === company) {
+    if (existing && existing.company === company && !args.forceReprovision) {
       return {
         uid: existing.toothlensUid,
         scanBaseUrl: `${SELFCHECK_BASE}/${company}`,
@@ -480,51 +521,35 @@ export const getOrCreateToothlensUser = action({
     // Disambiguate per-member to avoid Toothlens 409 "name already exists".
     const resolvedName = toothlensName(resolvedBaseName, identity.clerkUserId);
 
-    // If we already have a Toothlens uid (from a previous company), reuse it
-    // when re-registering under the new company. This makes re-registration
-    // idempotent on the Toothlens side as well.
-    const reuseUid = existing?.toothlensUid;
-
-    let uid: string;
-    try {
-      const created = await createDetectionUser(ctx, {
-        company,
-        uid: reuseUid,
-        name: resolvedName,
-        email: resolvedEmail,
-        age: args.age,
-        gender: args.gender,
-        phone_number: args.phone,
-        city: args.city,
-        state: args.state,
-        country: args.country,
-        zip_code: args.zipCode,
-      });
-      uid = created.uid;
-    } catch (err) {
-      // 409 means Toothlens already has this user (a prior call succeeded
-      // upstream but never persisted locally, or the deterministic name was
-      // already created). Treat as success and reuse the uid we sent.
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("(409)") && reuseUid) {
-        uid = reuseUid;
-      } else {
-        throw err;
-      }
-    }
+    const provisioned = await provisionDetectionUser(ctx, {
+      company,
+      name: resolvedName,
+      email: resolvedEmail,
+      age: args.age,
+      gender: args.gender,
+      phone_number: args.phone,
+      city: args.city,
+      state: args.state,
+      country: args.country,
+      zip_code: args.zipCode,
+    });
+    const uid = provisioned.uid;
+    const storedName = provisioned.resolvedName ?? resolvedName;
 
     if (existing) {
       await ctx.runMutation(internal.healthplans.toothlens.updateToothlensUserUid, {
         id: existing._id,
         toothlensUid: uid,
         company,
+        name: storedName,
+        email: resolvedEmail,
       });
     } else {
       await ctx.runMutation(internal.healthplans.toothlens.saveToothlensUser, {
         clerkUserId: identity.clerkUserId,
         toothlensUid: uid,
         company,
-        name: resolvedName,
+        name: storedName,
         email: resolvedEmail,
       });
     }
@@ -533,15 +558,34 @@ export const getOrCreateToothlensUser = action({
   },
 });
 
+async function reprovisionStoredUserUnderCurrentCompany(
+  ctx: ActionCtx,
+  user: Pick<Doc<"toothlensUsers">, "_id" | "clerkUserId" | "name" | "email">,
+  company: string,
+): Promise<void> {
+  const desiredName = toothlensName(user.name, user.clerkUserId);
+  const provisioned = await provisionDetectionUser(ctx, {
+    company,
+    name: desiredName,
+    email: user.email,
+  });
+
+  await ctx.runMutation(internal.healthplans.toothlens.updateToothlensUserUid, {
+    id: user._id,
+    toothlensUid: provisioned.uid,
+    company,
+    name: provisioned.resolvedName ?? desiredName,
+    email: user.email,
+  });
+}
+
 // ─── Admin: Bulk Migration ───────────────────────────────────────────────
 
 /**
  * Admin-only: Re-register all existing Toothlens users under the current
- * RYZEHEALTH_COMPANY. Idempotent — we re-POST the existing UID so the same
- * identifier carries across companies (the spec's "don't send duplicate UIDs"
- * rule is per-company; this is a different company), and we tolerate 409
- * responses, which mean the user was already provisioned upstream by a
- * previous migration attempt.
+ * RYZEHEALTH_COMPANY. We intentionally provision a fresh UID for the target
+ * company instead of reusing the previous company's UID; the API docs only
+ * guarantee UID reuse for the same member within the same company.
  */
 export const migrateAllUsers = action({
   args: {},
@@ -583,37 +627,8 @@ export const migrateAllUsers = action({
         continue;
       }
 
-      // Pass the existing uid so we keep the same identifier across
-      // companies (idempotent re-runs). Disambiguate the name to avoid
-      // Toothlens' per-company name-uniqueness 409.
-      const desiredName = toothlensName(user.name, user.clerkUserId);
-
       try {
-        let resolvedUid: string;
-        try {
-          const created = await createDetectionUser(ctx, {
-            company,
-            uid: user.toothlensUid,
-            name: desiredName,
-            email: user.email,
-          });
-          resolvedUid = created.uid;
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          // 409 = already registered upstream (likely from a prior partial
-          // migration). Reuse the uid we sent and just sync local state.
-          if (msg.includes("(409)")) {
-            resolvedUid = user.toothlensUid;
-          } else {
-            throw err;
-          }
-        }
-
-        await ctx.runMutation(internal.healthplans.toothlens.updateToothlensUserUid, {
-          id: user._id,
-          toothlensUid: resolvedUid,
-          company,
-        });
+        await reprovisionStoredUserUnderCurrentCompany(ctx, user, company);
 
         migrated++;
       } catch (err) {
@@ -625,5 +640,77 @@ export const migrateAllUsers = action({
     }
 
     return { migrated, skipped, failed };
+  },
+});
+
+/**
+ * Admin-only: Re-provision fresh current-company UIDs for existing records.
+ * This is a one-time repair path for rows that were marked migrated locally
+ * while still pointing at an invalid upstream UID.
+ */
+export const repairCurrentCompanyUsers = action({
+  args: { clerkUserId: v.optional(v.string()) },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    repaired: number;
+    skipped: number;
+    failed: { clerkUserId: string; error: string }[];
+    error?: string;
+  }> => {
+    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+
+    const company = process.env.RYZEHEALTH_COMPANY;
+    const accessKey = process.env.RYZEHEALTH_ACCESS_KEY;
+    if (!company) {
+      return { repaired: 0, skipped: 0, failed: [], error: "RYZEHEALTH_COMPANY env var not set" };
+    }
+    if (!accessKey) {
+      return { repaired: 0, skipped: 0, failed: [], error: "RYZEHEALTH_ACCESS_KEY env var not set" };
+    }
+
+    const allUsers = (await ctx.runQuery(
+      internal.healthplans.toothlens.listAllToothlensUsers,
+      {},
+    )) as Doc<"toothlensUsers">[];
+
+    const selectedUsers = args.clerkUserId
+      ? allUsers.filter((user) => user.clerkUserId === args.clerkUserId)
+      : allUsers;
+
+    if (selectedUsers.length === 0) {
+      return {
+        repaired: 0,
+        skipped: 0,
+        failed: [],
+        error: args.clerkUserId
+          ? `No toothlensUsers record found for ${args.clerkUserId}`
+          : "No toothlensUsers records found",
+      };
+    }
+
+    let repaired = 0;
+    let skipped = 0;
+    const failed: { clerkUserId: string; error: string }[] = [];
+
+    for (const user of selectedUsers) {
+      if (!args.clerkUserId && user.company !== company) {
+        skipped++;
+        continue;
+      }
+
+      try {
+        await reprovisionStoredUserUnderCurrentCompany(ctx, user, company);
+        repaired++;
+      } catch (err) {
+        failed.push({
+          clerkUserId: user.clerkUserId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    return { repaired, skipped, failed };
   },
 });
