@@ -547,7 +547,7 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
                   display: 'block',
                 }}
                 allow="camera; microphone; accelerometer; gyroscope; clipboard-write; downloads; fullscreen"
-                referrerPolicy="origin"
+                referrerPolicy="origin-when-cross-origin"
                 title="AI Oral Scanning SmileScan — Mobile"
               />
             </div>
