@@ -318,6 +318,19 @@ type CreateUserPayload = {
   zip_code?: string;
 };
 
+/**
+ * Toothlens enforces *name uniqueness per company* (POST /detection-users
+ * returns 409 "User with this name already exists for this company" otherwise).
+ * To make registration deterministic and idempotent, we append a short stable
+ * suffix derived from the Clerk user id. The suffix is what guarantees
+ * uniqueness; the human-readable name is preserved for the Toothlens dashboard.
+ */
+function toothlensName(base: string | undefined, identityKey: string): string {
+  const safeBase = (base?.trim() || "Member").slice(0, 80);
+  const suffix = identityKey.replace(/[^a-zA-Z0-9]/g, "").slice(-8) || "member";
+  return `${safeBase} (${suffix})`;
+}
+
 async function createDetectionUserRaw(
   token: string,
   payload: CreateUserPayload,
@@ -459,24 +472,46 @@ export const getOrCreateToothlensUser = action({
     }
 
     const resolvedEmail = args.email ?? identity.email;
-    const resolvedName =
+    const resolvedBaseName =
       args.name ??
       identity.name ??
       (resolvedEmail ? resolvedEmail.split("@")[0] : undefined) ??
       "Member";
+    // Disambiguate per-member to avoid Toothlens 409 "name already exists".
+    const resolvedName = toothlensName(resolvedBaseName, identity.clerkUserId);
 
-    const { uid } = await createDetectionUser(ctx, {
-      company,
-      name: resolvedName,
-      email: resolvedEmail,
-      age: args.age,
-      gender: args.gender,
-      phone_number: args.phone,
-      city: args.city,
-      state: args.state,
-      country: args.country,
-      zip_code: args.zipCode,
-    });
+    // If we already have a Toothlens uid (from a previous company), reuse it
+    // when re-registering under the new company. This makes re-registration
+    // idempotent on the Toothlens side as well.
+    const reuseUid = existing?.toothlensUid;
+
+    let uid: string;
+    try {
+      const created = await createDetectionUser(ctx, {
+        company,
+        uid: reuseUid,
+        name: resolvedName,
+        email: resolvedEmail,
+        age: args.age,
+        gender: args.gender,
+        phone_number: args.phone,
+        city: args.city,
+        state: args.state,
+        country: args.country,
+        zip_code: args.zipCode,
+      });
+      uid = created.uid;
+    } catch (err) {
+      // 409 means Toothlens already has this user (a prior call succeeded
+      // upstream but never persisted locally, or the deterministic name was
+      // already created). Treat as success and reuse the uid we sent.
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("(409)") && reuseUid) {
+        uid = reuseUid;
+      } else {
+        throw err;
+      }
+    }
 
     if (existing) {
       await ctx.runMutation(internal.healthplans.toothlens.updateToothlensUserUid, {
@@ -502,8 +537,11 @@ export const getOrCreateToothlensUser = action({
 
 /**
  * Admin-only: Re-register all existing Toothlens users under the current
- * RYZEHEALTH_COMPANY. Each user gets a fresh UID — we never re-POST an
- * existing UID (spec §3: "Bad Practices — Sending duplicate UID values").
+ * RYZEHEALTH_COMPANY. Idempotent — we re-POST the existing UID so the same
+ * identifier carries across companies (the spec's "don't send duplicate UIDs"
+ * rule is per-company; this is a different company), and we tolerate 409
+ * responses, which mean the user was already provisioned upstream by a
+ * previous migration attempt.
  */
 export const migrateAllUsers = action({
   args: {},
@@ -545,16 +583,35 @@ export const migrateAllUsers = action({
         continue;
       }
 
+      // Pass the existing uid so we keep the same identifier across
+      // companies (idempotent re-runs). Disambiguate the name to avoid
+      // Toothlens' per-company name-uniqueness 409.
+      const desiredName = toothlensName(user.name, user.clerkUserId);
+
       try {
-        const { uid } = await createDetectionUser(ctx, {
-          company,
-          name: user.name ?? "Member",
-          email: user.email,
-        });
+        let resolvedUid: string;
+        try {
+          const created = await createDetectionUser(ctx, {
+            company,
+            uid: user.toothlensUid,
+            name: desiredName,
+            email: user.email,
+          });
+          resolvedUid = created.uid;
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          // 409 = already registered upstream (likely from a prior partial
+          // migration). Reuse the uid we sent and just sync local state.
+          if (msg.includes("(409)")) {
+            resolvedUid = user.toothlensUid;
+          } else {
+            throw err;
+          }
+        }
 
         await ctx.runMutation(internal.healthplans.toothlens.updateToothlensUserUid, {
           id: user._id,
-          toothlensUid: uid,
+          toothlensUid: resolvedUid,
           company,
         });
 
