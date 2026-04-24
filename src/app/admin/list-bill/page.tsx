@@ -139,7 +139,7 @@ export default function ListBillPage() {
           <div>
             <h1 className="text-2xl font-bold text-slate-900">{selectedGroup.groupName}</h1>
             <p className="text-slate-500 text-sm">
-              Group Code: <span className="font-mono">{selectedGroup.groupCode}</span> ·
+              Provider Group Code: <span className="font-mono">{selectedGroup.groupCode}</span> ·
               Payment Method: <span className="capitalize">{selectedGroup.listBillConfig?.paymentMethod ?? 'check'}</span>
             </p>
           </div>

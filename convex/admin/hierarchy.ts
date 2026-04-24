@@ -298,6 +298,7 @@ export const createGroup = mutation({
     name: v.optional(v.string()),
     description: v.optional(v.string()),
     groupCode: v.string(),
+    organizationCode: v.optional(v.string()),
     allowedPlanIds: v.optional(v.array(v.id("catalogProducts"))),
     customPricing: v.optional(v.array(v.any())),
     enrollmentOverrides: v.optional(v.any()),
@@ -343,6 +344,7 @@ export const createGroup = mutation({
       name: args.name ?? args.slug,
       description: args.description,
       groupCode: args.groupCode,
+      organizationCode: args.organizationCode,
       allowedPlanIds: args.allowedPlanIds ?? [],
       customPricing: args.customPricing ?? [],
       enrollmentOverrides: args.enrollmentOverrides ?? {},
@@ -368,6 +370,7 @@ export const updateGroup = mutation({
     name: v.optional(v.string()),
     description: v.optional(v.string()),
     groupCode: v.optional(v.string()),
+    organizationCode: v.optional(v.string()),
     allowedPlanIds: v.optional(v.array(v.id("catalogProducts"))),
     customPricing: v.optional(v.array(v.any())),
     enrollmentOverrides: v.optional(v.any()),
@@ -395,6 +398,7 @@ export const updateGroup = mutation({
     if (args.name !== undefined) updates.name = args.name;
     if (args.description !== undefined) updates.description = args.description;
     if (args.groupCode !== undefined) updates.groupCode = args.groupCode;
+    if (args.organizationCode !== undefined) updates.organizationCode = args.organizationCode;
     if (args.allowedPlanIds !== undefined) updates.allowedPlanIds = args.allowedPlanIds;
     if (args.customPricing !== undefined) updates.customPricing = args.customPricing;
     if (args.enrollmentOverrides !== undefined) updates.enrollmentOverrides = args.enrollmentOverrides;

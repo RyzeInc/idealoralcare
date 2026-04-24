@@ -125,7 +125,7 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
             </div>
 
             {/* Fields grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem 1.5rem', marginTop: '0.25rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.625rem 1.5rem', marginTop: '0.25rem' }}>
               <div>
                 <div style={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   Member
@@ -144,10 +144,26 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
               </div>
               <div>
                 <div style={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  Group Code
+                  Subscriber ID
+                </div>
+                <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', marginTop: '1px', textTransform: 'uppercase' }}>
+                  {cardData.subscriberId || cardData.memberId}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  Provider Group Code
                 </div>
                 <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', marginTop: '1px' }}>
                   {cardData.groupCode || 'IDEALDO'}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  Plan
+                </div>
+                <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', marginTop: '1px' }}>
+                  {cardData.planName}
                 </div>
               </div>
               <div>

@@ -560,3 +560,70 @@ export const getVendorFileHistory = query({
     };
   },
 });
+
+/**
+ * Generate an AGGREGATED Careington/DialCare eligibility file across ALL active
+ * organizations (groups). Used for the monthly outbound batch where Ideal Health
+ * forwards one consolidated file to Careington containing every org's members.
+ *
+ * Each row already carries its own Provider Group Code (per Careington spec),
+ * so Careington can attribute members to the correct organization. We simply
+ * stack the per-organization output into one file.
+ *
+ * Filename: IDEALOH-AGG-MMDDYY_{full|delta}.txt
+ */
+export const generateAggregatedDentalDiscountNetworkFile: any = action({
+  args: {
+    fileType: v.optional(v.union(v.literal("full"), v.literal("delta"))),
+    vendor: v.optional(v.union(v.literal("careington"), v.literal("dialcare"))),
+  },
+  handler: async (ctx, args) => {
+    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
+    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    const fileType = args.fileType ?? "full";
+    const vendor = args.vendor ?? "careington";
+
+    const groups: any[] = await ctx.runQuery(api.admin.hierarchy.getAllGroups);
+    const activeGroups = groups.filter((g) => g.status === "active");
+
+    const sections: string[] = [];
+    let totalMembers = 0;
+    let totalRecords = 0;
+    const perOrg: Array<{ organizationCode?: string; groupCode: string; name: string; memberCount: number; totalRecords: number }> = [];
+    const warnings: string[] = [];
+
+    for (const group of activeGroups) {
+      const result: any = vendor === "dialcare"
+        // @ts-ignore
+        ? await ctx.runAction(api.admin.vendorFiles.generateDialCareFile, { groupId: group._id, fileType })
+        // @ts-ignore
+        : await ctx.runAction(api.admin.vendorFiles.generateDentalDiscountNetworkFile, { groupId: group._id, fileType });
+
+      if (result?.content) sections.push(result.content);
+      totalMembers += result?.memberCount ?? 0;
+      totalRecords += result?.totalRecords ?? 0;
+      if (Array.isArray(result?.warnings)) warnings.push(...result.warnings);
+      perOrg.push({
+        organizationCode: group.organizationCode,
+        groupCode: group.groupCode,
+        name: group.name || group.slug,
+        memberCount: result?.memberCount ?? 0,
+        totalRecords: result?.totalRecords ?? 0,
+      });
+    }
+
+    const today = new Date();
+    const filename = `IDEALOH-AGG-${formatDateForFilename(today)}_${fileType}.txt`;
+
+    return {
+      filename,
+      content: sections.join(""),
+      memberCount: totalMembers,
+      totalRecords,
+      organizationCount: activeGroups.length,
+      perOrg,
+      warnings,
+      generatedAt: Date.now(),
+    };
+  },
+});

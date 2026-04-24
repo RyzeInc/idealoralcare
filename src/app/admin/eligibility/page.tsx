@@ -1,18 +1,28 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
-import { FunctionReference } from 'convex/server';
-import { Upload, FileUp, AlertCircle, CheckCircle, Clock, ChevronDown, ChevronRight, Download } from 'lucide-react';
+import { Upload, FileUp, AlertCircle, CheckCircle, Clock, ChevronDown, ChevronRight, Download, ArrowLeft, ArrowRight } from 'lucide-react';
+
+type FileAction = 'full_replace' | 'additions' | 'terminations' | 'delta';
+type FileExt = 'csv' | 'xlsx' | 'txt' | 'json';
+
+const LS_GROUP_KEY = 'eligibility:lastGroupId';
+const LS_ACTION_KEY = 'eligibility:lastFileAction';
 
 export default function EligibilityUploadPage() {
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileAction, setFileAction] = useState<'full_replace' | 'additions' | 'terminations' | 'delta'>('full_replace');
+  const [fileAction, setFileAction] = useState<FileAction>('full_replace');
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const [previewResult, setPreviewResult] = useState<any | null>(null);
+  const [pendingStorageId, setPendingStorageId] = useState<string | null>(null);
+  const [pendingFileType, setPendingFileType] = useState<FileExt | null>(null);
 
   const [expandedFile, setExpandedFile] = useState<string | null>(null);
 
@@ -23,10 +33,103 @@ export default function EligibilityUploadPage() {
   const generateUploadUrl = useMutation(api.admin.eligibility.generateUploadUrl);
   const uploadEligibilityFile = useMutation(api.admin.eligibility.uploadEligibilityFile);
   const processFile = useAction(api.admin.eligibility.processEligibilityFile);
+  const previewEligibilityFile = useAction(api.admin.eligibility.previewEligibilityFile);
   const provisionFile = useAction(api.admin.eligibilityProvisioning.provisionEligibilityFile);
   const sendVendorFile = useAction(api.admin.sftpDelivery.generateAndSendVendorFile);
   const [provisioningFileId, setProvisioningFileId] = useState<string | null>(null);
   const [sendingFileId, setSendingFileId] = useState<string | null>(null);
+
+  // Restore last-used group + action from localStorage
+  useEffect(() => {
+    try {
+      const g = localStorage.getItem(LS_GROUP_KEY);
+      const a = localStorage.getItem(LS_ACTION_KEY) as FileAction | null;
+      if (g) setSelectedGroupId(g);
+      if (a) setFileAction(a);
+    } catch {}
+  }, []);
+  useEffect(() => {
+    if (selectedGroupId) {
+      try { localStorage.setItem(LS_GROUP_KEY, selectedGroupId); } catch {}
+    }
+  }, [selectedGroupId]);
+  useEffect(() => {
+    try { localStorage.setItem(LS_ACTION_KEY, fileAction); } catch {}
+  }, [fileAction]);
+
+  const selectedGroup: any = groups.find((g: any) => g._id === selectedGroupId);
+  const selectedSite: any = selectedGroup ? sites.find((s: any) => s._id === selectedGroup.siteId) : null;
+
+  const resetWizard = () => {
+    setStep(1);
+    setSelectedFile(null);
+    setPreviewResult(null);
+    setPendingStorageId(null);
+    setPendingFileType(null);
+  };
+
+  const detectFileExt = (name: string): FileExt => {
+    const lower = name.toLowerCase();
+    return lower.endsWith('.xlsx') ? 'xlsx'
+      : lower.endsWith('.txt') ? 'txt'
+      : lower.endsWith('.json') ? 'json'
+      : 'csv';
+  };
+
+  // Step 2 → upload file to Convex storage and run preview
+  const handlePreview = async (file: File) => {
+    setPreviewing(true);
+    setPreviewResult(null);
+    try {
+      const uploadUrl = await generateUploadUrl();
+      const result = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': file.type || 'text/csv' },
+        body: file,
+      });
+      if (!result.ok) throw new Error('File upload failed');
+      const { storageId } = await result.json();
+      const fileType = detectFileExt(file.name);
+      setPendingStorageId(storageId);
+      setPendingFileType(fileType);
+
+      const preview: any = await previewEligibilityFile({
+        storageId,
+        fileType,
+        fileName: file.name,
+      });
+      setPreviewResult(preview);
+      setStep(3);
+    } catch (err) {
+      alert(`Preview failed: ${err instanceof Error ? err.message : 'Unknown'}`);
+    } finally {
+      setPreviewing(false);
+    }
+  };
+
+  // Step 3 → commit: create eligibilityFiles record + dispatch processing
+  const handleCommit = async () => {
+    if (!selectedFile || !selectedGroup || !pendingStorageId || !pendingFileType) return;
+    setUploading(true);
+    try {
+      const record = await uploadEligibilityFile({
+        groupId: selectedGroup._id as Id<'groups'>,
+        siteId: selectedGroup.siteId as Id<'sites'>,
+        fileName: selectedFile.name,
+        storageId: pendingStorageId,
+        fileType: pendingFileType,
+        fileAction,
+      });
+      if (record?._id) {
+        await processFile({ fileId: record._id });
+      }
+      resetWizard();
+    } catch (err) {
+      alert(`Upload failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const downloadStringAsFile = (filename: string, content: string) => {
     const blob = new Blob([content], { type: 'text/plain' });
@@ -134,7 +237,16 @@ export default function EligibilityUploadPage() {
       alert('Please upload a CSV, XLSX, TXT (Careington pipe-delimited), or JSON file.');
       return;
     }
+    if (file.size > 50 * 1024 * 1024) {
+      alert('File is larger than 50MB. Please split it into smaller batches.');
+      return;
+    }
     setSelectedFile(file);
+    setPreviewResult(null);
+    setPendingStorageId(null);
+    setPendingFileType(null);
+    // auto-run preview as soon as a file is selected in step 2
+    handlePreview(file);
   };
 
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
@@ -152,6 +264,8 @@ export default function EligibilityUploadPage() {
   };
 
   const handleUpload = async () => {
+    // Legacy single-shot path retained for backwards compatibility.
+    // Wizard now uses handlePreview → handleCommit instead.
     if (!selectedFile || !selectedGroupId) return;
     const group = groups.find((g: any) => g._id === selectedGroupId);
     if (!group) return;
@@ -200,17 +314,21 @@ export default function EligibilityUploadPage() {
   };
 
   const handleDownloadTemplate = () => {
+    // Header row matches what parseXlsxBuffer in convex/admin/eligibility.ts
+    // expects — these are the Ideal Sample Census columns Careington recognizes.
+    // Save as .csv or .xlsx; system also accepts pipe-delimited .txt.
     const csv = [
-      'first_name,last_name,email,date_of_birth,employee_id,group_code,action',
-      'Jane,Smith,jane.smith@example.com,1985-03-15,EMP-001,ACME-2026,add',
-      'John,Doe,john.doe@example.com,1990-07-22,EMP-002,ACME-2026,add',
-      'Mary,Jones,mary.jones@example.com,1978-11-30,EMP-003,ACME-2026,terminate',
+      'Title,First Name,Middle Name,Last Name,Suffix,Unique ID,Sequence Number,Coverage,Address1,Address2,City,State,Zip,Home Phone,Work Phone,Email,Date of Birth,Effective Date,Gender,Relation',
+      ',Jane,,Smith,,EMP001,00,MF,123 Main St,,Dallas,TX,75001,8175551234,,jane.smith@example.com,03/15/1985,01/01/2026,F,',
+      ',John,,Smith,,EMP001,01,MF,123 Main St,,Dallas,TX,75001,8175551234,,jane.smith@example.com,07/22/1987,01/01/2026,M,S',
+      ',Sam,,Smith,,EMP001,02,MF,123 Main St,,Dallas,TX,75001,8175551234,,jane.smith@example.com,11/30/2010,01/01/2026,M,C',
+      ',Mary,,Jones,,EMP002,00,MO,456 Oak Ave,,Austin,TX,78701,5125559876,,mary.jones@example.com,06/14/1978,01/01/2026,F,',
     ].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'eligibility_template.csv';
+    a.download = 'ideal_census_template.csv';
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -239,7 +357,7 @@ export default function EligibilityUploadPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Eligibility Files</h1>
-          <p className="text-slate-600">Upload CSV files to batch import or update member records</p>
+          <p className="text-slate-600">Upload eligibility files to provision and sync members. Preview before committing.</p>
         </div>
         <button
           onClick={handleDownloadTemplate}
@@ -250,65 +368,283 @@ export default function EligibilityUploadPage() {
         </button>
       </div>
 
-      {/* Upload Area */}
-      <div
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
-          isDragging ? 'border-blue-500 bg-blue-50' : 'border-slate-300 bg-slate-50 hover:border-slate-400'
-        }`}
-      >
-        <Upload className="mx-auto mb-4 text-slate-400" size={40} />
-        {selectedFile ? (
-          <>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">{selectedFile.name}</h3>
-            <p className="text-slate-600 mb-4">{(selectedFile.size / 1024).toFixed(1)} KB</p>
-          </>
-        ) : (
-          <>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Upload CSV File</h3>
-            <p className="text-slate-600 mb-4">Drag and drop your file here, or click to select</p>
-          </>
-        )}
-        <label>
-          <input type="file" accept=".csv,.xlsx,.txt,.json" onChange={handleFileSelect} className="hidden" />
-          <span className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 cursor-pointer inline-block">
-            {selectedFile ? 'Change File' : 'Choose File'}
-          </span>
-        </label>
-        <p className="text-xs text-slate-500 mt-4">CSV or XLSX format required. Max 50MB.</p>
-      </div>
+      {/* ─── 3-Step Wizard ─────────────────────────────────────────── */}
+      <div className="bg-white rounded-lg shadow border border-slate-200">
+        {/* Stepper */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
+          {[
+            { n: 1, label: 'Choose Group' },
+            { n: 2, label: 'Upload File' },
+            { n: 3, label: 'Review & Confirm' },
+          ].map((s, idx, arr) => {
+            const active = step === s.n;
+            const done = step > s.n;
+            return (
+              <React.Fragment key={s.n}>
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                      done ? 'bg-green-600 text-white'
+                        : active ? 'bg-blue-600 text-white'
+                        : 'bg-slate-200 text-slate-500'
+                    }`}
+                  >
+                    {done ? <CheckCircle size={14} /> : s.n}
+                  </div>
+                  <span className={`text-sm font-medium ${active ? 'text-slate-900' : 'text-slate-500'}`}>
+                    {s.label}
+                  </span>
+                </div>
+                {idx < arr.length - 1 && (
+                  <div className={`flex-1 h-0.5 mx-3 ${step > s.n ? 'bg-green-600' : 'bg-slate-200'}`} />
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
 
-      {/* File Options */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="p-4 border border-slate-200 rounded-lg">
-          <p className="text-sm text-slate-600 mb-2">File Action</p>
-          <select value={fileAction} onChange={e => setFileAction(e.target.value as any)} className="w-full px-3 py-2 border border-slate-300 rounded">
-            <option value="full_replace">Full Replace</option>
-            <option value="additions">Additions Only</option>
-            <option value="terminations">Terminations</option>
-            <option value="delta">Delta (Smart)</option>
-          </select>
-        </div>
-        <div className="p-4 border border-slate-200 rounded-lg">
-          <p className="text-sm text-slate-600 mb-2">Group</p>
-          <select value={selectedGroupId} onChange={e => setSelectedGroupId(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded">
-            <option value="">Select Group...</option>
-            {groups.map((g: any) => (
-              <option key={g._id} value={g._id}>{g.groupCode} — {g.name || g.slug}</option>
-            ))}
-          </select>
-        </div>
-        <div className="p-4 border border-slate-200 rounded-lg flex items-end">
-          <button
-            onClick={handleUpload}
-            disabled={!selectedFile || !selectedGroupId || uploading}
-            className="w-full px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
-          >
-            {uploading ? 'Uploading...' : 'Upload & Process'}
-          </button>
-        </div>
+        {/* Sticky group banner — visible from Step 2 onward */}
+        {step > 1 && selectedGroup && (
+          <div className="px-6 py-3 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
+            <div className="text-sm text-blue-900">
+              Uploading to:{' '}
+              {selectedGroup.organizationCode && (
+                <span className="font-mono font-semibold">[{selectedGroup.organizationCode}]</span>
+              )}{' '}
+              <span className="font-semibold">{selectedGroup.name || selectedGroup.slug}</span>
+              {selectedSite && <span className="text-blue-700"> — {selectedSite.name || selectedSite.slug}</span>}
+              <span className="ml-3 text-xs text-blue-700">
+                Action: <span className="font-semibold">{fileAction.replace('_', ' ')}</span>
+              </span>
+            </div>
+            <button
+              onClick={resetWizard}
+              className="text-xs text-blue-700 hover:text-blue-900 underline"
+              title="Cancel and start over"
+            >
+              Start over
+            </button>
+          </div>
+        )}
+
+        {/* ─── STEP 1: Organization + Action ───────────────── */}
+        {step === 1 && (
+          <div className="p-6 space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-900 mb-2">
+                Organization <span className="text-red-600">*</span>
+              </label>
+              <select
+                value={selectedGroupId}
+                onChange={(e) => setSelectedGroupId(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded"
+              >
+                <option value="">Select an organization…</option>
+                {groups.map((g: any) => (
+                  <option key={g._id} value={g._id}>
+                    {g.organizationCode ? `[${g.organizationCode}] ` : ''}{g.name || g.slug}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-500 mt-1">
+                All members in this file will be assigned to this organization. Their Subscriber ID will be the organization code.
+                You can upload eligibility files for multiple organizations; they will be aggregated into the monthly outbound file to Careington.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-900 mb-2">File Action</label>
+              <select
+                value={fileAction}
+                onChange={(e) => setFileAction(e.target.value as FileAction)}
+                className="w-full px-3 py-2 border border-slate-300 rounded"
+              >
+                <option value="full_replace">Full Replace — replace all current eligibility</option>
+                <option value="additions">Additions Only — add new members, leave existing alone</option>
+                <option value="terminations">Terminations — mark members as terminated</option>
+                <option value="delta">Delta (Smart) — auto-detect adds, updates, terms</option>
+              </select>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setStep(2)}
+                disabled={!selectedGroupId}
+                className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed font-semibold"
+              >
+                Next: Upload File <ArrowRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ─── STEP 2: Upload + Auto-Preview ───────── */}
+        {step === 2 && (
+          <div className="p-6 space-y-4">
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
+                isDragging ? 'border-blue-500 bg-blue-50' : 'border-slate-300 bg-slate-50 hover:border-slate-400'
+              }`}
+            >
+              <Upload className="mx-auto mb-4 text-slate-400" size={40} />
+              {selectedFile ? (
+                <>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-2">{selectedFile.name}</h3>
+                  <p className="text-slate-600 mb-4">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-2">Upload Eligibility File</h3>
+                  <p className="text-slate-600 mb-4">Drag and drop your file here, or click to select</p>
+                </>
+              )}
+              <label>
+                <input
+                  type="file"
+                  accept=".csv,.xlsx,.txt,.json"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  disabled={previewing}
+                />
+                <span className={`px-6 py-2 text-white rounded inline-block ${previewing ? 'bg-slate-400 cursor-wait' : 'bg-blue-600 hover:bg-blue-700 cursor-pointer'}`}>
+                  {previewing ? 'Previewing…' : selectedFile ? 'Change File' : 'Choose File'}
+                </span>
+              </label>
+              <p className="text-xs text-slate-500 mt-4">
+                CSV, XLSX, TXT (pipe-delimited), or JSON. Max 50MB / {(10000).toLocaleString()} primary members.
+              </p>
+            </div>
+
+            <div className="flex justify-between">
+              <button
+                onClick={() => { setStep(1); setSelectedFile(null); setPreviewResult(null); }}
+                className="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded text-slate-700 hover:bg-slate-50"
+              >
+                <ArrowLeft size={16} /> Back
+              </button>
+              <button
+                onClick={handleDownloadTemplate}
+                className="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded text-sm hover:bg-slate-50 text-slate-700"
+              >
+                <Download size={16} /> Download Template
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ─── STEP 3: Review + Confirm ─────────────── */}
+        {step === 3 && previewResult && selectedFile && (
+          <div className="p-6 space-y-4">
+            {previewResult.tooLarge && (
+              <div className="bg-red-50 border border-red-200 rounded p-3 flex items-start gap-2">
+                <AlertCircle size={18} className="text-red-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-red-800">
+                  This file has <strong>{previewResult.primaryCount.toLocaleString()}</strong> primary members,
+                  which exceeds the {previewResult.maxRecords.toLocaleString()} per-upload limit. Please split it.
+                </div>
+              </div>
+            )}
+
+            {/* Summary cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <SummaryCard label="Primary Members" value={previewResult.primaryCount.toLocaleString()} tone="blue" />
+              <SummaryCard label="Dependents" value={previewResult.dependentCount.toLocaleString()} tone="slate" />
+              <SummaryCard label="Total Lives" value={(previewResult.primaryCount + previewResult.dependentCount).toLocaleString()} tone="green" />
+              <SummaryCard label="Issues" value={previewResult.errorCount.toLocaleString()} tone={previewResult.errorCount > 0 ? 'amber' : 'slate'} />
+            </div>
+
+            {/* Detected columns */}
+            {previewResult.detectedColumns?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-slate-700 mb-1">
+                  Detected columns ({previewResult.detectedColumns.length})
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {previewResult.detectedColumns.slice(0, 30).map((c: string, i: number) => (
+                    <span key={i} className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-mono">
+                      {c}
+                    </span>
+                  ))}
+                  {previewResult.detectedColumns.length > 30 && (
+                    <span className="text-xs text-slate-500">+{previewResult.detectedColumns.length - 30} more</span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Sample preview */}
+            {previewResult.sampleRecords?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-slate-700 mb-1">Preview (first {previewResult.sampleRecords.length} of {previewResult.primaryCount.toLocaleString()})</p>
+                <div className="border border-slate-200 rounded overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-semibold text-slate-700">Name</th>
+                        <th className="px-3 py-2 text-left font-semibold text-slate-700">Email</th>
+                        <th className="px-3 py-2 text-left font-semibold text-slate-700">DOB</th>
+                        <th className="px-3 py-2 text-left font-semibold text-slate-700">Effective</th>
+                        <th className="px-3 py-2 text-right font-semibold text-slate-700">Deps</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {previewResult.sampleRecords.map((r: any, i: number) => (
+                        <tr key={i}>
+                          <td className="px-3 py-2 text-slate-900">{r.firstName} {r.lastName}</td>
+                          <td className="px-3 py-2 text-slate-600 font-mono">{r.email || '—'}</td>
+                          <td className="px-3 py-2 text-slate-600 font-mono">{r.dateOfBirth || '—'}</td>
+                          <td className="px-3 py-2 text-slate-600 font-mono">{r.effectiveDate || '—'}</td>
+                          <td className="px-3 py-2 text-right text-slate-600">{r.dependentCount}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Issues panel */}
+            {previewResult.errors?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-amber-800 mb-1">
+                  {previewResult.errorCount} issue(s){previewResult.errorCount > previewResult.errors.length ? ` (showing first ${previewResult.errors.length})` : ''}
+                </p>
+                <div className="border border-amber-200 bg-amber-50 rounded p-2 max-h-40 overflow-y-auto space-y-1">
+                  {previewResult.errors.map((e: any, i: number) => (
+                    <p key={i} className="text-xs text-amber-900 font-mono">
+                      Row {e.row}{e.field ? ` [${e.field}]` : ''}: {e.message}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {previewResult.primaryCount === 0 && (
+              <div className="bg-red-50 border border-red-200 rounded p-3 text-sm text-red-800">
+                No valid member records were found in this file.
+              </div>
+            )}
+
+            <div className="flex justify-between pt-2">
+              <button
+                onClick={() => { setStep(2); setPreviewResult(null); }}
+                className="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded text-slate-700 hover:bg-slate-50"
+              >
+                <ArrowLeft size={16} /> Back
+              </button>
+              <button
+                onClick={handleCommit}
+                disabled={uploading || previewResult.tooLarge || previewResult.primaryCount === 0}
+                className="flex items-center gap-2 px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed font-semibold"
+              >
+                {uploading ? 'Processing…' : `Process ${previewResult.primaryCount.toLocaleString()} Members`}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Uploaded Files List */}
@@ -364,76 +700,87 @@ export default function EligibilityUploadPage() {
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm">
+                      <td className="px-6 py-4 text-sm min-w-max">
                         <div className="w-full bg-slate-200 rounded-full h-2">
                           <div className="bg-green-600 h-2 rounded-full transition-all" style={{ width: `${file.totalRecords > 0 ? (file.processedRecords / file.totalRecords) * 100 : 0}%` }} />
                         </div>
-                        <p className="text-xs text-slate-600 mt-1">{file.processedRecords} / {file.totalRecords}</p>
+                        <p className="text-xs text-slate-600 mt-1">{file.processedRecords} / {file.totalRecords} members</p>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {(file.status === 'completed' || file.status === 'completed_with_errors') && (
-                            <button
-                              disabled={provisioningFileId === file._id}
-                              onClick={async () => {
-                                const ok = window.confirm(
-                                  `Send Clerk invitations and grant employer-paid access to all eligible members in "${file.fileName}"?`
-                                );
-                                if (!ok) return;
-                                setProvisioningFileId(file._id);
-                                try {
-                                  const res: any = await provisionFile({ fileId: file._id, mode: 'invite' });
-                                  alert(
-                                    `Provisioning complete\n\n` +
-                                    `Attempted: ${res.attempted}\n` +
-                                    `Succeeded: ${res.succeeded}\n` +
-                                    `Failed:    ${res.failed}\n` +
-                                    `Already linked (skipped): ${res.alreadyLinked}` +
-                                    (res.errors.length
-                                      ? `\n\nErrors:\n` + res.errors.slice(0, 10).map((e: any) => `• ${e.email}: ${e.message}`).join('\n')
-                                      : '')
+                        <div className="flex flex-col gap-1 items-end">
+                          <div className="flex items-center justify-end gap-1 flex-wrap">
+                            {(file.status === 'completed' || file.status === 'completed_with_errors') && (
+                              <button
+                                disabled={provisioningFileId === file._id}
+                                onClick={async () => {
+                                  const ok = window.confirm(
+                                    `Send Clerk invitations and grant employer-paid access to all eligible members in "${file.fileName}"?`
                                   );
-                                } catch (err) {
-                                  alert(`Provisioning failed: ${err instanceof Error ? err.message : 'Unknown'}`);
-                                } finally {
-                                  setProvisioningFileId(null);
-                                }
-                              }}
-                              className="text-xs px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50"
-                              title="Create Clerk invitations and provision employer-paid plan access for every eligible member in this file."
-                            >
-                              {provisioningFileId === file._id ? 'Provisioning…' : 'Provision Access'}
-                            </button>
-                          )}
-                          {(file.status === 'completed' || file.status === 'completed_with_errors') && (
+                                  if (!ok) return;
+                                  setProvisioningFileId(file._id);
+                                  try {
+                                    const res: any = await provisionFile({ fileId: file._id, mode: 'invite' });
+                                    alert(
+                                      `Provisioning complete\n\n` +
+                                      `Attempted: ${res.attempted}\n` +
+                                      `Succeeded: ${res.succeeded}\n` +
+                                      `Failed:    ${res.failed}\n` +
+                                      `Already linked (skipped): ${res.alreadyLinked}` +
+                                      (res.errors.length
+                                        ? `\n\nErrors:\n` + res.errors.slice(0, 10).map((e: any) => `• ${e.email}: ${e.message}`).join('\n')
+                                        : '')
+                                    );
+                                  } catch (err) {
+                                    alert(`Provisioning failed: ${err instanceof Error ? err.message : 'Unknown'}`);
+                                  } finally {
+                                    setProvisioningFileId(null);
+                                  }
+                                }}
+                                className="text-xs px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded hover:bg-blue-100 disabled:opacity-50 whitespace-nowrap"
+                                title="Create Clerk invitations and grant employer-paid access to all members."
+                              >
+                                {provisioningFileId === file._id ? 'Granting…' : 'Grant Access'}
+                              </button>
+                            )}
+                            {(file.status === 'completed' || file.status === 'completed_with_errors') && (
+                              <button
+                                disabled={sendingFileId === file._id}
+                                onClick={() => handlePreviewCareington(file)}
+                                className="text-xs px-2 py-1 bg-slate-50 text-slate-700 border border-slate-200 rounded hover:bg-slate-100 disabled:opacity-50 whitespace-nowrap"
+                                title="Download and inspect the Careington pipe-delimited file format before sending."
+                              >
+                                {sendingFileId === file._id ? 'Previewing…' : 'Preview File'}
+                              </button>
+                            )}
+                            {(file.status === 'completed' || file.status === 'completed_with_errors') && (
+                              <button
+                                disabled={sendingFileId === file._id}
+                                onClick={() => handleSendToCareington(file)}
+                                className="text-xs px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded hover:bg-emerald-100 disabled:opacity-50 whitespace-nowrap"
+                                title="Push the Careington pipe-delimited file via SFTP to Careington."
+                              >
+                                {sendingFileId === file._id ? 'Sending…' : 'Send to Careington'}
+                              </button>
+                            )}
+                            {(file.status === 'failed' || file.status === 'completed_with_errors') && (
+                              <button
+                                onClick={async () => {
+                                  try { await processFile({ fileId: file._id }); }
+                                  catch (err) { alert(`Re-process failed: ${err instanceof Error ? err.message : 'Unknown'}`); }
+                                }}
+                                className="text-xs px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded hover:bg-amber-100 whitespace-nowrap"
+                                title="Retry processing the file with the latest code."
+                              >
+                                Retry Processing
+                              </button>
+                            )}
+                          </div>
+                          {(file.errors ?? []).length > 0 && (
                             <button
-                              disabled={sendingFileId === file._id}
-                              onClick={() => handlePreviewCareington(file)}
-                              className="text-xs px-3 py-1.5 bg-slate-50 text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-100 disabled:opacity-50"
-                              title="Generate the Careington pipe-delimited file and download it locally so you can verify the format BEFORE sending. Does NOT push to SFTP."
+                              onClick={() => setExpandedFile(expandedFile === file._id ? null : file._id)}
+                              className="text-xs text-orange-600 hover:text-orange-700 underline"
                             >
-                              {sendingFileId === file._id ? 'Generating…' : 'Preview / Download'}
-                            </button>
-                          )}
-                          {(file.status === 'completed' || file.status === 'completed_with_errors') && (
-                            <button
-                              disabled={sendingFileId === file._id}
-                              onClick={() => handleSendToCareington(file)}
-                              className="text-xs px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 disabled:opacity-50"
-                              title="Generate the Careington pipe-delimited eligibility file and push it via SFTP (falls back to download if SFTP isn't configured)."
-                            >
-                              {sendingFileId === file._id ? 'Sending…' : 'Send to Careington'}
-                            </button>
-                          )}
-                          {(file.status === 'failed' || file.status === 'completed_with_errors') && (
-                            <button
-                              onClick={async () => {
-                                try { await processFile({ fileId: file._id }); }
-                                catch (err) { alert(`Re-process failed: ${err instanceof Error ? err.message : 'Unknown'}`); }
-                              }}
-                              className="text-xs px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100"
-                            >
-                              Re-process
+                              {expandedFile === file._id ? 'Hide' : `Show ${file.errors.length} issue(s)`}
                             </button>
                           )}
                         </div>
@@ -472,6 +819,21 @@ export default function EligibilityUploadPage() {
           </table>
         )}
       </div>
+    </div>
+  );
+}
+
+function SummaryCard({ label, value, tone }: { label: string; value: string; tone: 'blue' | 'slate' | 'green' | 'amber' }) {
+  const toneClasses = {
+    blue: 'bg-blue-50 border-blue-200 text-blue-900',
+    slate: 'bg-slate-50 border-slate-200 text-slate-900',
+    green: 'bg-green-50 border-green-200 text-green-900',
+    amber: 'bg-amber-50 border-amber-200 text-amber-900',
+  }[tone];
+  return (
+    <div className={`border rounded-lg p-3 ${toneClasses}`}>
+      <p className="text-xs font-semibold uppercase tracking-wide opacity-70">{label}</p>
+      <p className="text-2xl font-bold mt-1">{value}</p>
     </div>
   );
 }

@@ -197,7 +197,7 @@ export default function BillingPage() {
             onChange={(e) => setSelectedAccountId(e.target.value || null)}
             className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 min-w-[200px]"
           >
-            <option value="">All Groups</option>
+            <option value="">All Brokers</option>
             {accounts.map((a: any) => (
               <option key={a._id} value={a._id}>{a.name || a.slug}</option>
             ))}
@@ -263,15 +263,15 @@ export default function BillingPage() {
       {/* Billing Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="p-6 border-b border-slate-200">
-          <h2 className="text-lg font-semibold text-slate-900">Groups & Accounts</h2>
-          <p className="text-sm text-slate-500 mt-1">Click a group to see its members</p>
+          <h2 className="text-lg font-semibold text-slate-900">Organizations & Brokers</h2>
+          <p className="text-sm text-slate-500 mt-1">Click an organization to see its members</p>
         </div>
         
         <table className="w-full">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Group Code</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Group Name</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Org / Group Code</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Organization Name</th>
               <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">Total</th>
               <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">Paid</th>
               <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">Free</th>

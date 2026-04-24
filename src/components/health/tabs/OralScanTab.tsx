@@ -68,6 +68,14 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
    *   { type: 'report_ready',   reportUrl?: string }
    *   { type: 'report_downloaded', reportUrl?: string }
    * We trust only messages originating from selfcheck.toothlens.com.
+   *
+   * ⚠️  CRITICAL — Downloading scan reports is a CORE product feature.
+   * The following must always be true for downloads to work:
+   *   1. next.config.ts Permissions-Policy `downloads` directive MUST include
+   *      "https://selfcheck.toothlens.com" (not just `self`).
+   *   2. next.config.ts CSP `frame-src` MUST include selfcheck.toothlens.com.
+   * If either is removed, Chromium silently blocks iframe downloads.
+   * See: v0.9.9 regression (2026-04-22) for history.
    */
   useEffect(() => {
     const TOOTHLENS_ORIGIN = 'https://selfcheck.toothlens.com';

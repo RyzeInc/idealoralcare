@@ -31,6 +31,7 @@ const EMAIL_LABELS: Record<string, string> = {
   'welcome': 'Welcome Email',
   'confirmation': 'Confirmation Email',
   'cancelled': 'Cancellation Email',
+  'eligibility-set-password': 'Eligibility Welcome — Set Your Password',
 };
 
 export default function EmailTestPage() {
@@ -50,7 +51,7 @@ export default function EmailTestPage() {
 
     try {
       if (testType === 'all') {
-        const types = ['fulfillment-packet', 'welcome', 'confirmation', 'cancelled'];
+        const types = ['fulfillment-packet', 'welcome', 'confirmation', 'cancelled', 'eligibility-set-password'];
         const allResults: Record<string, EmailTestResult> = {};
         for (const t of types) {
           allResults[t] = await sendTestEmail(email, t);
@@ -120,7 +121,8 @@ export default function EmailTestPage() {
             <option value="welcome">Welcome Email (Membership active)</option>
             <option value="confirmation">Confirmation Email (Enrollment summary)</option>
             <option value="cancelled">Cancellation Email</option>
-            <option value="all">All Emails (send all 4)</option>
+            <option value="eligibility-set-password">Eligibility Welcome — Set Your Password</option>
+            <option value="all">All Emails (send all 5)</option>
           </select>
         </div>
 

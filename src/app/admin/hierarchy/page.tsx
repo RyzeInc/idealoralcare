@@ -19,13 +19,13 @@ export default function HierarchyAdmin() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-slate-900">Sites & Accounts & Groups</h1>
+        <h1 className="text-3xl font-bold text-slate-900">Brokers & Organizations</h1>
         <button
           onClick={() => setShowCreateModal(true)}
           className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
         >
           <Plus size={18} />
-          Create {activeTab === 'sites' ? 'Site' : activeTab === 'accounts' ? 'Account' : 'Group'}
+          Create {activeTab === 'sites' ? 'Site (Carrier)' : activeTab === 'accounts' ? 'Broker' : 'Organization'}
         </button>
       </div>
 
@@ -39,7 +39,8 @@ export default function HierarchyAdmin() {
               activeTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)} ({tab === 'sites' ? sites.length : tab === 'accounts' ? accounts.length : groups.length})
+            {(tab === 'sites' ? 'Sites (Carrier)' : tab === 'accounts' ? 'Brokers' : 'Organizations')}
+            {' '}({tab === 'sites' ? sites.length : tab === 'accounts' ? accounts.length : groups.length})
           </button>
         ))}
       </div>
@@ -138,7 +139,7 @@ function AccountsList({ accounts, sites }: { accounts: any[]; sites: any[] }) {
       <div className="px-4 py-3 border-b border-slate-200">
         <input
           type="text"
-          placeholder="Search accounts…"
+          placeholder="Search brokers…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full max-w-xs px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -148,7 +149,7 @@ function AccountsList({ accounts, sites }: { accounts: any[]; sites: any[] }) {
         <thead className="bg-slate-50 border-b border-slate-200">
           <tr>
             <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Name / Slug</th>
-            <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Site</th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Carrier</th>
             <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Type</th>
             <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Billing</th>
             <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Status</th>
@@ -157,7 +158,7 @@ function AccountsList({ accounts, sites }: { accounts: any[]; sites: any[] }) {
         </thead>
         <tbody className="divide-y divide-slate-200">
           {filtered.length === 0 ? (
-            <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-500">No accounts yet. Create one to get started.</td></tr>
+            <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-500">No brokers yet. Create one to get started.</td></tr>
           ) : (
             filtered.map((acct: any) => (
               <tr key={acct._id} className="hover:bg-slate-50">
@@ -172,7 +173,7 @@ function AccountsList({ accounts, sites }: { accounts: any[]; sites: any[] }) {
                 <td className="px-6 py-4 text-right">
                   <div className="flex gap-1 justify-end">
                     <button onClick={() => setEditingAccount(acct)} className="p-1 hover:bg-slate-200 rounded" title="Edit"><Edit size={16} /></button>
-                    <button onClick={() => { if (confirm(`Delete account "${acct.slug}"?`)) removeAccount({ accountId: acct._id }); }} className="p-1 hover:bg-red-100 rounded text-red-600"><Trash2 size={16} /></button>
+                    <button onClick={() => { if (confirm(`Delete broker "${acct.slug}"?`)) removeAccount({ accountId: acct._id }); }} className="p-1 hover:bg-red-100 rounded text-red-600"><Trash2 size={16} /></button>
                   </div>
                 </td>
               </tr>
@@ -202,7 +203,7 @@ function GroupsList({ groups, accounts, sites }: { groups: any[]; accounts: any[
       <div className="px-4 py-3 border-b border-slate-200">
         <input
           type="text"
-          placeholder="Search groups…"
+          placeholder="Search organizations…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full max-w-xs px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -212,8 +213,9 @@ function GroupsList({ groups, accounts, sites }: { groups: any[]; accounts: any[
         <thead className="bg-slate-50 border-b border-slate-200">
           <tr>
             <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Name</th>
-            <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Group Code</th>
-            <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Account</th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Org Code (Subscriber ID)</th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Provider Group Code</th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Broker</th>
             <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Members</th>
             <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Status</th>
             <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">Actions</th>
@@ -221,13 +223,14 @@ function GroupsList({ groups, accounts, sites }: { groups: any[]; accounts: any[
         </thead>
         <tbody className="divide-y divide-slate-200">
           {filtered.length === 0 ? (
-            <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-500">No groups yet. Create one to start enrolling members.</td></tr>
+            <tr><td colSpan={7} className="px-6 py-8 text-center text-slate-500">No organizations yet. Create one to start enrolling members.</td></tr>
           ) : (
             filtered.map((grp: any) => {
               const counts = (memberCounts as any)[grp._id] || { total: 0, active: 0 };
               return (
                 <tr key={grp._id} className="hover:bg-slate-50">
                   <td className="px-6 py-4 font-medium text-slate-900">{grp.name || grp.slug}</td>
+                  <td className="px-6 py-4 font-mono text-sm">{grp.organizationCode || <span className="text-slate-400">—</span>}</td>
                   <td className="px-6 py-4 font-mono text-sm">{grp.groupCode}</td>
                   <td className="px-6 py-4 text-slate-600">{acctMap[grp.accountId] || '—'}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">
@@ -237,7 +240,7 @@ function GroupsList({ groups, accounts, sites }: { groups: any[]; accounts: any[
                   <td className="px-6 py-4 text-right">
                     <div className="flex gap-1 justify-end">
                       <button onClick={() => setEditingGroup(grp)} className="p-1 hover:bg-slate-200 rounded" title="Edit"><Edit size={16} /></button>
-                      <button onClick={() => { if (confirm(`Delete group "${grp.groupCode}"?`)) removeGroup({ groupId: grp._id }); }} className="p-1 hover:bg-red-100 rounded text-red-600"><Trash2 size={16} /></button>
+                      <button onClick={() => { if (confirm(`Delete organization "${grp.name || grp.groupCode}"?`)) removeGroup({ groupId: grp._id }); }} className="p-1 hover:bg-red-100 rounded text-red-600"><Trash2 size={16} /></button>
                     </div>
                   </td>
                 </tr>
@@ -358,17 +361,17 @@ function CreateAccountModal({ sites, onClose }: { sites: any[]; onClose: () => v
   };
 
   return (
-    <ModalWrapper title="Create Account" onClose={onClose}>
+    <ModalWrapper title="Create Broker" onClose={onClose}>
       <form onSubmit={handleSave} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Site</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Carrier (Site)</label>
           <select value={form.siteId} onChange={e => setForm({ ...form, siteId: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg">
             {sites.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
           </select>
         </div>
         <Field label="Slug" value={form.slug} onChange={v => setForm({ ...form, slug: v })} required placeholder="e.g. acme-corp" />
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Account Type</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Broker Type</label>
           <select value={form.accountType} onChange={e => setForm({ ...form, accountType: e.target.value as any })} className="w-full px-3 py-2 border border-slate-300 rounded-lg">
             {['owner','employer','broker','franchisee','partner','individual'].map(t => <option key={t} value={t}>{t}</option>)}
           </select>
@@ -390,7 +393,7 @@ function CreateAccountModal({ sites, onClose }: { sites: any[]; onClose: () => v
 
 function CreateGroupModal({ sites, accounts, onClose }: { sites: any[]; accounts: any[]; onClose: () => void }) {
   const createGroup = useMutation(api.admin.hierarchy.createGroup);
-  const [form, setForm] = useState({ siteId: sites[0]?._id || '', accountId: accounts[0]?._id || '', slug: '', groupCode: '', name: '', description: '', maxMembers: '', effectiveDate: '', terminationDate: '', brokerId: '', brokerTrackingCode: '' });
+  const [form, setForm] = useState({ siteId: sites[0]?._id || '', accountId: accounts[0]?._id || '', slug: '', groupCode: 'IDEALDO', organizationCode: '', name: '', description: '', maxMembers: '', effectiveDate: '', terminationDate: '', brokerId: '', brokerTrackingCode: '' });
   const [saving, setSaving] = useState(false);
 
   const filteredAccounts = accounts.filter((a: any) => !form.siteId || a.siteId === form.siteId);
@@ -405,6 +408,7 @@ function CreateGroupModal({ sites, accounts, onClose }: { sites: any[]; accounts
         accountId: form.accountId as Id<'accounts'>,
         slug: form.slug,
         groupCode: form.groupCode,
+        organizationCode: form.organizationCode || undefined,
         name: form.name || undefined,
         description: form.description || undefined,
         maxMembers: form.maxMembers ? Number(form.maxMembers) : undefined,
@@ -422,25 +426,26 @@ function CreateGroupModal({ sites, accounts, onClose }: { sites: any[]; accounts
   };
 
   return (
-    <ModalWrapper title="Create Group" onClose={onClose}>
+    <ModalWrapper title="Create Organization" onClose={onClose}>
       <form onSubmit={handleSave} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Site</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Carrier (Site)</label>
           <select value={form.siteId} onChange={e => setForm({ ...form, siteId: e.target.value, accountId: '' })} className="w-full px-3 py-2 border border-slate-300 rounded-lg">
             {sites.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Account</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Broker</label>
           <select value={form.accountId} onChange={e => setForm({ ...form, accountId: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg">
-            <option value="">Select account...</option>
+            <option value="">Select broker...</option>
             {filteredAccounts.map((a: any) => <option key={a._id} value={a._id}>{a.slug}</option>)}
           </select>
         </div>
-        <Field label="Name" value={form.name} onChange={v => setForm({ ...form, name: v })} placeholder="e.g. ACME Default Group" />
+        <Field label="Organization Name" value={form.name} onChange={v => setForm({ ...form, name: v })} placeholder="e.g. ACME Corp / Ideal Direct Consumer" />
         <Field label="Description" value={form.description} onChange={v => setForm({ ...form, description: v })} />
-        <Field label="Slug" value={form.slug} onChange={v => setForm({ ...form, slug: v })} required placeholder="e.g. acme-default" />
-        <Field label="Group Code" value={form.groupCode} onChange={v => setForm({ ...form, groupCode: v })} required placeholder="e.g. ACME-2026" />
+        <Field label="Slug" value={form.slug} onChange={v => setForm({ ...form, slug: v })} required placeholder="e.g. acme / ideal-direct-consumer" />
+        <Field label="Organization Code (Subscriber ID)" value={form.organizationCode} onChange={v => setForm({ ...form, organizationCode: v })} placeholder="e.g. ACME-0042 or IDC-0001" />
+        <Field label="Provider Group Code" value={form.groupCode} onChange={v => setForm({ ...form, groupCode: v })} required placeholder="e.g. IDEALDO (Careington/DialCare-required)" />
         <Field label="Max Members" value={form.maxMembers} onChange={v => setForm({ ...form, maxMembers: v })} placeholder="Leave blank for unlimited" />
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -452,8 +457,8 @@ function CreateGroupModal({ sites, accounts, onClose }: { sites: any[]; accounts
             <input type="date" value={form.terminationDate} onChange={e => setForm({ ...form, terminationDate: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
           </div>
         </div>
-        <Field label="Broker ID" value={form.brokerId} onChange={v => setForm({ ...form, brokerId: v })} placeholder="Clerk user ID" />
-        <Field label="Broker Tracking Code" value={form.brokerTrackingCode} onChange={v => setForm({ ...form, brokerTrackingCode: v })} />
+        <Field label="Representative ID" value={form.brokerId} onChange={v => setForm({ ...form, brokerId: v })} placeholder="Clerk user ID of representative" />
+        <Field label="Representative Tracking Code" value={form.brokerTrackingCode} onChange={v => setForm({ ...form, brokerTrackingCode: v })} />
         <div className="flex gap-2 pt-2">
           <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50">Cancel</button>
           <button type="submit" disabled={saving || !form.accountId} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">Create</button>
@@ -505,7 +510,7 @@ function EditAccountModal({ account, onClose }: { account: any; onClose: () => v
   };
 
   return (
-    <ModalWrapper title={`Edit Account: ${account.slug}`} onClose={onClose}>
+    <ModalWrapper title={`Edit Broker: ${account.slug}`} onClose={onClose}>
       <form onSubmit={handleSave} className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
         <Field label="Name" value={form.name} onChange={(v) => setForm((f) => ({ ...f, name: v }))} placeholder="Display name" />
         <Field label="Slug" value={form.slug} onChange={(v) => setForm((f) => ({ ...f, slug: v }))} />
@@ -553,6 +558,7 @@ function EditGroupModal({ group, accounts, onClose }: { group: any; accounts: an
     name: group.name || '',
     description: group.description || '',
     groupCode: group.groupCode || '',
+    organizationCode: group.organizationCode || '',
     maxMembers: String(group.maxMembers ?? ''),
     effectiveDate: group.effectiveDate ? new Date(group.effectiveDate).toISOString().slice(0, 10) : '',
     terminationDate: group.terminationDate ? new Date(group.terminationDate).toISOString().slice(0, 10) : '',
@@ -576,6 +582,7 @@ function EditGroupModal({ group, accounts, onClose }: { group: any; accounts: an
         name: form.name || undefined,
         description: form.description || undefined,
         groupCode: form.groupCode || undefined,
+        organizationCode: form.organizationCode || undefined,
         maxMembers: form.maxMembers ? Number(form.maxMembers) : undefined,
         effectiveDate: form.effectiveDate ? new Date(form.effectiveDate).getTime() : undefined,
         terminationDate: form.terminationDate ? new Date(form.terminationDate).getTime() : undefined,
@@ -601,11 +608,12 @@ function EditGroupModal({ group, accounts, onClose }: { group: any; accounts: an
   };
 
   return (
-    <ModalWrapper title={`Edit Group: ${group.groupCode}`} onClose={onClose}>
+    <ModalWrapper title={`Edit Organization: ${group.name || group.groupCode}`} onClose={onClose}>
       <form onSubmit={handleSave} className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-        <Field label="Name" value={form.name} onChange={(v) => setForm((f) => ({ ...f, name: v }))} />
+        <Field label="Organization Name" value={form.name} onChange={(v) => setForm((f) => ({ ...f, name: v }))} />
         <Field label="Description" value={form.description} onChange={(v) => setForm((f) => ({ ...f, description: v }))} />
-        <Field label="Group Code" value={form.groupCode} onChange={(v) => setForm((f) => ({ ...f, groupCode: v }))} />
+        <Field label="Organization Code (Subscriber ID)" value={form.organizationCode} onChange={(v) => setForm((f) => ({ ...f, organizationCode: v }))} placeholder="e.g. ACME-0042 or IDC-0001" />
+        <Field label="Provider Group Code" value={form.groupCode} onChange={(v) => setForm((f) => ({ ...f, groupCode: v }))} placeholder="e.g. IDEALDO" />
         <Field label="Max Members" value={form.maxMembers} onChange={(v) => setForm((f) => ({ ...f, maxMembers: v }))} placeholder="Leave blank for unlimited" />
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -617,8 +625,8 @@ function EditGroupModal({ group, accounts, onClose }: { group: any; accounts: an
             <input type="date" value={form.terminationDate} onChange={(e) => setForm((f) => ({ ...f, terminationDate: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
           </div>
         </div>
-        <Field label="Broker ID" value={form.brokerId} onChange={(v) => setForm((f) => ({ ...f, brokerId: v }))} placeholder="Clerk user ID" />
-        <Field label="Broker Tracking Code" value={form.brokerTrackingCode} onChange={(v) => setForm((f) => ({ ...f, brokerTrackingCode: v }))} />
+        <Field label="Representative ID" value={form.brokerId} onChange={(v) => setForm((f) => ({ ...f, brokerId: v }))} placeholder="Clerk user ID of representative" />
+        <Field label="Representative Tracking Code" value={form.brokerTrackingCode} onChange={(v) => setForm((f) => ({ ...f, brokerTrackingCode: v }))} />
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
           <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg">

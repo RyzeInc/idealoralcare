@@ -24,6 +24,7 @@ import * as XLSX from "xlsx";
  */
 
 const BATCH_SIZE = 100; // Max records per mutation to stay within Convex limits
+const MAX_PRIMARY_RECORDS = 10000; // Hard cap on primaries per upload (Tivity-style limit)
 
 // ─── Field map for Careington pipe-delimited format ──────────────────────
 // Column positions per sample: CAREGRPS040120_full.txt
@@ -453,27 +454,60 @@ function parseXlsxBuffer(
     };
   }
 
-  const groups = new Map<string, { primary: Parsed | null; dependents: Parsed[] }>();
+  // Walk rows IN ORDER. seqNum "00" starts a new family group. Any non-"00"
+  // row attaches to the most recent "00" row \u2014 we ignore the row's Unique ID
+  // for grouping purposes because real-world census files frequently violate
+  // the Careington spec (which says "dependents share the primary's Unique ID")
+  // by giving each person their own ID. Grouping by row order matches how
+  // census files are physically structured (family rows are always contiguous).
+  type Group = { primary: Parsed; dependents: Parsed[]; primaryRow: number };
+  const groupsList: Group[] = [];
+  let currentGroup: Group | null = null;
+  let sawNonSpecCompliantId = false;
+
   for (let i = 0; i < rows.length; i++) {
     const parsed = parseRow(rows[i]);
     if (!parsed) {
-      errors.push({ row: i + 2, message: `Row ${i + 2}: missing firstName or lastName` });
+      // Empty row \u2014 skip silently if every cell is blank, error otherwise
+      const allBlank = Object.values(rows[i] ?? {}).every(
+        (v) => v === undefined || v === null || String(v).trim() === ""
+      );
+      if (!allBlank) {
+        errors.push({ row: i + 2, message: `Row ${i + 2}: missing firstName or lastName` });
+      }
       continue;
     }
-    const key = parsed.uniqueId || `__row${i}`;
-    if (!groups.has(key)) groups.set(key, { primary: null, dependents: [] });
-    const g = groups.get(key)!;
-    if (parsed.seqNum === "00") g.primary = parsed;
-    else g.dependents.push(parsed);
+
+    if (parsed.seqNum === "00") {
+      currentGroup = { primary: parsed, dependents: [], primaryRow: i + 2 };
+      groupsList.push(currentGroup);
+    } else if (currentGroup) {
+      // Track spec violation for a single warning at the end
+      if (parsed.uniqueId && parsed.uniqueId !== currentGroup.primary!.uniqueId) {
+        sawNonSpecCompliantId = true;
+      }
+      currentGroup.dependents.push(parsed);
+    } else {
+      // Non-00 row before any primary \u2014 this is a real error
+      errors.push({
+        row: i + 2,
+        message: `Row ${i + 2}: dependent (seqNum ${parsed.seqNum}) appears before any primary (seqNum 00)`,
+      });
+    }
+  }
+
+  if (sawNonSpecCompliantId) {
+    errors.push({
+      row: -1,
+      message:
+        "Warning: dependents had different Unique IDs than their primary (Careington spec requires shared Unique ID). " +
+        "Grouped by row order instead. Generated vendor file will use the primary's Unique ID for all family members.",
+    });
   }
 
   const out: any[] = [];
-  for (const [uid, g] of groups) {
-    if (!g.primary) {
-      errors.push({ row: -1, message: `Unique ID ${uid} has dependents but no primary (seqNum 00)` });
-      continue;
-    }
-    const p = g.primary;
+  for (const g of groupsList) {
+    const p = g.primary!;
     const deps = g.dependents
       .filter((d): d is NonNullable<Parsed> => d !== null)
       .map((d) => ({
@@ -483,18 +517,18 @@ function parseXlsxBuffer(
         relationship: (d!.relationship ?? "other") as "spouse" | "child" | "domestic_partner" | "other",
       }));
     out.push({
-      title: p!.title,
-      firstName: p!.firstName,
-      middleName: p!.middleName,
-      lastName: p!.lastName,
-      suffix: p!.suffix,
-      email: p!.email,
-      phone: p!.phone,
-      workPhone: p!.workPhone,
-      dateOfBirth: p!.dateOfBirth,
-      effectiveDate: p!.effectiveDate,
-      gender: p!.gender,
-      address: p!.address,
+      title: p.title,
+      firstName: p.firstName,
+      middleName: p.middleName,
+      lastName: p.lastName,
+      suffix: p.suffix,
+      email: p.email,
+      phone: p.phone,
+      workPhone: p.workPhone,
+      dateOfBirth: p.dateOfBirth,
+      effectiveDate: p.effectiveDate,
+      gender: p.gender,
+      address: p.address,
       dependents: deps.length > 0 ? deps : undefined,
     });
   }
@@ -530,10 +564,14 @@ export const processEligibilityFile = action({
       resolvedAccountId = group.accountId;
     }
 
-    // Update status → validating
+    // Update status → validating  AND reset counters so Re-process gives
+    // accurate progress instead of accumulating from the prior failed run.
     await ctx.runMutation(api.admin.eligibility.updateFileStatus, {
       fileId: args.fileId,
       status: "validating",
+    });
+    await ctx.runMutation(api.admin.eligibility.resetFileCounters, {
+      fileId: args.fileId,
     });
 
     try {
@@ -573,49 +611,60 @@ export const processEligibilityFile = action({
 
       if (file.fileType === "txt") {
         // ── Careington pipe-delimited format ──
-        const lines = content.split("\n").filter((l: string) => l.trim());
+        const lines = content.split(/\r?\n/).filter((l: string) => l.trim());
 
-        // Group rows by uniqueId: seqNum "00" = primary, others = dependents
-        const groupedByUniqueId = new Map<string, {
-          primary: ReturnType<typeof parseCareingtonRow>;
-          dependents: Array<ReturnType<typeof parseCareingtonRow>>;
-        }>();
+        // Walk rows IN ORDER. seqNum "00" starts a new family group; any
+        // non-"00" row attaches to the most recent "00" row. We use the
+        // primary's Unique ID for the whole family even if the source file
+        // assigned different IDs to dependents (Careington spec requires
+        // shared Unique ID; some upstream systems violate this).
+        type ParsedTxt = ReturnType<typeof parseCareingtonRow>;
+        type Family = { primary: NonNullable<ParsedTxt>; dependents: NonNullable<ParsedTxt>[] };
+        const families: Family[] = [];
+        let currentFamily: Family | null = null;
+        let sawNonSpecCompliantId = false;
 
         for (let i = 0; i < lines.length; i++) {
           const parsed = parseCareingtonRow(lines[i]);
           if (!parsed) {
-            errors.push({ row: i, message: `Could not parse row ${i}: insufficient fields` });
+            errors.push({ row: i, message: `Could not parse row ${i + 1}: insufficient fields` });
             continue;
           }
 
-          const key = parsed.uniqueId;
-          if (!groupedByUniqueId.has(key)) {
-            groupedByUniqueId.set(key, { primary: null, dependents: [] });
-          }
-          const group = groupedByUniqueId.get(key)!;
-
           if (parsed.seqNum === "00") {
-            group.primary = parsed;
+            currentFamily = { primary: parsed, dependents: [] };
+            families.push(currentFamily);
+          } else if (currentFamily) {
+            if (parsed.uniqueId && parsed.uniqueId !== currentFamily.primary.uniqueId) {
+              sawNonSpecCompliantId = true;
+            }
+            currentFamily.dependents.push(parsed);
           } else {
-            group.dependents.push(parsed);
+            errors.push({
+              row: i,
+              message: `Row ${i + 1}: dependent (seqNum ${parsed.seqNum}) appears before any primary (seqNum 00)`,
+            });
           }
         }
 
+        if (sawNonSpecCompliantId) {
+          errors.push({
+            row: -1,
+            message:
+              "Warning: dependents had different Unique IDs than their primary (Careington spec requires shared Unique ID). " +
+              "Grouped by row order instead. Generated vendor file will use the primary's Unique ID for all family members.",
+          });
+        }
+
         // Flatten into primary records with embedded dependents
-        for (const [uid, group] of groupedByUniqueId) {
-          if (!group.primary) {
-            errors.push({ row: -1, message: `UniqueID ${uid} has dependents but no primary (seqNum 00)` });
-            continue;
-          }
-          const p = group.primary;
-          const deps = group.dependents
-            .filter((d): d is NonNullable<typeof d> => d !== null)
-            .map((d) => ({
-              firstName: d.firstName,
-              lastName: d.lastName,
-              dateOfBirth: d.dateOfBirth,
-              relationship: (d.relationship ?? "other") as "spouse" | "child" | "domestic_partner" | "other",
-            }));
+        for (const family of families) {
+          const p = family.primary;
+          const deps = family.dependents.map((d) => ({
+            firstName: d.firstName,
+            lastName: d.lastName,
+            dateOfBirth: d.dateOfBirth,
+            relationship: (d.relationship ?? "other") as "spouse" | "child" | "domestic_partner" | "other",
+          }));
 
           primaryRecords.push({
             title: p.title,
@@ -652,6 +701,16 @@ export const processEligibilityFile = action({
       }
 
       const totalRecords = primaryRecords.length;
+      if (totalRecords > MAX_PRIMARY_RECORDS) {
+        await ctx.runMutation(api.admin.eligibility.updateFileStatus, {
+          fileId: args.fileId,
+          status: "failed",
+        });
+        throw new Error(
+          `File has ${totalRecords} primary members which exceeds the ${MAX_PRIMARY_RECORDS} per-upload limit. ` +
+          `Please split the file into smaller batches.`
+        );
+      }
       if (totalRecords === 0) {
         await ctx.runMutation(api.admin.eligibility.completeFileProcessing, {
           fileId: args.fileId,
@@ -731,6 +790,164 @@ export const processEligibilityFile = action({
 });
 
 /**
+ * Preview an uploaded eligibility file WITHOUT persisting any members.
+ *
+ * Parses the file using the same logic as processEligibilityFile, but only
+ * returns counts, sample records, and detected issues so the admin can
+ * verify before committing. Tivity-style "Step 2: Map+Preview" behavior.
+ */
+export const previewEligibilityFile = action({
+  args: {
+    storageId: v.string(),
+    fileType: v.union(v.literal("csv"), v.literal("xlsx"), v.literal("txt"), v.literal("json")),
+    fileName: v.string(),
+  },
+  handler: async (ctx, args): Promise<{
+    primaryCount: number;
+    dependentCount: number;
+    sampleRecords: Array<{
+      firstName: string;
+      lastName: string;
+      email?: string;
+      dateOfBirth?: string;
+      effectiveDate?: string;
+      dependentCount: number;
+    }>;
+    detectedColumns: string[];
+    errors: Array<{ row: number; field?: string; message: string }>;
+    errorCount: number;
+    tooLarge: boolean;
+    maxRecords: number;
+  }> => {
+    // @ts-ignore - Avoid deep type instantiation
+    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+
+    const blob = await ctx.storage.get(args.storageId as any);
+    if (!blob) throw new Error("File not found in storage");
+
+    let content = "";
+    let xlsxBuffer: ArrayBuffer | null = null;
+    if (args.fileType === "xlsx") {
+      xlsxBuffer = await blob.arrayBuffer();
+      if (!xlsxBuffer.byteLength) throw new Error("File is empty");
+    } else {
+      content = await blob.text();
+      if (!content.trim()) throw new Error("File is empty");
+    }
+
+    const errors: Array<{ row: number; message: string }> = [];
+    let primaryRecords: Array<{
+      firstName: string;
+      lastName: string;
+      email?: string;
+      dateOfBirth?: string;
+      effectiveDate?: string;
+      dependents?: Array<{ firstName: string; lastName: string; dateOfBirth?: string; relationship: string }>;
+    }> = [];
+    const detectedColumns: string[] = [];
+
+    if (args.fileType === "txt") {
+      const lines = content.split(/\r?\n/).filter((l) => l.trim());
+      type ParsedTxt = ReturnType<typeof parseCareingtonRow>;
+      type Family = { primary: NonNullable<ParsedTxt>; dependents: NonNullable<ParsedTxt>[] };
+      const families: Family[] = [];
+      let currentFamily: Family | null = null;
+      let sawNonSpecCompliantId = false;
+      for (let i = 0; i < lines.length; i++) {
+        const parsed = parseCareingtonRow(lines[i]);
+        if (!parsed) {
+          errors.push({ row: i, message: `Could not parse row ${i + 1}: insufficient fields` });
+          continue;
+        }
+        if (parsed.seqNum === "00") {
+          currentFamily = { primary: parsed, dependents: [] };
+          families.push(currentFamily);
+        } else if (currentFamily) {
+          if (parsed.uniqueId && parsed.uniqueId !== currentFamily.primary.uniqueId) {
+            sawNonSpecCompliantId = true;
+          }
+          currentFamily.dependents.push(parsed);
+        } else {
+          errors.push({
+            row: i,
+            message: `Row ${i + 1}: dependent (seqNum ${parsed.seqNum}) appears before any primary (seqNum 00)`,
+          });
+        }
+      }
+      if (sawNonSpecCompliantId) {
+        errors.push({
+          row: -1,
+          message:
+            "Warning: dependents had different Unique IDs than their primary — will be grouped by row order.",
+        });
+      }
+      for (const family of families) {
+        const p = family.primary;
+        primaryRecords.push({
+          firstName: p.firstName,
+          lastName: p.lastName,
+          email: p.email,
+          dateOfBirth: p.dateOfBirth,
+          effectiveDate: p.effectiveDate,
+          dependents: family.dependents.map((d) => ({
+            firstName: d.firstName,
+            lastName: d.lastName,
+            dateOfBirth: d.dateOfBirth,
+            relationship: (d.relationship ?? "other") as any,
+          })),
+        });
+      }
+      detectedColumns.push(
+        "title", "firstName", "middleInitial", "lastName", "suffix", "uniqueId", "seqNum",
+        "addr1", "city", "state", "zip", "homePhone", "coverage", "groupCode",
+        "termDate", "effDate", "dob", "gender", "email"
+      );
+    } else if (args.fileType === "csv") {
+      primaryRecords = parseCsvContent(content);
+      const headerLine = content.split(/\r?\n/)[0] ?? "";
+      detectedColumns.push(...headerLine.split(",").map((h) => h.trim()).filter(Boolean));
+    } else if (args.fileType === "xlsx") {
+      primaryRecords = parseXlsxBuffer(xlsxBuffer!, errors);
+      // Extract detected headers
+      const wb = XLSX.read(xlsxBuffer!, { type: "array", cellDates: false });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const headerRows: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" }) as any[];
+      if (headerRows[0]) {
+        detectedColumns.push(...(headerRows[0] as any[]).map((h) => String(h).trim()).filter(Boolean));
+      }
+    } else if (args.fileType === "json") {
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed)) primaryRecords = parsed;
+      else if (parsed.records && Array.isArray(parsed.records)) primaryRecords = parsed.records;
+      if (primaryRecords[0]) detectedColumns.push(...Object.keys(primaryRecords[0]));
+    } else {
+      throw new Error(`Unsupported file type: ${args.fileType}`);
+    }
+
+    const dependentCount = primaryRecords.reduce((sum, p) => sum + (p.dependents?.length ?? 0), 0);
+    const sampleRecords = primaryRecords.slice(0, 5).map((p) => ({
+      firstName: p.firstName,
+      lastName: p.lastName,
+      email: p.email,
+      dateOfBirth: p.dateOfBirth,
+      effectiveDate: p.effectiveDate,
+      dependentCount: p.dependents?.length ?? 0,
+    }));
+
+    return {
+      primaryCount: primaryRecords.length,
+      dependentCount,
+      sampleRecords,
+      detectedColumns,
+      errors: errors.slice(0, 50),
+      errorCount: errors.length,
+      tooLarge: primaryRecords.length > MAX_PRIMARY_RECORDS,
+      maxRecords: MAX_PRIMARY_RECORDS,
+    };
+  },
+});
+
+/**
  * Update file processing status
  */
 export const updateFileStatus = mutation({
@@ -754,6 +971,24 @@ export const updateFileStatus = mutation({
 
     await ctx.db.patch(args.fileId, updates);
     return await ctx.db.get(args.fileId);
+  },
+});
+
+/**
+ * Reset per-file counters before (re-)processing so progress is accurate.
+ */
+export const resetFileCounters = mutation({
+  args: { fileId: v.id("eligibilityFiles") },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    await ctx.db.patch(args.fileId, {
+      processedRecords: 0,
+      errorRecords: 0,
+      newMembers: 0,
+      updatedMembers: 0,
+      terminatedMembers: 0,
+      errors: [],
+    });
   },
 });
 

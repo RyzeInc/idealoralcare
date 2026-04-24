@@ -37,6 +37,14 @@ export const getMemberCardData: any = action({
     if (!memberDetail) throw new Error("Member not found");
     const member = memberDetail.member;
 
+    // Resolve Subscriber ID = Organization Code from the member's Organization (group),
+    // falling back to a value stored on the member, then to the memberId.
+    let organizationCode: string | undefined;
+    if (member.groupId) {
+      const group: any = await ctx.runQuery(api.admin.hierarchy.getGroupById, { groupId: member.groupId });
+      organizationCode = group?.organizationCode;
+    }
+
     return {
       memberName: `${member.firstName} ${member.lastName}`,
       memberId: member.memberId || "MBR-2026-00001",
@@ -44,8 +52,10 @@ export const getMemberCardData: any = action({
       planName: "Oral Health Plan",
       effectiveDate: firstOfNextMonth(member.createdAt),
       barcode: member.barcode,
+      // Provider Group Code (Careington/DialCare-required) — currently fixed to "IDEALDO"
       groupCode: "IDEALDO",
-      subscriberId: member.memberId,
+      // Subscriber ID = Organization Code (e.g. "ACME-0042"); falls back to memberId.
+      subscriberId: organizationCode || member.subscriberId || member.memberId,
       networks: {
         careington: {
           name: "Dental Discount Network",

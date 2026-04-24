@@ -826,8 +826,11 @@ export default defineSchema({
     name: v.string(), // Display name
     description: v.optional(v.string()),
     
-    // GROUP CODE FOR ENROLLMENT
+    // PROVIDER GROUP CODE (Careington/DialCare-required, e.g. "IDEALDO")
     groupCode: v.string(), // Unique code for URL and signup
+    // ORGANIZATION CODE (account/card-facing org identifier, e.g. "ACME-0042" / "IDC-0001")
+    // When set, member.subscriberId is backfilled from this on creation.
+    organizationCode: v.optional(v.string()),
     
     // PLAN & PRICING CONSTRAINTS
     allowedPlanIds: v.optional(v.array(v.id("catalogProducts"))), // null = inherit from account/site
@@ -899,7 +902,8 @@ export default defineSchema({
   // MEMBER PROFILES (Central person record)
   memberProfiles: defineTable({
     // IDENTITY
-    memberId: v.string(), // Unique ID: "MBR-2026-00001"
+    memberId: v.string(), // Unique ID: "MBR-2026-00001" — internal person identifier
+    subscriberId: v.optional(v.string()), // Account/card-facing org identifier (= organizationCode), e.g. "ACME-0042" or "IDC-0001"
     barcode: v.string(), // For ID cards / scanning
     customerId: v.optional(v.string()), // Clerk user ID
     

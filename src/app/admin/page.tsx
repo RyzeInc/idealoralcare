@@ -1,10 +1,10 @@
 'use client';
 
 import Link from "next/link";
-import { ArrowRight, Users, FileUp, BarChart3, AlertCircle, Gift, Activity, Clock, Mail, FileX, UserX, Bell, CreditCard, CheckCircle2, AlertTriangle, Circle, Wallet, RefreshCw } from "lucide-react";
+import { ArrowRight, Users, FileUp, BarChart3, AlertCircle, Gift, Activity, Clock, Mail, FileX, UserX, Bell, CreditCard, CheckCircle2, AlertTriangle, Circle, Wallet, RefreshCw, Search } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function AdminDashboard() {
   const grantAccess = useMutation(api.admin.grantFreeAccess.grantMeFullAccess);
@@ -38,7 +38,7 @@ export default function AdminDashboard() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-slate-900 mb-1">Admin Dashboard</h1>
-        <p className="text-slate-500">Manage sites, accounts, groups, and member data</p>
+        <p className="text-slate-500">Manage brokers, organizations, and member data</p>
       </div>
 
       {/* Alert Feed */}
@@ -107,6 +107,9 @@ export default function AdminDashboard() {
           color="slate"
         />
       </div>
+
+      {/* Quick Eligibility Check */}
+      <QuickEligibilityCheckWidget />
 
       {/* System Health */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
@@ -284,6 +287,113 @@ function formatTimeAgo(timestamp: number): string {
   if (hours < 24) return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
   const days = Math.floor(hours / 24);
   return `${days} day${days !== 1 ? "s" : ""} ago`;
+}
+
+function QuickEligibilityCheckWidget() {
+  const [query, setQuery] = useState("");
+  const [debounced, setDebounced] = useState("");
+
+  // Debounce input — wait 300ms after typing stops before querying
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(query.trim()), 300);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  const results = useQuery(
+    api.admin.members.quickEligibilityCheck,
+    debounced.length >= 2 ? { query: debounced } : "skip"
+  );
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">Quick Eligibility Check</h2>
+          <p className="text-xs text-slate-500 mt-0.5">Look up any member by name, email, or member ID</p>
+        </div>
+        <Link href="/admin/members" className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1">
+          Browse all members <ArrowRight size={12} />
+        </Link>
+      </div>
+      <div className="p-6">
+        <div className="relative">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Type a name, email, or member ID…"
+            className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+
+        {debounced.length >= 2 && (
+          <div className="mt-4">
+            {results === undefined ? (
+              <p className="text-sm text-slate-400">Searching…</p>
+            ) : results.length === 0 ? (
+              <p className="text-sm text-slate-500">No members match &quot;{debounced}&quot;</p>
+            ) : (
+              <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-xs">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-semibold text-slate-700">Name</th>
+                      <th className="px-3 py-2 text-left font-semibold text-slate-700">Email</th>
+                      <th className="px-3 py-2 text-left font-semibold text-slate-700">Member ID</th>
+                      <th className="px-3 py-2 text-left font-semibold text-slate-700">Group</th>
+                      <th className="px-3 py-2 text-left font-semibold text-slate-700">Status</th>
+                      <th className="px-3 py-2 text-left font-semibold text-slate-700">Effective</th>
+                      <th className="px-3 py-2 w-8"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {results.map((m: any) => (
+                      <tr key={m._id} className="hover:bg-slate-50">
+                        <td className="px-3 py-2 text-slate-900 font-medium">{m.firstName} {m.lastName}</td>
+                        <td className="px-3 py-2 text-slate-600 font-mono text-xs">{m.email || "—"}</td>
+                        <td className="px-3 py-2 text-slate-600 font-mono text-xs">{m.memberId}</td>
+                        <td className="px-3 py-2 text-slate-600 text-xs">
+                          {m.group ? <><span className="font-mono">[{m.group.groupCode}]</span> {m.group.name}</> : "—"}
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className={`px-2 py-0.5 rounded text-xs font-semibold ${eligibilityStatusColor(m.status)}`}>
+                            {m.status}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-slate-600 font-mono text-xs">{m.effectiveDate || "—"}</td>
+                        <td className="px-3 py-2">
+                          <Link href={`/admin/members?id=${m._id}`} className="text-blue-600 hover:text-blue-700">
+                            <ArrowRight size={14} />
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {results.length === 25 && (
+                  <p className="text-xs text-slate-500 px-3 py-2 bg-slate-50 border-t border-slate-200">
+                    Showing first 25 matches. Refine your search to narrow results.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function eligibilityStatusColor(status: string): string {
+  switch (status) {
+    case "active": return "bg-green-100 text-green-800";
+    case "eligible":
+    case "enrolling": return "bg-blue-100 text-blue-800";
+    case "terminated": return "bg-red-100 text-red-800";
+    case "suspended": return "bg-amber-100 text-amber-800";
+    default: return "bg-slate-100 text-slate-700";
+  }
 }
 
 function HealthCard({ title, status, label, details, href }: {

@@ -33,6 +33,18 @@ import {
 } from "../lib/authGuards";
 
 const TOOTHLENS_API_BASE = "https://annotation.toothlens.com/api/v1";
+
+// ⚠️  CRITICAL — DO NOT CHANGE THIS ORIGIN WITHOUT UPDATING next.config.ts  ⚠️
+//
+// Downloading scan reports is a CORE product feature.  The selfcheck domain
+// must always appear in BOTH of the following headers in next.config.ts:
+//
+//   Permissions-Policy:  downloads=(self "https://selfcheck.toothlens.com")
+//   Content-Security-Policy frame-src: ... https://selfcheck.toothlens.com
+//
+// If either is removed, Chromium silently blocks all iframe-triggered downloads.
+// History: v0.9.9 (2026-04-22) removed this from Permissions-Policy and broke
+// report downloads for all members until v0.9.13.
 const SELFCHECK_BASE = "https://selfcheck.toothlens.com/ai";
 
 // Conservative JWT TTL — spec doesn't publish an exact value; re-auth on 401

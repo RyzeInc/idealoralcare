@@ -262,7 +262,7 @@ export default function MembersAdmin() {
           onChange={(e) => { setSelectedGroupId(e.target.value || undefined); setCurrentPage(0); }}
           className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
         >
-          <option value="">All Groups</option>
+          <option value="">All Organizations</option>
           {(groups as any[]).map((g) => <option key={g._id} value={g._id}>{g.name}</option>)}
         </select>
       </div>

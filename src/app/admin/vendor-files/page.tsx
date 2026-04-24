@@ -22,6 +22,9 @@ export default function VendorFilesPage() {
   const generateDialCare = useAction(
     "admin/vendorFiles:generateDialCareFile" as unknown as FunctionReference<"action", "public", { groupId: Id<'groups'> }, any>
   );
+  const generateAggregated = useAction(
+    "admin/vendorFiles:generateAggregatedDentalDiscountNetworkFile" as unknown as FunctionReference<"action", "public", { fileType?: 'full' | 'delta'; vendor?: 'careington' | 'dialcare' }, any>
+  );
 
   const downloadFile = (filename: string, content: string) => {
     const blob = new Blob([content], { type: 'text/plain' });
@@ -34,7 +37,7 @@ export default function VendorFilesPage() {
   };
 
   const handleGenerate = async (vendorName: string) => {
-    if (!selectedGroupId) { alert('Please select a group first.'); return; }
+    if (!selectedGroupId) { alert('Please select an organization first.'); return; }
     setGeneratingVendor(vendorName);
     try {
       const groupId = selectedGroupId as Id<'groups'>;
@@ -54,6 +57,23 @@ export default function VendorFilesPage() {
     }
   };
 
+  const handleGenerateAggregated = async (vendor: 'careington' | 'dialcare') => {
+    setGeneratingVendor(`AGG-${vendor}`);
+    try {
+      const result: any = await generateAggregated({ fileType, vendor });
+      if (result?.content) {
+        downloadFile(result.filename, result.content);
+      }
+      const orgs = result?.organizationCount ?? 0;
+      const members = result?.memberCount ?? 0;
+      alert(`Aggregated file ready: ${result.filename}\n${orgs} organizations, ${members} members.`);
+    } catch (err) {
+      alert(`Aggregated generation failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setGeneratingVendor(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -61,18 +81,18 @@ export default function VendorFilesPage() {
         <p className="text-slate-600">Generate and download eligibility files for vendors</p>
       </div>
 
-      {/* Group Selector + File Type Toggle */}
+      {/* Organization Selector + File Type Toggle */}
       <div className="bg-white rounded-lg shadow p-6 flex flex-wrap gap-6 items-end">
         <div>
-          <label className="block text-sm font-semibold text-slate-900 mb-2">Select Group</label>
+          <label className="block text-sm font-semibold text-slate-900 mb-2">Select Organization</label>
           <select
             value={selectedGroupId}
             onChange={e => setSelectedGroupId(e.target.value)}
             className="w-64 px-3 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 text-sm"
           >
-            <option value="">Select Group...</option>
+            <option value="">Select Organization...</option>
             {groups.map((g: any) => (
-              <option key={g._id} value={g._id}>{g.groupCode} — {g.name || g.slug}</option>
+              <option key={g._id} value={g._id}>{g.organizationCode ? `${g.organizationCode} — ` : ''}{g.name || g.slug}</option>
             ))}
           </select>
         </div>
@@ -161,6 +181,36 @@ export default function VendorFilesPage() {
           <p className="text-sm text-amber-800 mt-1">
             Download the generated file and deliver it via your secure channel to the vendor.
           </p>
+        </div>
+      </div>
+
+      {/* Aggregated Monthly File */}
+      <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-600">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Monthly Aggregated File (All Organizations)</h2>
+            <p className="text-sm text-slate-600 mt-1">
+              Compile a single eligibility file containing all members across every active organization.
+              This is the file Ideal Health forwards to Careington each month.
+              Each row carries its own Provider Group Code so the carrier can attribute members per organization.
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-3 mt-4">
+          <button
+            onClick={() => handleGenerateAggregated('careington')}
+            disabled={generatingVendor === 'AGG-careington'}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 text-sm"
+          >
+            {generatingVendor === 'AGG-careington' ? 'Generating…' : (<><Download size={14} /> Generate Aggregated Careington File ({fileType})</>)}
+          </button>
+          <button
+            onClick={() => handleGenerateAggregated('dialcare')}
+            disabled={generatingVendor === 'AGG-dialcare'}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded hover:bg-slate-800 disabled:opacity-50 text-sm"
+          >
+            {generatingVendor === 'AGG-dialcare' ? 'Generating…' : (<><Download size={14} /> Generate Aggregated DialCare File ({fileType})</>)}
+          </button>
         </div>
       </div>
     </div>

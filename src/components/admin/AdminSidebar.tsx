@@ -42,7 +42,7 @@ const ADMIN_NAVIGATION: NavSection[] = [
   {
     section: "Operations",
     items: [
-      { label: "Sites & Accounts", href: "/admin/hierarchy", icon: Building2 },
+      { label: "Brokers & Organizations", href: "/admin/hierarchy", icon: Building2 },
       { label: "Eligibility Files", href: "/admin/eligibility", icon: FileText },
       { label: "Vendor Files", href: "/admin/vendor-files", icon: FileOutput },
     ],

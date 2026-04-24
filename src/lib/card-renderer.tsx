@@ -72,7 +72,7 @@ export function renderCardFront(cardData: MemberCardData): RenderedCardSide {
           isMemberId: true,
         },
         {
-          label: 'Group Code',
+          label: 'Provider Group Code',
           value: cardData.groupCode || 'IDEALDO',
           column: 1,
         },

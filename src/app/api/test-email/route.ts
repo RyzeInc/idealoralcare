@@ -13,7 +13,7 @@ const TEST_MEMBER = {
   memberServicesPhone: '(800) 290-0523',
 };
 
-type EmailType = 'fulfillment-packet' | 'welcome' | 'confirmation' | 'cancelled';
+type EmailType = 'fulfillment-packet' | 'welcome' | 'confirmation' | 'cancelled' | 'eligibility-set-password';
 
 export async function POST(req: NextRequest) {
   try {
@@ -135,6 +135,17 @@ export async function POST(req: NextRequest) {
           memberName,
           memberEmail: to,
           memberId: TEST_MEMBER.memberId,
+        });
+        break;
+      }
+
+      case 'eligibility-set-password': {
+        subject = 'Set your password and activate your Ideal Oral Health membership';
+        html = generateEligibilitySetPasswordEmailHTML({
+          memberName,
+          invitationUrl: `${portalUrl}/sign-up?ticket=TEST_INVITE_URL`,
+          sponsorName: 'Acme Corp (Test Sponsor)',
+          portalUrl,
         });
         break;
       }
@@ -381,6 +392,56 @@ function generateCancellationEmailHTML(data: {
         <p style="font-size: 12px; color: #666;">
           Thank you for being part of our community. We hope to welcome you back in the future!
         </p>
+      </div>
+    </div>`;
+}
+
+function generateEligibilitySetPasswordEmailHTML(data: {
+  memberName: string;
+  invitationUrl: string;
+  sponsorName?: string;
+  portalUrl: string;
+}): string {
+  const sponsorLine = data.sponsorName
+    ? `Your access has been activated through <strong>${data.sponsorName}</strong>.`
+    : `Your access has been activated through your sponsoring organization.`;
+  const portalDisplay = data.portalUrl.replace(/^https?:\/\//, '');
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+      <div style="background: linear-gradient(135deg, #0066CC 0%, #14b8a6 100%); color: white; padding: 24px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+        <h1 style="margin: 0; font-size: 22px;">Welcome to Ideal Oral Health</h1>
+        <p style="margin: 10px 0 0 0; font-size: 14px; opacity: 0.95;">Set your password to activate your account</p>
+      </div>
+      <div style="padding: 30px; background: #f9fafb; border-radius: 0 0 8px 8px;">
+        <p style="font-size: 16px;">Hi ${data.memberName},</p>
+        <p style="font-size: 14px; line-height: 1.7;">${sponsorLine} To finish setting up your member account, please choose a password using the secure link below.</p>
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 22px; margin: 24px 0; text-align: center;">
+          <p style="font-size: 14px; color: #374151; margin: 0 0 16px 0;">Click below to set your password and sign in.</p>
+          <a href="${data.invitationUrl}" style="display: inline-block; padding: 14px 32px; background: #0066CC; color: white; font-weight: 700; font-size: 16px; text-decoration: none; border-radius: 8px;">Set My Password</a>
+          <p style="font-size: 12px; color: #9ca3af; margin: 16px 0 0 0;">For your security, this invitation link is single-use and expires in 30 days.</p>
+        </div>
+        <h3 style="color: #0066CC; font-size: 15px;">What you get with your membership:</h3>
+        <ul style="line-height: 1.8; font-size: 14px; color: #4b5563;">
+          <li><strong>AI Oral Scan:</strong> Monitor your dental health from home (screening, not a clinical diagnosis).</li>
+          <li><strong>DialCare Teledentistry:</strong> 24/7/365 virtual consultations with licensed dentists.</li>
+          <li><strong>Dental Discount Network:</strong> Save 20&ndash;50% on dental procedures at thousands of participating providers nationwide.</li>
+          <li><strong>No claim forms or waiting periods</strong> &mdash; you receive negotiated discounts at the time of service.</li>
+        </ul>
+        <div style="background: #FFF8E1; padding: 12px 15px; border-left: 4px solid #F9A825; border-radius: 5px; margin: 18px 0;">
+          <p style="margin: 0; font-size: 13px; line-height: 1.5;">
+            <strong style="color: #F9A825;">Look for your DialCare email:</strong>
+            Shortly after activation you will receive a separate &ldquo;Register Your Account&rdquo; email directly from DialCare. Use it to set up your teledentistry account. If you don&rsquo;t see it, check your spam/junk folder or call DialCare at (855) 335-2255.
+          </p>
+        </div>
+        <div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 18px 0;">
+          <p style="margin: 0; font-size: 13px;">Questions? Contact Member Services at <a href="mailto:support@getidealoh.com" style="color: #0066CC; text-decoration: none;">support@getidealoh.com</a> or visit <a href="${data.portalUrl}" style="color: #0066CC; text-decoration: none;">${portalDisplay}</a>.</p>
+        </div>
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+        <p style="font-size: 11px; color: #6b7280; line-height: 1.6; margin: 0 0 8px;">
+          <strong>Important:</strong> This plan is NOT insurance, is not intended to replace insurance, and is not a qualified health plan under the Affordable Care Act. The plan provides discounts on certain dental services from participating providers. The plan does not make payments directly to providers; you are obligated to pay for all services at the time of service but will receive a discount from participating providers. Discounts range based on provider and service. The discount program is administered by Careington International Corporation, 7400 Safari Blvd., Frisco, TX 75033, (800) 290-0523. Teledentistry services are provided by DialCare. Not available in all states. Member may cancel within the first 30 days for a full refund of fees paid.
+        </p>
+        <p style="font-size: 11px; color: #9ca3af; margin: 8px 0 0;">You received this email because your sponsoring organization added you to the Ideal Oral Health program. If this looks unfamiliar, you can safely ignore this email or contact <a href="mailto:support@getidealoh.com" style="color: #9ca3af;">support@getidealoh.com</a>.</p>
+        <p style="font-size: 11px; color: #9ca3af; margin: 12px 0 0; word-break: break-all;">If the button above does not work, copy and paste this link into your browser:<br /><a href="${data.invitationUrl}" style="color: #9ca3af;">${data.invitationUrl}</a></p>
       </div>
     </div>`;
 }

@@ -199,6 +199,63 @@ export const searchMembers = query({
 });
 
 /**
+ * Quick eligibility check (Tivity-style): search ALL members across the system
+ * by email, last name, or member ID. Used by the admin dashboard widget so
+ * admins can answer "is this person eligible?" without navigating to a group.
+ *
+ * Returns a small list (max 25) with just the fields needed for triage:
+ * name, email, group, status, eligibility window.
+ */
+export const quickEligibilityCheck = query({
+  args: { query: v.string() },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const q = args.query.trim().toLowerCase();
+    if (q.length < 2) return [];
+
+    // Pull all members and filter in-memory. Member counts are bounded
+    // (single-org platform) so this is acceptable; for larger scale, switch
+    // to a search index on `email` + `lastName`.
+    const all = await ctx.db.query("memberProfiles").collect();
+    const matches = all.filter((m) => {
+      const email = (m.email ?? "").toLowerCase();
+      const last = (m.lastName ?? "").toLowerCase();
+      const first = (m.firstName ?? "").toLowerCase();
+      const memId = m.memberId ?? "";
+      return (
+        email.includes(q) ||
+        last.includes(q) ||
+        first.includes(q) ||
+        memId.includes(args.query.trim())
+      );
+    }).slice(0, 25);
+
+    // Hydrate group names
+    const groupIds = Array.from(new Set(matches.map((m) => m.groupId).filter(Boolean)));
+    const groups = await Promise.all(
+      groupIds.map((gid) => ctx.db.get(gid as any))
+    );
+    const groupMap = new Map(
+      groups
+        .filter((g): g is any => g !== null)
+        .map((g: any) => [g._id, { groupCode: g.groupCode, name: g.name || g.slug }])
+    );
+
+    return matches.map((m) => ({
+      _id: m._id,
+      memberId: m.memberId,
+      firstName: m.firstName,
+      lastName: m.lastName,
+      email: m.email,
+      status: m.status,
+      effectiveDate: m.effectiveDate,
+      groupId: m.groupId,
+      group: m.groupId ? groupMap.get(m.groupId) : null,
+    }));
+  },
+});
+
+/**
  * Add member note (admin action)
  */
 export const addMemberNote = mutation({
@@ -345,7 +402,10 @@ export const getActiveMembersByGroup = query({
       .filter((q) => q.eq(q.field("groupId"), args.groupId))
       .collect();
 
-    return allMembers.filter((m) => ["active", "enrolling"].includes(m.memberType));
+    // Include "eligible" so freshly-imported eligibility-file members appear
+    // in vendor file generation (Careington/DialCare). They haven't activated
+    // yet but are entitled to coverage and need to be on the vendor's roster.
+    return allMembers.filter((m) => ["active", "enrolling", "eligible"].includes(m.memberType));
   },
 });
 
