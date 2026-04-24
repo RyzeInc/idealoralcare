@@ -6,6 +6,11 @@ const withAnalyzer = withBundleAnalyzer({
 });
 
 const nextConfig: NextConfig = {
+  // Packages that must NOT be bundled by webpack on the server.
+  // ssh2 ships a native .node binary (sshcrypto.node) that webpack cannot parse;
+  // listing it here makes Next require() it at runtime instead.
+  serverExternalPackages: ["ssh2", "ssh2-sftp-client"],
+
   experimental: {
     serverActions: {
       allowedOrigins: [
