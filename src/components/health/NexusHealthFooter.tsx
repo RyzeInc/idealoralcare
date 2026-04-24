@@ -20,7 +20,7 @@ export function NexusHealthFooter() {
               alt="Ideal Oral Health"
               width={145}
               height={70}
-              style={{ objectFit: "contain", marginBottom: "0" }}
+              style={{ objectFit: "contain", marginBottom: "0", height: "auto" }}
             />
           </div>
 

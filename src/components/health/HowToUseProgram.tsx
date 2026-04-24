@@ -105,7 +105,7 @@ export default function HowToUseProgram() {
           alt="Ideal Oral Health"
           width={180}
           height={60}
-          style={{ objectFit: "contain" }}
+          style={{ objectFit: "contain", height: "auto" }}
           priority
         />
       </div>
@@ -352,7 +352,7 @@ export default function HowToUseProgram() {
             alt="Ideal Oral Health"
             width={28}
             height={28}
-            style={{ objectFit: "contain" }}
+            style={{ objectFit: "contain", height: "auto" }}
           />
           <p
             style={{

@@ -175,11 +175,28 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
   }, [convexScanId, markScanCompletedMut]);
 
   /**
+   * After a Toothlens UID repair or company migration, legacy session URLs may
+   * point at an upstream UID that is no longer valid. Completed scans remain
+   * accessible when we captured a direct reportUrl; otherwise only rows that
+   * still match the caller's current Toothlens UID may be reopened.
+   */
+  const canOpenHistoricalScan = useCallback(
+    (scan: { toothlensUid: string; reportUrl?: string }): boolean => {
+      if (scan.reportUrl) return true;
+      if (!toothlensUser?.toothlensUid) return true;
+      return toothlensUser.toothlensUid === scan.toothlensUid;
+    },
+    [toothlensUser]
+  );
+
+  /**
    * Build a scanner URL for a historical scan. Historical rows always persist
    * `scanUrl` so we never have to guess the company.
    */
   const buildScanUrl = useCallback(
-    (scan: { scanUrl?: string; toothlensUid: string; sessionId: string }): string | null => {
+    (scan: { scanUrl?: string; toothlensUid: string; sessionId: string; reportUrl?: string }): string | null => {
+      if (scan.reportUrl) return scan.reportUrl;
+      if (!canOpenHistoricalScan(scan)) return null;
       if (scan.scanUrl) return scan.scanUrl;
       // Legacy rows without scanUrl — fall back to the caller's stored company.
       if (toothlensUser?.company) {
@@ -191,7 +208,7 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
       }
       return null;
     },
-    [toothlensUser]
+    [canOpenHistoricalScan, toothlensUser]
   );
 
   /**
@@ -908,6 +925,8 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
                   ? { bg: '#fef3c7', text: '#92400e', label: 'Cancelled' }
                   : { bg: '#dbeafe', text: '#1e40af', label: 'In Progress' };
 
+              const canOpenScan = canOpenHistoricalScan(scan as { toothlensUid: string; reportUrl?: string });
+
               return (
                 <div
                   key={scan._id}
@@ -954,7 +973,7 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
                     >
                       {statusColor.label}
                     </span>
-                    {scan.status === 'completed' && (
+                    {scan.status === 'completed' && canOpenScan && (
                       <button
                         onClick={() => openReportOverlay(scan as any)}
                         style={{
@@ -968,10 +987,24 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
                           cursor: 'pointer',
                         }}
                       >
-                        View Report
+                        {scan.reportUrl ? 'Open Report' : 'View Report'}
                       </button>
                     )}
-                    {scan.status === 'started' && (
+                    {scan.status === 'completed' && !canOpenScan && (
+                      <span
+                        style={{
+                          padding: '0.25rem 0.75rem',
+                          background: '#fff7ed',
+                          color: '#9a3412',
+                          borderRadius: '9999px',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                        }}
+                      >
+                        Legacy session unavailable
+                      </span>
+                    )}
+                    {scan.status === 'started' && canOpenScan && (
                       <button
                         onClick={() => openReportOverlay(scan as any)}
                         style={{
@@ -987,6 +1020,20 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
                       >
                         Resume Scan
                       </button>
+                    )}
+                    {scan.status === 'started' && !canOpenScan && (
+                      <span
+                        style={{
+                          padding: '0.25rem 0.75rem',
+                          background: '#fff7ed',
+                          color: '#9a3412',
+                          borderRadius: '9999px',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                        }}
+                      >
+                        Session expired
+                      </span>
                     )}
                     {scan.status === 'completed' && scan.reportUrl && (
                       <a
