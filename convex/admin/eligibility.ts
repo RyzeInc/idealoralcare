@@ -2,6 +2,7 @@ import { mutation, query, action, internalMutation } from "../_generated/server"
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
 import { requireAdmin, requireAdminAction } from "../lib/authGuards";
+import * as XLSX from "xlsx";
 
 /**
  * ELIGIBILITY FILE PROCESSING — PRODUCTION PIPELINE
@@ -339,10 +340,172 @@ function parseCsvContent(content: string): Array<{
 }
 
 /**
+ * Parse an XLSX buffer (Ideal Sample Census format) into primary records + dependents.
+ *
+ * Header-driven: matches columns by lowercased/normalized header name. Recognized headers
+ * include FIRSTNAME, LASTNAME, EMAIL, DATEOFBIRTH, EFFECTIVEDATE, GENDER, GROUP CODE,
+ * Unique ID, Sequence Number, Coverage, ADDRESS1/2, CITY, STATE, ZIP, Home Phone, Work Phone,
+ * Title, MIDDLENAME, Post Name, RELATION.
+ *
+ * Rows with seqNum "00" (or blank) are primaries; non-zero seqNums are dependents that
+ * attach to the primary with the same Unique ID.
+ */
+function parseXlsxBuffer(
+  buffer: ArrayBuffer,
+  errors: Array<{ row: number; message: string }>
+): Array<{
+  title?: string;
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+  suffix?: string;
+  email?: string;
+  phone?: string;
+  workPhone?: string;
+  dateOfBirth?: string;
+  effectiveDate?: string;
+  gender?: string;
+  address?: any;
+  dependents?: Array<{ firstName: string; lastName: string; dateOfBirth?: string; relationship: string }>;
+}> {
+  const wb = XLSX.read(buffer, { type: "array", cellDates: false });
+  const sheetName = wb.SheetNames[0];
+  if (!sheetName) return [];
+  const sheet = wb.Sheets[sheetName];
+  const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "", raw: false });
+
+  const norm = (k: string) => k.toLowerCase().replace(/[\s_-]/g, "");
+  const pick = (row: any, ...candidates: string[]): string => {
+    for (const cand of candidates) {
+      const target = norm(cand);
+      for (const k of Object.keys(row)) {
+        if (norm(k) === target) {
+          const v = row[k];
+          if (v !== undefined && v !== null && String(v).trim() !== "") return String(v).trim();
+        }
+      }
+    }
+    return "";
+  };
+
+  // Convert various date formats (MM/DD/YYYY, MMDDYYYY, M/D/YYYY) to ISO YYYY-MM-DD
+  const toIsoDate = (s: string): string | undefined => {
+    if (!s) return undefined;
+    const trimmed = s.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    if (/^\d{8}$/.test(trimmed)) {
+      return `${trimmed.slice(4, 8)}-${trimmed.slice(0, 2)}-${trimmed.slice(2, 4)}`;
+    }
+    const slash = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (slash) {
+      const mm = slash[1].padStart(2, "0");
+      const dd = slash[2].padStart(2, "0");
+      return `${slash[3]}-${mm}-${dd}`;
+    }
+    return undefined;
+  };
+
+  // Group by uniqueId so dependents attach to the right primary
+  type Parsed = ReturnType<typeof parseRow>;
+  function parseRow(row: any) {
+    const firstName = pick(row, "FIRSTNAME", "first_name", "First Name");
+    const lastName = pick(row, "LASTNAME", "last_name", "Last Name");
+    if (!firstName || !lastName) return null;
+    const seqNum = (pick(row, "Sequence Number", "SequenceNumber", "Seq", "SeqNum") || "00").padStart(2, "0");
+    const uniqueId = pick(row, "Unique ID", "UniqueID", "MemberID", "Member ID");
+    const coverage = pick(row, "Coverage").toUpperCase();
+    const relationRaw = pick(row, "RELATION", "Relationship").toUpperCase();
+    let relationship: "spouse" | "child" | "domestic_partner" | "other" | undefined;
+    if (seqNum !== "00") {
+      if (relationRaw.startsWith("S")) relationship = "spouse";
+      else if (relationRaw.startsWith("C")) relationship = "child";
+      else if (coverage === "MS") relationship = "spouse";
+      else if (coverage === "MD" || coverage === "MC") relationship = "child";
+      else relationship = "other";
+    }
+    const genderRaw = pick(row, "GENDER", "Gender").toUpperCase();
+    const gender = genderRaw.startsWith("M") ? "male" : genderRaw.startsWith("F") ? "female" : undefined;
+    const addr1 = pick(row, "ADDRESS1", "Address1", "Address Line 1");
+    const address = addr1 ? {
+      line1: addr1,
+      line2: pick(row, "ADDRESS2", "Address2") || undefined,
+      city: pick(row, "CITY", "City"),
+      state: pick(row, "STATE", "State"),
+      postalCode: pick(row, "ZIP", "Zip", "Postal Code"),
+      country: "US",
+    } : undefined;
+    return {
+      title: pick(row, "Title") || undefined,
+      firstName,
+      middleName: pick(row, "MIDDLENAME", "Middle Name", "Middle Initial") || undefined,
+      lastName,
+      suffix: pick(row, "Post Name", "Suffix") || undefined,
+      email: pick(row, "EMAIL", "Email") || undefined,
+      phone: pick(row, "Home Phone", "Phone").replace(/\D/g, "") || undefined,
+      workPhone: pick(row, "Work Phone").replace(/\D/g, "") || undefined,
+      dateOfBirth: toIsoDate(pick(row, "DATEOFBIRTH", "Date of Birth", "DOB", "dateOfBirth")),
+      effectiveDate: toIsoDate(pick(row, "EFFECTIVEDATE", "Effective Date")),
+      gender,
+      address,
+      uniqueId,
+      seqNum,
+      relationship,
+    };
+  }
+
+  const groups = new Map<string, { primary: Parsed | null; dependents: Parsed[] }>();
+  for (let i = 0; i < rows.length; i++) {
+    const parsed = parseRow(rows[i]);
+    if (!parsed) {
+      errors.push({ row: i + 2, message: `Row ${i + 2}: missing firstName or lastName` });
+      continue;
+    }
+    const key = parsed.uniqueId || `__row${i}`;
+    if (!groups.has(key)) groups.set(key, { primary: null, dependents: [] });
+    const g = groups.get(key)!;
+    if (parsed.seqNum === "00") g.primary = parsed;
+    else g.dependents.push(parsed);
+  }
+
+  const out: any[] = [];
+  for (const [uid, g] of groups) {
+    if (!g.primary) {
+      errors.push({ row: -1, message: `Unique ID ${uid} has dependents but no primary (seqNum 00)` });
+      continue;
+    }
+    const p = g.primary;
+    const deps = g.dependents
+      .filter((d): d is NonNullable<Parsed> => d !== null)
+      .map((d) => ({
+        firstName: d!.firstName,
+        lastName: d!.lastName,
+        dateOfBirth: d!.dateOfBirth,
+        relationship: (d!.relationship ?? "other") as "spouse" | "child" | "domestic_partner" | "other",
+      }));
+    out.push({
+      title: p!.title,
+      firstName: p!.firstName,
+      middleName: p!.middleName,
+      lastName: p!.lastName,
+      suffix: p!.suffix,
+      email: p!.email,
+      phone: p!.phone,
+      workPhone: p!.workPhone,
+      dateOfBirth: p!.dateOfBirth,
+      effectiveDate: p!.effectiveDate,
+      gender: p!.gender,
+      address: p!.address,
+      dependents: deps.length > 0 ? deps : undefined,
+    });
+  }
+  return out;
+}
+
+/**
  * Process eligibility file — the main pipeline action
  *
  * 1. Fetch file from Convex _storage
- * 2. Parse (pipe-delimited txt OR csv OR json)
+ * 2. Parse (pipe-delimited txt OR csv OR xlsx OR json)
  * 3. Validate all rows
  * 4. Schedule batched mutations via ctx.scheduler
  */
@@ -357,6 +520,16 @@ export const processEligibilityFile = action({
     if (!fileDetail) throw new Error("File not found");
     const file = fileDetail.file;
 
+    // Resolve accountId — the uploadEligibilityFile mutation accepts it as optional
+    // but internalBatchCreateMembers requires it. Always fall back to the group's
+    // accountId which is guaranteed non-null by the groups schema.
+    let resolvedAccountId = file.accountId;
+    if (!resolvedAccountId) {
+      const group = await ctx.runQuery(api.admin.hierarchy.getGroupById, { groupId: file.groupId });
+      if (!group?.accountId) throw new Error(`Group ${file.groupId} has no accountId — cannot process file`);
+      resolvedAccountId = group.accountId;
+    }
+
     // Update status → validating
     await ctx.runMutation(api.admin.eligibility.updateFileStatus, {
       fileId: args.fileId,
@@ -368,8 +541,17 @@ export const processEligibilityFile = action({
       if (!file.storageId) throw new Error("No storage ID on file record");
       const blob = await ctx.storage.get(file.storageId as any);
       if (!blob) throw new Error("File not found in storage");
-      const content = await blob.text();
-      if (!content.trim()) throw new Error("File is empty");
+
+      // For xlsx we need the binary bytes; for everything else we read as text
+      let content = "";
+      let xlsxBuffer: ArrayBuffer | null = null;
+      if (file.fileType === "xlsx") {
+        xlsxBuffer = await blob.arrayBuffer();
+        if (!xlsxBuffer.byteLength) throw new Error("File is empty");
+      } else {
+        content = await blob.text();
+        if (!content.trim()) throw new Error("File is empty");
+      }
 
       // ── Parse based on file type ──
       let primaryRecords: Array<{
@@ -454,6 +636,9 @@ export const processEligibilityFile = action({
       } else if (file.fileType === "csv") {
         // ── Standard CSV ──
         primaryRecords = parseCsvContent(content);
+      } else if (file.fileType === "xlsx") {
+        // ── Excel (.xlsx) — Ideal Sample Census format ──
+        primaryRecords = parseXlsxBuffer(xlsxBuffer!, errors);
       } else if (file.fileType === "json") {
         // ── JSON array of records ──
         const parsed = JSON.parse(content);
@@ -518,7 +703,7 @@ export const processEligibilityFile = action({
         await ctx.scheduler.runAfter(batchIdx * 200, internal.admin.eligibility.internalBatchCreateMembers, {
           fileId: args.fileId,
           siteId: file.siteId,
-          accountId: file.accountId!,
+          accountId: resolvedAccountId,
           groupId: file.groupId,
           records: serializedRecords,
           batchIndex: batchIdx,
@@ -692,9 +877,9 @@ export const internalBatchCreateMembers = internalMutation({
         continue;
       }
       if (!record.email && !record.phone) {
-        results.failed++;
-        results.errors.push({ rowIndex, message: "email or phone is required" });
-        continue;
+        // Warn but don't hard-fail — some census imports have name+DOB only.
+        // The member will be created with no contact info.
+        results.errors.push({ rowIndex, message: `Row ${rowIndex + 1}: no email or phone — member created without contact info` });
       }
 
       try {
@@ -807,9 +992,27 @@ export const internalBatchCreateMembers = internalMutation({
       const updatedFile = await ctx.db.get(args.fileId);
       const totalErrors = (updatedFile?.errorRecords ?? 0) + args.parseErrors.length;
       const finalStatus = totalErrors > 0 ? "completed_with_errors" : "completed";
+
+      // Collect all error objects so the UI can display them.
+      // Schema shape: { row: number, field?: string, message: string }
+      const allErrorObjects: Array<{ row: number; field?: string; message: string }> = [
+        ...args.parseErrors.map((e) => ({ row: e.row, message: e.message })),
+        ...results.errors.map((e) => ({
+          row: e.rowIndex ?? -1,
+          message: typeof e.message === "string"
+            ? e.message
+            : `${e.error ?? JSON.stringify(e)}`,
+        })),
+      ];
+
+      // Carry forward any errors already saved by earlier batches.
+      const existingErrors: Array<{ row: number; field?: string; message: string }> =
+        updatedFile?.errors ?? [];
+
       await ctx.db.patch(args.fileId, {
         status: finalStatus,
         completedAt: Date.now(),
+        errors: [...existingErrors, ...allErrorObjects].slice(0, 200), // cap at 200
       });
     }
 

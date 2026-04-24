@@ -30,6 +30,7 @@ const isProtectedRoute = createRouteMatcher([
 // Routes that should never be blocked (webhooks, public API)
 const isPublicApiRoute = createRouteMatcher([
   "/api/stripe/webhook",
+  "/api/clerk/webhook",
 ]);
 
 // Read sign-in URL from env or fall back to our custom page

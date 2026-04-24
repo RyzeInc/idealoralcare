@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
@@ -23,10 +23,115 @@ export default function EligibilityUploadPage() {
   const generateUploadUrl = useMutation(api.admin.eligibility.generateUploadUrl);
   const uploadEligibilityFile = useMutation(api.admin.eligibility.uploadEligibilityFile);
   const processFile = useAction(api.admin.eligibility.processEligibilityFile);
+  const provisionFile = useAction(api.admin.eligibilityProvisioning.provisionEligibilityFile);
+  const sendVendorFile = useAction(api.admin.sftpDelivery.generateAndSendVendorFile);
+  const [provisioningFileId, setProvisioningFileId] = useState<string | null>(null);
+  const [sendingFileId, setSendingFileId] = useState<string | null>(null);
+
+  const downloadStringAsFile = (filename: string, content: string) => {
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleSendToCareington = async (file: any) => {
+    const ok = window.confirm(
+      `Generate the Careington pipe-delimited eligibility file for "${file.fileName}" and push it via SFTP (or download if SFTP isn't configured)?`
+    );
+    if (!ok) return;
+    setSendingFileId(file._id);
+    try {
+      const res: any = await sendVendorFile({
+        groupId: file.groupId,
+        vendor: 'careington',
+        fileType: 'full',
+        method: 'sftp',
+        sourceEligibilityFileId: file._id,
+      });
+      if (res.method === 'manual_download') {
+        if (res.content) downloadStringAsFile(res.filename, res.content);
+        alert(
+          `Generated ${res.filename}\nMembers: ${res.memberCount}\n` +
+          (res.error ? `\n${res.error}\n` : '\nFile downloaded to your computer.\n') +
+          `\nSHA-256: ${res.sha256}`
+        );
+        return;
+      }
+      // SFTP path: ask the Next.js route to do the actual push.
+      const pushRes = await fetch('/api/admin/vendor-deliver', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deliveryId: res.deliveryId }),
+      });
+      const pushJson: any = await pushRes.json().catch(() => ({}));
+      if (!pushRes.ok) {
+        throw new Error(pushJson.error || `SFTP push failed (${pushRes.status})`);
+      }
+      alert(
+        `SFTP push succeeded\n\nFile: ${res.filename}\n` +
+        `Members: ${res.memberCount}\nRows: ${res.rowCount}\n` +
+        `Host: ${pushJson.host}\nRemote path: ${pushJson.remotePath}\n` +
+        `Bytes: ${res.bytes}\nSHA-256: ${res.sha256}`
+      );
+    } catch (err) {
+      alert(`Send to Careington failed: ${err instanceof Error ? err.message : 'Unknown'}`);
+    } finally {
+      setSendingFileId(null);
+    }
+  };
+
+  const handlePreviewCareington = async (file: any) => {
+    setSendingFileId(file._id);
+    try {
+      // Generate via the orchestrator with method="manual_download" so we get
+      // the file content back without any SFTP push. This is exactly what
+      // would be sent to Careington.
+      const res: any = await sendVendorFile({
+        groupId: file.groupId,
+        vendor: 'careington',
+        fileType: 'full',
+        method: 'manual_download',
+        sourceEligibilityFileId: file._id,
+      });
+      if (!res.content) {
+        alert('No content was generated.');
+        return;
+      }
+      // Always download so the team can open it and verify formatting
+      // (matches Eligibility Guide Appendix A — pipe-delimited .txt).
+      downloadStringAsFile(res.filename, res.content);
+
+      const sample = res.content.split(/\r?\n/).filter((l: string) => l.trim()).slice(0, 2);
+      const pipeCount = sample[0] ? (sample[0].match(/\|/g) ?? []).length : 0;
+      const usesCRLF = res.content.includes('\r\n');
+      alert(
+        `Generated ${res.filename}\n\n` +
+        `Members: ${res.memberCount}\n` +
+        `Rows:    ${res.rowCount}\n` +
+        `Bytes:   ${res.bytes}\n` +
+        `SHA-256: ${res.sha256}\n\n` +
+        `Format check:\n` +
+        `  Pipes per row: ${pipeCount}  (Careington CI007 expects 27)\n` +
+        `  Line endings:  ${usesCRLF ? 'CRLF ✓' : 'LF (will fail Careington parser)'}\n\n` +
+        `First row preview:\n${sample[0] ?? '(empty)'}`
+      );
+    } catch (err) {
+      alert(`Preview failed: ${err instanceof Error ? err.message : 'Unknown'}`);
+    } finally {
+      setSendingFileId(null);
+    }
+  };
 
   const handleFile = (file: File) => {
-    if (!file.name.endsWith('.csv') && !file.name.endsWith('.xlsx')) {
-      alert('Please upload a CSV or XLSX file.');
+    const n = file.name.toLowerCase();
+    if (!n.endsWith('.csv') && !n.endsWith('.xlsx') && !n.endsWith('.txt') && !n.endsWith('.json')) {
+      alert('Please upload a CSV, XLSX, TXT (Careington pipe-delimited), or JSON file.');
       return;
     }
     setSelectedFile(file);
@@ -66,7 +171,12 @@ export default function EligibilityUploadPage() {
       const { storageId } = await result.json();
 
       // 3. Create eligibility file record
-      const fileExt = selectedFile.name.endsWith('.xlsx') ? 'xlsx' as const : 'csv' as const;
+      const lower = selectedFile.name.toLowerCase();
+      const fileExt: 'csv' | 'xlsx' | 'txt' | 'json' =
+        lower.endsWith('.xlsx') ? 'xlsx'
+        : lower.endsWith('.txt') ? 'txt'
+        : lower.endsWith('.json') ? 'json'
+        : 'csv';
       const record = await uploadEligibilityFile({
         groupId: group._id as Id<'groups'>,
         siteId: group.siteId as Id<'sites'>,
@@ -162,7 +272,7 @@ export default function EligibilityUploadPage() {
           </>
         )}
         <label>
-          <input type="file" accept=".csv,.xlsx" onChange={handleFileSelect} className="hidden" />
+          <input type="file" accept=".csv,.xlsx,.txt,.json" onChange={handleFileSelect} className="hidden" />
           <span className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 cursor-pointer inline-block">
             {selectedFile ? 'Change File' : 'Choose File'}
           </span>
@@ -227,8 +337,8 @@ export default function EligibilityUploadPage() {
                 const hasErrors = (file.errors?.length ?? 0) > 0 || file.status === 'failed' || file.status === 'completed_with_errors';
                 const isExpanded = expandedFile === file._id;
                 return (
-                  <>
-                    <tr key={file._id} className="hover:bg-slate-50">
+                  <React.Fragment key={file._id}>
+                    <tr className="hover:bg-slate-50">
                       <td className="px-4 py-4">
                         {hasErrors ? (
                           <button onClick={() => setExpandedFile(isExpanded ? null : file._id)} className="text-slate-400 hover:text-slate-600">
@@ -261,35 +371,101 @@ export default function EligibilityUploadPage() {
                         <p className="text-xs text-slate-600 mt-1">{file.processedRecords} / {file.totalRecords}</p>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        {(file.status === 'failed' || file.status === 'completed_with_errors') && (
-                          <button
-                            onClick={async () => {
-                              try { await processFile({ fileId: file._id }); }
-                              catch (err) { alert(`Re-process failed: ${err instanceof Error ? err.message : 'Unknown'}`); }
-                            }}
-                            className="text-xs px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100"
-                          >
-                            Re-process
-                          </button>
-                        )}
+                        <div className="flex items-center justify-end gap-2">
+                          {(file.status === 'completed' || file.status === 'completed_with_errors') && (
+                            <button
+                              disabled={provisioningFileId === file._id}
+                              onClick={async () => {
+                                const ok = window.confirm(
+                                  `Send Clerk invitations and grant employer-paid access to all eligible members in "${file.fileName}"?`
+                                );
+                                if (!ok) return;
+                                setProvisioningFileId(file._id);
+                                try {
+                                  const res: any = await provisionFile({ fileId: file._id, mode: 'invite' });
+                                  alert(
+                                    `Provisioning complete\n\n` +
+                                    `Attempted: ${res.attempted}\n` +
+                                    `Succeeded: ${res.succeeded}\n` +
+                                    `Failed:    ${res.failed}\n` +
+                                    `Already linked (skipped): ${res.alreadyLinked}` +
+                                    (res.errors.length
+                                      ? `\n\nErrors:\n` + res.errors.slice(0, 10).map((e: any) => `• ${e.email}: ${e.message}`).join('\n')
+                                      : '')
+                                  );
+                                } catch (err) {
+                                  alert(`Provisioning failed: ${err instanceof Error ? err.message : 'Unknown'}`);
+                                } finally {
+                                  setProvisioningFileId(null);
+                                }
+                              }}
+                              className="text-xs px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50"
+                              title="Create Clerk invitations and provision employer-paid plan access for every eligible member in this file."
+                            >
+                              {provisioningFileId === file._id ? 'Provisioning…' : 'Provision Access'}
+                            </button>
+                          )}
+                          {(file.status === 'completed' || file.status === 'completed_with_errors') && (
+                            <button
+                              disabled={sendingFileId === file._id}
+                              onClick={() => handlePreviewCareington(file)}
+                              className="text-xs px-3 py-1.5 bg-slate-50 text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-100 disabled:opacity-50"
+                              title="Generate the Careington pipe-delimited file and download it locally so you can verify the format BEFORE sending. Does NOT push to SFTP."
+                            >
+                              {sendingFileId === file._id ? 'Generating…' : 'Preview / Download'}
+                            </button>
+                          )}
+                          {(file.status === 'completed' || file.status === 'completed_with_errors') && (
+                            <button
+                              disabled={sendingFileId === file._id}
+                              onClick={() => handleSendToCareington(file)}
+                              className="text-xs px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 disabled:opacity-50"
+                              title="Generate the Careington pipe-delimited eligibility file and push it via SFTP (falls back to download if SFTP isn't configured)."
+                            >
+                              {sendingFileId === file._id ? 'Sending…' : 'Send to Careington'}
+                            </button>
+                          )}
+                          {(file.status === 'failed' || file.status === 'completed_with_errors') && (
+                            <button
+                              onClick={async () => {
+                                try { await processFile({ fileId: file._id }); }
+                                catch (err) { alert(`Re-process failed: ${err instanceof Error ? err.message : 'Unknown'}`); }
+                              }}
+                              className="text-xs px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100"
+                            >
+                              Re-process
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                     {isExpanded && hasErrors && (
                       <tr key={`${file._id}-errors`} className="bg-red-50">
                         <td colSpan={7} className="px-10 py-3">
-                          <p className="text-xs font-semibold text-red-700 mb-2">Errors ({file.errors?.length ?? 0}):</p>
+                          <p className="text-xs font-semibold text-red-700 mb-2">
+                            {file.status === 'completed_with_errors'
+                              ? `Completed with ${file.errorRecords ?? 0} failed row(s) — ${file.errors?.length ?? 0} error detail(s):`
+                              : `Errors (${file.errors?.length ?? 0}):`}
+                          </p>
                           <div className="space-y-1 max-h-40 overflow-y-auto">
-                            {(file.errors ?? []).map((err: string, i: number) => (
-                              <p key={i} className="text-xs text-red-600 font-mono bg-red-100 px-2 py-1 rounded">{err}</p>
+                            {(file.errors ?? []).map((err: any, i: number) => (
+                              <p key={i} className="text-xs text-red-600 font-mono bg-red-100 px-2 py-1 rounded">
+                                {typeof err === 'string' ? err : `Row ${err.row ?? '?'}${err.field ? ` [${err.field}]` : ''}: ${err.message}`}
+                              </p>
                             ))}
-                            {(file.errors ?? []).length === 0 && (
+                            {(file.errors ?? []).length === 0 && file.errorRecords > 0 && (
+                              <p className="text-xs text-slate-500 italic">
+                                {file.errorRecords} row(s) failed — click Re-process to retry with updated code that will show details.
+                              </p>
+                            )}
+                            {(file.errors ?? []).length === 0 && !file.errorRecords && (
                               <p className="text-xs text-red-600">Processing failed — no detailed errors recorded.</p>
                             )}
                           </div>
                         </td>
                       </tr>
                     )}
-                  </>
+                  </React.Fragment>
                 );
               })}
             </tbody>

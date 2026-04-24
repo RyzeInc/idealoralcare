@@ -1277,6 +1277,47 @@ export default defineSchema({
     .index("by_status", ["status"]),
 
   // ============================================
+  // VENDOR FILE DELIVERIES (outbound to Careington/DialCare/etc.)
+  // ============================================
+  vendorDeliveries: defineTable({
+    groupId: v.id("groups"),
+    vendor: v.union(
+      v.literal("careington"),
+      v.literal("dialcare"),
+      v.literal("dental_discount_network")
+    ),
+    vendorLabel: v.string(),                          // human-readable
+    fileType: v.union(v.literal("full"), v.literal("delta")),
+    filename: v.string(),
+    fileBytes: v.number(),
+    fileSha256: v.string(),
+    storageId: v.optional(v.string()),                // Convex storage ID for the file
+    memberCount: v.number(),
+    rowCount: v.number(),
+    method: v.union(
+      v.literal("sftp"),
+      v.literal("manual_download")
+    ),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("uploading"),
+      v.literal("delivered"),
+      v.literal("failed")
+    ),
+    sftpHost: v.optional(v.string()),
+    sftpRemotePath: v.optional(v.string()),
+    errorMessage: v.optional(v.string()),
+    triggeredBy: v.optional(v.string()),              // Clerk user id
+    sourceEligibilityFileId: v.optional(v.id("eligibilityFiles")),
+    createdAt: v.number(),
+    deliveredAt: v.optional(v.number()),
+  })
+    .index("by_group", ["groupId"])
+    .index("by_vendor", ["vendor"])
+    .index("by_status", ["status"])
+    .index("by_created", ["createdAt"]),
+
+  // ============================================
   // COMMISSION SYSTEM
   // ============================================
 

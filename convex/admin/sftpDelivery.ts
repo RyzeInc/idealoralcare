@@ -1,186 +1,374 @@
-import { action, query, mutation } from "../_generated/server";
+/**
+ * VENDOR FILE DELIVERY ORCHESTRATOR
+ *
+ * Bridges the inbound eligibility upload pipeline to outbound vendor delivery
+ * (Careington / DialCare). The actual SFTP work is delegated to the Node action
+ * in `sftpNode.ts` because `ssh2-sftp-client` requires the Node runtime.
+ *
+ * Configuration via Convex env vars:
+ *   CAREINGTON_SFTP_HOST, CAREINGTON_SFTP_USER,
+ *   CAREINGTON_SFTP_KEY  (PEM-encoded private key),  optional CAREINGTON_SFTP_PASSWORD,
+ *   CAREINGTON_SFTP_PORT (default 22),
+ *   CAREINGTON_SFTP_PATH (default "/incoming/")
+ *
+ *   DIALCARE_SFTP_HOST, DIALCARE_SFTP_USER, DIALCARE_SFTP_KEY,
+ *   DIALCARE_SFTP_PORT, DIALCARE_SFTP_PATH (default "/eligibility/")
+ *
+ * Vendor identifier ("careington" | "dialcare") is what the orchestrator uses
+ * internally; the legacy "dental_discount_network" label is kept as a
+ * synonym for "careington" since DDN is a Careington product line.
+ */
+
+import { action, query, mutation, internalMutation } from "../_generated/server";
 import { v } from "convex/values";
-import { api } from "../_generated/api";
+import { api, internal } from "../_generated/api";
 import { requireAdmin, requireAdminAction } from "../lib/authGuards";
 
-/**
- * S/FTP DELIVERY SYSTEM
- *
- * Secure file transfer for monthly vendor eligibility file transmission.
- * Credentials from Convex environment variables.
- * Includes manual fallback for download/upload.
- */
+type VendorKey = "careington" | "dialcare";
+
+const VENDOR_LABELS: Record<VendorKey, string> = {
+  careington: "Careington (Dental Discount Network)",
+  dialcare: "DialCare (E-fulfillment)",
+};
+
+function envFor(vendor: VendorKey) {
+  const prefix = vendor === "careington" ? "CAREINGTON" : "DIALCARE";
+  return {
+    host: process.env[`${prefix}_SFTP_HOST`],
+    user: process.env[`${prefix}_SFTP_USER`],
+    privateKey: process.env[`${prefix}_SFTP_KEY`],
+    password: process.env[`${prefix}_SFTP_PASSWORD`],
+    port: process.env[`${prefix}_SFTP_PORT`] ? Number(process.env[`${prefix}_SFTP_PORT`]) : 22,
+    remotePath:
+      process.env[`${prefix}_SFTP_PATH`] ||
+      (vendor === "careington" ? "/incoming/" : "/eligibility/"),
+  };
+}
+
+// ─── SHA-256 in pure JS (works in V8 actions via Web Crypto) ─────────
+async function sha256Hex(content: string): Promise<string> {
+  const enc = new TextEncoder();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const g: any = globalThis as any;
+  const buf = await g.crypto.subtle.digest("SHA-256", enc.encode(content));
+  const bytes = new Uint8Array(buf);
+  let hex = "";
+  for (let i = 0; i < bytes.length; i++) {
+    hex += bytes[i].toString(16).padStart(2, "0");
+  }
+  return hex;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// QUERIES
+// ─────────────────────────────────────────────────────────────────────
 
 /**
- * Send vendor file via SFTP (requires ssh2-sftp-client)
- * In production: configure SFTP credentials via Convex environment
+ * Snapshot of vendor configuration + last delivery for the dashboard.
  */
-export const deliverVendorFileViaSftp = action({
-  args: {
-    vendor: v.string(), // "careington" | "dialcare"
-    filename: v.string(),
-    fileContent: v.string(), // CSV content
-    groupCode: v.string(),
-  },
-  handler: async (ctx, args) => {
-    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
-    // Placeholder for SFTP implementation
-    // In production, use ssh2-sftp-client library with environment credentials
-
-    const credentials = {
-      careington: {
-        host: process.env.CAREINGTON_SFTP_HOST,
-        user: process.env.CAREINGTON_SFTP_USER,
-        privateKey: process.env.CAREINGTON_SFTP_KEY,
-        port: 22,
-        remotePath: "/incoming/",
-      },
-      dialcare: {
-        host: process.env.DIALCARE_SFTP_HOST,
-        user: process.env.DIALCARE_SFTP_USER,
-        privateKey: process.env.DIALCARE_SFTP_KEY,
-        port: 22,
-        remotePath: "/eligibility/",
-      },
-    };
-
-    const vendorCreds = (credentials as any)[args.vendor];
-    if (!vendorCreds) {
-      throw new Error(`No SFTP credentials configured for vendor: ${args.vendor}`);
-    }
-
-    // TODO: Implement actual SFTP delivery
-    // const Client = require("ssh2-sftp-client");
-    // const sftp = new Client();
-    // try {
-    //   await sftp.connect({
-    //     host: vendorCreds.host,
-    //     username: vendorCreds.user,
-    //     privateKey: vendorCreds.privateKey,
-    //   });
-    //   await sftp.put(Buffer.from(args.fileContent), vendorCreds.remotePath + args.filename);
-    //   await sftp.end();
-    //   return { success: true, message: "File delivered successfully" };
-    // } catch (error) {
-    //   throw new Error(`SFTP delivery failed: ${error.message}`);
-    // }
-
-    return {
-      success: true,
-      vendor: args.vendor,
-      filename: args.filename,
-      message: "Manual fallback: File ready for download. Admin can manually upload to vendor SFTP.",
-      deliveredAt: Date.now(),
-    };
-  },
-});
-
-/**
- * Record SFTP delivery attempt
- */
-export const recordSftpDelivery = mutation({
-  args: {
-    groupId: v.id("groups"),
-    vendor: v.string(),
-    filename: v.string(),
-    status: v.string(), // "pending" | "success" | "failed"
-    errorMessage: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
+export const getVendorStatus = query({
+  args: {},
+  handler: async (ctx) => {
     await requireAdmin(ctx);
-    // Create delivery history record
-    // Note: may need to add sftpDeliveryHistory table to schema
-    return {
-      recordedAt: Date.now(),
-      groupId: args.groupId,
-      vendor: args.vendor,
-      filename: args.filename,
-      status: args.status,
-      errorMessage: args.errorMessage,
-    };
+    const vendors: VendorKey[] = ["careington", "dialcare"];
+    const result = [] as any[];
+    for (const v of vendors) {
+      // We can't read process.env in a query context directly without a workaround,
+      // but Convex queries DO have access to process.env at runtime.
+      const env = envFor(v);
+      const last = await ctx.db
+        .query("vendorDeliveries")
+        .withIndex("by_vendor", (q) => q.eq("vendor", v))
+        .order("desc")
+        .first();
+      result.push({
+        vendor: v,
+        label: VENDOR_LABELS[v],
+        sftpConfigured: !!env.host && !!env.user && (!!env.privateKey || !!env.password),
+        sftpHost: env.host ?? null,
+        remotePath: env.remotePath,
+        lastDelivery: last
+          ? {
+              _id: last._id,
+              filename: last.filename,
+              status: last.status,
+              createdAt: last.createdAt,
+              deliveredAt: last.deliveredAt,
+              memberCount: last.memberCount,
+              method: last.method,
+            }
+          : null,
+      });
+    }
+    return result;
   },
 });
 
 /**
- * Get SFTP delivery history
+ * Delivery history for the admin UI.
  */
-export const getSftpDeliveryHistory = query({
+export const getDeliveryHistory = query({
   args: {
-    groupId: v.id("groups"),
-    vendor: v.optional(v.string()),
+    groupId: v.optional(v.id("groups")),
+    vendor: v.optional(v.union(v.literal("careington"), v.literal("dialcare"))),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    // Placeholder: query from sftpDeliveryHistory table if implemented
-    return {
+    await requireAdmin(ctx);
+    const limit = args.limit ?? 25;
+    let rows;
+    if (args.groupId) {
+      rows = await ctx.db
+        .query("vendorDeliveries")
+        .withIndex("by_group", (q) => q.eq("groupId", args.groupId!))
+        .order("desc")
+        .take(limit);
+    } else if (args.vendor) {
+      rows = await ctx.db
+        .query("vendorDeliveries")
+        .withIndex("by_vendor", (q) => q.eq("vendor", args.vendor!))
+        .order("desc")
+        .take(limit);
+    } else {
+      rows = await ctx.db
+        .query("vendorDeliveries")
+        .withIndex("by_created")
+        .order("desc")
+        .take(limit);
+    }
+    return rows;
+  },
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// MUTATIONS
+// ─────────────────────────────────────────────────────────────────────
+
+export const createDeliveryRecord = internalMutation({
+  args: {
+    groupId: v.id("groups"),
+    vendor: v.union(v.literal("careington"), v.literal("dialcare")),
+    fileType: v.union(v.literal("full"), v.literal("delta")),
+    filename: v.string(),
+    fileBytes: v.number(),
+    fileSha256: v.string(),
+    storageId: v.optional(v.string()),
+    memberCount: v.number(),
+    rowCount: v.number(),
+    method: v.union(v.literal("sftp"), v.literal("manual_download")),
+    sftpHost: v.optional(v.string()),
+    sftpRemotePath: v.optional(v.string()),
+    triggeredBy: v.optional(v.string()),
+    sourceEligibilityFileId: v.optional(v.id("eligibilityFiles")),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("vendorDeliveries", {
       groupId: args.groupId,
       vendor: args.vendor,
-      history: [],
-      lastDelivered: null,
-    };
+      vendorLabel: VENDOR_LABELS[args.vendor],
+      fileType: args.fileType,
+      filename: args.filename,
+      fileBytes: args.fileBytes,
+      fileSha256: args.fileSha256,
+      storageId: args.storageId,
+      memberCount: args.memberCount,
+      rowCount: args.rowCount,
+      method: args.method,
+      status: args.method === "manual_download" ? "delivered" : "pending",
+      sftpHost: args.sftpHost,
+      sftpRemotePath: args.sftpRemotePath,
+      triggeredBy: args.triggeredBy,
+      sourceEligibilityFileId: args.sourceEligibilityFileId,
+      createdAt: Date.now(),
+      deliveredAt: args.method === "manual_download" ? Date.now() : undefined,
+    });
   },
 });
 
+export const markDeliveryStatus = mutation({
+  args: {
+    deliveryId: v.id("vendorDeliveries"),
+    status: v.union(
+      v.literal("uploading"),
+      v.literal("delivered"),
+      v.literal("failed")
+    ),
+    errorMessage: v.optional(v.string()),
+  },
+  // NOTE: No requireAdmin here — this is called from the Next.js
+  // /api/admin/vendor-deliver route which performs the admin check itself.
+  // This follows the same pattern as `markCancelAtPeriodEnd` and other
+  // mutations consumed by Next.js API routes via ConvexHttpClient.
+  handler: async (ctx, args) => {
+    const patch: any = { status: args.status };
+    if (args.status === "delivered") patch.deliveredAt = Date.now();
+    if (args.errorMessage) patch.errorMessage = args.errorMessage;
+    await ctx.db.patch(args.deliveryId, patch);
+  },
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// ORCHESTRATOR ACTION
+// ─────────────────────────────────────────────────────────────────────
+
+type DeliveryResult = {
+  deliveryId: string;
+  filename: string;
+  bytes: number;
+  sha256: string;
+  memberCount: number;
+  rowCount: number;
+  method: "sftp" | "manual_download";
+  status: "delivered" | "failed" | "pending";
+  content?: string; // returned for manual_download mode so the UI can save it
+  error?: string;
+};
+
 /**
- * Manual fallback: get file content for admin download
+ * One-shot: generate the Careington/DialCare file for a group and either
+ * (a) push it via SFTP, or (b) stash + return the content for the admin
+ * to download manually.
+ *
+ * The file content is generated by `vendorFiles.generateDentalDiscountNetworkFile`
+ * (Careington) or `vendorFiles.generateDialCareFile` (DialCare). Both already
+ * produce the exact pipe-delimited spec.
  */
-export const getFileForDownload = action({
+export const generateAndSendVendorFile = action({
   args: {
     groupId: v.id("groups"),
-    vendor: v.string(), // "careington" | "dialcare"
+    vendor: v.union(v.literal("careington"), v.literal("dialcare")),
+    fileType: v.optional(v.union(v.literal("full"), v.literal("delta"))),
+    method: v.optional(v.union(v.literal("sftp"), v.literal("manual_download"))),
+    sourceEligibilityFileId: v.optional(v.id("eligibilityFiles")),
   },
-  handler: async (ctx, args) => {
-    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
-    // Call vendor file generator to get content
-    let fileData;
+  handler: async (ctx, args): Promise<DeliveryResult> => {
+    // @ts-ignore - same pattern as the rest of the codebase
+    const identity = await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
 
+    const fileType = args.fileType ?? "full";
+    const method = args.method ?? "sftp";
+
+    // 1. Generate the file
+    let gen: any;
     if (args.vendor === "careington") {
-      // Would call generateDental Discount NetworkFile
-      fileData = {
-        filename: `careington_export_${Date.now()}.csv`,
-        content: "member_id,first_name,last_name,dob,effective_date,termination_date,group_code\n",
-      };
-    } else if (args.vendor === "dialcare") {
-      // Would call generateDialCareFile
-      fileData = {
-        filename: `dialcare_export_${Date.now()}.csv`,
-        content: "member_id,name,email,phone,effective_date,active\n",
-      };
+      gen = await ctx.runAction(
+        (api.admin.vendorFiles as any).generateDentalDiscountNetworkFile,
+        { groupId: args.groupId, fileType }
+      );
     } else {
-      throw new Error(`Unknown vendor: ${args.vendor}`);
+      gen = await ctx.runAction(
+        (api.admin.vendorFiles as any).generateDialCareFile,
+        { groupId: args.groupId, fileType }
+      );
     }
 
+    if (!gen?.content) {
+      throw new Error("Vendor file generation returned no content");
+    }
+    const content: string = gen.content;
+    const filename: string = gen.filename;
+    const memberCount: number = gen.memberCount ?? 0;
+    const rowCount: number = gen.totalRecords ?? content.split("\n").filter((l) => l.trim()).length;
+    const sha256 = await sha256Hex(content);
+    const bytes = new TextEncoder().encode(content).byteLength;
+
+    // 2. Stash file in Convex storage so we keep an audit copy
+    let storageId: string | undefined;
+    try {
+      const blob = new Blob([content], { type: "text/plain" });
+      const id = await ctx.storage.store(blob);
+      storageId = id as string;
+    } catch (err) {
+      console.warn("[vendor-delivery] storage.store failed", err);
+    }
+
+    // 3. SFTP env (only inspected if we're actually pushing)
+    const env = envFor(args.vendor);
+    const sftpAvailable = !!env.host && !!env.user && (!!env.privateKey || !!env.password);
+
+    const effectiveMethod: "sftp" | "manual_download" =
+      method === "sftp" && sftpAvailable ? "sftp" : "manual_download";
+
+    // 4. Create delivery record (status="pending" if SFTP, "delivered" if manual)
+    const deliveryId: string = await ctx.runMutation(
+      internal.admin.sftpDelivery.createDeliveryRecord,
+      {
+        groupId: args.groupId,
+        vendor: args.vendor,
+        fileType,
+        filename,
+        fileBytes: bytes,
+        fileSha256: sha256,
+        storageId,
+        memberCount,
+        rowCount,
+        method: effectiveMethod,
+        sftpHost: effectiveMethod === "sftp" ? env.host : undefined,
+        sftpRemotePath: effectiveMethod === "sftp" ? env.remotePath + filename : undefined,
+        triggeredBy: identity?.clerkUserId,
+        sourceEligibilityFileId: args.sourceEligibilityFileId,
+      }
+    );
+
+    // 5. If manual mode (or SFTP not configured), return content for download
+    if (effectiveMethod === "manual_download") {
+      return {
+        deliveryId: deliveryId,
+        filename,
+        bytes,
+        sha256,
+        memberCount,
+        rowCount,
+        method: "manual_download",
+        status: "delivered",
+        content,
+        error: method === "sftp" && !sftpAvailable
+          ? `SFTP not configured for ${args.vendor}. Falling back to manual download.`
+          : undefined,
+      };
+    }
+
+    // 6. SFTP push happens out-of-band via the Next.js route /api/admin/vendor-deliver,
+    //    which has the Node runtime to use ssh2-sftp-client (native bindings).
+    //    Return the deliveryId + content so the caller can immediately POST to that route.
     return {
-      vendor: args.vendor,
-      filename: fileData.filename,
-      content: fileData.content,
-      mimeType: "text/csv",
-      downloadUrl: `/api/admin/download?vendor=${args.vendor}&groupId=${args.groupId}`,
+      deliveryId,
+      filename,
+      bytes,
+      sha256,
+      memberCount,
+      rowCount,
+      method: "sftp",
+      status: "pending",
+      content, // returned so the Next.js route doesn't need to re-fetch
     };
   },
 });
 
 /**
- * Check SFTP delivery status
+ * Re-download a previously-generated file from Convex storage so admins
+ * can grab the exact bytes that were sent (for audit / re-sending).
  */
-export const checkSftpStatus = query({
-  args: {
-    groupId: v.id("groups"),
-    vendor: v.string(),
+export const downloadDeliveredFile = action({
+  args: { deliveryId: v.id("vendorDeliveries") },
+  // NOTE: No admin gate — consumed by /api/admin/vendor-deliver which gates itself.
+  handler: async (ctx, args): Promise<{ filename: string; content: string }> => {
+    const delivery: any = await ctx.runQuery(api.admin.sftpDelivery.getDeliveryById, {
+      deliveryId: args.deliveryId,
+    });
+    if (!delivery) throw new Error("Delivery not found");
+    if (!delivery.storageId) throw new Error("File content not stashed for this delivery");
+    const blob = await ctx.storage.get(delivery.storageId);
+    if (!blob) throw new Error("Stored file not found");
+    const content = await blob.text();
+    return { filename: delivery.filename, content };
   },
-  handler: async (ctx, args) => {
-    // Check if configured and healthy
-    const configured = !!process.env[`${args.vendor.toUpperCase()}_SFTP_HOST`];
+});
 
-    return {
-      vendor: args.vendor,
-      configured,
-      status: configured ? "ready" : "not_configured",
-      message: configured
-        ? "SFTP delivery is configured and ready"
-        : `Manual fallback: Configure ${args.vendor.toUpperCase()}_SFTP_HOST and credentials to enable automated delivery`,
-    };
+export const getDeliveryById = query({
+  args: { deliveryId: v.id("vendorDeliveries") },
+  // NOTE: No admin gate — consumed by /api/admin/vendor-deliver which gates itself.
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.deliveryId);
   },
 });

@@ -66,6 +66,31 @@ function toUniqueId(memberId: string): string {
 }
 
 /**
+ * Sanitize a cell value for the pipe-delimited file.
+ *
+ * Careington Eligibility Guide — Appendix A (Page 6) requires:
+ *   - No #NULL! tokens (Excel artifacts) — represent missing data with empty cells.
+ *   - No special characters that would corrupt the row.
+ *
+ * Practically that means stripping:
+ *   - The literal pipe character '|' (would inject a phantom column)
+ *   - Carriage returns / line feeds (would split a row in two)
+ *   - The string "#NULL!" (Excel-empty-cell artifact)
+ *   - Tab characters
+ */
+function sanitizeCell(value: string | number | null | undefined): string {
+  if (value === null || value === undefined) return "";
+  let s = String(value);
+  if (s === "#NULL!" || s === "#N/A" || s === "NULL" || s === "null" || s === "undefined") return "";
+  // Strip pipes, CR/LF, tabs, and the literal #NULL! anywhere it appears
+  s = s.replace(/#NULL!/g, "");
+  s = s.replace(/[|\r\n\t]/g, " ");
+  // Collapse runs of whitespace and trim
+  s = s.replace(/\s+/g, " ").trim();
+  return s;
+}
+
+/**
  * Build one pipe-delimited Careington eligibility row.
  *
  * Column order (Version CI007, 07/21/2025):
@@ -75,6 +100,9 @@ function toUniqueId(memberId: string): string {
  * Relation | StudentStatus | Filler | Gender | Email | ReportingSegment | Guardian
  *
  * 28 pipe-delimited fields per row (indices 0-27).
+ *
+ * Every field is run through `sanitizeCell` so embedded pipes / CRLFs / #NULL!
+ * artifacts can never corrupt the file (per Eligibility Guide §Appendix A).
  */
 function buildCareingtonRow(f: {
   title: string;
@@ -104,34 +132,34 @@ function buildCareingtonRow(f: {
   guardian: string;     // "1" for primary/guardian, "0" for dependent
 }): string {
   return [
-    f.title,         // [0]  Title
-    f.firstName,     // [1]  First Name
-    f.middleName,    // [2]  Middle Name
-    f.lastName,      // [3]  Last Name
-    f.suffix,        // [4]  Post Name / Suffix
-    f.uniqueId,      // [5]  Unique ID
-    f.seqNum,        // [6]  Sequence Number
-    "",              // [7]  Filler (SSN — leave empty)
-    f.addr1,         // [8]  Address Line 1
-    f.addr2,         // [9]  Address Line 2
-    f.city,          // [10] City
-    f.state,         // [11] State
-    f.zip,           // [12] Zip
-    "",              // [13] Plus 4
-    f.phone,         // [14] Home Phone
-    f.workPhone,     // [15] Work Phone
-    f.coverage,      // [16] Coverage
-    f.groupCode,     // [17] Group Code
-    f.termDate,      // [18] Termination Date
-    f.effDate,       // [19] Effective Date
-    f.dob,           // [20] Date of Birth
-    f.relation,      // [21] Relation
-    f.studentStatus, // [22] Student Status
-    "",              // [23] Filler
-    f.gender,        // [24] Gender
-    f.email,         // [25] Email Address
-    f.reportingSegment, // [26] Reporting Segment
-    f.guardian,      // [27] Guardian
+    sanitizeCell(f.title),         // [0]  Title
+    sanitizeCell(f.firstName),     // [1]  First Name
+    sanitizeCell(f.middleName),    // [2]  Middle Name
+    sanitizeCell(f.lastName),      // [3]  Last Name
+    sanitizeCell(f.suffix),        // [4]  Post Name / Suffix
+    sanitizeCell(f.uniqueId),      // [5]  Unique ID
+    sanitizeCell(f.seqNum),        // [6]  Sequence Number
+    "",                            // [7]  Filler (SSN — leave empty)
+    sanitizeCell(f.addr1),         // [8]  Address Line 1
+    sanitizeCell(f.addr2),         // [9]  Address Line 2
+    sanitizeCell(f.city),          // [10] City
+    sanitizeCell(f.state),         // [11] State
+    sanitizeCell(f.zip),           // [12] Zip
+    "",                            // [13] Plus 4
+    sanitizeCell(f.phone),         // [14] Home Phone
+    sanitizeCell(f.workPhone),     // [15] Work Phone
+    sanitizeCell(f.coverage),      // [16] Coverage
+    sanitizeCell(f.groupCode),     // [17] Group Code
+    sanitizeCell(f.termDate),      // [18] Termination Date
+    sanitizeCell(f.effDate),       // [19] Effective Date
+    sanitizeCell(f.dob),           // [20] Date of Birth
+    sanitizeCell(f.relation),      // [21] Relation
+    sanitizeCell(f.studentStatus), // [22] Student Status
+    "",                            // [23] Filler
+    sanitizeCell(f.gender),        // [24] Gender
+    sanitizeCell(f.email),         // [25] Email Address
+    sanitizeCell(f.reportingSegment), // [26] Reporting Segment
+    sanitizeCell(f.guardian),      // [27] Guardian
   ].join("|");
 }
 
@@ -299,7 +327,8 @@ export const generateDentalDiscountNetworkFile: any = action({
 
     return {
       filename,
-      content: rows.join("\n"),
+      // CRLF + trailing newline per Careington Windows-lineage parser convention.
+      content: rows.join("\r\n") + (rows.length > 0 ? "\r\n" : ""),
       memberCount: members.length,
       totalRecords,
       generatedAt: Date.now(),
@@ -447,7 +476,8 @@ export const generateDialCareFile: any = action({
 
     return {
       filename,
-      content: rows.join("\n"),
+      // CRLF + trailing newline per Careington Windows-lineage parser convention.
+      content: rows.join("\r\n") + (rows.length > 0 ? "\r\n" : ""),
       memberCount: members.length,
       totalRecords,
       warnings,
