@@ -60,13 +60,13 @@ export async function GET(req: NextRequest) {
     memberEmail: user.emailAddresses[0]?.emailAddress ?? "",
     memberId: memberProfile?.memberId ?? "—",
     groupCode: memberProfile?.groupCode ?? "IDEALDO",
-    planName: memberProfile?.planName ?? "Ideal Oral Health Plan",
+    planName: memberProfile?.planName ?? "Ideal Oral Savings Plan",
     effectiveDate:
       memberProfile?.effectiveDate ??
       new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
     term: bundleData?.pricingSnapshot?.totalCents > 2000 ? "Annual" : "Monthly",
     memberServicesPhone: "(800) 290-0523",
-    memberWebsite: "ryse.telemedsimplified.com",
+    memberWebsite: "getidealoh.com/health/dashboard",
   };
 
   // Load logo

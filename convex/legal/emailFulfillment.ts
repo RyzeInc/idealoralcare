@@ -109,7 +109,7 @@ export const sendFulfillmentPacketEmail = action({
           planName: args.planName,
           effectiveDate: args.effectiveDate,
           groupCode: args.groupCode,
-          memberServicesPhone: args.memberServicesPhone ?? "(800) 290-0523",
+          memberServicesPhone: args.memberServicesPhone ?? "support@getidealoh.com",
           portalUrl: baseUrl,
         }),
         attachments: [
@@ -276,7 +276,7 @@ export const sendDependentInviteEmail = action({
           from: "Ideal Oral Health <noreply@getidealoh.com>",
           to: args.dependentEmail,
           replyTo: "support@getidealoh.com",
-          subject: `${args.primaryMemberName} added you to their Ideal Oral Health plan`,
+          subject: `${args.primaryMemberName} added you to their Ideal Oral Savings Plan`,
           html: generateDependentInviteEmailHTML({
             dependentName: args.dependentName,
             primaryMemberName: args.primaryMemberName,
@@ -416,7 +416,7 @@ function generateWelcomeEmailHTML(data: WelcomeEmailData): string {
         <h3 style="color: #667eea;">Getting Started:</h3>
         <ol style="line-height: 1.8;">
           <li>Log in to your <a href="https://www.getidealoh.com/health/dashboard" style="color: #667eea; text-decoration: none;">Member Portal</a> for your AI Oral Scan and digital ID card</li>
-          <li>Find a provider in your <a href="${data.portalUrl}/health/dashboard" style="color: #667eea; text-decoration: none;">Member Portal</a> or at <a href="https://ryse.telemedsimplified.com" style="color: #667eea; text-decoration: none;">ryse.telemedsimplified.com</a> or call (800) 290-0523</li>
+          <li>Find a provider in your <a href="${data.portalUrl}/health/dashboard" style="color: #667eea; text-decoration: none;">Member Portal</a> or contact <a href="mailto:support@getidealoh.com" style="color: #667eea; text-decoration: none;">support@getidealoh.com</a> for assistance</li>
           <li>Present your ID card to receive discounts</li>
         </ol>
 
@@ -684,7 +684,7 @@ function generateFulfillmentEmailHTML(data: FulfillmentEmailData): string {
         <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px;">
           <h3 style="margin: 0 0 10px; font-size: 15px; color: ${TEAL};">3. Dental Savings Network</h3>
           <ol style="margin: 0; padding: 0 0 0 20px; font-size: 13px; line-height: 2.0; color: #374151;">
-            <li>Search for a participating provider in your <a href="${data.portalUrl}/health/dashboard" style="color: ${TEAL}; text-decoration: none;">Member Portal</a> or at <a href="https://ryse.telemedsimplified.com" style="color: ${TEAL}; text-decoration: none;">ryse.telemedsimplified.com</a> or call (800) 290-0523.</li>
+            <li>Search for a participating provider in your <a href="${data.portalUrl}/health/dashboard" style="color: ${TEAL}; text-decoration: none;">Member Portal</a> or contact <a href="mailto:support@getidealoh.com" style="color: ${TEAL}; text-decoration: none;">support@getidealoh.com</a>.</li>
             <li>Confirm the provider accepts the discount program <strong>before</strong> your visit.</li>
             <li>Present your Member ID card at your appointment.</li>
             <li>Pay the discounted member amount directly at time of service.</li>
@@ -825,7 +825,7 @@ function generateEligibilitySetPasswordEmailHTML(
           does not make payments directly to providers; you are obligated to pay for all services
           at the time of service but will receive a discount from participating providers.
           Discounts range based on provider and service. The discount program is administered by
-          Careington International Corporation, 7400 Safari Blvd., Frisco, TX 75033, (800) 290-0523.
+          Careington International Corporation, 7400 Safari Blvd., Frisco, TX 75033, support@getidealoh.com.
           Teledentistry services are provided by DialCare. Not available in all states. Member may
           cancel within the first 30 days for a full refund of fees paid.
         </p>

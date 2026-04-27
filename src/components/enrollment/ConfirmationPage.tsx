@@ -84,7 +84,7 @@ export function ConfirmationPage() {
                     <Check size={20} />
                   </div>
                   <div>
-                    <h4 className={styles.planName}>{plan.name || 'Ideal Oral Health Plan'}</h4>
+                    <h4 className={styles.planName}>{plan.name || 'Ideal Oral Savings Plan'}</h4>
                     <p className={styles.planPrice}>${(plan.price / 100).toFixed(2)}/{plan.cadence}</p>
                   </div>
                 </div>

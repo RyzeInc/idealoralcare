@@ -104,7 +104,7 @@ export default function DevToolsPage() {
       id: 'seed-catalog',
       label: 'Seed Catalog Products',
       description:
-        'Populate the catalog with initial Ideal Oral Health Plan products. Skips if products already exist.',
+        'Populate the catalog with initial Ideal Oral Savings Plan products. Skips if products already exist.',
       icon: Database,
       variant: 'default',
       fn: () => seedCatalog({}),

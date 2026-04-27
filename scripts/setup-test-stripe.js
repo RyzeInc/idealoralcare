@@ -58,7 +58,7 @@ const stripe = new Stripe(STRIPE_SECRET_KEY);
 const PLANS = [
   {
     slug: "oral-health-individual",
-    name: "Ideal Oral Health Plan",
+    name: "Ideal Oral Savings Plan",
     pricing: {
       monthlyCardCents: 1499,
       monthlyACHCents: 1499,
@@ -74,7 +74,7 @@ const PLANS = [
   },
   {
     slug: "oral-health-family",
-    name: "Ideal Oral Health Plan — Family",
+    name: "Ideal Oral Savings Plan — Family",
     pricing: {
       monthlyCardCents: 2499,
       monthlyACHCents: 2499,

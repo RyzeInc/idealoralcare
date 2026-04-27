@@ -8,7 +8,7 @@ To add a family member to your plan or change mode of payment, contact Ideal Ora
 
 ## Purchase and Renewal Conditions
 
-By joining an Ideal Oral Health plan, for yourself or on behalf of a minor child for whom you are a parent or legal guardian, you confirm that you are at least 18 years old and you authorize Ideal Oral Health to charge your credit card or checking account for the plan you have selected. By joining, you indicate you have read and agree to the terms and conditions of the plan.
+By joining an Ideal Oral Savings Plan, for yourself or on behalf of a minor child for whom you are a parent or legal guardian, you confirm that you are at least 18 years old and you authorize Ideal Oral Health to charge your credit card or checking account for the plan you have selected. By joining, you indicate you have read and agree to the terms and conditions of the plan.
 
 *This charge will automatically renew at the end of your membership term, and your credit card or checking account will be automatically charged for the appropriate amount, until you notify Ideal Oral Health that you wish to cancel the plan.*
 

@@ -120,7 +120,7 @@ export function renderCardBack(cardData: MemberCardData): RenderedCardSide {
           items: [
             {
               name: 'Teledentistry — DialCare',
-              phone: '(800) 290-0523',
+              phone: 'support@getidealoh.com',
               website: cardData.networks.dialCare.memberUrl,
             },
             {
@@ -240,7 +240,7 @@ export function fulfillmentToCardData(fulfillmentData: {
   memberWebsite?: string;
   memberEmail?: string;
 }): MemberCardData {
-  const phone = fulfillmentData.memberServicesPhone || '(800) 290-0523';
+  const phone = fulfillmentData.memberServicesPhone || 'support@getidealoh.com';
   const website = fulfillmentData.memberWebsite || 'www.getidealoh.com';
   const email = fulfillmentData.memberEmail || 'support@getidealoh.com';
 

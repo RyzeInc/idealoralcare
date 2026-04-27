@@ -59,7 +59,7 @@ export const getMemberCardData: any = action({
       networks: {
         careington: {
           name: "Dental Discount Network",
-          memberUrl: "https://ryse.telemedsimplified.com",
+          memberUrl: "https://getidealoh.com/health/dashboard",
         },
         dialCare: {
           name: "Teledentistry Program",

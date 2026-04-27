@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
 
     // Fetch product details from Convex — pricing and Stripe product IDs come from DB
     const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || "");
-    let productName = "Ideal Oral Health Plan";
+    let productName = "Ideal Oral Savings Plan";
     let amount: number | undefined;
     let stripeProductId: string | undefined;
 

@@ -62,10 +62,10 @@ export default function OverviewTab({
   const cardData: MemberCardData = memberCardData ?? {
     memberName: fullName ?? 'Member',
     memberId: subscriptions[0]?.id?.slice(-9) ?? '—',
-    planName: subscriptions[0]?.name ?? 'Ideal Oral Health Plan',
+    planName: subscriptions[0]?.name ?? 'Ideal Oral Savings Plan',
     effectiveDate: subscriptions[0]?.renewDate ?? '—',
     networks: {
-      careington: { name: 'Dental Discount Network', memberUrl: 'https://ryse.telemedsimplified.com' },
+      careington: { name: 'Dental Discount Network', memberUrl: 'https://getidealoh.com/health/dashboard' },
       dialCare: { name: 'Teledentistry Program', memberUrl: 'https://www.dialcare.com' },
       toothlens: { name: 'AI Oral Scanning', memberUrl: 'https://toothlens.com' },
     },

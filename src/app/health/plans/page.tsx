@@ -4,7 +4,7 @@
  * IDEAL HEALTH PLANS - DTC SELF-SERVE CATALOG
  * 
  * Single product focused page for direct-to-consumer enrollment
- * Simplified to show only the Ideal Oral Health Plan
+ * Simplified to show only the Ideal Oral Savings Plan
  * Uses health.css classes for consistent glassmorphism
  */
 

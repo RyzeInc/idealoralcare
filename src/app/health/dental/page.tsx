@@ -1,7 +1,7 @@
 import HeroSlideshow from "@/components/health/HeroSlideshow";
 import HealthHeader from "@/components/health/HealthHeader";
 
-// Ideal Oral Health Plan landing page
+// Ideal Oral Savings Plan landing page
 // Features comprehensive AI-powered oral health care with AI Oral Scanning and teledentistry
 
 export default function OralHealthLanding() {
@@ -20,7 +20,7 @@ export default function OralHealthLanding() {
           <div className="row">
             <div className="col-8">
               <div className="hero-home__heading">
-                <div className="hero-home__subtitle">IDEAL ORAL HEALTH PLAN</div>
+                <div className="hero-home__subtitle">IDEAL ORAL SAVINGS PLAN</div>
                 <h1>Oral Care - Oral Health Plan Built on Innovation. </h1>
                 <p className="hero-home__descr">Affordable accessible discount program, and tech-powered solutions that reduce costs and improve outcomes for individuals and employers.</p>
                 <a className="button button--primary" href="#services">
@@ -176,8 +176,8 @@ export default function OralHealthLanding() {
           <h2>Oral Health Plan Questions?</h2>
             <div className="faq__list">
             <div className="accordion">
-              <h4>What is the Ideal Oral Health Plan?</h4>
-              <div>The Ideal Oral Health Plan is a comprehensive oral care solution featuring advanced AI Oral Scanning technology for oral health scanning, 24/7 teledentistry access with experienced specialists, and a nationwide network of providers with discounted rates. It is designed to make oral care accessible, affordable, and preventative.</div>
+              <h4>What is the Ideal Oral Savings Plan?</h4>
+              <div>The Ideal Oral Savings Plan is a comprehensive oral care solution featuring advanced AI Oral Scanning technology for oral health scanning, 24/7 teledentistry access with experienced specialists, and a nationwide network of providers with discounted rates. It is designed to make oral care accessible, affordable, and preventative.</div>
             </div>
             <div className="accordion">
               <h4>How does AI Oral Scanning work?</h4>

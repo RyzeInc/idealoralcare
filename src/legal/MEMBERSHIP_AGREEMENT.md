@@ -39,7 +39,7 @@ To add a family member to your plan or change mode of payment, contact Ideal Ora
 
 ### Purchase Agreement
 
-By enrolling in this Ideal Oral Health plan, for yourself or on behalf of a minor child for whom you are a parent or legal guardian, you confirm that you are at least 18 years old and you authorize Ideal Oral Health to charge your credit card or checking account for the plan you have selected. By enrolling, you indicate you have read and agree to the terms and conditions of the plan.
+By enrolling in this Ideal Oral Savings Plan, for yourself or on behalf of a minor child for whom you are a parent or legal guardian, you confirm that you are at least 18 years old and you authorize Ideal Oral Health to charge your credit card or checking account for the plan you have selected. By enrolling, you indicate you have read and agree to the terms and conditions of the plan.
 
 **Payment Term:** Members on a monthly plan are billed on a recurring monthly basis. Members on an annual plan are billed once per year for the full membership term. All plan benefits — including AI Dental Scan, Teledentistry, and Dental Savings Network — are included under both payment terms.
 
@@ -65,7 +65,7 @@ When you cancel, you will continue to have access to the plan for the remainder 
 You are obligated to pay for all dental health care services at the time of service. You will receive discounts for services at certain dental health care providers who have contracted with the Careington network. 
 
 **To Access Your Benefits:**
-1. Locate a participating provider by visiting ryse.telemedsimplified.com or calling (800) 290-0523
+1. Locate a participating provider by visiting getidealoh.com/health/dashboard or contacting support@getidealoh.com
 2. When scheduling, inform the provider's office you are an Ideal Oral Health member
 3. Present your membership ID card upon arrival
 4. Pay the discounted amount at time of service

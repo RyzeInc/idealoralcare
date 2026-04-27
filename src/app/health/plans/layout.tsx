@@ -19,14 +19,14 @@ export default function PlansLayout({ children }: { children: React.ReactNode })
   return (
     <>
       <ProductJsonLd
-        name="Ideal Oral Health Plan — Individual"
+        name="Ideal Oral Savings Plan — Individual"
         description="AI Oral Scanning, 24/7 teledentistry, and dental discount network access with 140,000+ providers. Save 20–58% on dental procedures."
         priceCents={1499}
         cadence="MONTH"
         url="https://getidealoh.com/health/plans"
       />
       <ProductJsonLd
-        name="Ideal Oral Health Plan — Family"
+        name="Ideal Oral Savings Plan — Family"
         description="Everything in the individual plan plus unlimited dependents. AI Oral Scanning, 24/7 teledentistry, and dental discount network for the whole family."
         priceCents={2499}
         cadence="MONTH"

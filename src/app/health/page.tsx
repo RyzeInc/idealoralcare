@@ -5,12 +5,12 @@ import { TrustAnchors, ProblemBand } from "@/components/health/sections";
 import { Zap, Clock, Smile, Heart, Shield } from "lucide-react";
 
 export const metadata = {
-  title: "Ideal Oral Health Plan | Wide Ranging Oral Healthcare Discount Plan",
+  title: "Ideal Oral Savings Plan | Wide Ranging Oral Healthcare Discount Plan",
   description:
-    "Ideal Oral Health Plan - AI Oral Scanning, 24/7 teledentistry, and Dental Discount Network dental access. Affordable monthly membership.",
+    "Ideal Oral Savings Plan - AI Oral Scanning, 24/7 teledentistry, and Dental Discount Network dental access. Affordable monthly membership.",
   alternates: { canonical: "/health" },
   openGraph: {
-    title: "Ideal Oral Health Plan | Affordable Dental Care Alternative",
+    title: "Ideal Oral Savings Plan | Affordable Dental Care Alternative",
     description:
       "Save 20–58% on dental care with AI scanning, 24/7 teledentistry, and 140,000+ providers. No waiting periods, no annual maximums. Plans from $14.99/mo.",
     url: "https://getidealoh.com/health",
@@ -35,7 +35,7 @@ export default function HealthLanding() {
           <div className="row">
             <div className="col-12">
               <div className="hero-home__heading">
-                <div className="hero-home__subtitle">Ideal Oral Health Plan</div>
+                <div className="hero-home__subtitle">Ideal Oral Savings Plan</div>
                 <h1>Oral Health Savings Plan That Works Around Your Life — Not the Other Way Around.</h1>
                 <p className="hero-home__descr">
                   AI Oral Scanning from home, licensed dentists available 24/7, and a

@@ -45,7 +45,7 @@ export const emailTemplates = {
           <ol style="line-height: 1.8;">
             <li><strong>Log In to Your Portal:</strong> Visit <a href="https://www.getidealoh.com/health/dashboard" style="color: #667eea; text-decoration: none;">getidealoh.com/health/dashboard</a> to access your AI Oral Scan, digital ID card, and member tools.</li>
             <li><strong>Download Your ID Card:</strong> Your digital ID card is attached. You can also view it anytime in your member portal.</li>
-            <li><strong>Find a Provider:</strong> Search in your <a href="https://www.getidealoh.com/health/dashboard" style="color: #667eea; text-decoration: none;">Member Portal</a> or visit <a href="https://ryse.telemedsimplified.com" style="color: #667eea; text-decoration: none;">ryse.telemedsimplified.com</a> or call (800) 290-0523 to locate a dentist near you.</li>
+            <li><strong>Find a Provider:</strong> Search in your <a href="https://www.getidealoh.com/health/dashboard" style="color: #667eea; text-decoration: none;">Member Portal</a> or contact <a href="mailto:support@getidealoh.com" style="color: #667eea; text-decoration: none;">support@getidealoh.com</a> for provider search assistance.</li>
             <li><strong>Schedule Your Appointment:</strong> Call to book and mention you are an Ideal Oral Health member.</li>
             <li><strong>Present Your ID:</strong> Show your card at your appointment to receive your member discount.</li>
           </ol>
@@ -77,7 +77,7 @@ export const emailTemplates = {
 
           <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;">
           <p style="font-size: 11px; color: #999; margin: 10px 0;">
-            You received this email because you enrolled in an Ideal Oral Health plan. 
+            You received this email because you enrolled in an Ideal Oral Savings Plan. 
             <a href="#" style="color: #667eea; text-decoration: none;">Manage your preferences</a> | 
             <a href="#" style="color: #667eea; text-decoration: none;">Unsubscribe</a>
           </p>
@@ -212,7 +212,7 @@ export const emailTemplates = {
     const claimUrl = `${baseUrl}/health/claim-invite?token=${data.inviteToken}`;
     return {
       to: data.dependentEmail,
-      subject: `${data.primaryMemberName} added you to their Ideal Oral Health plan`,
+      subject: `${data.primaryMemberName} added you to their Ideal Oral Savings Plan`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
           <div style="background: linear-gradient(135deg, #0066CC 0%, #14b8a6 100%); color: white; padding: 24px 20px; text-align: center; border-radius: 8px 8px 0 0;">
@@ -348,7 +348,7 @@ export const emailTemplates = {
               does not make payments directly to providers; you are obligated to pay for all services
               at the time of service but will receive a discount from participating providers.
               Discounts range based on provider and service. The discount program is administered by
-              Careington International Corporation, 7400 Safari Blvd., Frisco, TX 75033, (800) 290-0523.
+              Careington International Corporation, 7400 Safari Blvd., Frisco, TX 75033, support@getidealoh.com.
               Teledentistry services are provided by DialCare. Not available in all states. Member may
               cancel within the first 30 days for a full refund of fees paid.
             </p>

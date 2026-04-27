@@ -87,7 +87,7 @@ function PlanShowcase() {
           borderRadius: "100px",
         }}>
           <Heart size={14} />
-          Ideal Oral Health Plan
+          Ideal Oral Savings Plan
         </div>
         <h2 style={{ fontSize: "clamp(1.5rem, 3vw, 2rem)", fontWeight: "800", color: "#0f172a", lineHeight: 1.2, marginBottom: "0.75rem" }}>
           Join thousands of members saving on dental care

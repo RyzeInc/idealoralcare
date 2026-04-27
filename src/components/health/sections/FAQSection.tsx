@@ -6,7 +6,7 @@ const FAQS = [
   {
     question: "What exactly is included in the plan?",
     answer:
-      "The Ideal Oral Health Plan includes AI Oral Scanning for at-home monitoring, 24/7 access to our Teledentistry Program specialists, member ID cards, and discounted access to the Dental Discount Network of thousands of dentists nationwide.",
+      "The Ideal Oral Savings Plan includes AI Oral Scanning for at-home monitoring, 24/7 access to our Teledentistry Program specialists, member ID cards, and discounted access to the Dental Discount Network of thousands of dentists nationwide",
   },
   {
     question: "Is this dental insurance?",
@@ -16,7 +16,7 @@ const FAQS = [
   {
     question: "How much does it cost?",
     answer:
-      "Ideal Oral Health Plan membership is offered at an affordable flat monthly rate with no hidden fees. Visit our plans page for full pricing details.",
+      "Ideal Oral Savings Plan membership is offered at an affordable flat monthly rate with no hidden fees. Visit our plans page for full pricing details.",
   },
 
   {

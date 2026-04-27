@@ -46,7 +46,7 @@ export const initializeEnrollment = mutation({
       const now0 = Date.now();
       oralPlanId = await ctx.db.insert("catalogProducts", {
         slug: "oral-health-plan",
-        name: "Ideal Oral Health Plan",
+        name: "Ideal Oral Savings Plan",
         category: "dental",
         description:
           "Wide Ranging oral healthcare discount plan with AI Oral Scanning, 24/7 teledentistry, and Dental Discount Network discounts.",

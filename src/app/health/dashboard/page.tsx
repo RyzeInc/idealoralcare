@@ -73,7 +73,7 @@ export default async function DashboardPage() {
         subscriptions = [
           {
             id: String(bundleData._id),
-            name: memberCardData?.planName ?? "Ideal Oral Health Plan",
+            name: memberCardData?.planName ?? "Ideal Oral Savings Plan",
             category: "Oral Health",
             price: totalCents,
             cadence: bundleData.cadence ?? (totalCents > 16000 ? "annual" : "monthly"),

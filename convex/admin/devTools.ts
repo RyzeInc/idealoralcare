@@ -21,7 +21,7 @@ export const seedCatalog = mutation({
     const products = [
       {
         slug: "oral-health-individual",
-        name: "Ideal Oral Health Plan",
+        name: "Ideal Oral Savings Plan",
         category: "dental",
         description:
           "Wide Ranging oral healthcare discount plan with AI Oral Scanning, 24/7 teledentistry consultations, and access to the Dental Discount Network.",
@@ -46,7 +46,7 @@ export const seedCatalog = mutation({
       },
       {
         slug: "oral-health-family",
-        name: "Ideal Oral Health Plan — Family",
+        name: "Ideal Oral Savings Plan — Family",
         category: "dental",
         description:
           "Wide Ranging oral healthcare discount plan for the whole family with AI Oral Scanning, 24/7 teledentistry, and the Dental Discount Network.",

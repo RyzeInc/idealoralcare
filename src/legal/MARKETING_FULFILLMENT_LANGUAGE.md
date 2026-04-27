@@ -21,7 +21,7 @@ Careington International Corporation is one of the most recognized professional 
 
 ### How to Access Careington Benefits (Post-Purchase)
 
-**Step 1:** To locate a participating provider, visit **ryse.telemedsimplified.com** or call **(800) 290-0523** to access the online provider search.
+**Step 1:** To locate a participating provider, visit your **Member Portal at getidealoh.com/health/dashboard** or contact **support@getidealoh.com** to access the online provider search.
 
 **Step 2:** When scheduling an appointment, inform the participating provider's office you are an **Ideal Oral Health** member with Careington.
 

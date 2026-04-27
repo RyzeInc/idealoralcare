@@ -547,7 +547,7 @@ export const getMemberCardDataPublic = query({
       .first();
 
     // Try to get a plan name from active entitlements
-    let planName = "Ideal Oral Health Plan";
+    let planName = "Ideal Oral Savings Plan";
     let productSlug: string | null = null;
     const entitlement = await ctx.db
       .query("entitlements")
@@ -598,7 +598,7 @@ export const getMemberCardDataPublic = query({
       effectiveDate,
       barcode: profile.barcode,
       networks: {
-        careington: { name: "Dental Discount Network", memberUrl: "https://ryse.telemedsimplified.com" },
+        careington: { name: "Dental Discount Network", memberUrl: "https://getidealoh.com/health/dashboard" },
         dialCare: { name: "Teledentistry Program", memberUrl: "https://www.dialcare.com" },
         toothlens: { name: "AI Oral Scanning", memberUrl: "https://toothlens.com" },
       },

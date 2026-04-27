@@ -274,7 +274,7 @@ function PageHeader({ logoDataUri }: { logoDataUri?: string }) {
 
 // ─── Page 1: Welcome Letter ───────────────────────────────────────────────────
 function WelcomePage({ data }: { data: FulfillmentPacketData }) {
-  const phone = data.memberServicesPhone ?? "(800) 290-0523";
+  const phone = data.memberServicesPhone ?? "support@getidealoh.com";
   const website = data.memberWebsite ?? "www.getidealoh.com";
 
   return (
@@ -360,8 +360,8 @@ function WelcomePage({ data }: { data: FulfillmentPacketData }) {
       <View style={{ backgroundColor: LIGHT_GREEN, padding: 8, marginBottom: 8, borderRadius: 4 }}>
         {[
           { n: 1, text: "Log in to your Member Portal at www.getidealoh.com/health/dashboard to access your AI Oral Scan, view your card, and manage your membership." },
-          { n: 2, text: "To locate a participating dental provider, visit your Member Portal at getidealoh.com/health/dashboard or ryse.telemedsimplified.com, or call (800) 290-0523." },
-          { n: 3, text: "When scheduling an appointment, inform the provider\u2019s office you are an Ideal Oral Health member." },
+          { n: 2, text: "To locate a participating dental provider, visit your Member Portal at getidealoh.com/health/dashboard or contact support@getidealoh.com for assistance." },
+          { n: 3, text: "When scheduling an appointment, inform the provider's office you are an Ideal Oral Health member." },
           { n: 4, text: "Present your Member ID card upon arrival to receive savings. The provider will collect payment at the time of service." },
         ].map((item) => (
           <Numbered key={item.n} n={item.n} text={item.text} />
@@ -479,13 +479,25 @@ function ProgramSummaryPage({ data }: { data: FulfillmentPacketData }) {
         "20% reduction on specialists\u2019 normal fees. Specialties include endodontics, oral surgery, pediatric dentistry, periodontics, and prosthodontics where available",
         "Cosmetic dentistry such as bonding and veneers also included",
         "All dentists must meet highly selective credentialing standards based on education, background, license standing and other requirements",
-        "You may visit any participating dentist on the plan and change providers at any time",
       ].map((item) => (
         <Bullet key={item.slice(0, 40)} text={item} />
       ))}
 
+      <Text style={{ ...s.h4, color: GREEN, marginTop: 12 }}>How to access the discount:</Text>
+      {[
+        "To locate a participating provider, please email support@getidealoh.com or visit getidealoh.com/health/dashboard to access the online provider search.",
+        "When scheduling an appointment, please inform the participating provider\u2019s office you are a member of the Careington Dental Network.",
+        "Please present your Careington ID card upon arrival to receive savings.",
+        "The provider will collect payment at the time of service. You are responsible for paying the total bill, less the applicable savings, when service is provided.",
+      ].map((item, index) => (
+        <Text key={index} style={{ ...s.body, marginBottom: 8, marginLeft: 10 }}>
+          <Text style={{ fontWeight: "bold" }}>Step {index + 1}: </Text>
+          {item}
+        </Text>
+      ))}
+
       <Text style={{ fontSize: 8, fontFamily: "Helvetica-Oblique", color: GRAY, marginTop: 14, lineHeight: 1.5 }}>
-        THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance. This plan does not meet the minimum creditable coverage requirements under M.G.L. c.111M and 956 CMR 5.00. This plan is not a Qualified Health Plan under the Affordable Care Act. The range of discounts will vary depending on the type of provider and service. The plan does not pay providers directly. Plan members must pay for all services but will receive a discount from participating providers. The list of participating providers is at ryse.telemedsimplified.com. A written list of participating providers is available upon request. You may cancel within the first 30 days after effective date or receipt of membership materials (whichever is later) and receive a full refund. Discount Plan Organization and administrator: Careington International Corporation, 7400 Gaylord Parkway, Frisco, TX 75034; phone 800-441-0380.{"\n\n"}This plan is not available in Vermont or Washington.
+        THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance. This plan does not meet the minimum creditable coverage requirements under M.G.L. c.111M and 956 CMR 5.00. This plan is not a Qualified Health Plan under the Affordable Care Act. The range of discounts will vary depending on the type of provider and service. The plan does not pay providers directly. Plan members must pay for all services but will receive a discount from participating providers. The list of participating providers is at getidealoh.com/health/dashboard. A written list of participating providers is available upon request. You may cancel within the first 30 days after effective date or receipt of membership materials (whichever is later) and receive a full refund. Discount Plan Organization and administrator: Careington International Corporation, 7400 Gaylord Parkway, Frisco, TX 75034; phone 800-441-0380.{"\n\n"}This plan is not available in Vermont or Washington.
       </Text>
 
       <Text style={s.footer}>Ideal Oral Health | Dental Savings Network</Text>
@@ -659,7 +671,7 @@ function MembershipAgreementPage({ data }: { data: FulfillmentPacketData }) {
 
 // ─── Page 6: Schedule of Services ────────────────────────────────────────────
 function SchedulePage({ data }: { data: FulfillmentPacketData }) {
-  const phone = data.memberServicesPhone ?? "(800) 290-0523";
+  const phone = data.memberServicesPhone ?? "support@getidealoh.com";
 
   return (
     <Page size="LETTER" style={s.page}>
@@ -1026,7 +1038,7 @@ function MemberCardFrontPage({ data }: { data: FulfillmentPacketData }) {
 // Back of card - matches dashboard card back exactly
 function MemberCardBackPage({ data }: { data: FulfillmentPacketData }) {
   const website = data.memberWebsite ?? "www.getidealoh.com";
-  const phone = data.memberServicesPhone ?? "(800) 290-0523";
+  const phone = data.memberServicesPhone ?? "support@getidealoh.com";
 
   return (
     <Page style={cardStyles.cardPage} size="LETTER">
@@ -1055,7 +1067,7 @@ function MemberCardBackPage({ data }: { data: FulfillmentPacketData }) {
                   Teledentistry — DialCare
                 </Text>
                 <Text style={{ fontSize: 6.5, color: '#94a3b8', marginLeft: 4 }}>
-                  (800) 290-0523
+                  support@getidealoh.com
                 </Text>
               </View>
               <Text style={{ fontSize: 6.5, color: '#475569', marginTop: 1 }}>

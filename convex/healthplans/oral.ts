@@ -1,5 +1,5 @@
 /**
- * IDEAL ORAL HEALTH PLAN
+ * IDEAL ORAL SAVINGS PLAN
  *
  * Convex module for oral health plan data
  * Integrates with Dental Discount Network and Teledentistry Program
@@ -9,14 +9,14 @@ import { query } from "../_generated/server";
 import { v } from "convex/values";
 
 /**
- * Get the Ideal Oral Health Plan with Dental Discount Network + Teledentistry Program integration
+ * Get the Ideal Oral Savings Plan with Dental Discount Network + Teledentistry Program integration
  */
 export const getOralPlan = query({
   args: {},
   handler: async (ctx) => {
     return {
       _id: "plan_oral_001",
-      name: "Ideal Oral Health Plan",
+      name: "Ideal Oral Savings Plan",
       type: "oral-health",
       status: "active",
 
@@ -207,7 +207,7 @@ export const getOralPlanComparison = query({
       plans: [
         {
           id: "plan_oral_001",
-          name: "Ideal Oral Health Plan",
+          name: "Ideal Oral Savings Plan",
           monthlyPrice: 15,
           monthlyACHPrice: 13,
           features: [
