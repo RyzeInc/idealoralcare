@@ -648,7 +648,7 @@ function generateFulfillmentEmailHTML(data: FulfillmentEmailData): string {
 
         <!-- Benefit 1: AI Dental Scan -->
         <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px;">
-          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${BLUE};">1. AI Dental Scan</h3>
+          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${BLUE};">AI Dental Scan</h3>
           <ol style="margin: 0; padding: 0 0 0 20px; font-size: 13px; line-height: 2.0; color: #374151;">
             <li>Log in to your <a href="${data.portalUrl}/health/dashboard" style="color: ${BLUE}; text-decoration: none;">Member Portal</a> and open the <strong>Oral Scan</strong> tab.</li>
             <li>Upload or take a clear photo of your teeth.</li>
@@ -662,7 +662,7 @@ function generateFulfillmentEmailHTML(data: FulfillmentEmailData): string {
 
         <!-- Benefit 2: Teledentistry -->
         <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px;">
-          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${CYAN};">2. Teledentistry (DialCare)</h3>
+          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${CYAN};">Teledentistry (DialCare)</h3>
           <ol style="margin: 0; padding: 0 0 0 20px; font-size: 13px; line-height: 2.0; color: #374151;">
             <li>Open the <strong>Teledentistry</strong> tab in your portal, or visit <a href="https://www.dialcare.com" style="color: ${CYAN}; text-decoration: none;">dialcare.com</a>.</li>
             <li>Request or schedule a virtual consultation (available 24/7).</li>
@@ -682,7 +682,7 @@ function generateFulfillmentEmailHTML(data: FulfillmentEmailData): string {
 
         <!-- Benefit 3: Dental Discount Network -->
         <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px;">
-          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${TEAL};">3. Dental Savings Network</h3>
+          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${TEAL};">Dental Savings Network</h3>
           <ol style="margin: 0; padding: 0 0 0 20px; font-size: 13px; line-height: 2.0; color: #374151;">
             <li>Search for a participating provider in your <a href="${data.portalUrl}/health/dashboard" style="color: ${TEAL}; text-decoration: none;">Member Portal</a> or contact <a href="mailto:support@getidealoh.com" style="color: ${TEAL}; text-decoration: none;">support@getidealoh.com</a>.</li>
             <li>Confirm the provider accepts the discount program <strong>before</strong> your visit.</li>

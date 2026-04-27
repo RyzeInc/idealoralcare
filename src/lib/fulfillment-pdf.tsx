@@ -408,7 +408,7 @@ function AIScanningSummaryPage({ data }: { data: FulfillmentPacketData }) {
     <Page size="LETTER" style={s.page}>
       <PageHeader logoDataUri={data.logoDataUri} />
 
-      <Text style={s.h2}>1. AI Oral Scan</Text>
+      <Text style={s.h2}>AI Oral Scan</Text>
       <Text style={s.body}>
         Your Ideal Oral Health membership includes access to an AI-powered dental assessment tool that lets you monitor your oral health from home. Simply upload or take a photo of your teeth from your Member Portal and receive an instant AI-driven screening of potential dental issues.
       </Text>
@@ -460,13 +460,13 @@ function AIScanningSummaryPage({ data }: { data: FulfillmentPacketData }) {
   );
 }
 
-// ─── Page 4: Dental Discount Network ─────────────────────────────────────────
+// ─── Page 3: Dental Discount Network ─────────────────────────────────────────
 function ProgramSummaryPage({ data }: { data: FulfillmentPacketData }) {
   return (
     <Page size="LETTER" style={s.page}>
       <PageHeader logoDataUri={data.logoDataUri} />
 
-      <Text style={s.h2}>4. Dental Savings Network</Text>
+      <Text style={s.h2}>Dental Savings Network</Text>
 
       <Text style={s.body}>
         Your Ideal Oral Health membership includes access to one of the largest dental discount networks in the nation, with a focus on neighborhood dentists and transparent, member-friendly pricing.
@@ -511,7 +511,7 @@ function DialCareSummaryPage({ data }: { data: FulfillmentPacketData }) {
     <Page size="LETTER" style={s.page}>
       <PageHeader logoDataUri={data.logoDataUri} />
 
-      <Text style={s.h2}>2. Teledentistry (DialCare)</Text>
+      <Text style={s.h2}>Teledentistry (DialCare)</Text>
       <Text style={s.body}>
         DialCare Teledentistry provides a comprehensive virtual dental solution. Teledentistry offers convenient, robust care through 24/7/365 virtual consultations with licensed dentists via phone or video session for advice and diagnoses on a wide variety of oral health ailments, urgent care, dental-related questions and second opinions. With Teledentistry, members can access the care they need on their schedule.
       </Text>

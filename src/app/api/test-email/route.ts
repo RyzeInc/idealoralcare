@@ -7,7 +7,7 @@ const TEST_MEMBER = {
   memberEmail: '',
   memberId: 'IOH-TEST-001',
   planName: 'Ideal Oral Savings Plan',
-  groupCode: 'IOH-100',
+  groupCode: 'IDEALDO',
   effectiveDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
   billingAmount: '$19.95/mo',
   memberServicesPhone: '(800) 290-0523',
@@ -239,7 +239,7 @@ function generateFulfillmentEmailHTML(data: {
           <p style="margin: 0 0 16px; font-size: 13px; color: #6b7280;">Your membership includes 3 core benefits — here's how to get started.</p>
         </div>
         <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px;">
-          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${BLUE};">1. AI Dental Scan</h3>
+          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${BLUE};">AI Dental Scan</h3>
           <ol style="margin: 0; padding: 0 0 0 20px; font-size: 13px; line-height: 2.0; color: #374151;">
             <li>Log in to your <a href="${data.portalUrl}/health/dashboard" style="color: ${BLUE}; text-decoration: none;">Member Portal</a> and open the <strong>Oral Scan</strong> tab.</li>
             <li>Upload or take a clear photo of your teeth.</li>
@@ -249,7 +249,7 @@ function generateFulfillmentEmailHTML(data: {
           <p style="font-size: 11px; color: #9ca3af; margin: 6px 0 0;">Note: The AI scan is a screening tool — not a clinical diagnosis. Always consult a licensed dentist.</p>
         </div>
         <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px;">
-          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${CYAN};">2. Teledentistry (DialCare)</h3>
+          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${CYAN};">Teledentistry (DialCare)</h3>
           <ol style="margin: 0; padding: 0 0 0 20px; font-size: 13px; line-height: 2.0; color: #374151;">
             <li>Open the <strong>Teledentistry</strong> tab in your portal, or visit <a href="https://www.dialcare.com" style="color: ${CYAN}; text-decoration: none;">dialcare.com</a>.</li>
             <li>Request or schedule a virtual consultation (available 24/7).</li>
@@ -259,7 +259,7 @@ function generateFulfillmentEmailHTML(data: {
           <p style="font-size: 12px; color: #6b7280; margin: 10px 0 0; line-height: 1.5;"><strong>Best for:</strong> Questions about dental concerns, guidance after an AI scan, and deciding if in-person care is needed.</p>
         </div>
         <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px;">
-          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${TEAL};">3. Dental Savings Network</h3>
+          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${TEAL};">Dental Savings Network</h3>
           <ol style="margin: 0; padding: 0 0 0 20px; font-size: 13px; line-height: 2.0; color: #374151;">
             <li>Search for a participating provider in your <a href="${data.portalUrl}/health/dashboard" style="color: ${TEAL}; text-decoration: none;">Member Portal</a> or at <a href="https://getidealoh.com/health/dashboard" style="color: ${TEAL}; text-decoration: none;">getidealoh.com/health/dashboard</a> or call (800) 290-0523.</li>
             <li>Confirm the provider accepts the discount program <strong>before</strong> your visit.</li>
