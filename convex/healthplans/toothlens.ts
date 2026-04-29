@@ -121,6 +121,17 @@ export const startScan = mutation({
       throw new Error("Toothlens user not registered — call getOrCreateToothlensUser first");
     }
 
+    // Abandon any prior unfinished scans — session_ids are single-use (spec §4).
+    const priorScans = await ctx.db
+      .query("toothlensScans")
+      .withIndex("by_clerk_user", (q) => q.eq("clerkUserId", identity.clerkUserId))
+      .collect();
+    for (const row of priorScans) {
+      if (row.status === "started") {
+        await ctx.db.patch(row._id, { status: "abandoned", completedAt: Date.now() });
+      }
+    }
+
     // Unique session_id per scan (spec §4: new value every scan, never reuse).
     const sessionId = crypto.randomUUID().replace(/-/g, "");
 
@@ -157,6 +168,23 @@ export const markScanCompleted = mutation({
     }
     await ctx.db.patch(args.scanId, {
       status: args.completed ? "completed" : "cancelled",
+      completedAt: Date.now(),
+    });
+  },
+});
+
+/** Mark a scan as abandoned (user exited without completing). Caller must own the scan. */
+export const markScanAbandoned = mutation({
+  args: { scanId: v.id("toothlensScans") },
+  handler: async (ctx, args) => {
+    const identity = await requireAuth(ctx);
+    const scan = await ctx.db.get(args.scanId);
+    if (!scan) throw new Error("Scan not found");
+    if (scan.clerkUserId !== identity.clerkUserId) {
+      throw new Error("Unauthorized: You can only modify your own scans");
+    }
+    await ctx.db.patch(args.scanId, {
+      status: "abandoned",
       completedAt: Date.now(),
     });
   },

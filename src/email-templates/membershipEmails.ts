@@ -355,8 +355,8 @@ export const emailTemplates = {
                         <p style="margin:0 0 6px 0;font-size:10px;color:#000000;">
                           To add a family member to your plan, contact your employer
                           at ${data.employerPhone ? `<strong>${data.employerPhone}</strong>` : '[Employer&rsquo;s Phone Number]'}.
-                          For assistance using your plan, please call Member Services at
-                          <strong>1-800-290-0523</strong>.
+                          For assistance using your plan, please contact Member Services at
+                          <strong>support@getidealoh.com</strong>.
                         </p>
                       </td>
                       <td style="vertical-align:top;padding-left:20px;border-left:1px solid #cccccc;">

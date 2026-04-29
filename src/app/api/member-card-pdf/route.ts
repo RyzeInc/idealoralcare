@@ -53,7 +53,7 @@ export async function GET() {
       year: "numeric",
     }),
     term: bundleData?.pricingSnapshot?.totalCents > 2000 ? "Annual" : "Monthly",
-    memberServicesPhone: "(800) 290-0523",
+    memberServicesPhone: "support@getidealoh.com",
     memberWebsite: "getidealoh.com/health/dashboard",
   };
 

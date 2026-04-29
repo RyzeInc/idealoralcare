@@ -100,7 +100,7 @@ export function EligibilityStep() {
         _id: "group_default",
         slug: "default",
         name: "Default Group",
-        groupCode: "DEFAULT",
+        groupCode: "IDEALDO",
       },
     };
   };

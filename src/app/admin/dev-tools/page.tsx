@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useQuery, useAction, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
+import { Breadcrumbs } from '@/components/admin/ui';
 import {
   Terminal,
   Play,
@@ -45,12 +46,34 @@ export default function DevToolsPage() {
   const [running, setRunning] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, ActionResult>>({});
 
+  // Used in the access-denied screen so non-owners know who to contact.
+  const allAdmins = useQuery(api.admin.adminUsers.getAll) ?? [];
+  const owners = allAdmins.filter((a: any) => a.role === 'owner');
+
   if (!isOwner) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-6 text-center">
         <ShieldAlert size={48} className="text-amber-500" />
         <h2 className="text-xl font-bold text-slate-900">Owner Access Required</h2>
-        <p className="text-slate-500 text-sm">This page is restricted to owner-level admins.</p>
+        <p className="text-slate-500 text-sm max-w-md">
+          Dev Tools is restricted to <strong>owner-level</strong> admins because it can run
+          destructive migrations and seed data.
+        </p>
+        {owners.length > 0 ? (
+          <div className="text-sm text-slate-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+            <p className="font-semibold mb-1">Contact an owner to request access:</p>
+            <ul className="space-y-0.5">
+              {owners.map((o: any) => (
+                <li key={o._id}>
+                  {o.fullName ?? o.email ?? o.clerkUserId}
+                  {o.email ? <span className="text-slate-500"> — {o.email}</span> : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <p className="text-xs text-slate-400">No owners are configured. Contact your platform administrator.</p>
+        )}
       </div>
     );
   }
@@ -122,6 +145,7 @@ export default function DevToolsPage() {
 
   return (
     <div className="space-y-8">
+      <Breadcrumbs items={[{ label: 'Dev Tools' }]} />
       <div>
         <h1 className="text-3xl font-bold text-slate-900 mb-1">Dev Tools</h1>
         <p className="text-slate-500 text-sm">

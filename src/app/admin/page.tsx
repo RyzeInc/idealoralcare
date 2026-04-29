@@ -5,6 +5,8 @@ import { ArrowRight, Users, FileUp, BarChart3, AlertCircle, Gift, Activity, Cloc
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useState, useEffect } from "react";
+import { SkeletonText, SkeletonCard } from "@/components/admin/ui";
+import { formatDate } from "@/lib/admin-format";
 
 export default function AdminDashboard() {
   const grantAccess = useMutation(api.admin.grantFreeAccess.grantMeFullAccess);
@@ -69,43 +71,49 @@ export default function AdminDashboard() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
-        <StatCard
-          title="Paying Subscribers"
-          value={stats?.payingSubscribers?.toString() ?? "—"}
-          subtitle={stats ? `${stats.totalBundles} total subscriptions` : undefined}
-          icon={<CreditCard size={22} className="text-emerald-600" />}
-          href="/admin/billing"
-          color="emerald"
-        />
-        <StatCard
-          title="Active Members"
-          value={stats?.activeMembers?.toString() ?? "—"}
-          subtitle={stats ? `${stats.totalMembers} total members` : undefined}
-          icon={<Users size={22} className="text-blue-600" />}
-          href="/admin/members"
-          color="blue"
-        />
-        <StatCard
-          title="Monthly Revenue"
-          value={stats?.monthlyRevenueCents != null ? `$${(stats.monthlyRevenueCents / 100).toFixed(2)}` : totalBilling > 0 ? `$${totalBilling.toFixed(2)}` : "—"}
-          icon={<Wallet size={22} className="text-violet-600" />}
-          href="/admin/billing"
-          color="violet"
-        />
-        <StatCard
-          title="Pending Enrollments"
-          value={stats?.pendingEnrollments?.toString() ?? "—"}
-          icon={<AlertCircle size={22} className="text-amber-600" />}
-          href="/admin/members"
-          color="amber"
-        />
-        <StatCard
-          title="Eligibility Files"
-          value={stats?.eligibilityFiles?.toString() ?? "—"}
-          icon={<FileUp size={22} className="text-slate-600" />}
-          href="/admin/eligibility"
-          color="slate"
-        />
+        {stats === undefined ? (
+          Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
+        ) : (
+          <>
+            <StatCard
+              title="Paying Subscribers"
+              value={stats?.payingSubscribers?.toString() ?? "—"}
+              subtitle={stats ? `${stats.totalBundles} total subscriptions` : undefined}
+              icon={<CreditCard size={22} className="text-emerald-600" />}
+              href="/admin/billing"
+              color="emerald"
+            />
+            <StatCard
+              title="Active Members"
+              value={stats?.activeMembers?.toString() ?? "—"}
+              subtitle={stats ? `${stats.totalMembers} total members` : undefined}
+              icon={<Users size={22} className="text-blue-600" />}
+              href="/admin/members"
+              color="blue"
+            />
+            <StatCard
+              title="Monthly Revenue"
+              value={stats?.monthlyRevenueCents != null ? `$${(stats.monthlyRevenueCents / 100).toFixed(2)}` : totalBilling > 0 ? `$${totalBilling.toFixed(2)}` : "—"}
+              icon={<Wallet size={22} className="text-violet-600" />}
+              href="/admin/billing"
+              color="violet"
+            />
+            <StatCard
+              title="Pending Enrollments"
+              value={stats?.pendingEnrollments?.toString() ?? "—"}
+              icon={<AlertCircle size={22} className="text-amber-600" />}
+              href="/admin/members"
+              color="amber"
+            />
+            <StatCard
+              title="Eligibility Files"
+              value={stats?.eligibilityFiles?.toString() ?? "—"}
+              icon={<FileUp size={22} className="text-slate-600" />}
+              href="/admin/eligibility"
+              color="slate"
+            />
+          </>
+        )}
       </div>
 
       {/* Quick Eligibility Check */}
@@ -118,7 +126,7 @@ export default function AdminDashboard() {
           <p className="text-xs text-slate-400 mt-0.5">Real-time status of platform features</p>
         </div>
         {!systemHealth ? (
-          <div className="px-6 py-8 text-center"><p className="text-slate-400 text-sm">Loading...</p></div>
+          <div className="px-6 py-6"><SkeletonText lines={3} /></div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-slate-100">
             <HealthCard
@@ -267,7 +275,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="text-xs text-slate-400 flex items-center gap-1 flex-shrink-0">
                   <Clock size={12} />
-                  {new Date(activity.createdAt).toLocaleDateString()}
+                  {formatDate(activity.createdAt)}
                 </div>
               </div>
             ))}

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Plus, Pencil, Trash2, Loader2, Mail, Phone, ChevronRight, Building2, Send, CheckCircle2, Clock, Users, X, UserPlus } from 'lucide-react';
+import { useToast } from './ui';
 import styles from './DistributionAdmin.module.css';
 
 type PartnerType = 'program_manager' | 'fmo' | 'agency';
@@ -68,6 +69,7 @@ const EMPTY_FORM = {
 const EMPTY_LEADER_FORM = { name: '', email: '', phone: '', title: '' };
 
 export function DistributionAdmin() {
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState<'program_managers' | 'fmos'>('program_managers');
   const [showForm, setShowForm] = useState(false);
   const [editingPartner, setEditingPartner] = useState<DistributionPartner | null>(null);
@@ -127,9 +129,13 @@ export function DistributionAdmin() {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await sendLeaderInviteAction({ leaderId: leader._id as any });
-      if (!result.success) alert(`Failed to send invite: ${result.error}`);
-    } catch {
-      alert('Error sending invite. Please try again.');
+      if (result.success) {
+        toast.success('Invite sent', `${leader.name} should receive their email shortly.`);
+      } else {
+        toast.error('Could not send invite', result.error ?? 'Unknown error');
+      }
+    } catch (err) {
+      toast.fromError(err, 'Could not send invite');
     } finally {
       setInvitingLeaderId(null);
     }
@@ -155,7 +161,7 @@ export function DistributionAdmin() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.contactName || !formData.contactEmail) {
-      alert('Please fill in Organization Name, Contact Name, and Contact Email');
+      toast.warning('Missing required fields', 'Organization Name, Contact Name, and Contact Email are required.');
       return;
     }
 
@@ -178,6 +184,7 @@ export function DistributionAdmin() {
           notes: formData.notes || undefined,
         });
         resetForm();
+        toast.success('Partner updated', formData.name);
       } else {
         setAddingPartner(true);
         const result = await addPartnerAction({
@@ -195,13 +202,13 @@ export function DistributionAdmin() {
         });
         resetForm();
         if (result.inviteSent) {
-          alert(`✓ ${formData.contactName} has been added and received their invite email.`);
+          toast.success('Partner added', `${formData.contactName} received an invite email.`);
         } else {
-          alert(`Partner added, but invite email failed: ${result.inviteError ?? 'Unknown error'}. You can resend from the partner card.`);
+          toast.warning('Partner added — invite email failed', `${result.inviteError ?? 'Unknown error'}. You can resend from the partner card.`);
         }
       }
-    } catch {
-      alert('Error saving partner. Please try again.');
+    } catch (err) {
+      toast.fromError(err, 'Could not save partner');
     } finally {
       setAddingPartner(false);
     }
@@ -212,15 +219,16 @@ export function DistributionAdmin() {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await removePartner({ id: partner._id as any });
-    } catch {
-      alert('Error deleting partner. Please try again.');
+      toast.success('Partner removed', partner.name);
+    } catch (err) {
+      toast.fromError(err, 'Could not delete partner');
     }
   };
 
   const handleAddLeader = async (e: React.FormEvent, partnerId: string) => {
     e.preventDefault();
     if (!leaderForm.name || !leaderForm.email) {
-      alert('Name and email are required');
+      toast.warning('Missing required fields', 'Name and email are required.');
       return;
     }
     try {
@@ -234,12 +242,12 @@ export function DistributionAdmin() {
       });
       resetLeaderForm();
       if (result.inviteSent) {
-        alert(`✓ ${leaderForm.name} has been added and received their invite email.`);
+        toast.success('Leader added', `${leaderForm.name} received an invite email.`);
       } else {
-        alert(`Leader added, but invite email failed: ${result.inviteError ?? 'Unknown error'}. You can resend from the leaders panel.`);
+        toast.warning('Leader added — invite email failed', `${result.inviteError ?? 'Unknown error'}. You can resend from the leaders panel.`);
       }
-    } catch {
-      alert('Error adding leader. Please try again.');
+    } catch (err) {
+      toast.fromError(err, 'Could not add leader');
     }
   };
 
@@ -256,8 +264,9 @@ export function DistributionAdmin() {
         title: leaderForm.title || undefined,
       });
       resetLeaderForm();
-    } catch {
-      alert('Error updating leader. Please try again.');
+      toast.success('Leader updated', leaderForm.name || editingLeader.name);
+    } catch (err) {
+      toast.fromError(err, 'Could not update leader');
     }
   };
 
@@ -266,8 +275,9 @@ export function DistributionAdmin() {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await removeLeaderMutation({ leaderId: leader._id as any });
-    } catch {
-      alert('Error removing leader. Please try again.');
+      toast.success('Leader removed', leader.name);
+    } catch (err) {
+      toast.fromError(err, 'Could not remove leader');
     }
   };
 

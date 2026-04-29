@@ -6,6 +6,7 @@ import { useUser } from '@clerk/nextjs';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { UserPlus, Trash2, Shield, Users, Crown, AlertCircle, CheckCircle, Loader, Mail, RotateCw, XCircle, Clock, Search } from 'lucide-react';
+import { Breadcrumbs, RequiredMark, SkeletonTable } from '@/components/admin/ui';
 
 type Role = 'owner' | 'editor';
 
@@ -18,8 +19,11 @@ export default function UsersAdmin() {
   const { user: clerkUser, isLoaded: clerkLoaded } = useUser();
   const [authTimeout, setAuthTimeout] = useState(false);
   
-  const admins = useQuery(api.admin.adminUsers.getAll) ?? [];
-  const invites = useQuery(api.admin.adminUsers.getAllInvites) ?? [];
+  const adminsRaw = useQuery(api.admin.adminUsers.getAll);
+  const admins = adminsRaw ?? [];
+  const isLoadingAdmins = adminsRaw === undefined;
+  const invitesRaw = useQuery(api.admin.adminUsers.getAllInvites);
+  const invites = invitesRaw ?? [];
 
   useEffect(() => {
     const t = setTimeout(() => setAuthTimeout(true), 5000);
@@ -41,6 +45,20 @@ export default function UsersAdmin() {
   const [notification, setNotification] = useState<Notification | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [resendingId, setResendingId] = useState<string | null>(null);
+
+  // ESC closes any open modal (modals also close on backdrop click)
+  useEffect(() => {
+    if (!showInviteForm && !showAddExisting && !showBootstrap) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (submitting) return;
+      if (showInviteForm) setShowInviteForm(false);
+      if (showAddExisting) setShowAddExisting(false);
+      if (showBootstrap) setShowBootstrap(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showInviteForm, showAddExisting, showBootstrap, submitting]);
 
   // Invite form state (no Clerk ID needed!)
   const [form, setForm] = useState({ email: '', name: '', role: 'editor' as Role, departments: [] as string[] });
@@ -241,6 +259,7 @@ export default function UsersAdmin() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: 'Admin Users' }]} />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -314,7 +333,9 @@ export default function UsersAdmin() {
           <span className="ml-auto text-sm text-slate-400">{admins.length} user{admins.length !== 1 ? 's' : ''}</span>
         </div>
 
-        {admins.length === 0 ? (
+        {isLoadingAdmins ? (
+          <SkeletonTable rows={4} cols={4} />
+        ) : admins.length === 0 ? (
           <div className="px-6 py-12 text-center">
             <Users size={36} className="text-slate-300 mx-auto mb-3" />
             <p className="text-slate-500 font-medium">No admin users yet</p>
@@ -462,13 +483,22 @@ export default function UsersAdmin() {
 
       {/* Invite Admin Modal */}
       {showInviteForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
-            <h2 className="text-xl font-bold text-slate-900 mb-1">Invite Admin User</h2>
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => { if (!submitting) setShowInviteForm(false); }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="invite-modal-title"
+            className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="invite-modal-title" className="text-xl font-bold text-slate-900 mb-1">Invite Admin User</h2>
             <p className="text-sm text-slate-500 mb-6">Send an email invitation. They&apos;ll create their account when they accept.</p>
             <form onSubmit={handleInvite} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Full Name</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Full Name<RequiredMark /></label>
                 <input
                   type="text"
                   placeholder="Jane Smith"
@@ -479,7 +509,7 @@ export default function UsersAdmin() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Email<RequiredMark /></label>
                 <input
                   type="email"
                   placeholder="jane@idealhealth.com"
@@ -557,9 +587,18 @@ export default function UsersAdmin() {
 
       {/* Add Existing User Modal */}
       {showAddExisting && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl">
-            <h2 className="text-xl font-bold text-slate-900 mb-1">Add Existing User</h2>
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowAddExisting(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-existing-modal-title"
+            className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="add-existing-modal-title" className="text-xl font-bold text-slate-900 mb-1">Add Existing User</h2>
             <p className="text-sm text-slate-500 mb-6">Search for a Clerk user by name or email and add them as an admin.</p>
 
             {/* Search Input */}
@@ -664,16 +703,25 @@ export default function UsersAdmin() {
 
       {/* Bootstrap First Admin Modal */}
       {showBootstrap && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => { if (!submitting) setShowBootstrap(false); }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="bootstrap-modal-title"
+            className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center gap-3 mb-1">
               <Crown size={22} className="text-amber-500" />
-              <h2 className="text-xl font-bold text-slate-900">Initialize First Admin</h2>
+              <h2 id="bootstrap-modal-title" className="text-xl font-bold text-slate-900">Initialize First Admin</h2>
             </div>
             <p className="text-sm text-slate-500 mb-6">This can only be done once when no admins exist. The first user will become the <strong>Owner</strong>.</p>
             <form onSubmit={handleBootstrap} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Your Clerk User ID</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Your Clerk User ID<RequiredMark /></label>
                 <input
                   type="text"
                   placeholder="user_2abc123..."
@@ -684,7 +732,7 @@ export default function UsersAdmin() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Full Name</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Full Name<RequiredMark /></label>
                 <input
                   type="text"
                   placeholder="Your name"
@@ -695,7 +743,7 @@ export default function UsersAdmin() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Email<RequiredMark /></label>
                 <input
                   type="email"
                   placeholder="you@idealhealth.com"

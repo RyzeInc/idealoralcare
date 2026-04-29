@@ -41,7 +41,7 @@ const CAREINGTON_FIELD_MAP = {
   suffix: 4,
   uniqueId: 5,
   seqNum: 6,
-  // 7 = filler
+  // 7 = filler (SSN placeholder per CI007)
   addr1: 8,
   addr2: 9,
   city: 10,
@@ -55,7 +55,9 @@ const CAREINGTON_FIELD_MAP = {
   termDate: 18,
   effDate: 19,
   dob: 20,
-  // 21-23 = relation/student/filler
+  relation: 21,      // C=Child, S=Spouse, O=Other; blank for primary (seqNum 00)
+  studentStatus: 22, // Y/N for dependents; blank for primary
+  // 23 = filler (per CI007)
   gender: 24,
   email: 25,
   reportingSegment: 26,
@@ -212,6 +214,8 @@ function parseCareingtonRow(line: string): {
   address?: { line1: string; line2?: string; city: string; state: string; postalCode: string; country: string };
   relationship?: string;
   groupCode: string;
+  coverage: string;
+  studentStatus: string | undefined;
 } | null {
   const fields = line.split("|");
   if (fields.length < 20) return null; // Minimum fields needed
@@ -269,13 +273,20 @@ function parseCareingtonRow(line: string): {
   const seqNum = (fields[f.seqNum] ?? "00").trim();
   const uniqueId = (fields[f.uniqueId] ?? "").trim();
   const groupCode = (fields[f.groupCode] ?? "").trim();
+  const coverage = (fields[f.coverage] ?? "").trim();
+  const studentStatus = (fields[f.studentStatus] ?? "").trim() || undefined;
 
-  // Determine relationship for dependents (seqNum != "00")
+  // Determine relationship for dependents:
+  // Prefer the explicit Relation field (21): C=Child, S=Spouse, O=Other
+  // Fall back to Coverage field interpretation (MS=Spouse, MD=Child)
   let relationship: string | undefined;
   if (seqNum !== "00") {
+    const relation = (fields[f.relation] ?? "").trim().toUpperCase();
     const coverage = (fields[f.coverage] ?? "").trim().toUpperCase();
-    // MS = Member + Spouse, MD = Member + Dependent/Child
-    if (coverage === "MS") relationship = "spouse";
+    if (relation === "S") relationship = "spouse";
+    else if (relation === "C") relationship = "child";
+    else if (relation === "O") relationship = "other";
+    else if (coverage === "MS") relationship = "spouse";
     else if (coverage === "MD") relationship = "child";
     else relationship = "other";
   }
@@ -297,6 +308,8 @@ function parseCareingtonRow(line: string): {
     address,
     relationship,
     groupCode,
+    coverage,
+    studentStatus,
   };
 }
 
@@ -415,7 +428,7 @@ function parseXlsxBuffer(
     const seqNum = (pick(row, "Sequence Number", "SequenceNumber", "Seq", "SeqNum") || "00").padStart(2, "0");
     const uniqueId = pick(row, "Unique ID", "UniqueID", "MemberID", "Member ID");
     const coverage = pick(row, "Coverage").toUpperCase();
-    const relationRaw = pick(row, "RELATION", "Relationship").toUpperCase();
+    const relationRaw = pick(row, "RELATION", "Relation", "Relationship").toUpperCase();
     let relationship: "spouse" | "child" | "domestic_partner" | "other" | undefined;
     if (seqNum !== "00") {
       if (relationRaw.startsWith("S")) relationship = "spouse";
@@ -429,7 +442,7 @@ function parseXlsxBuffer(
     const addr1 = pick(row, "ADDRESS1", "Address1", "Address Line 1");
     const address = addr1 ? {
       line1: addr1,
-      line2: pick(row, "ADDRESS2", "Address2") || undefined,
+      line2: pick(row, "ADDRESS2", "Address2", "Address Line 2") || undefined,
       city: pick(row, "CITY", "City"),
       state: pick(row, "STATE", "State"),
       postalCode: pick(row, "ZIP", "Zip", "Postal Code"),
@@ -441,11 +454,14 @@ function parseXlsxBuffer(
       middleName: pick(row, "MIDDLENAME", "Middle Name", "Middle Initial") || undefined,
       lastName,
       suffix: pick(row, "Post Name", "Suffix") || undefined,
-      email: pick(row, "EMAIL", "Email") || undefined,
+      email: pick(row, "EMAIL", "Email", "Email Address") || undefined,
       phone: pick(row, "Home Phone", "Phone").replace(/\D/g, "") || undefined,
       workPhone: pick(row, "Work Phone").replace(/\D/g, "") || undefined,
       dateOfBirth: toIsoDate(pick(row, "DATEOFBIRTH", "Date of Birth", "DOB", "dateOfBirth")),
       effectiveDate: toIsoDate(pick(row, "EFFECTIVEDATE", "Effective Date")),
+      termDate: toIsoDate(pick(row, "TERMDATE", "Termination Date", "Term Date")),
+      groupCode: pick(row, "Group Code", "GroupCode", "GROUP CODE") || undefined,
+      studentStatus: pick(row, "Student Status", "StudentStatus") || undefined,
       gender,
       address,
       uniqueId,
@@ -510,11 +526,12 @@ function parseXlsxBuffer(
     const p = g.primary!;
     const deps = g.dependents
       .filter((d): d is NonNullable<Parsed> => d !== null)
-      .map((d) => ({
+      .map((d, di) => ({
         firstName: d!.firstName,
         lastName: d!.lastName,
         dateOfBirth: d!.dateOfBirth,
         relationship: (d!.relationship ?? "other") as "spouse" | "child" | "domestic_partner" | "other",
+        seqNum: d!.seqNum ?? String(di + 1).padStart(2, "0"),
       }));
     out.push({
       title: p.title,
@@ -529,6 +546,7 @@ function parseXlsxBuffer(
       effectiveDate: p.effectiveDate,
       gender: p.gender,
       address: p.address,
+      uniqueId: p.uniqueId || undefined,
       dependents: deps.length > 0 ? deps : undefined,
     });
   }
@@ -605,7 +623,8 @@ export const processEligibilityFile = action({
         effectiveDate?: string;
         gender?: string;
         address?: any;
-        dependents?: Array<{ firstName: string; lastName: string; dateOfBirth?: string; relationship: string }>;
+        uniqueId?: string;  // Careington/DialCare Unique ID (shared across family)
+        dependents?: Array<{ firstName: string; lastName: string; dateOfBirth?: string; relationship: string; seqNum?: string }>;
       }> = [];
       const errors: Array<{ row: number; message: string }> = [];
 
@@ -659,11 +678,12 @@ export const processEligibilityFile = action({
         // Flatten into primary records with embedded dependents
         for (const family of families) {
           const p = family.primary;
-          const deps = family.dependents.map((d) => ({
+          const deps = family.dependents.map((d, di) => ({
             firstName: d.firstName,
             lastName: d.lastName,
             dateOfBirth: d.dateOfBirth,
             relationship: (d.relationship ?? "other") as "spouse" | "child" | "domestic_partner" | "other",
+            seqNum: d.seqNum ?? String(di + 1).padStart(2, "0"),
           }));
 
           primaryRecords.push({
@@ -679,6 +699,7 @@ export const processEligibilityFile = action({
             effectiveDate: p.effectiveDate,
             gender: p.gender,
             address: p.address,
+            uniqueId: p.uniqueId || undefined,
             dependents: deps.length > 0 ? deps : undefined,
           });
         }
@@ -752,6 +773,7 @@ export const processEligibilityFile = action({
           dateOfBirth: r.dateOfBirth ?? "",
           effectiveDate: r.effectiveDate ?? "",
           gender: r.gender ?? "",
+          uniqueId: r.uniqueId ?? "",
           address: r.address,
           dependents: r.dependents,
         }));
@@ -790,6 +812,33 @@ export const processEligibilityFile = action({
 });
 
 /**
+ * Validate a parsed record against Census Template required fields.
+ */
+function validateRequiredFields(
+  record: any,
+  rowNumber: number
+): Array<{ field: string; message: string }> {
+  const issues: Array<{ field: string; message: string }> = [];
+  if (!record.firstName) issues.push({ field: "firstName", message: `Row ${rowNumber}: First Name is required` });
+  if (!record.lastName) issues.push({ field: "lastName", message: `Row ${rowNumber}: Last Name is required` });
+  if (!record.uniqueId) issues.push({ field: "uniqueId", message: `Row ${rowNumber}: Unique ID is required` });
+  if (!record.seqNum) issues.push({ field: "seqNum", message: `Row ${rowNumber}: Sequence Number is required` });
+  if (!record.address?.line1) issues.push({ field: "address", message: `Row ${rowNumber}: Address Line 1 is required` });
+  if (!record.address?.city) issues.push({ field: "city", message: `Row ${rowNumber}: City is required` });
+  if (!record.address?.state) issues.push({ field: "state", message: `Row ${rowNumber}: State is required` });
+  if (!record.address?.postalCode) issues.push({ field: "zip", message: `Row ${rowNumber}: Zip is required` });
+  if (!record.coverage) issues.push({ field: "coverage", message: `Row ${rowNumber}: Coverage is required` });
+  if (!record.groupCode) issues.push({ field: "groupCode", message: `Row ${rowNumber}: Group Code is required` });
+  if (!record.effectiveDate) issues.push({ field: "effectiveDate", message: `Row ${rowNumber}: Effective Date is required` });
+  if (!record.dateOfBirth) issues.push({ field: "dateOfBirth", message: `Row ${rowNumber}: Date of Birth is required` });
+  if (!record.email) issues.push({ field: "email", message: `Row ${rowNumber}: Email Address is required (for e-Fulfillment)` });
+  if (record.seqNum && record.seqNum !== "00") {
+    if (!record.relationship) issues.push({ field: "relationship", message: `Row ${rowNumber}: Relation is required for dependents` });
+  }
+  return issues;
+}
+
+/**
  * Preview an uploaded eligibility file WITHOUT persisting any members.
  *
  * Parses the file using the same logic as processEligibilityFile, but only
@@ -797,6 +846,7 @@ export const processEligibilityFile = action({
  * verify before committing. Tivity-style "Step 2: Map+Preview" behavior.
  */
 export const previewEligibilityFile = action({
+
   args: {
     storageId: v.string(),
     fileType: v.union(v.literal("csv"), v.literal("xlsx"), v.literal("txt"), v.literal("json")),
@@ -812,10 +862,14 @@ export const previewEligibilityFile = action({
       dateOfBirth?: string;
       effectiveDate?: string;
       dependentCount: number;
+      validationIssues?: number;
     }>;
     detectedColumns: string[];
     errors: Array<{ row: number; field?: string; message: string }>;
     errorCount: number;
+    validationErrors: Array<{ row: number; field: string; message: string }>;
+    validationErrorCount: number;
+    recordsWithValidationIssues: number;
     tooLarge: boolean;
     maxRecords: number;
   }> => {
@@ -836,20 +890,14 @@ export const previewEligibilityFile = action({
     }
 
     const errors: Array<{ row: number; message: string }> = [];
-    let primaryRecords: Array<{
-      firstName: string;
-      lastName: string;
-      email?: string;
-      dateOfBirth?: string;
-      effectiveDate?: string;
-      dependents?: Array<{ firstName: string; lastName: string; dateOfBirth?: string; relationship: string }>;
-    }> = [];
+    const validationErrors: Array<{ row: number; field: string; message: string }> = [];
+    let primaryRecords: Array<any> = [];
     const detectedColumns: string[] = [];
 
     if (args.fileType === "txt") {
       const lines = content.split(/\r?\n/).filter((l) => l.trim());
       type ParsedTxt = ReturnType<typeof parseCareingtonRow>;
-      type Family = { primary: NonNullable<ParsedTxt>; dependents: NonNullable<ParsedTxt>[] };
+      type Family = { primary: NonNullable<ParsedTxt>; dependents: NonNullable<ParsedTxt>[]; rowNumber: number };
       const families: Family[] = [];
       let currentFamily: Family | null = null;
       let sawNonSpecCompliantId = false;
@@ -860,7 +908,7 @@ export const previewEligibilityFile = action({
           continue;
         }
         if (parsed.seqNum === "00") {
-          currentFamily = { primary: parsed, dependents: [] };
+          currentFamily = { primary: parsed, dependents: [], rowNumber: i + 1 };
           families.push(currentFamily);
         } else if (currentFamily) {
           if (parsed.uniqueId && parsed.uniqueId !== currentFamily.primary.uniqueId) {
@@ -883,19 +931,44 @@ export const previewEligibilityFile = action({
       }
       for (const family of families) {
         const p = family.primary;
-        primaryRecords.push({
+        const primaryWithValidation = {
           firstName: p.firstName,
           lastName: p.lastName,
           email: p.email,
           dateOfBirth: p.dateOfBirth,
           effectiveDate: p.effectiveDate,
+          address: p.address,
+          coverage: p.coverage,
+          groupCode: p.groupCode,
+          seqNum: p.seqNum,
+          uniqueId: p.uniqueId,
+          relationship: p.relationship,
+          studentStatus: p.studentStatus,
           dependents: family.dependents.map((d) => ({
             firstName: d.firstName,
             lastName: d.lastName,
             dateOfBirth: d.dateOfBirth,
             relationship: (d.relationship ?? "other") as any,
           })),
+          _validationRowNumber: family.rowNumber,
+        };
+        
+        // Validate primary
+        const primaryValidationIssues = validateRequiredFields(p, family.rowNumber);
+        primaryValidationIssues.forEach(issue => {
+          validationErrors.push({ row: family.rowNumber, ...issue });
         });
+        
+        // Validate dependents
+        family.dependents.forEach((d, depIdx) => {
+          const depRow = family.rowNumber + depIdx + 1;
+          const depValidationIssues = validateRequiredFields(d, depRow);
+          depValidationIssues.forEach(issue => {
+            validationErrors.push({ row: depRow, ...issue });
+          });
+        });
+        
+        primaryRecords.push(primaryWithValidation);
       }
       detectedColumns.push(
         "title", "firstName", "middleInitial", "lastName", "suffix", "uniqueId", "seqNum",
@@ -906,6 +979,14 @@ export const previewEligibilityFile = action({
       primaryRecords = parseCsvContent(content);
       const headerLine = content.split(/\r?\n/)[0] ?? "";
       detectedColumns.push(...headerLine.split(",").map((h) => h.trim()).filter(Boolean));
+      // Validate CSV records
+      primaryRecords.forEach((record, idx) => {
+        const validationIssues = validateRequiredFields(record, idx + 2);
+        validationIssues.forEach(issue => {
+          validationErrors.push({ row: idx + 2, ...issue });
+        });
+        record._validationRowNumber = idx + 2;
+      });
     } else if (args.fileType === "xlsx") {
       primaryRecords = parseXlsxBuffer(xlsxBuffer!, errors);
       // Extract detected headers
@@ -915,24 +996,50 @@ export const previewEligibilityFile = action({
       if (headerRows[0]) {
         detectedColumns.push(...(headerRows[0] as any[]).map((h) => String(h).trim()).filter(Boolean));
       }
+      // Validate XLSX records
+      primaryRecords.forEach((record, idx) => {
+        const validationIssues = validateRequiredFields(record, idx + 2);
+        validationIssues.forEach(issue => {
+          validationErrors.push({ row: idx + 2, ...issue });
+        });
+        record._validationRowNumber = idx + 2;
+      });
     } else if (args.fileType === "json") {
       const parsed = JSON.parse(content);
       if (Array.isArray(parsed)) primaryRecords = parsed;
       else if (parsed.records && Array.isArray(parsed.records)) primaryRecords = parsed.records;
       if (primaryRecords[0]) detectedColumns.push(...Object.keys(primaryRecords[0]));
+      // Validate JSON records
+      primaryRecords.forEach((record, idx) => {
+        const validationIssues = validateRequiredFields(record, idx + 2);
+        validationIssues.forEach(issue => {
+          validationErrors.push({ row: idx + 2, ...issue });
+        });
+        record._validationRowNumber = idx + 2;
+      });
     } else {
       throw new Error(`Unsupported file type: ${args.fileType}`);
     }
 
     const dependentCount = primaryRecords.reduce((sum, p) => sum + (p.dependents?.length ?? 0), 0);
-    const sampleRecords = primaryRecords.slice(0, 5).map((p) => ({
-      firstName: p.firstName,
-      lastName: p.lastName,
-      email: p.email,
-      dateOfBirth: p.dateOfBirth,
-      effectiveDate: p.effectiveDate,
-      dependentCount: p.dependents?.length ?? 0,
-    }));
+    const recordsWithValidationIssues = new Set(
+      validationErrors.map((e) => e.row)
+    ).size;
+
+    const sampleRecords = primaryRecords.slice(0, 5).map((p) => {
+      const recordValidationIssues = validationErrors.filter(
+        (e) => e.row === p._validationRowNumber
+      ).length;
+      return {
+        firstName: p.firstName,
+        lastName: p.lastName,
+        email: p.email,
+        dateOfBirth: p.dateOfBirth,
+        effectiveDate: p.effectiveDate,
+        dependentCount: p.dependents?.length ?? 0,
+        validationIssues: recordValidationIssues > 0 ? recordValidationIssues : undefined,
+      };
+    });
 
     return {
       primaryCount: primaryRecords.length,
@@ -941,6 +1048,9 @@ export const previewEligibilityFile = action({
       detectedColumns,
       errors: errors.slice(0, 50),
       errorCount: errors.length,
+      validationErrors: validationErrors.slice(0, 100),
+      validationErrorCount: validationErrors.length,
+      recordsWithValidationIssues,
       tooLarge: primaryRecords.length > MAX_PRIMARY_RECORDS,
       maxRecords: MAX_PRIMARY_RECORDS,
     };
@@ -1084,6 +1194,7 @@ export const internalBatchCreateMembers = internalMutation({
         dateOfBirth: v.string(),
         effectiveDate: v.string(),
         gender: v.string(),
+        uniqueId: v.string(), // Careington/DialCare Unique ID (empty string if not in source file)
         address: v.optional(v.any()),
         dependents: v.optional(v.any()),
       })
@@ -1129,20 +1240,35 @@ export const internalBatchCreateMembers = internalMutation({
             .first();
         }
 
+        // Also match by Careington Unique ID — employer-paid files often lack email
+        if (!existing && record.uniqueId) {
+          existing = await ctx.db
+            .query("memberProfiles")
+            .withIndex("by_careington_id", (q: any) =>
+              q.eq("careingtonUniqueId", record.uniqueId)
+            )
+            .first();
+        }
+
         // Normalize gender
         const genderLower = (record.gender || "").toLowerCase();
         const validGender = (["male", "female", "non_binary", "prefer_not_to_say", "other"].includes(genderLower))
           ? (genderLower as any)
           : undefined;
 
-        // Parse dependents if attached
+        // Parse dependents if attached — include seqNum and toothlensMemberId for Toothlens
         const dependents = Array.isArray(record.dependents) && record.dependents.length > 0
-          ? record.dependents.map((d: any) => ({
-              firstName: d.firstName,
-              lastName: d.lastName,
-              dateOfBirth: d.dateOfBirth || undefined,
-              relationship: d.relationship || "other",
-            }))
+          ? record.dependents.map((d: any, di: number) => {
+              const depSeqNum = d.seqNum ?? String(di + 1).padStart(2, "0");
+              return {
+                firstName: d.firstName,
+                lastName: d.lastName,
+                dateOfBirth: d.dateOfBirth || undefined,
+                relationship: d.relationship || "other",
+                seqNum: depSeqNum,
+                toothlensMemberId: record.uniqueId ? record.uniqueId + depSeqNum : undefined,
+              };
+            })
           : undefined;
 
         if (existing) {
@@ -1161,6 +1287,11 @@ export const internalBatchCreateMembers = internalMutation({
             gender: validGender ?? existing.gender,
             address: record.address || existing.address,
             dependents: dependents ?? existing.dependents,
+            careingtonUniqueId: record.uniqueId || (existing as any).careingtonUniqueId,
+            careingtonSeqNum: (existing as any).careingtonSeqNum ?? "00",
+            toothlensMemberId: record.uniqueId
+              ? record.uniqueId + ((existing as any).careingtonSeqNum ?? "00")
+              : (existing as any).toothlensMemberId,
             eligibilityFileId: args.fileId,
             updatedAt: now,
           });
@@ -1172,6 +1303,9 @@ export const internalBatchCreateMembers = internalMutation({
           const year = String(new Date().getFullYear()).slice(2);
           const random = Math.random().toString(36).substring(2, 8).toUpperCase();
           const barcode = `ELG${year}${random}`;
+
+          // If no uniqueId came from the source file, auto-generate a zero-padded 10-digit one
+          const careingtonUniqueId = record.uniqueId || String(seqNum).padStart(10, "0");
 
           await ctx.db.insert("memberProfiles", {
             memberId,
@@ -1192,6 +1326,9 @@ export const internalBatchCreateMembers = internalMutation({
             gender: validGender,
             address: record.address,
             dependents,
+            careingtonUniqueId,
+            careingtonSeqNum: "00",
+            toothlensMemberId: careingtonUniqueId + "00",
             status: "active",
             memberType: "eligible",
             eligibilityFileId: args.fileId,

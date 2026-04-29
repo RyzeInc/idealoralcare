@@ -6,6 +6,7 @@ import { api } from '@/convex/_generated/api';
 import { Doc } from '@/convex/_generated/dataModel';
 import { Plus, Pencil, Trash2, Loader2, Phone, Mail } from 'lucide-react';
 import { UserSelector } from './UserSelector';
+import { useToast } from './ui';
 import styles from './BrokersAdmin.module.css';
 
 interface ClerkUser {
@@ -17,6 +18,7 @@ interface ClerkUser {
 }
 
 export function BrokersAdmin() {
+  const toast = useToast();
   const [showForm, setShowForm] = useState(false);
   const [editingBroker, setEditingBroker] = useState<Doc<'adminUsers'> | null>(null);
   const [useExistingUser, setUseExistingUser] = useState(true);
@@ -79,12 +81,12 @@ export function BrokersAdmin() {
     e.preventDefault();
 
     if (!formData.name || !formData.email) {
-      alert('Please fill in name and email');
+      toast.warning('Missing required fields', 'Please fill in both name and email.');
       return;
     }
 
     if (!formData.clerkUserId) {
-      alert('Please select or provide a Clerk User ID');
+      toast.warning('Clerk user required', 'Select an existing user or paste a Clerk User ID.');
       return;
     }
 
@@ -107,7 +109,7 @@ export function BrokersAdmin() {
           (admin) => admin.clerkUserId === formData.clerkUserId
         );
         if (existingBroker) {
-          alert('A broker with this Clerk ID already exists');
+          toast.error('Duplicate broker', 'A broker with this Clerk ID already exists.');
           return;
         }
 
@@ -125,8 +127,9 @@ export function BrokersAdmin() {
       }
 
       resetForm();
+      toast.success(editingBroker ? 'Broker updated' : 'Broker added', formData.name);
     } catch (error) {
-      alert('Error saving broker. Please try again.');
+      toast.fromError(error, 'Could not save broker');
     }
   };
 
@@ -141,8 +144,9 @@ export function BrokersAdmin() {
 
     try {
       await deleteAdminMutation({ id: broker._id });
+      toast.success('Broker removed', broker.name);
     } catch (error) {
-      alert('Error deleting broker. Please try again.');
+      toast.fromError(error, 'Could not delete broker');
     }
   };
 

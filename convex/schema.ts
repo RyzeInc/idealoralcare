@@ -160,6 +160,25 @@ export default defineSchema({
     .index("by_email", ["email"])
     .index("by_status", ["inviteStatus"]),
 
+  // Admin audit trail — append-only log of admin-initiated actions.
+  // Written via internal helper from admin mutations/actions; surfaced
+  // in the user-audit page for compliance review.
+  adminAuditLog: defineTable({
+    actorClerkUserId: v.string(),       // who performed the action
+    actorName: v.optional(v.string()),  // denormalized at write time for fast display
+    actorRole: v.optional(v.string()),  // "owner" | "editor"
+    action: v.string(),                 // e.g. "member.status_change", "subscription.cancel", "stripe.refund"
+    targetType: v.optional(v.string()), // e.g. "memberProfile", "subscriptionBundle", "adminUser"
+    targetId: v.optional(v.string()),   // Convex id or external id (Stripe charge, etc.)
+    summary: v.string(),                // human-readable one-liner
+    metadata: v.optional(v.any()),      // structured details (before/after, params)
+    createdAt: v.number(),
+  })
+    .index("by_created", ["createdAt"])
+    .index("by_actor", ["actorClerkUserId", "createdAt"])
+    .index("by_action", ["action", "createdAt"])
+    .index("by_target", ["targetType", "targetId", "createdAt"]),
+
   // ============================================
   // DISTRIBUTION PARTNERS (Program Managers, FMOs, Agencies)
   // Top-down pay chain: Carrier → Program Manager → FMO/Agency → Broker/Agent
@@ -1004,6 +1023,16 @@ export default defineSchema({
     enrolledAt: v.optional(v.number()),
     eligibilityFileId: v.optional(v.id("eligibilityFiles")),
     
+    // VENDOR IDENTITY — CAREINGTON / DIALCARE / TOOTHLENS
+    // careingtonUniqueId  = the Unique ID in the Careington/DialCare eligibility file (shared by whole family)
+    // careingtonSeqNum    = "00" for primary; "01", "02"... for dependents
+    // toothlensMemberId   = careingtonUniqueId + careingtonSeqNum  (e.g., "1234567801")
+    //   → Careington and DialCare both use careingtonUniqueId for eligibility lookups
+    //   → Toothlens uses toothlensMemberId so each family member has a distinct account
+    careingtonUniqueId: v.optional(v.string()),
+    careingtonSeqNum: v.optional(v.string()),
+    toothlensMemberId: v.optional(v.string()),
+
     // DEPENDENTS
     dependents: v.optional(v.array(v.object({
       firstName: v.string(),
@@ -1015,6 +1044,8 @@ export default defineSchema({
         v.literal("domestic_partner"),
         v.literal("other")
       ),
+      seqNum: v.optional(v.string()),            // e.g., "01", "02"
+      toothlensMemberId: v.optional(v.string()),  // careingtonUniqueId + seqNum
     }))),
 
     // FAMILY / DEPENDENT ROLE
@@ -1070,7 +1101,8 @@ export default defineSchema({
     .index("by_primary_member", ["primaryMemberId"])
     .index("by_invite_token", ["inviteToken"])
     .index("by_email", ["email"])
-    .index("by_group_email", ["groupId", "email"]),
+    .index("by_group_email", ["groupId", "email"])
+    .index("by_careington_id", ["careingtonUniqueId"]),
 
   // MEMBER ACTIVITIES (Timeline/activity log)
   memberActivities: defineTable({
@@ -1460,9 +1492,10 @@ export default defineSchema({
     status: v.union(
       v.literal("started"),
       v.literal("completed"),
-      v.literal("cancelled")
+      v.literal("cancelled"),
+      v.literal("abandoned")   // User exited without completing
     ),
-    scanUrl: v.optional(v.string()),        // Full selfcheck URL to re-open / download report
+    scanUrl: v.optional(v.string()),        // Full selfcheck URL (kept for audit; never re-embedded)
     reportUrl: v.optional(v.string()),      // Direct report/PDF URL captured via postMessage
     forwardedToTeledentist: v.optional(v.boolean()),
     forwardedAt: v.optional(v.number()),

@@ -2,9 +2,9 @@
 
 ## Agreement Terms
 
-The Terms and Conditions outlined in this document, along with those you will accept upon registering at www.dialcare.com, constitute the membership agreement (Agreement) between you and DialCare, LLC ("DialCare"). DialCare provides administrative services to DialCare clinicians and does not provide professional medical services. The Terms and Conditions define the obligations of DialCare, its authorized agents and yourself, and they establish the basic rules of safe and fair use of DialCare's public website, member website, and services (Services). DialCare and its authorized agents reserve the right to immediately and without advance notice terminate the Services and deny access to individuals who do not abide by the Terms and Conditions.
-
 To add a family member to your plan or change mode of payment, contact Ideal Oral Health at support@getidealoh.com. For assistance using your plan, please call Member Services at 1-855-335-2255.
+
+The Terms and Conditions outlined in this document, along with those you will accept upon registering at www.dialcare.com, constitute the membership agreement (Agreement) between you and DialCare, LLC ("DialCare"). DialCare provides administrative services to DialCare clinicians and does not provide professional medical services. The Terms and Conditions define the obligations of DialCare, its authorized agents and yourself, and they establish the basic rules of safe and fair use of DialCare's public website, member website, and services (Services). DialCare and its authorized agents reserve the right to immediately and without advance notice terminate the Services and deny access to individuals who do not abide by the Terms and Conditions.
 
 ## Purchase and Renewal Conditions
 

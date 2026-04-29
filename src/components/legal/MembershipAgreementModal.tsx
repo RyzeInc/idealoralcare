@@ -32,6 +32,11 @@ export const MembershipAgreementModal: React.FC<MembershipAgreementModalProps> =
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
 
+  // Determine classification based on plan name
+  const classification = memberData.planName?.toLowerCase().includes("family")
+    ? "Member and Family"
+    : "Member Only";
+
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!canvasRef.current) return;
     setIsDrawing(true);
@@ -124,7 +129,7 @@ export const MembershipAgreementModal: React.FC<MembershipAgreementModalProps> =
                   <span className="font-medium">Plan Name:</span> {memberData.planName}
                 </div>
                 <div>
-                  <span className="font-medium">Classification:</span> Member Only
+                  <span className="font-medium">Classification:</span> {classification}
                 </div>
                 <div>
                   <span className="font-medium">Group Code:</span> {memberData.groupCode}
@@ -144,6 +149,9 @@ export const MembershipAgreementModal: React.FC<MembershipAgreementModalProps> =
                 <div>
                   <span className="font-medium">Processing Fee:</span> $0.00
                 </div>
+                <div className="col-span-2 mt-1 text-xs">
+                  To add a family member to your plan or change mode of payment, contact Ideal Oral Health at support@getidealoh.com. For assistance using your plan, please call Member Services at 1-855-335-2255.
+                </div>
               </div>
             </div>
 
@@ -156,10 +164,6 @@ export const MembershipAgreementModal: React.FC<MembershipAgreementModalProps> =
                 and they establish the basic rules of safe and fair use of DialCare's public website, member website, and services (Services). 
                 DialCare and its authorized agents reserve the right to immediately and without advance notice terminate the Services 
                 and deny access to individuals who do not abide by the Terms and Conditions. 
-              </p>
-
-              <p>
-                To add a family member to your plan or change mode of payment, contact Ideal Oral Health at support@getidealoh.com. For assistance using your plan, please call Member Services at 1-855-335-2255.
               </p>
 
               <h3 className="font-semibold">Purchase and Renewal Conditions</h3>
@@ -201,7 +205,7 @@ export const MembershipAgreementModal: React.FC<MembershipAgreementModalProps> =
 
               <h3 className="font-semibold">Limitations, Exclusions and Exceptions</h3>
               <p>
-                This is a discount plan offered by Careington. 
+                This is a discount plan offered by Careington International Corporation. 
                 Careington is not a licensed insurer, health maintenance organization or other underwriter of health care services. 
                 This plan is not insurance. No portion of any provider's fees will be reimbursed or otherwise paid by Careington. 
                 Careington is not licensed to provide and does not provide health care services or items to individuals. 

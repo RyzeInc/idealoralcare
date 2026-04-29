@@ -87,7 +87,7 @@ export const TermsAndConditionsModal: React.FC<TermsAndConditionsModalProps> = (
 
             <h3 className="font-semibold">Limitations, Exclusions and Exceptions</h3>
             <p>
-              This is a discount plan offered by Careington. 
+              This is a discount plan offered by Careington International Corporation. 
               Careington is not a licensed insurer, health maintenance organization or other underwriter of health care services. 
               This plan is not insurance. No portion of any provider’s fees will be reimbursed or otherwise paid by Careington. 
               Careington is not licensed to provide and does not provide health care services or items to individuals. 

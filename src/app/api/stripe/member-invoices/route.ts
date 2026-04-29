@@ -64,6 +64,12 @@ export async function GET(req: NextRequest) {
       periodEnd: inv.period_end ?? null,
       hostedInvoiceUrl: inv.hosted_invoice_url ?? null,
       invoicePdf: inv.invoice_pdf ?? null,
+      // Refund-target identifiers (admin refund UI uses these)
+      chargeId: typeof inv.charge === "string" ? inv.charge : (inv.charge?.id ?? null),
+      paymentIntentId:
+        typeof inv.payment_intent === "string"
+          ? inv.payment_intent
+          : (inv.payment_intent?.id ?? null),
     }));
 
     return NextResponse.json({ invoices });

@@ -1,6 +1,7 @@
 import { mutation, query, action } from "../_generated/server";
 import { v } from "convex/values";
 import { requireAdmin, requireAdminAction } from "../lib/authGuards";
+import { recordAdminAction } from "./adminAudit";
 // @ts-ignore - Type instantiation too deep
 import { api as apiOriginal } from "../_generated/api";
 
@@ -137,7 +138,7 @@ export const updateMemberStatus = mutation({
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    const identity = await requireAdmin(ctx);
     const member = await ctx.db.get(args.memberId);
     if (!member) throw new Error("Member not found");
 
@@ -163,6 +164,15 @@ export const updateMemberStatus = mutation({
       },
       actorType: "admin",
       createdAt: Date.now(),
+    });
+
+    // Audit trail
+    await recordAdminAction(ctx, identity, {
+      action: "member.status_change",
+      targetType: "memberProfile",
+      targetId: String(args.memberId),
+      summary: `Changed ${member.firstName ?? ''} ${member.lastName ?? ''} (${member.memberId}) from ${oldStatus} → ${args.newStatus}`,
+      metadata: { oldStatus, newStatus: args.newStatus, reason: args.reason ?? null },
     });
 
     return await ctx.db.get(args.memberId);
@@ -452,7 +462,7 @@ export const bulkUpdateMemberStatus = mutation({
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    const identity = await requireAdmin(ctx);
     const results = [];
 
     for (const memberId of args.memberIds) {
@@ -496,10 +506,20 @@ export const bulkUpdateMemberStatus = mutation({
       }
     }
 
+    const succeeded = results.filter((r) => r.success).length;
+    const failed = results.filter((r) => !r.success).length;
+
+    await recordAdminAction(ctx, identity, {
+      action: "member.bulk_status_change",
+      targetType: "memberProfile",
+      summary: `Bulk status change to ${args.newStatus}: ${succeeded} succeeded, ${failed} failed (of ${args.memberIds.length})`,
+      metadata: { newStatus: args.newStatus, reason: args.reason ?? null, memberIds: args.memberIds.map(String), succeeded, failed },
+    });
+
     return {
       total: args.memberIds.length,
-      succeeded: results.filter((r) => r.success).length,
-      failed: results.filter((r) => !r.success).length,
+      succeeded,
+      failed,
       results,
     };
   },
@@ -745,7 +765,7 @@ export const removeMember = mutation({
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    const identity = await requireAdmin(ctx);
     const member = await ctx.db.get(args.memberId);
     if (!member) throw new Error("Member not found");
 
@@ -765,6 +785,14 @@ export const removeMember = mutation({
       metadata: { oldStatus: member.memberType, newStatus: "terminated", reason: args.reason },
       actorType: "admin",
       createdAt: Date.now(),
+    });
+
+    await recordAdminAction(ctx, identity, {
+      action: "member.remove",
+      targetType: "memberProfile",
+      targetId: String(args.memberId),
+      summary: `Terminated ${member.firstName ?? ''} ${member.lastName ?? ''} (${member.memberId})`,
+      metadata: { reason: args.reason ?? null, previousStatus: member.memberType },
     });
 
     return { success: true };

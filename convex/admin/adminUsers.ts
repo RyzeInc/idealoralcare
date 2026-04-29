@@ -5,6 +5,7 @@ import { requireAdmin, requireAuth } from "../lib/authGuards";
 import { getBaseUrl } from "../lib/env";
 import { sendViaGmail } from "../lib/gmail";
 import { autoGrantFreeAccess } from "./grantFreeAccess";
+import { recordAdminAction } from "./adminAudit";
 
 // Check if user is admin (adminUsers table OR active distribution partner)
 export const isAdmin = query({
@@ -135,8 +136,17 @@ export const updateRole = mutation({
     role: v.union(v.literal("owner"), v.literal("editor")),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    const identity = await requireAdmin(ctx);
+    const target = await ctx.db.get(args.id);
+    const oldRole = target?.role;
     await ctx.db.patch(args.id, { role: args.role });
+    await recordAdminAction(ctx, identity, {
+      action: "adminUser.role_change",
+      targetType: "adminUsers",
+      targetId: String(args.id),
+      summary: `Changed role of ${target?.name ?? target?.email ?? args.id} from ${oldRole ?? 'unknown'} → ${args.role}`,
+      metadata: { oldRole, newRole: args.role },
+    });
   },
 });
 
@@ -173,8 +183,16 @@ export const updateAdmin = mutation({
 export const remove = mutation({
   args: { id: v.id("adminUsers") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    const identity = await requireAdmin(ctx);
+    const target = await ctx.db.get(args.id);
     await ctx.db.delete(args.id);
+    await recordAdminAction(ctx, identity, {
+      action: "adminUser.remove",
+      targetType: "adminUsers",
+      targetId: String(args.id),
+      summary: `Removed admin ${target?.name ?? target?.email ?? args.id}`,
+      metadata: { removedRecord: target },
+    });
   },
 });
 

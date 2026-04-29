@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
+import { Breadcrumbs, useToast, SkeletonCard, SkeletonTable } from '@/components/admin/ui';
 import {
   Search,
   User,
@@ -36,6 +37,8 @@ interface Invoice {
   periodEnd: number | null;
   hostedInvoiceUrl: string | null;
   invoicePdf: string | null;
+  chargeId?: string | null;
+  paymentIntentId?: string | null;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -123,6 +126,12 @@ export default function CustomerServicePage() {
   const [noteContent, setNoteContent] = useState('');
   const [noteLoading, setNoteLoading] = useState(false);
   const [showInvoices, setShowInvoices] = useState(false);
+  const [refundTarget, setRefundTarget] = useState<Invoice | null>(null);
+  const [refundAmount, setRefundAmount] = useState<string>('');
+  const [refundReason, setRefundReason] = useState<'requested_by_customer' | 'duplicate' | 'fraudulent'>('requested_by_customer');
+  const [refundNote, setRefundNote] = useState('');
+  const [refundLoading, setRefundLoading] = useState(false);
+  const toast = useToast();
 
   // ── Convex queries ────────────────────────────────────────────────────────
 
@@ -234,6 +243,7 @@ export default function CustomerServicePage() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: 'Customer Service' }]} />
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-slate-900">Customer Service</h1>
@@ -336,10 +346,7 @@ export default function CustomerServicePage() {
           )}
 
           {selectedMemberId && memberData === undefined && (
-            <div className="bg-white rounded-lg shadow p-10 text-center text-slate-400">
-              <Loader2 size={24} className="mx-auto mb-2 animate-spin opacity-50" />
-              <p className="text-sm">Loading…</p>
-            </div>
+            <SkeletonCard />
           )}
 
           {selectedMemberId && memberData && (
@@ -554,7 +561,8 @@ export default function CustomerServicePage() {
 
                 {showInvoices && (
                   <div className="border-t border-slate-100">
-                    {invoices === null && !invoicesLoading && (
+                    {invoicesLoading && <SkeletonTable rows={4} cols={5} />}
+                    {!invoicesLoading && invoices === null && (
                       <p className="text-sm text-slate-400 text-center py-6">
                         Loading invoices…
                       </p>
@@ -610,17 +618,28 @@ export default function CustomerServicePage() {
                                 </span>
                               </td>
                               <td className="px-5 py-3 text-right">
-                                {inv.hostedInvoiceUrl && (
-                                  <a
-                                    href={inv.hostedInvoiceUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-500 hover:text-blue-700 inline-flex items-center gap-1 text-xs"
-                                  >
-                                    View
-                                    <ExternalLink size={11} />
-                                  </a>
-                                )}
+                                <div className="inline-flex items-center gap-3">
+                                  {(inv.status === 'paid' && (inv.chargeId || inv.paymentIntentId) && inv.amountPaid > 0) && (
+                                    <button
+                                      onClick={() => setRefundTarget(inv)}
+                                      className="text-amber-600 hover:text-amber-800 text-xs font-medium"
+                                      title="Issue a full or partial refund for this invoice."
+                                    >
+                                      Refund
+                                    </button>
+                                  )}
+                                  {inv.hostedInvoiceUrl && (
+                                    <a
+                                      href={inv.hostedInvoiceUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-500 hover:text-blue-700 inline-flex items-center gap-1 text-xs"
+                                    >
+                                      View
+                                      <ExternalLink size={11} />
+                                    </a>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           ))}
@@ -655,6 +674,199 @@ export default function CustomerServicePage() {
               </div>
             </>
           )}
+        </div>
+      </div>
+
+      {/* ── Refund modal ───────────────────────────────────────────────── */}
+      {refundTarget && (
+        <RefundModal
+          invoice={refundTarget}
+          loading={refundLoading}
+          amount={refundAmount}
+          reason={refundReason}
+          note={refundNote}
+          onAmountChange={setRefundAmount}
+          onReasonChange={setRefundReason}
+          onNoteChange={setRefundNote}
+          onClose={() => {
+            if (refundLoading) return;
+            setRefundTarget(null);
+            setRefundAmount('');
+            setRefundNote('');
+            setRefundReason('requested_by_customer');
+          }}
+          onSubmit={async () => {
+            if (!refundTarget || !selectedMemberId) return;
+            const cents = refundAmount.trim()
+              ? Math.round(parseFloat(refundAmount) * 100)
+              : undefined;
+            if (refundAmount.trim() && (!cents || cents <= 0 || cents > refundTarget.amountPaid)) {
+              toast.error(`Amount must be between $0.01 and ${formatCurrency(refundTarget.amountPaid, refundTarget.currency)}.`);
+              return;
+            }
+            setRefundLoading(true);
+            try {
+              const res = await fetch('/api/stripe/admin-refund', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  memberProfileId: selectedMemberId,
+                  chargeId: refundTarget.chargeId ?? undefined,
+                  paymentIntentId: refundTarget.paymentIntentId ?? undefined,
+                  amountCents: cents,
+                  reason: refundReason,
+                  note: refundNote.trim() || undefined,
+                }),
+              });
+              const data = await res.json();
+              if (!res.ok) throw new Error(data.error ?? 'Refund failed');
+              toast.success(`Refund issued: ${formatCurrency(data.amount ?? 0, data.currency ?? refundTarget.currency)}`);
+              setRefundTarget(null);
+              setRefundAmount('');
+              setRefundNote('');
+              setRefundReason('requested_by_customer');
+              // Refresh invoices to reflect refund status
+              await handleLoadInvoices();
+            } catch (err: any) {
+              toast.error(err?.message ?? 'Refund failed');
+            } finally {
+              setRefundLoading(false);
+            }
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Refund modal ────────────────────────────────────────────────────────────
+
+function RefundModal({
+  invoice,
+  loading,
+  amount,
+  reason,
+  note,
+  onAmountChange,
+  onReasonChange,
+  onNoteChange,
+  onClose,
+  onSubmit,
+}: {
+  invoice: Invoice;
+  loading: boolean;
+  amount: string;
+  reason: 'requested_by_customer' | 'duplicate' | 'fraudulent';
+  note: string;
+  onAmountChange: (v: string) => void;
+  onReasonChange: (v: 'requested_by_customer' | 'duplicate' | 'fraudulent') => void;
+  onNoteChange: (v: string) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    // Auto-focus first input
+    dialogRef.current
+      ?.querySelector<HTMLElement>('input, select, textarea, button:not([aria-label="Close dialog"])')
+      ?.focus();
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="refund-modal-title"
+        className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 space-y-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 id="refund-modal-title" className="font-semibold text-slate-900">Issue Refund</h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Invoice {invoice.number ?? invoice.id.slice(-8)} — paid{' '}
+              {formatCurrency(invoice.amountPaid, invoice.currency)}
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-label="Close dialog"
+            onClick={onClose}
+            disabled={loading}
+            className="text-slate-400 hover:text-slate-600 disabled:opacity-40"
+          >
+            ×
+          </button>
+        </div>
+
+        <label className="block text-sm">
+          <span className="text-slate-700 font-medium">Amount (leave blank for full refund)</span>
+          <div className="mt-1 flex items-center gap-2">
+            <span className="text-slate-500">$</span>
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              max={(invoice.amountPaid / 100).toFixed(2)}
+              value={amount}
+              onChange={(e) => onAmountChange(e.target.value)}
+              placeholder={(invoice.amountPaid / 100).toFixed(2)}
+              className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          </div>
+        </label>
+
+        <label className="block text-sm">
+          <span className="text-slate-700 font-medium">Reason</span>
+          <select
+            value={reason}
+            onChange={(e) => onReasonChange(e.target.value as 'requested_by_customer' | 'duplicate' | 'fraudulent')}
+            className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+          >
+            <option value="requested_by_customer">Requested by customer</option>
+            <option value="duplicate">Duplicate charge</option>
+            <option value="fraudulent">Fraudulent</option>
+          </select>
+        </label>
+
+        <label className="block text-sm">
+          <span className="text-slate-700 font-medium">Internal note (optional)</span>
+          <textarea
+            value={note}
+            onChange={(e) => onNoteChange(e.target.value)}
+            rows={2}
+            placeholder="Why is this refund being issued?"
+            className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
+          />
+        </label>
+
+        <div className="flex justify-end gap-2 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800 disabled:opacity-40"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onSubmit}
+            disabled={loading}
+            className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 disabled:opacity-40 flex items-center gap-1.5"
+          >
+            {loading && <Loader2 size={13} className="animate-spin" />}
+            Issue Refund
+          </button>
         </div>
       </div>
     </div>

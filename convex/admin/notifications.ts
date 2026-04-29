@@ -488,7 +488,7 @@ export const sendSingleWelcomeEmailInternal = action({
 
               <h3>Getting Started:</h3>
               <ol>
-                <li><strong>Find a Provider:</strong> Search in your <a href="https://www.getidealoh.com/health/dashboard" style="color: #0066CC;">Member Portal</a> or visit <a href="https://getidealoh.com/health/dashboard" style="color: #0066CC;">getidealoh.com/health/dashboard</a> or call (800) 290-0523 to search for participating providers near you</li>
+                <li><strong>Find a Provider:</strong> Search in your <a href="https://www.getidealoh.com/health/dashboard" style="color: #0066CC;">Member Portal</a> or visit <a href="https://getidealoh.com/health/dashboard" style="color: #0066CC;">getidealoh.com/health/dashboard</a> or email support@getidealoh.com to search for participating providers near you</li>
                 <li><strong>Schedule Your Appointment:</strong> Call ahead and mention your Careington membership</li>
                 <li><strong>Present Your Card:</strong> Show your member ID at the appointment</li>
                 <li><strong>Save Money:</strong> Enjoy your member discounts on the spot</li>

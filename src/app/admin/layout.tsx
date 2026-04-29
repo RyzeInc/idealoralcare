@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { ConvexHttpClient } from "convex/browser";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { AdminProviders } from "@/components/admin/AdminProviders";
 
 export default async function AdminLayout({
   children,
@@ -35,13 +36,21 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-100">
-      <AdminSidebar />
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          {children}
-        </div>
-      </main>
-    </div>
+    <AdminProviders>
+      <div className="flex min-h-screen bg-slate-100">
+        <AdminSidebar />
+        <main className="flex-1 overflow-y-auto">
+          <a
+            href="#admin-main"
+            className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-white focus:text-slate-900 focus:px-3 focus:py-1.5 focus:rounded focus:shadow"
+          >
+            Skip to main content
+          </a>
+          <div id="admin-main" className="max-w-7xl mx-auto px-6 py-8">
+            {children}
+          </div>
+        </main>
+      </div>
+    </AdminProviders>
   );
 }

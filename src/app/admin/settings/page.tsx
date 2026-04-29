@@ -4,10 +4,13 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Save } from 'lucide-react';
+import { useToast } from '@/components/admin/ui';
+import { Breadcrumbs, RequiredMark } from '@/components/admin/ui';
 
 export default function SiteSettingsPage() {
   const settings = useQuery(api.admin.siteSettings.get);
   const updateSettings = useMutation(api.admin.siteSettings.update);
+  const toast = useToast();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -43,9 +46,10 @@ export default function SiteSettingsPage() {
     try {
       await updateSettings(form);
       setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      toast.success('Settings saved', 'Your site configuration has been updated.');
+      setTimeout(() => setSaved(false), 3000);
     } catch (err) {
-      alert(`Error: ${err instanceof Error ? err.message : 'Save failed'}`);
+      toast.fromError(err, 'Could not save settings');
     } finally {
       setSaving(false);
     }
@@ -55,6 +59,7 @@ export default function SiteSettingsPage() {
 
   return (
     <div className="space-y-6 max-w-2xl">
+      <Breadcrumbs items={[{ label: 'Site Settings' }]} />
       <div>
         <h1 className="text-3xl font-bold text-slate-900">Site Settings</h1>
         <p className="text-slate-600">Manage global site configuration and branding</p>
@@ -64,24 +69,24 @@ export default function SiteSettingsPage() {
         <section className="bg-white rounded-lg shadow p-6 space-y-4">
           <h2 className="text-lg font-semibold text-slate-900 border-b pb-2">General</h2>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Site Name</label>
-            <input type="text" value={form.siteName} onChange={e => setForm({ ...form, siteName: e.target.value })} className={fieldClass} />
+            <label className="block text-sm font-medium text-slate-700 mb-1">Site Name<RequiredMark /></label>
+            <input type="text" required value={form.siteName} onChange={e => setForm({ ...form, siteName: e.target.value })} className={fieldClass} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Tagline</label>
-            <input type="text" value={form.tagline} onChange={e => setForm({ ...form, tagline: e.target.value })} className={fieldClass} />
+            <label className="block text-sm font-medium text-slate-700 mb-1">Tagline<RequiredMark /></label>
+            <input type="text" required value={form.tagline} onChange={e => setForm({ ...form, tagline: e.target.value })} className={fieldClass} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
-            <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3} className={fieldClass} />
+            <label className="block text-sm font-medium text-slate-700 mb-1">Description<RequiredMark /></label>
+            <textarea value={form.description} required onChange={e => setForm({ ...form, description: e.target.value })} rows={3} className={fieldClass} />
           </div>
         </section>
 
         <section className="bg-white rounded-lg shadow p-6 space-y-4">
           <h2 className="text-lg font-semibold text-slate-900 border-b pb-2">Contact</h2>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Contact Email</label>
-            <input type="email" value={form.contactEmail} onChange={e => setForm({ ...form, contactEmail: e.target.value })} className={fieldClass} />
+            <label className="block text-sm font-medium text-slate-700 mb-1">Contact Email<RequiredMark /></label>
+            <input type="email" required value={form.contactEmail} onChange={e => setForm({ ...form, contactEmail: e.target.value })} className={fieldClass} />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Support Email</label>

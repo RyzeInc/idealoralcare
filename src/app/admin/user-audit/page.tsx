@@ -1,32 +1,18 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
+import { Breadcrumbs, StatusBadge } from '@/components/admin/ui';
 import {
-  Search,
-  Loader,
-  Calendar,
-  ShieldCheck,
-  ShieldAlert,
-  LayoutDashboard,
-  XCircle,
-  ChevronLeft,
-  ChevronRight,
-  AlertTriangle,
-  Filter,
-  Users,
-  ChevronDown,
-  ChevronUp,
-  CreditCard,
-  Package,
-  User,
-  ScanLine,
-  Building2,
-  Clock,
-  DollarSign,
+  Users, Search, AlertTriangle, CheckCircle2, ExternalLink,
+  Loader, Filter, Download, ScanLine, ShieldCheck, CreditCard,
+  Building2, Database, CloudOff, Layers, UserCheck,
+  ChevronDown, ChevronUp, RefreshCw,
 } from 'lucide-react';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ClerkUser {
   id: string;
@@ -38,407 +24,697 @@ interface ClerkUser {
   createdAt: number;
 }
 
-type StatusFilter = 'all' | 'no-dashboard' | 'no-admin' | 'has-both' | 'has-neither';
+type SystemPresence =
+  | 'both-active'   // Clerk + Convex + active subscription
+  | 'both'          // Clerk + Convex, no/unknown sub
+  | 'both-no-sub'   // Clerk + Convex, explicitly no subscription
+  | 'clerk-only'    // Clerk only, no Convex member profile
+  | 'convex-only';  // Convex member profile, no Clerk account
 
-const PAGE_SIZE = 50;
+type PresenceFilter = 'all' | SystemPresence | 'missing-census' | 'has-toothlens' | 'no-toothlens';
+
+interface UnifiedUser {
+  key: string;
+  // Clerk
+  clerkId?: string;
+  clerkEmail?: string;
+  clerkName?: string;
+  clerkCreatedAt?: number;
+  clerkImageUrl?: string;
+  // Convex member
+  memberId?: string;
+  memberProfileId?: string;
+  memberType?: string;
+  memberFirstName?: string;
+  memberLastName?: string;
+  memberEmail?: string;
+  memberDob?: string;
+  memberEffective?: string;
+  memberAddress?: { line1?: string; line2?: string; city?: string; state?: string; postalCode?: string };
+  careingtonUniqueId?: string;
+  careingtonSeqNum?: string;
+  // Subscription
+  subscriptionStatus?: string;
+  entitlementCount?: number;
+  // Toothlens
+  hasToothlens: boolean;
+  toothlensUid?: string;
+  toothlensScans?: number;
+  // Derived
+  presence: SystemPresence;
+  missingFields: string[];
+}
+
+// ─── Census validation ────────────────────────────────────────────────────────
+
+const CENSUS_REQUIRED: { label: string; get: (u: UnifiedUser) => boolean }[] = [
+  { label: 'First Name',     get: (u) => !!u.memberFirstName },
+  { label: 'Last Name',      get: (u) => !!u.memberLastName },
+  { label: 'Unique ID',      get: (u) => !!u.careingtonUniqueId },
+  { label: 'Sequence #',     get: (u) => !!u.careingtonSeqNum },
+  { label: 'Address',        get: (u) => !!u.memberAddress?.line1 },
+  { label: 'City',           get: (u) => !!u.memberAddress?.city },
+  { label: 'State',          get: (u) => !!u.memberAddress?.state },
+  { label: 'Zip',            get: (u) => !!u.memberAddress?.postalCode },
+  { label: 'Email',          get: (u) => !!(u.memberEmail || u.clerkEmail) },
+  { label: 'Date of Birth',  get: (u) => !!u.memberDob },
+  { label: 'Effective Date', get: (u) => !!u.memberEffective },
+];
+
+function getMissing(u: UnifiedUser): string[] {
+  if (!u.memberProfileId) return [];
+  return CENSUS_REQUIRED.filter((f) => !f.get(u)).map((f) => f.label);
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function fmt(ms?: number | null) {
+  if (!ms) return '—';
+  return new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+const PRESENCE_META: Record<SystemPresence, { label: string; color: string; bg: string }> = {
+  'both-active':  { label: 'Active',          color: 'text-green-700',  bg: 'bg-green-50 border-green-200' },
+  'both':         { label: 'Linked',           color: 'text-blue-700',   bg: 'bg-blue-50 border-blue-200' },
+  'both-no-sub':  { label: 'No Subscription',  color: 'text-amber-700',  bg: 'bg-amber-50 border-amber-200' },
+  'clerk-only':   { label: 'Clerk Only',        color: 'text-purple-700', bg: 'bg-purple-50 border-purple-200' },
+  'convex-only':  { label: 'Convex Only',       color: 'text-slate-600',  bg: 'bg-slate-100 border-slate-300' },
+};
+
+function PresenceBadge({ presence }: { presence: SystemPresence }) {
+  const m = PRESENCE_META[presence];
+  return (
+    <span className={`inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded border ${m.color} ${m.bg}`}>
+      {m.label}
+    </span>
+  );
+}
+
+
+// ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function UserAuditPage() {
-  const { user } = useUser();
-  const clerkUserId = user?.id ?? '';
-  const adminProfile = useQuery(api.admin.adminUsers.getByClerkId, clerkUserId ? { clerkUserId } : 'skip');
+  // ── Convex live data ────────────────────────────────────────────────────────
+  const convexMembers = (useQuery(api.admin.members.getAllMembers, {}) ?? []) as any[];
+  const toothlensRecords = (useQuery(api.admin.userAudit.getAllToothlensUserRecords) ?? []) as any[];
 
-  // Date range state
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-
-  // Fetched users
-  const [clerkUsers, setClerkUsers] = useState<ClerkUser[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [offset, setOffset] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-
-  // Status filter
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-
-  // Expanded user detail
-  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
-
-  // Convex statuses — keyed by clerk ID
-  const clerkIds = clerkUsers.map((u) => u.id);
-  const statuses = useQuery(
-    api.admin.userAudit.getUserStatuses,
-    clerkIds.length > 0 ? { clerkUserIds: clerkIds } : 'skip'
+  // Only query subscription statuses for members that have a Clerk ID
+  const clerkIdsInConvex = useMemo(
+    () => convexMembers.filter((m) => m.customerId).map((m) => m.customerId as string),
+    [convexMembers]
   );
+  const subscriptionStatuses = (useQuery(
+    api.admin.userAudit.getUserStatuses,
+    clerkIdsInConvex.length > 0 ? { clerkUserIds: clerkIdsInConvex } : 'skip'
+  ) ?? {}) as Record<string, any>;
 
-  const fetchUsers = useCallback(async (newOffset: number) => {
-    setLoading(true);
+  // ── Clerk users (fetched via API route) ─────────────────────────────────────
+  const [clerkUsers, setClerkUsers] = useState<ClerkUser[]>([]);
+  const [clerkLoading, setClerkLoading] = useState(true);
+  const [clerkError, setClerkError] = useState<string | null>(null);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+
+  const fetchAllClerk = async () => {
+    setClerkLoading(true);
+    setClerkError(null);
     try {
-      const params = new URLSearchParams();
-      params.set('limit', String(PAGE_SIZE));
-      params.set('offset', String(newOffset));
-      if (dateFrom) {
-        params.set('created_after', String(new Date(dateFrom).getTime()));
+      const all: ClerkUser[] = [];
+      for (let offset = 0; offset < 500; offset += 100) {
+        const r = await fetch(`/api/clerk/users?limit=100&offset=${offset}`);
+        if (!r.ok) throw new Error(`Clerk API ${r.status}`);
+        const d = await r.json();
+        const page: ClerkUser[] = d.users ?? [];
+        all.push(...page);
+        if (all.length >= (d.total ?? 0) || page.length < 100) break;
       }
-      if (dateTo) {
-        // End of selected day
-        params.set('created_before', String(new Date(dateTo + 'T23:59:59').getTime()));
-      }
-
-      const res = await fetch(`/api/clerk/users?${params.toString()}`);
-      if (!res.ok) throw new Error('Failed to fetch');
-      const data = await res.json();
-      setClerkUsers(data.users || []);
-      setTotalCount(data.total || 0);
-      setOffset(newOffset);
-      setLoaded(true);
-    } catch {
-      setClerkUsers([]);
-      setTotalCount(0);
+      setClerkUsers(all);
+      setLastRefreshed(new Date());
+    } catch (e: any) {
+      setClerkError(e?.message ?? 'Failed to load Clerk users');
     } finally {
-      setLoading(false);
+      setClerkLoading(false);
     }
-  }, [dateFrom, dateTo]);
-
-  const handleSearch = () => {
-    setOffset(0);
-    fetchUsers(0);
   };
 
-  // Filter users based on status
-  const filteredUsers = clerkUsers.filter((u) => {
-    if (!statuses || statusFilter === 'all') return true;
-    const s = statuses[u.id];
-    if (!s) {
-      // No status means no dashboard, no admin
-      return statusFilter === 'has-neither' || statusFilter === 'no-dashboard' || statusFilter === 'no-admin';
-    }
-    switch (statusFilter) {
-      case 'no-dashboard': return !s.hasDashboard;
-      case 'no-admin': return !s.isAdmin;
-      case 'has-both': return s.hasDashboard && s.isAdmin;
-      case 'has-neither': return !s.hasDashboard && !s.isAdmin;
-      default: return true;
-    }
-  });
+  useEffect(() => { fetchAllClerk(); }, []);
 
-  // Count discrepancies
-  const discrepancyCount = statuses
-    ? clerkUsers.filter((u) => {
-        const s = statuses[u.id];
-        return !s || !s.hasDashboard;
-      }).length
-    : 0;
-
-  // Gate to owner
-  if (!adminProfile || adminProfile.role !== 'owner') {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <ShieldAlert size={48} className="mx-auto text-red-400 mb-4" />
-          <h2 className="text-xl font-bold text-slate-900">Owner Access Required</h2>
-          <p className="text-slate-500 mt-2">This page is restricted to owners.</p>
-        </div>
-      </div>
+  // ── Merge all three systems into one unified list ───────────────────────────
+  const unified = useMemo<UnifiedUser[]>(() => {
+    const clerkMap = new Map<string, ClerkUser>(clerkUsers.map((u) => [u.id, u]));
+    const toothlensMap = new Map<string, any>(
+      toothlensRecords.map((t) => [t.clerkUserId, t])
     );
-  }
+    const matchedClerkIds = new Set<string>();
+    const rows: UnifiedUser[] = [];
+
+    // 1. Every Convex member profile
+    for (const m of convexMembers) {
+      const clerkId: string | undefined = m.customerId;
+      const clerk = clerkId ? clerkMap.get(clerkId) : undefined;
+      if (clerkId) matchedClerkIds.add(clerkId);
+
+      const tl = clerkId ? toothlensMap.get(clerkId) : undefined;
+      const sub = clerkId ? subscriptionStatuses[clerkId] : undefined;
+
+      let presence: SystemPresence;
+      if (!clerkId || !clerk) {
+        presence = 'convex-only';
+      } else if (sub?.hasDashboard || sub?.subscriptionStatus === 'active') {
+        presence = 'both-active';
+      } else if (sub?.subscriptionStatus) {
+        presence = 'both-no-sub';
+      } else {
+        presence = 'both';
+      }
+
+      const row: UnifiedUser = {
+        key: m._id,
+        clerkId,
+        clerkEmail: clerk?.email,
+        clerkName: clerk?.name,
+        clerkCreatedAt: clerk?.createdAt,
+        clerkImageUrl: clerk?.imageUrl,
+        memberId: m.memberId,
+        memberProfileId: m._id,
+        memberType: m.memberType,
+        memberFirstName: m.firstName,
+        memberLastName: m.lastName,
+        memberEmail: m.email,
+        memberDob: m.dateOfBirth,
+        memberEffective: m.effectiveDate,
+        memberAddress: m.address,
+        careingtonUniqueId: m.careingtonUniqueId,
+        careingtonSeqNum: m.careingtonSeqNum,
+        hasToothlens: !!tl,
+        toothlensUid: tl?.toothlensUid,
+        toothlensScans: tl?.scanCount,
+        subscriptionStatus: sub?.subscriptionStatus,
+        entitlementCount: sub?.entitlementCount ?? 0,
+        presence,
+        missingFields: [],
+      };
+      row.missingFields = getMissing(row);
+      rows.push(row);
+    }
+
+    // 2. Clerk users with NO matching Convex member profile
+    for (const u of clerkUsers) {
+      if (matchedClerkIds.has(u.id)) continue;
+      const tl = toothlensMap.get(u.id);
+      const sub = subscriptionStatuses[u.id];
+      rows.push({
+        key: u.id,
+        clerkId: u.id,
+        clerkEmail: u.email,
+        clerkName: u.name,
+        clerkCreatedAt: u.createdAt,
+        clerkImageUrl: u.imageUrl,
+        hasToothlens: !!tl,
+        toothlensUid: tl?.toothlensUid,
+        toothlensScans: tl?.scanCount,
+        subscriptionStatus: sub?.subscriptionStatus,
+        entitlementCount: sub?.entitlementCount ?? 0,
+        presence: 'clerk-only',
+        missingFields: [],
+      });
+    }
+
+    return rows;
+  }, [convexMembers, clerkUsers, toothlensRecords, subscriptionStatuses]);
+
+  // ── Filters ──────────────────────────────────────────────────────────────────
+  const [search, setSearch] = useState('');
+  const [presenceFilter, setPresenceFilter] = useState<PresenceFilter>('all');
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return unified.filter((u) => {
+      if (q) {
+        const name = `${u.memberFirstName ?? ''} ${u.memberLastName ?? ''} ${u.clerkName ?? ''}`.toLowerCase();
+        const email = `${u.memberEmail ?? ''} ${u.clerkEmail ?? ''}`.toLowerCase();
+        const ids = `${u.memberId ?? ''} ${u.clerkId ?? ''} ${u.careingtonUniqueId ?? ''}`.toLowerCase();
+        if (!name.includes(q) && !email.includes(q) && !ids.includes(q)) return false;
+      }
+      if (presenceFilter === 'all') return true;
+      if (presenceFilter === 'missing-census') return u.missingFields.length > 0;
+      if (presenceFilter === 'has-toothlens') return u.hasToothlens;
+      if (presenceFilter === 'no-toothlens') return !u.hasToothlens && !!u.memberProfileId;
+      return u.presence === presenceFilter;
+    });
+  }, [unified, search, presenceFilter]);
+
+  // ── Stats ─────────────────────────────────────────────────────────────────────
+  const stats = useMemo(() => ({
+    total: unified.length,
+    bothActive: unified.filter((u) => u.presence === 'both-active').length,
+    clerkOnly: unified.filter((u) => u.presence === 'clerk-only').length,
+    convexOnly: unified.filter((u) => u.presence === 'convex-only').length,
+    noSub: unified.filter((u) => u.presence === 'both-no-sub' || u.presence === 'both').length,
+    missingCensus: unified.filter((u) => u.missingFields.length > 0).length,
+    hasToothlens: unified.filter((u) => u.hasToothlens).length,
+  }), [unified]);
+
+  // ── CSV export ────────────────────────────────────────────────────────────────
+  const exportCSV = () => {
+    const headers = ['Presence', 'First Name', 'Last Name', 'Email (member)', 'Email (Clerk)',
+      'Member ID', 'Member Status', 'Careington Unique ID', 'Seq #', 'DOB', 'Effective Date',
+      'Address Line 1', 'City', 'State', 'Zip', 'Clerk ID', 'Subscription Status',
+      'Entitlements', 'Toothlens UID', 'Scans', 'Missing Census Fields'];
+    const rows = filtered.map((u) => [
+      u.presence,
+      u.memberFirstName ?? u.clerkName?.split(' ')[0] ?? '',
+      u.memberLastName ?? u.clerkName?.split(' ').slice(1).join(' ') ?? '',
+      u.memberEmail ?? '',
+      u.clerkEmail ?? '',
+      u.memberId ?? '',
+      u.memberType ?? '',
+      u.careingtonUniqueId ?? '',
+      u.careingtonSeqNum ?? '',
+      u.memberDob ?? '',
+      u.memberEffective ?? '',
+      u.memberAddress?.line1 ?? '',
+      u.memberAddress?.city ?? '',
+      u.memberAddress?.state ?? '',
+      u.memberAddress?.postalCode ?? '',
+      u.clerkId ?? '',
+      u.subscriptionStatus ?? '',
+      String(u.entitlementCount ?? ''),
+      u.toothlensUid ?? '',
+      String(u.toothlensScans ?? ''),
+      u.missingFields.join('; '),
+    ]);
+    const csv = [headers, ...rows]
+      .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = `user-investigation-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+  };
+
+  const dataLoading = clerkLoading || convexMembers === undefined || toothlensRecords === undefined;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-16">
+      <Breadcrumbs items={[{ label: 'User Audit' }]} />
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
-          <Users size={24} />
-          User Audit
-        </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          View all Clerk users and check their dashboard &amp; admin access status.
-        </p>
-      </div>
-
-      {/* Date Range & Controls */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5">
-        <div className="flex flex-wrap items-end gap-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1.5">
-              <Calendar size={12} className="inline mr-1" />
-              Created After
-            </label>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1.5">
-              <Calendar size={12} className="inline mr-1" />
-              Created Before
-            </label>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <button
-            onClick={handleSearch}
-            disabled={loading}
-            className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50"
-          >
-            {loading ? <Loader size={14} className="animate-spin" /> : <Search size={14} />}
-            {loaded ? 'Refresh' : 'Load Users'}
-          </button>
-          {dateFrom || dateTo ? (
-            <button
-              onClick={() => { setDateFrom(''); setDateTo(''); }}
-              className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1"
-            >
-              <XCircle size={14} /> Clear dates
-            </button>
-          ) : null}
-        </div>
-      </div>
-
-      {/* Results */}
-      {loaded && (
-        <>
-          {/* Summary Bar */}
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="text-sm text-slate-600">
-              <strong>{totalCount}</strong> total Clerk users
-              {(dateFrom || dateTo) && ' (in date range)'}
-            </div>
-            {statuses && discrepancyCount > 0 && (
-              <div className="flex items-center gap-1.5 text-sm text-amber-600 bg-amber-50 px-3 py-1 rounded-full">
-                <AlertTriangle size={14} />
-                <strong>{discrepancyCount}</strong> without dashboard access
-              </div>
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <Users size={22} /> User Investigation
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Every user across Clerk, Convex (IdealOH), and Toothlens — unified.
+            {lastRefreshed && (
+              <span className="ml-2 text-slate-400">Clerk last loaded {lastRefreshed.toLocaleTimeString()}</span>
             )}
-
-            {/* Status Filter */}
-            <div className="ml-auto flex items-center gap-2">
-              <Filter size={14} className="text-slate-400" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-                className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">All Users</option>
-                <option value="no-dashboard">No Dashboard Access</option>
-                <option value="no-admin">No Admin Access</option>
-                <option value="has-both">Has Both</option>
-                <option value="has-neither">Has Neither</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Table */}
-          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase w-8"></th>
-                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">User</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Clerk ID</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Created</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Dashboard</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Admin</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Subscription</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredUsers.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
-                        {loading ? 'Loading...' : 'No users match the current filter.'}
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredUsers.map((u) => {
-                      const s = statuses?.[u.id];
-                      const isExpanded = expandedUserId === u.id;
-                      return (
-                        <UserRow
-                          key={u.id}
-                          user={u}
-                          status={s}
-                          statusesLoaded={!!statuses}
-                          isExpanded={isExpanded}
-                          onToggle={() => setExpandedUserId(isExpanded ? null : u.id)}
-                        />
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Pagination */}
-          {totalCount > PAGE_SIZE && (
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-slate-500">
-                Showing {offset + 1}–{Math.min(offset + PAGE_SIZE, totalCount)} of {totalCount}
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => fetchUsers(Math.max(0, offset - PAGE_SIZE))}
-                  disabled={offset === 0 || loading}
-                  className="flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 disabled:opacity-30 px-3 py-1.5 border border-slate-300 rounded-lg"
-                >
-                  <ChevronLeft size={14} /> Previous
-                </button>
-                <button
-                  onClick={() => fetchUsers(offset + PAGE_SIZE)}
-                  disabled={offset + PAGE_SIZE >= totalCount || loading}
-                  className="flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 disabled:opacity-30 px-3 py-1.5 border border-slate-300 rounded-lg"
-                >
-                  Next <ChevronRight size={14} />
-                </button>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Empty state */}
-      {!loaded && !loading && (
-        <div className="bg-white border border-slate-200 rounded-xl p-12 text-center">
-          <Users size={40} className="mx-auto text-slate-300 mb-4" />
-          <h3 className="text-lg font-semibold text-slate-700 mb-1">Ready to Audit</h3>
-          <p className="text-sm text-slate-500 max-w-md mx-auto">
-            Optionally pick a date range, then click <strong>Load Users</strong> to pull all Clerk users
-            and cross-reference their dashboard &amp; admin access.
           </p>
         </div>
+        <div className="flex gap-2">
+          <button
+            onClick={fetchAllClerk}
+            disabled={clerkLoading}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-40"
+          >
+            <RefreshCw size={14} className={clerkLoading ? 'animate-spin' : ''} />
+            Refresh Clerk
+          </button>
+          <button
+            onClick={exportCSV}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50"
+          >
+            <Download size={14} /> Export CSV
+          </button>
+        </div>
+      </div>
+
+      {/* ── Stats cards (each is a clickable filter) ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+        {([
+          { key: 'all',           label: 'All Users',       value: stats.total,        color: 'text-slate-700', border: '' },
+          { key: 'both-active',   label: 'Active (Both)',   value: stats.bothActive,   color: 'text-green-700', border: '' },
+          { key: 'both-no-sub',   label: 'Linked / No Sub', value: stats.noSub,        color: 'text-amber-700', border: '' },
+          { key: 'clerk-only',    label: 'Clerk Only',      value: stats.clerkOnly,    color: 'text-purple-700', border: '' },
+          { key: 'convex-only',   label: 'Convex Only',     value: stats.convexOnly,   color: 'text-slate-500', border: '' },
+          { key: 'missing-census', label: 'Missing Census', value: stats.missingCensus, color: stats.missingCensus > 0 ? 'text-red-700' : 'text-green-700', border: '' },
+          { key: 'has-toothlens', label: 'Toothlens',       value: stats.hasToothlens, color: 'text-blue-700', border: '' },
+        ] as { key: PresenceFilter; label: string; value: number; color: string; border: string }[]).map((s) => (
+          <button
+            key={s.key}
+            onClick={() => setPresenceFilter(presenceFilter === s.key ? 'all' : s.key)}
+            className={`bg-white border rounded-xl p-3 text-left hover:shadow-sm transition-all ${
+              presenceFilter === s.key ? 'border-blue-400 ring-2 ring-blue-100' : 'border-slate-200'
+            }`}
+          >
+            <p className={`text-xl font-bold ${s.color}`}>
+              {dataLoading ? <Loader size={14} className="animate-spin inline" /> : s.value}
+            </p>
+            <p className="text-xs text-slate-500 mt-0.5 leading-tight">{s.label}</p>
+          </button>
+        ))}
+      </div>
+
+      {/* ── The key insight explainer ── */}
+      {!dataLoading && (stats.clerkOnly > 0 || stats.convexOnly > 0) && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-900 space-y-1">
+          <p className="font-semibold flex items-center gap-1.5"><AlertTriangle size={14} /> Why do the Members page and old User Audit show different counts?</p>
+          <ul className="list-disc ml-5 space-y-0.5 text-amber-800">
+            {stats.convexOnly > 0 && (
+              <li>
+                <strong>{stats.convexOnly} Convex-only</strong> members were imported via eligibility file upload — they have no Clerk login yet.
+                They appear on the Members page but are invisible to Clerk-only views.
+              </li>
+            )}
+            {stats.clerkOnly > 0 && (
+              <li>
+                <strong>{stats.clerkOnly} Clerk-only</strong> users signed up or were invited into Clerk but have no member profile created in Convex yet.
+                They appear in Clerk user lists but are invisible to the Members page.
+              </li>
+            )}
+          </ul>
+        </div>
       )}
+
+      {/* ── Search + filter bar ── */}
+      <div className="flex gap-3 flex-wrap items-center">
+        <div className="flex-1 min-w-56 relative">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Name, email, member ID, Clerk ID, Careington ID…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Filter size={13} className="text-slate-400" />
+          <select
+            value={presenceFilter}
+            onChange={(e) => setPresenceFilter(e.target.value as PresenceFilter)}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">All Users</option>
+            <optgroup label="System Presence">
+              <option value="both-active">Active in Both Systems</option>
+              <option value="both">Linked (any sub status)</option>
+              <option value="both-no-sub">Linked but No Subscription</option>
+              <option value="clerk-only">Clerk Only — no member profile</option>
+              <option value="convex-only">Convex Only — no Clerk account</option>
+            </optgroup>
+            <optgroup label="Data Quality">
+              <option value="missing-census">Missing Census Template Fields</option>
+              <option value="has-toothlens">Has Toothlens Account</option>
+              <option value="no-toothlens">No Toothlens (members only)</option>
+            </optgroup>
+          </select>
+        </div>
+        {(search || presenceFilter !== 'all') && (
+          <button
+            onClick={() => { setSearch(''); setPresenceFilter('all'); }}
+            className="text-sm text-slate-500 hover:text-slate-800"
+          >
+            Clear filters
+          </button>
+        )}
+        <span className="text-sm text-slate-500">
+          Showing <strong>{filtered.length}</strong> of <strong>{unified.length}</strong> users
+        </span>
+      </div>
+
+      {/* ── Error banner ── */}
+      {clerkError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+          Clerk error: {clerkError}. Convex data is still shown below.
+        </div>
+      )}
+
+      {/* ── Table ── */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th className="w-8 px-3 py-3" />
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">User</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">System Presence</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Member ID</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Status</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Toothlens</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Subscription</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Census</th>
+                <th className="w-10 px-3 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {dataLoading ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-12 text-center text-slate-400">
+                    <Loader size={18} className="animate-spin inline mr-2" />
+                    Loading users from Clerk, Convex, and Toothlens…
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-10 text-center text-slate-400">
+                    No users match the current filters.
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((u) => (
+                  <UserRow
+                    key={u.key}
+                    user={u}
+                    isExpanded={expandedKey === u.key}
+                    onToggle={() => setExpandedKey(expandedKey === u.key ? null : u.key)}
+                  />
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
 
-function SubscriptionBadge({ status, entitlements }: { status: string; entitlements: number }) {
-  const styles: Record<string, string> = {
-    active: 'text-green-700 bg-green-50',
-    cancel_at_period_end: 'text-amber-700 bg-amber-50',
-    cancelled: 'text-red-600 bg-red-50',
-    payment_failed: 'text-red-600 bg-red-50',
-    past_due: 'text-orange-600 bg-orange-50',
-    suspended: 'text-slate-600 bg-slate-100',
-    draft: 'text-slate-500 bg-slate-50',
-  };
-  const labels: Record<string, string> = {
-    active: 'Active',
-    cancel_at_period_end: 'Canceling',
-    cancelled: 'Cancelled',
-    payment_failed: 'Failed',
-    past_due: 'Past Due',
-    suspended: 'Suspended',
-    draft: 'Draft',
-  };
-  return (
-    <div className="flex items-center gap-2">
-      <span className={`inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium ${styles[status] || 'text-slate-500 bg-slate-50'}`}>
-        {labels[status] || status}
-      </span>
-      {entitlements > 0 && (
-        <span className="text-xs text-slate-400">{entitlements} plan{entitlements !== 1 ? 's' : ''}</span>
-      )}
-    </div>
-  );
-}
+// ─── Expandable Row ───────────────────────────────────────────────────────────
 
-// ─── Clickable Row + Expandable Detail ────────────────────────────────
-
-interface UserRowProps {
-  user: ClerkUser;
-  status?: { isAdmin: boolean; adminRole?: string; hasDashboard: boolean; subscriptionStatus?: string; entitlementCount: number };
-  statusesLoaded: boolean;
+function UserRow({
+  user: u, isExpanded, onToggle,
+}: {
+  user: UnifiedUser;
   isExpanded: boolean;
   onToggle: () => void;
-}
+}) {
+  const displayName = u.memberFirstName
+    ? `${u.memberFirstName} ${u.memberLastName ?? ''}`.trim()
+    : u.clerkName || u.clerkEmail || '(unknown)';
+  const displayEmail = u.memberEmail ?? u.clerkEmail ?? '—';
 
-function UserRow({ user: u, status: s, statusesLoaded, isExpanded, onToggle }: UserRowProps) {
+  const subColors: Record<string, string> = {
+    active: 'text-green-700 bg-green-50',
+    cancelled: 'text-red-600 bg-red-50',
+    past_due: 'text-orange-600 bg-orange-50',
+    payment_failed: 'text-red-600 bg-red-50',
+    cancel_at_period_end: 'text-amber-700 bg-amber-50',
+  };
+
   return (
     <>
-      <tr onClick={onToggle} className="hover:bg-slate-50/50 transition-colors cursor-pointer">
-        {/* Expand chevron */}
-        <td className="px-4 py-3 text-slate-400">
-          {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+      <tr
+        onClick={onToggle}
+        className={`hover:bg-slate-50 cursor-pointer transition-colors ${isExpanded ? 'bg-blue-50/40' : ''}`}
+      >
+        <td className="px-3 py-3 text-slate-400">
+          {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
         </td>
-        {/* User */}
+
+        {/* User identity */}
         <td className="px-4 py-3">
           <div className="flex items-center gap-2.5">
-            {u.imageUrl ? (
-              <img src={u.imageUrl} alt="" className="w-7 h-7 rounded-full" />
+            {u.clerkImageUrl ? (
+              <img src={u.clerkImageUrl} alt="" className="w-7 h-7 rounded-full flex-shrink-0 object-cover" />
             ) : (
-              <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-500">
-                {(u.name || u.email).charAt(0).toUpperCase()}
+              <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600 flex-shrink-0">
+                {displayName.charAt(0).toUpperCase()}
               </div>
             )}
             <div className="min-w-0">
-              <p className="text-sm font-medium text-slate-900 truncate">{u.name || '—'}</p>
-              <p className="text-xs text-slate-500 truncate">{u.email}</p>
+              <p className="font-medium text-slate-900 truncate">{displayName}</p>
+              <p className="text-xs text-slate-500 truncate">{displayEmail}</p>
             </div>
           </div>
         </td>
-        {/* Clerk ID */}
+
+        {/* Presence */}
+        <td className="px-4 py-3"><PresenceBadge presence={u.presence} /></td>
+
+        {/* Member ID */}
         <td className="px-4 py-3">
-          <code className="text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded font-mono">
-            {u.id}
-          </code>
+          <span className="font-mono text-xs text-slate-600">{u.memberId ?? '—'}</span>
         </td>
-        {/* Created */}
-        <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
-          {new Date(u.createdAt).toLocaleDateString()}
-        </td>
-        {/* Dashboard Access */}
-        <td className="px-4 py-3 text-center">
-          {!statusesLoaded ? (
-            <Loader size={14} className="animate-spin text-slate-300 mx-auto" />
-          ) : s?.hasDashboard ? (
-            <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full font-medium">
-              <LayoutDashboard size={12} />
-              Yes
-            </span>
+
+        {/* Member status */}
+        <td className="px-4 py-3">
+          {u.memberType ? (
+            <StatusBadge status={u.memberType} />
           ) : (
-            <span className="inline-flex items-center gap-1 text-xs text-red-500 bg-red-50 px-2 py-0.5 rounded-full font-medium">
-              <XCircle size={12} />
-              No
-            </span>
+            <span className="text-xs text-slate-300">—</span>
           )}
         </td>
-        {/* Admin Access */}
+
+        {/* Toothlens */}
         <td className="px-4 py-3 text-center">
-          {!statusesLoaded ? (
-            <Loader size={14} className="animate-spin text-slate-300 mx-auto" />
-          ) : s?.isAdmin ? (
-            <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full font-medium">
-              <ShieldCheck size={12} />
-              {s.adminRole === 'owner' ? 'Owner' : 'Editor'}
+          {u.hasToothlens ? (
+            <span className="inline-flex items-center gap-1 text-xs text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
+              <ScanLine size={10} /> {u.toothlensScans ?? 0}
             </span>
           ) : (
-            <span className="text-xs text-slate-400">—</span>
+            <span className="text-xs text-slate-300">—</span>
           )}
         </td>
+
         {/* Subscription */}
         <td className="px-4 py-3">
-          {!statusesLoaded ? (
-            <Loader size={14} className="animate-spin text-slate-300" />
-          ) : s?.subscriptionStatus ? (
-            <SubscriptionBadge status={s.subscriptionStatus} entitlements={s.entitlementCount} />
+          {u.subscriptionStatus ? (
+            <span className={`text-xs font-medium px-2 py-0.5 rounded ${subColors[u.subscriptionStatus] ?? 'text-slate-600 bg-slate-100'}`}>
+              {u.subscriptionStatus.replace(/_/g, ' ')}
+              {u.entitlementCount ? ` · ${u.entitlementCount}` : ''}
+            </span>
           ) : (
-            <span className="text-xs text-slate-400">None</span>
+            <span className="text-xs text-slate-300">None</span>
+          )}
+        </td>
+
+        {/* Census */}
+        <td className="px-4 py-3">
+          {!u.memberProfileId ? (
+            <span className="text-xs text-slate-300">N/A</span>
+          ) : u.missingFields.length === 0 ? (
+            <span className="inline-flex items-center gap-1 text-xs text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded">
+              <CheckCircle2 size={10} /> OK
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-xs text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded">
+              <AlertTriangle size={10} /> {u.missingFields.length} missing
+            </span>
+          )}
+        </td>
+
+        {/* Inspector link */}
+        <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+          {u.memberProfileId && (
+            <Link
+              href={`/admin/members/${u.memberProfileId}`}
+              className="p-1 hover:bg-slate-200 rounded text-slate-400 hover:text-slate-700 inline-flex"
+              title="Full Inspector"
+            >
+              <ExternalLink size={13} />
+            </Link>
           )}
         </td>
       </tr>
+
+      {/* Expanded inline detail */}
       {isExpanded && (
         <tr>
-          <td colSpan={7} className="p-0">
-            <UserDetailPanel clerkUserId={u.id} />
+          <td colSpan={9} className="p-0 border-b border-slate-100">
+            <div className="bg-slate-50 px-6 py-5">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5 text-sm">
+
+                {/* IdealOH */}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">
+                    <Database size={11} /> Convex / IdealOH
+                  </p>
+                  <MiniField label="Member ID" value={u.memberId} mono />
+                  <MiniField label="Careington Unique ID" value={u.careingtonUniqueId} mono missing={!u.careingtonUniqueId} />
+                  <MiniField label="Sequence #" value={u.careingtonSeqNum} mono missing={!u.careingtonSeqNum} />
+                  <MiniField label="Date of Birth" value={u.memberDob} missing={!u.memberDob} />
+                  <MiniField label="Effective Date" value={u.memberEffective} missing={!u.memberEffective} />
+                  <MiniField label="Member Type" value={u.memberType} />
+                </div>
+
+                {/* Address */}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">
+                    <Building2 size={11} /> Address
+                  </p>
+                  {u.memberAddress?.line1 ? (
+                    <>
+                      <MiniField label="Line 1" value={u.memberAddress.line1} />
+                      {u.memberAddress.line2 && <MiniField label="Line 2" value={u.memberAddress.line2} />}
+                      <MiniField label="City" value={u.memberAddress.city} missing={!u.memberAddress.city} />
+                      <MiniField label="State" value={u.memberAddress.state} missing={!u.memberAddress.state} />
+                      <MiniField label="Zip" value={u.memberAddress.postalCode} mono missing={!u.memberAddress.postalCode} />
+                    </>
+                  ) : (
+                    <p className="text-xs text-red-500 font-medium">No address on file</p>
+                  )}
+                </div>
+
+                {/* Clerk */}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">
+                    <ShieldCheck size={11} /> Clerk
+                  </p>
+                  {u.clerkId ? (
+                    <>
+                      <MiniField label="Clerk ID" value={u.clerkId} mono />
+                      <MiniField label="Email" value={u.clerkEmail} />
+                      <MiniField label="Account Created" value={fmt(u.clerkCreatedAt)} />
+                    </>
+                  ) : (
+                    <p className="text-xs text-amber-600 font-semibold">No Clerk account linked</p>
+                  )}
+                </div>
+
+                {/* Toothlens */}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">
+                    <ScanLine size={11} /> Toothlens
+                  </p>
+                  {u.hasToothlens ? (
+                    <>
+                      <MiniField label="UID" value={u.toothlensUid} mono />
+                      <MiniField label="Total Scans" value={String(u.toothlensScans ?? 0)} />
+                    </>
+                  ) : (
+                    <p className="text-xs text-slate-400">No Toothlens account</p>
+                  )}
+                </div>
+
+                {/* Census gaps */}
+                {u.memberProfileId && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">
+                      <AlertTriangle size={11} /> Census Gaps
+                    </p>
+                    {u.missingFields.length === 0 ? (
+                      <p className="text-xs text-green-600 font-semibold flex items-center gap-1">
+                        <CheckCircle2 size={11} /> All required fields present
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {u.missingFields.map((f) => (
+                          <span key={f} className="text-xs bg-red-100 text-red-700 border border-red-200 px-1.5 py-0.5 rounded">
+                            {f}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <Link
+                      href={`/admin/members/${u.memberProfileId}`}
+                      className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                    >
+                      Full Inspector <ExternalLink size={10} />
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </div>
           </td>
         </tr>
       )}
@@ -446,212 +722,20 @@ function UserRow({ user: u, status: s, statusesLoaded, isExpanded, onToggle }: U
   );
 }
 
-// ─── Detail Panel ─────────────────────────────────────────────────────
-
-function UserDetailPanel({ clerkUserId }: { clerkUserId: string }) {
-  const detail = useQuery(api.admin.userAudit.getUserDetail, { clerkUserId });
-
-  if (!detail) {
-    return (
-      <div className="bg-slate-50 px-8 py-6 flex items-center gap-2 text-sm text-slate-400">
-        <Loader size={14} className="animate-spin" /> Loading details…
-      </div>
-    );
-  }
-
-  const fmt = (ms: number) => new Date(ms).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-  const fmtCents = (c: number) => `$${(c / 100).toFixed(2)}`;
-
-  return (
-    <div className="bg-slate-50 border-t border-slate-200 px-8 py-5 space-y-5">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-
-        {/* Admin Info */}
-        <DetailCard
-          icon={<ShieldCheck size={16} className="text-blue-500" />}
-          title="Admin Access"
-          empty={!detail.admin}
-          emptyText="Not an admin"
-        >
-          {detail.admin && (
-            <div className="space-y-1 text-sm">
-              <Row label="Role" value={detail.admin.role} />
-              <Row label="Departments" value={detail.admin.departments?.join(', ') || '—'} />
-              <Row label="Admin Since" value={fmt(detail.admin.createdAt)} />
-            </div>
-          )}
-        </DetailCard>
-
-        {/* Subscription Bundle */}
-        <DetailCard
-          icon={<CreditCard size={16} className="text-green-500" />}
-          title="Subscription Bundle"
-          empty={!detail.bundle}
-          emptyText="No subscription"
-        >
-          {detail.bundle && (
-            <div className="space-y-1 text-sm">
-              <Row label="Status" value={<SubscriptionBadge status={detail.bundle.status} entitlements={0} />} />
-              <Row label="Cadence" value={detail.bundle.cadence} />
-              <Row label="Payment" value={detail.bundle.paymentMethod} />
-              <Row label="Total" value={fmtCents(detail.bundle.pricingSnapshot.totalCents)} />
-              <Row label="Plans in Bundle" value={String(detail.bundle.pricingSnapshot.planCount)} />
-              <Row label="Period" value={`${fmt(detail.bundle.currentPeriodStart)} → ${fmt(detail.bundle.currentPeriodEnd)}`} />
-              {detail.bundle.stripeCustomerId && (
-                <Row label="Stripe Customer" value={<code className="text-xs font-mono">{detail.bundle.stripeCustomerId}</code>} />
-              )}
-              {detail.bundle.stripeSubscriptionId && (
-                <Row label="Stripe Sub" value={<code className="text-xs font-mono">{detail.bundle.stripeSubscriptionId}</code>} />
-              )}
-              {detail.bundle.cancelledAt && (
-                <Row label="Cancelled" value={`${fmt(detail.bundle.cancelledAt)}${detail.bundle.cancellationReason ? ` — ${detail.bundle.cancellationReason}` : ''}`} />
-              )}
-            </div>
-          )}
-        </DetailCard>
-
-        {/* Member Profiles */}
-        <DetailCard
-          icon={<User size={16} className="text-violet-500" />}
-          title={`Member Profile${(detail.memberProfiles?.length ?? 0) > 1 ? 's' : ''}`}
-          empty={!detail.memberProfiles?.length}
-          emptyText="No member profile"
-        >
-          {detail.memberProfiles?.map((mp) => (
-            <div key={mp._id} className="space-y-1 text-sm border-b border-slate-200 pb-2 last:border-b-0 last:pb-0 mb-2 last:mb-0">
-              <Row label="Member ID" value={<code className="text-xs font-mono">{mp.memberId}</code>} />
-              <Row label="Name" value={`${mp.firstName} ${mp.lastName}`} />
-              <Row label="Type" value={mp.memberType} />
-              <Row label="Role" value={mp.memberRole || '—'} />
-              <Row label="Status" value={mp.status} />
-              {mp.enrolledAt && <Row label="Enrolled" value={fmt(mp.enrolledAt)} />}
-            </div>
-          ))}
-        </DetailCard>
-
-        {/* Toothlens */}
-        <DetailCard
-          icon={<ScanLine size={16} className="text-teal-500" />}
-          title="Toothlens / Oral Scan"
-          empty={!detail.toothlens}
-          emptyText="Not registered"
-        >
-          {detail.toothlens && (
-            <div className="space-y-1 text-sm">
-              <Row label="UID" value={<code className="text-xs font-mono">{detail.toothlens.toothlensUid}</code>} />
-              <Row label="Company" value={detail.toothlens.company || '—'} />
-              <Row label="Registered" value={fmt(detail.toothlens.createdAt)} />
-            </div>
-          )}
-        </DetailCard>
-
-        {/* Distribution Partner */}
-        {detail.distributionPartner && (
-          <DetailCard
-            icon={<Building2 size={16} className="text-amber-500" />}
-            title="Distribution Partner"
-            empty={false}
-          >
-            <div className="space-y-1 text-sm">
-              <Row label="Company" value={detail.distributionPartner.name || '—'} />
-              <Row label="Type" value={detail.distributionPartner.type} />
-              <Row label="Status" value={detail.distributionPartner.status} />
-            </div>
-          </DetailCard>
-        )}
-      </div>
-
-      {/* Entitlements Table */}
-      {detail.entitlements.length > 0 && (
-        <div>
-          <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-            <Package size={14} />
-            Entitlements ({detail.entitlements.length})
-          </h4>
-          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="bg-slate-100 border-b border-slate-200">
-                  <th className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase">Product</th>
-                  <th className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase">Status</th>
-                  <th className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase">End Condition</th>
-                  <th className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase">Period</th>
-                  <th className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase">Created Via</th>
-                  <th className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase">Notes</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {detail.entitlements.map((ent) => {
-                  const entStatusStyles: Record<string, string> = {
-                    active: 'text-green-700 bg-green-50',
-                    cancel_at_period_end: 'text-amber-700 bg-amber-50',
-                    expired: 'text-slate-500 bg-slate-100',
-                    suspended: 'text-orange-600 bg-orange-50',
-                    revoked: 'text-red-600 bg-red-50',
-                  };
-                  return (
-                    <tr key={ent._id} className="hover:bg-slate-50/50">
-                      <td className="px-3 py-2">
-                        <span className="font-medium text-slate-900">{ent.productName}</span>
-                        <span className="text-xs text-slate-400 ml-1.5">{ent.productCategory}</span>
-                      </td>
-                      <td className="px-3 py-2">
-                        <span className={`inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium ${entStatusStyles[ent.status] || 'text-slate-500 bg-slate-50'}`}>
-                          {ent.status.replace(/_/g, ' ')}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-xs text-slate-500">{ent.endCondition}</td>
-                      <td className="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">
-                        {fmt(ent.periodStart)} → {fmt(ent.periodEnd)}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-slate-500">{ent.createdVia.replace(/_/g, ' ')}</td>
-                      <td className="px-3 py-2 text-xs text-slate-400 max-w-[200px] truncate">{ent.notes || '—'}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Shared UI Helpers ────────────────────────────────────────────────
-
-function DetailCard({
-  icon,
-  title,
-  empty,
-  emptyText,
-  children,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  empty: boolean;
-  emptyText?: string;
-  children: React.ReactNode;
+function MiniField({ label, value, mono, missing }: {
+  label: string;
+  value?: string | null;
+  mono?: boolean;
+  missing?: boolean;
 }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-lg p-4">
-      <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2 flex items-center gap-1.5">
-        {icon} {title}
-      </h4>
-      {empty ? (
-        <p className="text-sm text-slate-400 italic">{emptyText || 'None'}</p>
+    <div>
+      <p className="text-xs text-slate-400">{label}</p>
+      {missing || !value ? (
+        <p className="text-xs text-red-500 font-semibold italic">missing</p>
       ) : (
-        children
+        <p className={`text-xs text-slate-800 ${mono ? 'font-mono' : ''}`}>{value}</p>
       )}
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex items-start justify-between gap-3">
-      <span className="text-slate-500 text-xs shrink-0">{label}</span>
-      <span className="text-slate-900 text-xs text-right">{value}</span>
     </div>
   );
 }

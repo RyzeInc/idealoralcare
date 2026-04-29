@@ -600,21 +600,18 @@ function MembershipAgreementPage({ data }: { data: FulfillmentPacketData }) {
       ))}
 
       {/* Intro */}
-      <Text style={{ ...s.bodySmall, marginTop: 8 }}>
-        The Terms and Conditions you have accepted or will accept upon registering at www.dialcare.com, are part of this membership agreement (Agreement) between you and DialCare, LLC (&quot;DialCare&quot;). DialCare provides administrative services to DialCare clinicians and does not provide professional medical services. The Terms and Conditions define the obligations of DialCare, its authorized agents and yourself, and they establish the basic rules of safe and fair use of DialCare&apos;s public website, member website, and services (Services). DialCare and its authorized agents reserve the right to immediately and without advance notice terminate the Services and deny access to individuals who do not abide by the Terms and Conditions.
-      </Text>
-
       <Text style={s.bodySmall}>
         To add a family member to your plan or change mode of payment, contact Ideal Oral Health at support@getidealoh.com. For assistance using your plan, please call Member Services at 1-855-335-2255.
+      </Text>
+
+      <Text style={{ ...s.bodySmall, marginTop: 8 }}>
+        The Terms and Conditions you have accepted or will accept upon registering at www.dialcare.com, are part of this membership agreement (Agreement) between you and DialCare, LLC (&quot;DialCare&quot;). DialCare provides administrative services to DialCare clinicians and does not provide professional medical services. The Terms and Conditions define the obligations of DialCare, its authorized agents and yourself, and they establish the basic rules of safe and fair use of DialCare&apos;s public website, member website, and services (Services). DialCare and its authorized agents reserve the right to immediately and without advance notice terminate the Services and deny access to individuals who do not abide by the Terms and Conditions.
       </Text>
 
       {/* Purchase and Renewal Conditions */}
       <SectionHeadingGreen text="Purchase and Renewal Conditions" />
       <Text style={s.bodySmall}>
         By joining a plan, for yourself or on behalf of a minor child for whom you are a parent or legal guardian, you confirm that you are at least 18 years old and you authorize Ryze LLC to charge your credit card or checking account for the plan you have selected. By joining, you indicate you have read and agree to the terms and conditions of the plan.
-      </Text>
-      <Text style={s.bodySmall}>
-        Payment Term: Members on a monthly plan are billed on a recurring monthly basis. Members on an annual plan are billed once per year for the full membership term. All plan benefits — including AI Dental Scan, Teledentistry, and Dental Savings Network — are included under both payment terms.
       </Text>
       <Text style={{ ...s.bodySmall, fontStyle: 'italic' }}>
         This charge will automatically renew at the end of your membership term, and your credit card or checking account will be automatically charged for the appropriate amount, until you notify Ideal Health that you wish to cancel the plan.
@@ -644,7 +641,7 @@ function MembershipAgreementPage({ data }: { data: FulfillmentPacketData }) {
       {/* Limitations, Exclusions and Exceptions */}
       <SectionHeadingGreen text="Limitations, Exclusions and Exceptions" />
       <Text style={s.bodySmall}>
-        This is a discount plan offered by Careington. Careington is not a licensed insurer, health maintenance organization or other underwriter of health care services. This plan is not insurance. No portion of any provider&apos;s fees will be reimbursed or otherwise paid by Careington. Careington is not licensed to provide and does not provide health care services or items to individuals. You will receive discounts for services at certain health care providers who have contracted with the plan. You are obligated to pay for all health care services at the time of service. Savings are based upon the provider&apos;s normal fees. Actual savings will vary depending upon location and specific services or products purchased. Please verify such services with each individual provider. The plan&apos;s discounts may not be used in conjunction with any other discount plan or program. All listed or quoted prices are current prices by participating providers and subject to change without notice.
+        This is a discount plan offered by Careington International Corporation. Careington is not a licensed insurer, health maintenance organization or other underwriter of health care services. This plan is not insurance. No portion of any provider&apos;s fees will be reimbursed or otherwise paid by Careington. Careington is not licensed to provide and does not provide health care services or items to individuals. You will receive discounts for services at certain health care providers who have contracted with the plan. You are obligated to pay for all health care services at the time of service. Savings are based upon the provider&apos;s normal fees. Actual savings will vary depending upon location and specific services or products purchased. Please verify such services with each individual provider. The plan&apos;s discounts may not be used in conjunction with any other discount plan or program. All listed or quoted prices are current prices by participating providers and subject to change without notice.
       </Text>
       <Text style={s.bodySmall}>
         Any procedures performed by a non-participating provider are not discounted. From time to time, certain providers may offer products or services to the general public at prices lower than the discounted prices available through this plan. In such event, members will be charged the lowest price. Discounts on professional services are not available when prohibited by law. This plan does not discount all procedures. Providers are subject to change without notice and services may vary in some states. It is your responsibility to verify that the provider participates in the plan. At any time Careington may substitute a provider network at its sole discretion. Careington cannot guarantee the continued participation of any provider. If the provider leaves the plan, you will need to select another provider. Providers contracted by Careington are solely responsible for the professional advice and treatment rendered to members and Careington disclaims any liability with respect to such matters.

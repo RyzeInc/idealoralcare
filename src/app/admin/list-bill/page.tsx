@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
@@ -16,27 +16,25 @@ import {
   ChevronLeft,
   Receipt,
   UserX,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
 } from 'lucide-react';
-
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  paid: 'bg-green-100 text-green-800',
-  partial: 'bg-blue-100 text-blue-800',
-  overdue: 'bg-red-100 text-red-800',
-};
-
-const STATUS_ICONS: Record<string, React.ReactNode> = {
-  pending: <Clock size={14} />,
-  paid: <CheckCircle size={14} />,
-  partial: <CreditCard size={14} />,
-  overdue: <AlertTriangle size={14} />,
-};
+import { useToast, Breadcrumbs, StatusBadge, SkeletonTable } from '@/components/admin/ui';
 
 function formatCents(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+function SortIcon({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
+  if (!active) return <ChevronsUpDown size={12} className="text-slate-300" />;
+  return dir === 'asc'
+    ? <ChevronUp size={12} className="text-blue-600" />
+    : <ChevronDown size={12} className="text-blue-600" />;
+}
+
 export default function ListBillPage() {
+  const toast = useToast();
   const today = new Date();
   const [billingPeriod, setBillingPeriod] = useState(
     `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
@@ -44,6 +42,13 @@ export default function ListBillPage() {
   const [selectedGroupId, setSelectedGroupId] = useState<Id<'groups'> | null>(null);
   const [activeTab, setActiveTab] = useState<'summary' | 'termed'>('summary');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+  useEffect(() => {
+    if (!showPaymentModal) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowPaymentModal(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showPaymentModal]);
   const [paymentForm, setPaymentForm] = useState({
     paymentMethod: 'check' as 'check' | 'ach',
     paymentStatus: 'paid' as 'pending' | 'paid' | 'partial' | 'overdue',
@@ -54,7 +59,27 @@ export default function ListBillPage() {
     notes: '',
   });
 
-  const summary = useQuery(api.admin.billing.getListBillMonthlySummary, { billingPeriod }) ?? [];
+  const summaryRaw = useQuery(api.admin.billing.getListBillMonthlySummary, { billingPeriod });
+  const summary = summaryRaw ?? [];
+  const isLoadingSummary = summaryRaw === undefined;
+
+  // Sort state for the main groups summary table
+  const [sortKey, setSortKey] = useState<'groupName' | 'memberCount' | 'ratePerMemberCents' | 'totalAmountCents' | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const toggleSort = (key: typeof sortKey) => {
+    if (!key) return;
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortKey(key); setSortDir('asc'); }
+  };
+  const sortedSummary = sortKey
+    ? [...summary].sort((a: any, b: any) => {
+        const dir = sortDir === 'asc' ? 1 : -1;
+        const av = a[sortKey] ?? '';
+        const bv = b[sortKey] ?? '';
+        if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+        return String(av).toLowerCase() < String(bv).toLowerCase() ? -1 * dir : 1 * dir;
+      })
+    : summary;
   const termedMembers = useQuery(
     api.admin.members.getTermedListBillMembers,
     selectedGroupId ? { groupId: selectedGroupId } : 'skip'
@@ -110,17 +135,18 @@ export default function ListBillPage() {
         notes: paymentForm.notes || undefined,
       });
       setShowPaymentModal(false);
+      toast.success('Payment recorded', `${selectedGroup.groupName} marked as ${paymentForm.paymentStatus}.`);
     } catch (e) {
-      alert('Error recording payment: ' + (e as Error).message);
+      toast.fromError(e, 'Could not record payment');
     }
   };
 
   const handleSendReenrollmentLink = async (memberId: string) => {
     try {
       await sendReenrollLink({ memberId } as any);
-      alert('Re-enrollment link sent!');
+      toast.success('Re-enrollment link sent', 'The member should receive an email shortly.');
     } catch (e) {
-      alert('Error: ' + (e as Error).message);
+      toast.fromError(e, 'Could not send re-enrollment link');
     }
   };
 
@@ -275,10 +301,7 @@ export default function ListBillPage() {
                         <td className="px-6 py-3 text-right font-semibold">{formatCents(p.totalCents)}</td>
                         <td className="px-6 py-3 capitalize">{p.paymentMethod}</td>
                         <td className="px-6 py-3">
-                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${STATUS_COLORS[p.paymentStatus]}`}>
-                            {STATUS_ICONS[p.paymentStatus]}
-                            {p.paymentStatus}
-                          </span>
+                          <StatusBadge status={p.paymentStatus} size="md" />
                         </td>
                         <td className="px-6 py-3 font-mono text-slate-500">
                           {p.checkNumber ?? p.achConfirmationNumber ?? '—'}
@@ -353,9 +376,18 @@ export default function ListBillPage() {
 
         {/* Payment Modal */}
         {showPaymentModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-              <h3 className="text-lg font-semibold text-slate-900 mb-4">
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            onClick={() => setShowPaymentModal(false)}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="list-bill-payment-modal-title"
+              className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 id="list-bill-payment-modal-title" className="text-lg font-semibold text-slate-900 mb-4">
                 Record List-Bill Payment — {billingPeriod}
               </h3>
               <div className="space-y-4">
@@ -478,6 +510,7 @@ export default function ListBillPage() {
   // ── Main overview ──
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: 'List-Bill' }]} />
       <div>
         <h1 className="text-3xl font-bold text-slate-900">List-Bill Management</h1>
         <p className="text-slate-500">
@@ -556,7 +589,9 @@ export default function ListBillPage() {
       </div>
 
       {/* Groups table */}
-      {summary.length === 0 ? (
+      {isLoadingSummary ? (
+        <SkeletonTable rows={6} cols={7} />
+      ) : summary.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-10 text-center text-slate-500">
           <Building2 size={40} className="mx-auto mb-3 text-slate-300" />
           <p className="font-medium">No list-bill groups configured</p>
@@ -576,16 +611,24 @@ export default function ListBillPage() {
           <table className="w-full">
             <thead className="bg-slate-50 border-b border-slate-200 text-sm">
               <tr>
-                <th className="px-6 py-3 text-left font-semibold text-slate-700">Group</th>
+                <th className="px-6 py-3 text-left font-semibold text-slate-700">
+                  <button onClick={() => toggleSort('groupName')} className="inline-flex items-center gap-1 hover:text-blue-600">Group <SortIcon active={sortKey === 'groupName'} dir={sortDir} /></button>
+                </th>
                 <th className="px-6 py-3 text-left font-semibold text-slate-700">Pay Method</th>
-                <th className="px-6 py-3 text-right font-semibold text-slate-700">FT Members</th>
-                <th className="px-6 py-3 text-right font-semibold text-slate-700">Rate / Member</th>
-                <th className="px-6 py-3 text-right font-semibold text-slate-700">Invoice Total</th>
+                <th className="px-6 py-3 text-right font-semibold text-slate-700">
+                  <button onClick={() => toggleSort('memberCount')} className="inline-flex items-center gap-1 hover:text-blue-600">FT Members <SortIcon active={sortKey === 'memberCount'} dir={sortDir} /></button>
+                </th>
+                <th className="px-6 py-3 text-right font-semibold text-slate-700">
+                  <button onClick={() => toggleSort('ratePerMemberCents')} className="inline-flex items-center gap-1 hover:text-blue-600">Rate / Member <SortIcon active={sortKey === 'ratePerMemberCents'} dir={sortDir} /></button>
+                </th>
+                <th className="px-6 py-3 text-right font-semibold text-slate-700">
+                  <button onClick={() => toggleSort('totalAmountCents')} className="inline-flex items-center gap-1 hover:text-blue-600">Invoice Total <SortIcon active={sortKey === 'totalAmountCents'} dir={sortDir} /></button>
+                </th>
                 <th className="px-6 py-3 text-left font-semibold text-slate-700">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {summary.map((g: any) => (
+              {sortedSummary.map((g: any) => (
                 <tr
                   key={g.groupId}
                   onClick={() => setSelectedGroupId(g.groupId)}
@@ -603,15 +646,9 @@ export default function ListBillPage() {
                   <td className="px-6 py-4 text-right font-bold text-green-700">{formatCents(g.totalCents)}</td>
                   <td className="px-6 py-4">
                     {g.payment ? (
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${STATUS_COLORS[g.payment.paymentStatus]}`}>
-                        {STATUS_ICONS[g.payment.paymentStatus]}
-                        {g.payment.paymentStatus}
-                      </span>
+                      <StatusBadge status={g.payment.paymentStatus} size="md" />
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
-                        <Clock size={12} />
-                        pending
-                      </span>
+                      <StatusBadge status="pending" size="md" />
                     )}
                   </td>
                 </tr>

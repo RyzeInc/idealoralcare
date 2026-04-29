@@ -4,7 +4,16 @@ import { useState } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
-import { Download, ArrowLeft, Users, CreditCard, Gift, Building2 } from 'lucide-react';
+import { Download, ArrowLeft, Users, CreditCard, Gift, Building2, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { Breadcrumbs, SkeletonTable, SkeletonCard } from '@/components/admin/ui';
+import { formatCurrency, formatDate } from '@/lib/admin-format';
+
+function SortIcon({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
+  if (!active) return <ChevronsUpDown size={12} className="text-slate-300" />;
+  return dir === 'asc'
+    ? <ChevronUp size={12} className="text-blue-600" />
+    : <ChevronDown size={12} className="text-blue-600" />;
+}
 
 export default function BillingPage() {
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
@@ -14,7 +23,27 @@ export default function BillingPage() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  const billingGroups = useQuery(api.admin.billing.getAllGroupBillingSummaries) || [];
+  const billingGroupsRaw = useQuery(api.admin.billing.getAllGroupBillingSummaries);
+  const billingGroupsBase = billingGroupsRaw ?? [];
+  const isLoadingGroups = billingGroupsRaw === undefined;
+
+  // Sort state for organizations summary table
+  const [sortKey, setSortKey] = useState<'groupCode' | 'groupName' | 'memberCount' | 'paidCount' | 'freeCount' | 'totalAmount' | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const toggleSort = (key: typeof sortKey) => {
+    if (!key) return;
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortKey(key); setSortDir('asc'); }
+  };
+  const billingGroups = sortKey
+    ? [...billingGroupsBase].sort((a: any, b: any) => {
+        const dir = sortDir === 'asc' ? 1 : -1;
+        const av = a[sortKey] ?? '';
+        const bv = b[sortKey] ?? '';
+        if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+        return String(av).toLowerCase() < String(bv).toLowerCase() ? -1 * dir : 1 * dir;
+      })
+    : billingGroupsBase;
   const accounts = useQuery(api.admin.hierarchy.getAllAccounts) || [];
   const groupMembers = useQuery(
     api.admin.billing.getGroupMembersWithBillingStatus,
@@ -34,14 +63,14 @@ export default function BillingPage() {
   const [year, month] = billingMonth.split('-').map(Number);
   const billingPeriodStart = new Date(year, month - 1, 1);
   const billingPeriodEnd = new Date(year, month, 0);
-  const formatDate = (date: Date) => date.toISOString().split('T')[0];
+  const formatIsoDate = (date: Date) => date.toISOString().split('T')[0];
 
   const selectedGroup = billingGroups.find((g: any) => g.groupId === selectedGroupId);
 
   const handleExportCsv = () => {
     const header = 'group_code,group_name,total_members,paid_members,free_members,rate_per_member,billable_amount,period_start,period_end\n';
     const rows = billingGroups.map((g: any) =>
-      `"${g.groupCode}","${g.groupName}",${g.memberCount},${g.paidCount},${g.freeCount},${g.ratePerMember.toFixed(2)},${g.totalAmount.toFixed(2)},"${formatDate(billingPeriodStart)}","${formatDate(billingPeriodEnd)}"`
+      `"${g.groupCode}","${g.groupName}",${g.memberCount},${g.paidCount},${g.freeCount},${g.ratePerMember.toFixed(2)},${g.totalAmount.toFixed(2)},"${formatIsoDate(billingPeriodStart)}","${formatIsoDate(billingPeriodEnd)}"`
     ).join('\n');
     const csv = header + rows;
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -119,7 +148,7 @@ export default function BillingPage() {
                     <td className="px-6 py-3 font-mono text-sm text-slate-600">{m.memberId}</td>
                     <td className="px-6 py-3 text-slate-600 text-sm">{m.bundleInfo?.cadence || '—'}</td>
                     <td className="px-6 py-3 text-right font-semibold text-green-700">
-                      ${((m.bundleInfo?.totalCents || 0) / 100).toFixed(2)}
+                      {formatCurrency((m.bundleInfo?.totalCents || 0), { fromCents: true })}
                       {m.bundleInfo?.cadence === 'annual' ? '/yr' : '/mo'}
                     </td>
                   </tr>
@@ -151,7 +180,7 @@ export default function BillingPage() {
                     <td className="px-6 py-3 font-medium text-slate-900">{m.firstName} {m.lastName}</td>
                     <td className="px-6 py-3 text-slate-600 text-sm">{m.email || '—'}</td>
                     <td className="px-6 py-3 font-mono text-sm text-slate-600">{m.memberId}</td>
-                    <td className="px-6 py-3 text-slate-600 text-sm">{m.enrolledAt ? new Date(m.enrolledAt).toLocaleDateString() : '—'}</td>
+                    <td className="px-6 py-3 text-slate-600 text-sm">{formatDate(m.enrolledAt)}</td>
                     <td className="px-6 py-3 text-right">
                       <span className="px-2 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">Free</span>
                     </td>
@@ -174,6 +203,7 @@ export default function BillingPage() {
   // ── Main billing overview ──
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: 'Billing' }]} />
       <div>
         <h1 className="text-3xl font-bold text-slate-900">Billing Summary</h1>
         <p className="text-slate-600">Monthly member counts and amounts for E123 import</p>
@@ -215,7 +245,7 @@ export default function BillingPage() {
           <div className="grid grid-cols-3 gap-4 text-center">
             <div><p className="text-2xl font-bold text-blue-900">{accountSummary.groupCount}</p><p className="text-sm text-blue-700">Groups</p></div>
             <div><p className="text-2xl font-bold text-blue-900">{accountSummary.totalMembers}</p><p className="text-sm text-blue-700">Active Members</p></div>
-            <div><p className="text-2xl font-bold text-green-700">${accountSummary.totalAmount.toFixed(2)}</p><p className="text-sm text-blue-700">Billable Amount</p></div>
+            <div><p className="text-2xl font-bold text-green-700">{formatCurrency(accountSummary.totalAmount)}</p><p className="text-sm text-blue-700">Billable Amount</p></div>
           </div>
         </div>
       )}
@@ -244,7 +274,7 @@ export default function BillingPage() {
         </div>
         <div className="bg-white rounded-lg shadow p-6">
           <p className="text-slate-600 text-sm">Billable Revenue</p>
-          <p className="text-3xl font-bold text-green-600 mt-2">${totalAmount.toFixed(2)}</p>
+          <p className="text-3xl font-bold text-green-600 mt-2">{formatCurrency(totalAmount)}</p>
         </div>
       </div>
 
@@ -270,16 +300,38 @@ export default function BillingPage() {
         <table className="w-full">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Org / Group Code</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Organization Name</th>
-              <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">Total</th>
-              <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">Paid</th>
-              <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">Free</th>
-              <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">Billable Amount</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">
+                <button onClick={() => toggleSort('groupCode')} className="inline-flex items-center gap-1 hover:text-blue-600">Org / Group Code <SortIcon active={sortKey === 'groupCode'} dir={sortDir} /></button>
+              </th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">
+                <button onClick={() => toggleSort('groupName')} className="inline-flex items-center gap-1 hover:text-blue-600">Organization Name <SortIcon active={sortKey === 'groupName'} dir={sortDir} /></button>
+              </th>
+              <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">
+                <button onClick={() => toggleSort('memberCount')} className="inline-flex items-center gap-1 hover:text-blue-600">Total <SortIcon active={sortKey === 'memberCount'} dir={sortDir} /></button>
+              </th>
+              <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">
+                <button onClick={() => toggleSort('paidCount')} className="inline-flex items-center gap-1 hover:text-blue-600">Paid <SortIcon active={sortKey === 'paidCount'} dir={sortDir} /></button>
+              </th>
+              <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">
+                <button onClick={() => toggleSort('freeCount')} className="inline-flex items-center gap-1 hover:text-blue-600">Free <SortIcon active={sortKey === 'freeCount'} dir={sortDir} /></button>
+              </th>
+              <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">
+                <button onClick={() => toggleSort('totalAmount')} className="inline-flex items-center gap-1 hover:text-blue-600">Billable Amount <SortIcon active={sortKey === 'totalAmount'} dir={sortDir} /></button>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
-            {billingGroups.map((group: any) => (
+            {isLoadingGroups ? (
+              <tr>
+                <td colSpan={6} className="px-0 py-0">
+                  <SkeletonTable rows={5} cols={6} />
+                </td>
+              </tr>
+            ) : billingGroups.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-6 py-8 text-center text-slate-500">No billing data for this period</td>
+              </tr>
+            ) : billingGroups.map((group: any) => (
               <tr
                 key={group.groupId}
                 onClick={() => setSelectedGroupId(group.groupId)}
@@ -303,7 +355,7 @@ export default function BillingPage() {
                   )}
                 </td>
                 <td className="px-6 py-4 text-right font-semibold text-slate-900">
-                  ${group.totalAmount.toFixed(2)}
+                  {formatCurrency(group.totalAmount)}
                 </td>
               </tr>
             ))}
@@ -315,7 +367,7 @@ export default function BillingPage() {
               <td className="px-6 py-4 text-right font-semibold text-green-700">{totalPaid}</td>
               <td className="px-6 py-4 text-right font-semibold text-purple-700">{totalFree}</td>
               <td className="px-6 py-4 text-right font-bold text-lg text-green-600">
-                ${totalAmount.toFixed(2)}
+                {formatCurrency(totalAmount)}
               </td>
             </tr>
           </tfoot>

@@ -377,3 +377,70 @@ These features will be available in future updates. For urgent needs, contact su
 **Stripe** — Payment processor handling all charges and refunds
 
 **Convex** — Backend database storing all member and administrative data
+
+---
+
+## Appendix A: Member Status Lifecycle
+
+Every member moves through this pipeline. Status drives billing, eligibility output, and what self-service the member sees.
+
+| Status | Meaning |
+| --- | --- |
+| `lead` | Captured contact (e.g., inquiry form). No enrollment started. |
+| `eligible` | Loaded via eligibility file. Has not self-enrolled yet. |
+| `invited` | Sent re-enroll / activation link. Awaiting action. |
+| `enrolling` | Actively in the checkout / signup flow. |
+| `active` | Paid and currently entitled to benefits. Counts in billing. |
+| `past_due` | Stripe payment failed; in retry window. Still entitled during grace. |
+| `inactive` | No active subscription. Dormant. |
+| `terminated` | Removed from program. Excluded from billing. |
+| `declined` | Eligibility rejected (duplicate, invalid data, restriction). |
+
+## Appendix B: Roles
+
+- **Owner** — Full access including Dev Tools and admin user management. Always keep at least one.
+- **Editor** — Day-to-day operator. Can manage members, hierarchy, eligibility, billing. Cannot manage other admins or use Dev Tools.
+
+Departments (organizational tag, not a permission gate): `admin`, `program_manager`, `fmo`, `broker`.
+
+## Appendix C: Hierarchy Vocabulary Cheat Sheet
+
+The codebase mixes legacy and current names. They refer to the same things:
+
+| UI Term | Legacy / Code Term |
+| --- | --- |
+| Site | Carrier / Whitelabel |
+| Account | Broker / Distribution Partner |
+| Group | Organization / Employer |
+
+## Appendix D: Billing Concepts
+
+- **Self-Pay** — Member pays own subscription via Stripe (default).
+- **List-Bill** — Sponsor (employer) pays one consolidated invoice for many members. No member-side Stripe charges.
+- **Bundle** — Subscription wrapping one or more product entitlements (e.g., Dental Discount + Toothlens AI).
+- **E123** — External billing import format used by finance.
+- **Past Due** — Stripe automatic retry window. Member retains entitlement during grace.
+
+## Appendix E: Where to Find Things Quickly
+
+| Task | Page |
+| --- | --- |
+| See real-time KPIs / alerts | `/admin` |
+| Find a specific member | `/admin/members` (search) |
+| Bulk-add members | `/admin/eligibility` |
+| Investigate cross-system identity | `/admin/user-audit` |
+| Refund a member | `/admin/customer-service` |
+| Add a broker / employer | `/admin/hierarchy` |
+| Generate vendor file (DialCare, DDN) | `/admin/vendor-files` |
+| Manage list-billed groups | `/admin/list-bill` |
+| Onboard a new admin | `/admin/users` |
+| Branding / site config | `/admin/settings` |
+| Vocabulary reference | `/admin/help` |
+
+## Appendix F: Common Gotchas
+
+- **Group Codes are globally unique** — not just per Account.
+- **Eligibility upload is idempotent** — by `email + dateOfBirth`. Re-uploading updates rather than duplicates.
+- **Termination ≠ refund** — terminating a member does not refund Stripe charges. Use Customer Service for refunds.
+- **Dev Tools is owner-only and hidden from editors.**
+- **First Admin Initialize** only works when there are zero admins. After that, an existing owner must invite.

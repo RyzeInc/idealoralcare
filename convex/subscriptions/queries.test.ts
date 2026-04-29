@@ -58,7 +58,7 @@ async function seedBase(t: ReturnType<typeof convexTest>) {
       accountId,
       slug: "test-group-q",
       name: "Test Group Q",
-      groupCode: "TESTQ01",
+      groupCode: "IDEALDO",
       status: "active",
       createdAt: now,
       updatedAt: now,

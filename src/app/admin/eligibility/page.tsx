@@ -5,6 +5,7 @@ import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { Upload, FileUp, AlertCircle, CheckCircle, Clock, ChevronDown, ChevronRight, Download, ArrowLeft, ArrowRight } from 'lucide-react';
+import { useToast, Breadcrumbs, RequiredMark } from '@/components/admin/ui';
 
 type FileAction = 'full_replace' | 'additions' | 'terminations' | 'delta';
 type FileExt = 'csv' | 'xlsx' | 'txt' | 'json';
@@ -13,6 +14,7 @@ const LS_GROUP_KEY = 'eligibility:lastGroupId';
 const LS_ACTION_KEY = 'eligibility:lastFileAction';
 
 export default function EligibilityUploadPage() {
+  const toast = useToast();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -101,7 +103,7 @@ export default function EligibilityUploadPage() {
       setPreviewResult(preview);
       setStep(3);
     } catch (err) {
-      alert(`Preview failed: ${err instanceof Error ? err.message : 'Unknown'}`);
+      toast.fromError(err, 'Preview failed');
     } finally {
       setPreviewing(false);
     }
@@ -122,10 +124,11 @@ export default function EligibilityUploadPage() {
       });
       if (record?._id) {
         await processFile({ fileId: record._id });
+        toast.success('Upload submitted', 'Processing has started — watch the file list below for status.');
       }
       resetWizard();
     } catch (err) {
-      alert(`Upload failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      toast.fromError(err, 'Upload failed');
     } finally {
       setUploading(false);
     }
@@ -141,6 +144,33 @@ export default function EligibilityUploadPage() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  // Convert error array → CSV (escapes quotes and wraps fields)
+  const errorsToCsv = (errors: any[]): string => {
+    const escape = (v: any) => {
+      const s = v == null ? '' : String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const header = 'row,field,message,severity';
+    const lines = errors.map((e) => {
+      if (typeof e === 'string') return `,,${escape(e)},error`;
+      return [escape(e.row ?? ''), escape(e.field ?? ''), escape(e.message ?? ''), escape(e.severity ?? 'error')].join(',');
+    });
+    return [header, ...lines].join('\n');
+  };
+
+  const downloadErrorReport = (baseName: string, parsing: any[] = [], validation: any[] = []) => {
+    const all = [
+      ...parsing.map((e) => ({ ...e, severity: 'parsing' })),
+      ...validation.map((e) => ({ ...e, severity: 'validation' })),
+    ];
+    if (all.length === 0) {
+      toast.info('No errors to export', 'This file has no recorded issues.');
+      return;
+    }
+    const safeName = baseName.replace(/\.[^.]+$/, '').replace(/[^a-z0-9_-]+/gi, '_');
+    downloadStringAsFile(`${safeName}_errors.csv`, errorsToCsv(all));
   };
 
   const handleSendToCareington = async (file: any) => {
@@ -159,10 +189,9 @@ export default function EligibilityUploadPage() {
       });
       if (res.method === 'manual_download') {
         if (res.content) downloadStringAsFile(res.filename, res.content);
-        alert(
-          `Generated ${res.filename}\nMembers: ${res.memberCount}\n` +
-          (res.error ? `\n${res.error}\n` : '\nFile downloaded to your computer.\n') +
-          `\nSHA-256: ${res.sha256}`
+        toast.success(
+          `Generated ${res.filename}`,
+          `${res.memberCount} members. ${res.error ? res.error : 'File downloaded to your computer.'} (SHA-256: ${res.sha256.slice(0, 12)}…)`
         );
         return;
       }
@@ -176,14 +205,12 @@ export default function EligibilityUploadPage() {
       if (!pushRes.ok) {
         throw new Error(pushJson.error || `SFTP push failed (${pushRes.status})`);
       }
-      alert(
-        `SFTP push succeeded\n\nFile: ${res.filename}\n` +
-        `Members: ${res.memberCount}\nRows: ${res.rowCount}\n` +
-        `Host: ${pushJson.host}\nRemote path: ${pushJson.remotePath}\n` +
-        `Bytes: ${res.bytes}\nSHA-256: ${res.sha256}`
+      toast.success(
+        'SFTP push succeeded',
+        `${res.filename} — ${res.memberCount} members → ${pushJson.host}:${pushJson.remotePath}`
       );
     } catch (err) {
-      alert(`Send to Careington failed: ${err instanceof Error ? err.message : 'Unknown'}`);
+      toast.fromError(err, 'Send to Careington failed');
     } finally {
       setSendingFileId(null);
     }
@@ -203,7 +230,7 @@ export default function EligibilityUploadPage() {
         sourceEligibilityFileId: file._id,
       });
       if (!res.content) {
-        alert('No content was generated.');
+        toast.warning('Nothing to preview', 'No content was generated.');
         return;
       }
       // Always download so the team can open it and verify formatting
@@ -213,19 +240,13 @@ export default function EligibilityUploadPage() {
       const sample = res.content.split(/\r?\n/).filter((l: string) => l.trim()).slice(0, 2);
       const pipeCount = sample[0] ? (sample[0].match(/\|/g) ?? []).length : 0;
       const usesCRLF = res.content.includes('\r\n');
-      alert(
-        `Generated ${res.filename}\n\n` +
-        `Members: ${res.memberCount}\n` +
-        `Rows:    ${res.rowCount}\n` +
-        `Bytes:   ${res.bytes}\n` +
-        `SHA-256: ${res.sha256}\n\n` +
-        `Format check:\n` +
-        `  Pipes per row: ${pipeCount}  (Careington CI007 expects 27)\n` +
-        `  Line endings:  ${usesCRLF ? 'CRLF ✓' : 'LF (will fail Careington parser)'}\n\n` +
-        `First row preview:\n${sample[0] ?? '(empty)'}`
+      const formatOk = pipeCount === 27 && usesCRLF;
+      (formatOk ? toast.success : toast.warning)(
+        `Generated ${res.filename}`,
+        `${res.memberCount} members · ${res.rowCount} rows · ${pipeCount}/27 pipes · ${usesCRLF ? 'CRLF✓' : 'LF (Careington requires CRLF)'}`
       );
     } catch (err) {
-      alert(`Preview failed: ${err instanceof Error ? err.message : 'Unknown'}`);
+      toast.fromError(err, 'Preview failed');
     } finally {
       setSendingFileId(null);
     }
@@ -234,11 +255,11 @@ export default function EligibilityUploadPage() {
   const handleFile = (file: File) => {
     const n = file.name.toLowerCase();
     if (!n.endsWith('.csv') && !n.endsWith('.xlsx') && !n.endsWith('.txt') && !n.endsWith('.json')) {
-      alert('Please upload a CSV, XLSX, TXT (Careington pipe-delimited), or JSON file.');
+      toast.warning('Unsupported file type', 'Please upload a CSV, XLSX, TXT (Careington pipe-delimited), or JSON file.');
       return;
     }
     if (file.size > 50 * 1024 * 1024) {
-      alert('File is larger than 50MB. Please split it into smaller batches.');
+      toast.warning('File too large', 'File is larger than 50MB. Please split it into smaller batches.');
       return;
     }
     setSelectedFile(file);
@@ -307,22 +328,34 @@ export default function EligibilityUploadPage() {
 
       setSelectedFile(null);
     } catch (err) {
-      alert(`Upload failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      toast.fromError(err, 'Upload failed');
     } finally {
       setUploading(false);
     }
   };
 
   const handleDownloadTemplate = () => {
-    // Header row matches what parseXlsxBuffer in convex/admin/eligibility.ts
-    // expects — these are the Ideal Sample Census columns Careington recognizes.
-    // Save as .csv or .xlsx; system also accepts pipe-delimited .txt.
+    // 26-column Careington Census Template — exact column names and order.
+    // Employers fill this in and upload via this page (CSV or XLSX accepted).
+    // Column spec: Title | First Name | Middle Name | Last Name | Post Name |
+    //   Unique ID | Sequence Number | Address Line 1 | Address Line 2 | City |
+    //   State | Zip | Plus 4 | Home Phone | Work Phone | Coverage | Group Code |
+    //   Termination Date | Effective Date | Date of Birth | Relation |
+    //   Student Status | Gender | Email Address | Reporting Segment | Guardian
+    //
+    // Field notes:
+    //   Unique ID    — assigned by employer; numeric, max 12 digits, no SSNs
+    //   Sequence No  — "00" = primary; "01","02"... = dependents (per family)
+    //   Coverage     — MF=Family, MO=Member Only, MS=Member+Spouse, MD=Member+Child
+    //   Relation     — blank=primary, S=Spouse, C=Child, O=Other
+    //   Student Stat — Y/N for dependents only
+    //   Guardian     — 1=primary/guardian, 0=dependent
     const csv = [
-      'Title,First Name,Middle Name,Last Name,Suffix,Unique ID,Sequence Number,Coverage,Address1,Address2,City,State,Zip,Home Phone,Work Phone,Email,Date of Birth,Effective Date,Gender,Relation',
-      ',Jane,,Smith,,EMP001,00,MF,123 Main St,,Dallas,TX,75001,8175551234,,jane.smith@example.com,03/15/1985,01/01/2026,F,',
-      ',John,,Smith,,EMP001,01,MF,123 Main St,,Dallas,TX,75001,8175551234,,jane.smith@example.com,07/22/1987,01/01/2026,M,S',
-      ',Sam,,Smith,,EMP001,02,MF,123 Main St,,Dallas,TX,75001,8175551234,,jane.smith@example.com,11/30/2010,01/01/2026,M,C',
-      ',Mary,,Jones,,EMP002,00,MO,456 Oak Ave,,Austin,TX,78701,5125559876,,mary.jones@example.com,06/14/1978,01/01/2026,F,',
+      'Title,First Name,Middle Name,Last Name,Post Name,Unique ID,Sequence Number,Address Line 1,Address Line 2,City,State,Zip,Plus 4,Home Phone,Work Phone,Coverage,Group Code,Termination Date,Effective Date,Date of Birth,Relation,Student Status,Gender,Email Address,Reporting Segment,Guardian',
+      ',Jane,,Smith,,0000000001,00,123 Main St,,Dallas,TX,75001,,8175551234,,MF,IDEALDO,,01/01/2026,03/15/1985,,,F,jane.smith@example.com,,1',
+      ',John,,Smith,,0000000001,01,123 Main St,,Dallas,TX,75001,,8175551234,,MF,IDEALDO,,01/01/2026,07/22/1987,S,N,M,jane.smith@example.com,,0',
+      ',Sam,,Smith,,0000000001,02,123 Main St,,Dallas,TX,75001,,8175551234,,MF,IDEALDO,,01/01/2026,11/30/2010,C,N,M,jane.smith@example.com,,0',
+      ',Mary,,Jones,,0000000002,00,456 Oak Ave,,Austin,TX,78701,,5125559876,,MO,IDEALDO,,01/01/2026,06/14/1978,,,F,mary.jones@example.com,,1',
     ].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -354,6 +387,7 @@ export default function EligibilityUploadPage() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: 'Eligibility Files' }]} />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Eligibility Files</h1>
@@ -432,7 +466,7 @@ export default function EligibilityUploadPage() {
           <div className="p-6 space-y-4">
             <div>
               <label className="block text-sm font-semibold text-slate-900 mb-2">
-                Organization <span className="text-red-600">*</span>
+                Organization<RequiredMark />
               </label>
               <select
                 value={selectedGroupId}
@@ -549,11 +583,12 @@ export default function EligibilityUploadPage() {
             )}
 
             {/* Summary cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               <SummaryCard label="Primary Members" value={previewResult.primaryCount.toLocaleString()} tone="blue" />
               <SummaryCard label="Dependents" value={previewResult.dependentCount.toLocaleString()} tone="slate" />
               <SummaryCard label="Total Lives" value={(previewResult.primaryCount + previewResult.dependentCount).toLocaleString()} tone="green" />
-              <SummaryCard label="Issues" value={previewResult.errorCount.toLocaleString()} tone={previewResult.errorCount > 0 ? 'amber' : 'slate'} />
+              <SummaryCard label="Parsing Issues" value={previewResult.errorCount.toLocaleString()} tone={previewResult.errorCount > 0 ? 'amber' : 'slate'} />
+              <SummaryCard label="Missing Fields" value={previewResult.recordsWithValidationIssues.toLocaleString()} tone={previewResult.recordsWithValidationIssues > 0 ? 'red' : 'slate'} />
             </div>
 
             {/* Detected columns */}
@@ -588,16 +623,26 @@ export default function EligibilityUploadPage() {
                         <th className="px-3 py-2 text-left font-semibold text-slate-700">DOB</th>
                         <th className="px-3 py-2 text-left font-semibold text-slate-700">Effective</th>
                         <th className="px-3 py-2 text-right font-semibold text-slate-700">Deps</th>
+                        <th className="px-3 py-2 text-center font-semibold text-slate-700">Issues</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {previewResult.sampleRecords.map((r: any, i: number) => (
-                        <tr key={i}>
+                        <tr key={i} className={r.validationIssues ? 'bg-red-50' : ''}>
                           <td className="px-3 py-2 text-slate-900">{r.firstName} {r.lastName}</td>
                           <td className="px-3 py-2 text-slate-600 font-mono">{r.email || '—'}</td>
                           <td className="px-3 py-2 text-slate-600 font-mono">{r.dateOfBirth || '—'}</td>
                           <td className="px-3 py-2 text-slate-600 font-mono">{r.effectiveDate || '—'}</td>
                           <td className="px-3 py-2 text-right text-slate-600">{r.dependentCount}</td>
+                          <td className="px-3 py-2 text-center">
+                            {r.validationIssues ? (
+                              <span className="inline-block px-2 py-0.5 bg-red-200 text-red-800 rounded text-xs font-semibold">
+                                {r.validationIssues}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">✓</span>
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -610,7 +655,7 @@ export default function EligibilityUploadPage() {
             {previewResult.errors?.length > 0 && (
               <div>
                 <p className="text-xs font-semibold text-amber-800 mb-1">
-                  {previewResult.errorCount} issue(s){previewResult.errorCount > previewResult.errors.length ? ` (showing first ${previewResult.errors.length})` : ''}
+                  {previewResult.errorCount} parsing issue(s){previewResult.errorCount > previewResult.errors.length ? ` (showing first ${previewResult.errors.length})` : ''}
                 </p>
                 <div className="border border-amber-200 bg-amber-50 rounded p-2 max-h-40 overflow-y-auto space-y-1">
                   {previewResult.errors.map((e: any, i: number) => (
@@ -618,6 +663,33 @@ export default function EligibilityUploadPage() {
                       Row {e.row}{e.field ? ` [${e.field}]` : ''}: {e.message}
                     </p>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Validation errors panel — Census Template required fields */}
+            {previewResult.validationErrors?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-red-800 mb-1">
+                  ⚠️ {previewResult.recordsWithValidationIssues} member(s) missing required fields ({previewResult.validationErrorCount} field issues){previewResult.validationErrorCount > previewResult.validationErrors.length ? ` — showing first ${previewResult.validationErrors.length}` : ''}
+                </p>
+                <div className="border border-red-300 bg-red-50 rounded p-3 max-h-48 overflow-y-auto space-y-2">
+                  <div className="text-xs text-red-900 space-y-1">
+                    {previewResult.validationErrors.map((e: any, i: number) => (
+                      <div key={i} className="flex items-start gap-2">
+                        <span className="font-mono text-red-700 flex-shrink-0 min-w-fit">Row {e.row}:</span>
+                        <div className="flex-1">
+                          <span className="font-semibold text-red-800">{e.field}</span>
+                          <span className="text-red-700"> — {e.message}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {previewResult.validationErrorCount > previewResult.validationErrors.length && (
+                    <p className="text-xs text-red-700 pt-1 border-t border-red-200">
+                      ... and {previewResult.validationErrorCount - previewResult.validationErrors.length} more issues
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -635,13 +707,28 @@ export default function EligibilityUploadPage() {
               >
                 <ArrowLeft size={16} /> Back
               </button>
-              <button
-                onClick={handleCommit}
-                disabled={uploading || previewResult.tooLarge || previewResult.primaryCount === 0}
-                className="flex items-center gap-2 px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed font-semibold"
-              >
-                {uploading ? 'Processing…' : `Process ${previewResult.primaryCount.toLocaleString()} Members`}
-              </button>
+              <div className="flex items-center gap-2">
+                {((previewResult.errors?.length ?? 0) > 0 || (previewResult.validationErrors?.length ?? 0) > 0) && (
+                  <button
+                    onClick={() => downloadErrorReport(
+                      selectedFile.name,
+                      previewResult.errors ?? [],
+                      previewResult.validationErrors ?? [],
+                    )}
+                    className="flex items-center gap-2 px-4 py-2 border border-amber-300 bg-amber-50 text-amber-800 rounded hover:bg-amber-100 text-sm"
+                    title="Download all parsing and validation errors as a CSV file you can fix and re-upload."
+                  >
+                    <Download size={14} /> Download Errors (CSV)
+                  </button>
+                )}
+                <button
+                  onClick={handleCommit}
+                  disabled={uploading || previewResult.tooLarge || previewResult.primaryCount === 0}
+                  className="flex items-center gap-2 px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed font-semibold"
+                >
+                  {uploading ? 'Processing…' : `Process ${previewResult.primaryCount.toLocaleString()} Members`}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -720,18 +807,15 @@ export default function EligibilityUploadPage() {
                                   setProvisioningFileId(file._id);
                                   try {
                                     const res: any = await provisionFile({ fileId: file._id, mode: 'invite' });
-                                    alert(
-                                      `Provisioning complete\n\n` +
-                                      `Attempted: ${res.attempted}\n` +
-                                      `Succeeded: ${res.succeeded}\n` +
-                                      `Failed:    ${res.failed}\n` +
-                                      `Already linked (skipped): ${res.alreadyLinked}` +
-                                      (res.errors.length
-                                        ? `\n\nErrors:\n` + res.errors.slice(0, 10).map((e: any) => `• ${e.email}: ${e.message}`).join('\n')
-                                        : '')
-                                    );
+                                    const summary = `Attempted ${res.attempted} · Succeeded ${res.succeeded} · Failed ${res.failed} · Skipped ${res.alreadyLinked}`;
+                                    if (res.failed === 0) {
+                                      toast.success('Provisioning complete', summary);
+                                    } else {
+                                      const firstErrors = res.errors.slice(0, 3).map((e: any) => `${e.email}: ${e.message}`).join(' • ');
+                                      toast.warning('Provisioning partial', `${summary}${firstErrors ? ` — ${firstErrors}` : ''}`);
+                                    }
                                   } catch (err) {
-                                    alert(`Provisioning failed: ${err instanceof Error ? err.message : 'Unknown'}`);
+                                    toast.fromError(err, 'Provisioning failed');
                                   } finally {
                                     setProvisioningFileId(null);
                                   }
@@ -765,8 +849,8 @@ export default function EligibilityUploadPage() {
                             {(file.status === 'failed' || file.status === 'completed_with_errors') && (
                               <button
                                 onClick={async () => {
-                                  try { await processFile({ fileId: file._id }); }
-                                  catch (err) { alert(`Re-process failed: ${err instanceof Error ? err.message : 'Unknown'}`); }
+                                  try { await processFile({ fileId: file._id }); toast.success('Re-processing started'); }
+                                  catch (err) { toast.fromError(err, 'Re-process failed'); }
                                 }}
                                 className="text-xs px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded hover:bg-amber-100 whitespace-nowrap"
                                 title="Retry processing the file with the latest code."
@@ -794,6 +878,15 @@ export default function EligibilityUploadPage() {
                               ? `Completed with ${file.errorRecords ?? 0} failed row(s) — ${file.errors?.length ?? 0} error detail(s):`
                               : `Errors (${file.errors?.length ?? 0}):`}
                           </p>
+                          {(file.errors ?? []).length > 0 && (
+                            <button
+                              onClick={() => downloadErrorReport(file.fileName, file.errors ?? [], [])}
+                              className="mb-2 inline-flex items-center gap-1 text-xs px-2 py-1 bg-white border border-red-300 text-red-700 rounded hover:bg-red-100"
+                              title="Download all errors for this file as CSV."
+                            >
+                              <Download size={12} /> Download Errors (CSV)
+                            </button>
+                          )}
                           <div className="space-y-1 max-h-40 overflow-y-auto">
                             {(file.errors ?? []).map((err: any, i: number) => (
                               <p key={i} className="text-xs text-red-600 font-mono bg-red-100 px-2 py-1 rounded">
@@ -823,12 +916,13 @@ export default function EligibilityUploadPage() {
   );
 }
 
-function SummaryCard({ label, value, tone }: { label: string; value: string; tone: 'blue' | 'slate' | 'green' | 'amber' }) {
+function SummaryCard({ label, value, tone }: { label: string; value: string; tone: 'blue' | 'slate' | 'green' | 'amber' | 'red' }) {
   const toneClasses = {
     blue: 'bg-blue-50 border-blue-200 text-blue-900',
     slate: 'bg-slate-50 border-slate-200 text-slate-900',
     green: 'bg-green-50 border-green-200 text-green-900',
     amber: 'bg-amber-50 border-amber-200 text-amber-900',
+    red: 'bg-red-50 border-red-200 text-red-900',
   }[tone];
   return (
     <div className={`border rounded-lg p-3 ${toneClasses}`}>

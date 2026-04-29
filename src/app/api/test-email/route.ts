@@ -10,7 +10,7 @@ const TEST_MEMBER = {
   groupCode: 'IDEALDO',
   effectiveDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
   billingAmount: '$19.95/mo',
-  memberServicesPhone: '(800) 290-0523',
+  memberServicesPhone: 'support@getidealoh.com',
 };
 
 type EmailType = 'fulfillment-packet' | 'welcome' | 'confirmation' | 'cancelled' | 'eligibility-set-password' | 'employer-membership-agreement';
@@ -283,7 +283,7 @@ function generateFulfillmentEmailHTML(data: {
         <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px;">
           <h3 style="margin: 0 0 10px; font-size: 15px; color: ${TEAL};">Dental Savings Network</h3>
           <ol style="margin: 0; padding: 0 0 0 20px; font-size: 13px; line-height: 2.0; color: #374151;">
-            <li>Search for a participating provider in your <a href="${data.portalUrl}/health/dashboard" style="color: ${TEAL}; text-decoration: none;">Member Portal</a> or at <a href="https://getidealoh.com/health/dashboard" style="color: ${TEAL}; text-decoration: none;">getidealoh.com/health/dashboard</a> or call (800) 290-0523.</li>
+            <li>Search for a participating provider in your <a href="${data.portalUrl}/health/dashboard" style="color: ${TEAL}; text-decoration: none;">Member Portal</a> or at <a href="https://getidealoh.com/health/dashboard" style="color: ${TEAL}; text-decoration: none;">getidealoh.com/health/dashboard</a> or email support@getidealoh.com.</li>
             <li>Confirm the provider accepts the discount program <strong>before</strong> your visit.</li>
             <li>Present your Member ID card at your appointment.</li>
             <li>Pay the discounted member amount directly at time of service.</li>
@@ -355,7 +355,7 @@ function generateWelcomeEmailHTML(data: {
         <h3 style="color: #667eea;">Getting Started:</h3>
         <ol style="line-height: 1.8;">
           <li>Log in to your <a href="https://www.getidealoh.com/health/dashboard" style="color: #667eea; text-decoration: none;">Member Portal</a></li>
-          <li>Find a provider in your <a href="${data.portalUrl}/health/dashboard" style="color: #667eea; text-decoration: none;">Member Portal</a> or at <a href="https://getidealoh.com/health/dashboard" style="color: #667eea; text-decoration: none;">getidealoh.com/health/dashboard</a> or call (800) 290-0523</li>
+          <li>Find a provider in your <a href="${data.portalUrl}/health/dashboard" style="color: #667eea; text-decoration: none;">Member Portal</a> or at <a href="https://getidealoh.com/health/dashboard" style="color: #667eea; text-decoration: none;">getidealoh.com/health/dashboard</a> or email support@getidealoh.com</li>
           <li>Present your ID card to receive discounts</li>
         </ol>
         <div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0;">

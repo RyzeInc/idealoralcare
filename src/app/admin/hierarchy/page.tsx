@@ -5,6 +5,8 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { Plus, Edit, Trash2, X } from 'lucide-react';
+import { useToast, Breadcrumbs, RequiredMark } from '@/components/admin/ui';
+import { useEffect, useRef } from 'react';
 
 type TabType = 'sites' | 'accounts' | 'groups';
 
@@ -18,6 +20,7 @@ export default function HierarchyAdmin() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: 'Brokers & Organizations' }]} />
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-slate-900">Brokers & Organizations</h1>
         <button
@@ -258,6 +261,7 @@ function GroupsList({ groups, accounts, sites }: { groups: any[]; accounts: any[
 
 function CreateSiteModal({ onClose }: { onClose: () => void }) {
   const createSite = useMutation(api.admin.hierarchy.createSite);
+  const toast = useToast();
   const [form, setForm] = useState({ slug: '', name: '', type: 'primary' as const, domain: '' });
   const [saving, setSaving] = useState(false);
 
@@ -274,7 +278,7 @@ function CreateSiteModal({ onClose }: { onClose: () => void }) {
       });
       onClose();
     } catch (err) {
-      alert(`Error: ${err instanceof Error ? err.message : 'Failed'}`);
+      toast.fromError(err, 'Could not create site');
     } finally {
       setSaving(false);
     }
@@ -305,6 +309,7 @@ function CreateSiteModal({ onClose }: { onClose: () => void }) {
 
 function EditSiteModal({ site, onClose }: { site: any; onClose: () => void }) {
   const updateSite = useMutation(api.admin.hierarchy.updateSite);
+  const toast = useToast();
   const [form, setForm] = useState({ name: site.name, domain: site.domain || '', type: site.type });
   const [saving, setSaving] = useState(false);
 
@@ -315,7 +320,7 @@ function EditSiteModal({ site, onClose }: { site: any; onClose: () => void }) {
       await updateSite({ siteId: site._id, name: form.name, domain: form.domain || undefined, type: form.type });
       onClose();
     } catch (err) {
-      alert(`Error: ${err instanceof Error ? err.message : 'Failed'}`);
+      toast.fromError(err, 'Could not update site');
     } finally {
       setSaving(false);
     }
@@ -337,6 +342,7 @@ function EditSiteModal({ site, onClose }: { site: any; onClose: () => void }) {
 
 function CreateAccountModal({ sites, onClose }: { sites: any[]; onClose: () => void }) {
   const createAccount = useMutation(api.admin.hierarchy.createAccount);
+  const toast = useToast();
   const [form, setForm] = useState({ siteId: sites[0]?._id || '', slug: '', accountType: 'employer' as const, billingModel: 'per_member' as const });
   const [saving, setSaving] = useState(false);
 
@@ -354,7 +360,7 @@ function CreateAccountModal({ sites, onClose }: { sites: any[]; onClose: () => v
       });
       onClose();
     } catch (err) {
-      alert(`Error: ${err instanceof Error ? err.message : 'Failed'}`);
+      toast.fromError(err, 'Could not create broker');
     } finally {
       setSaving(false);
     }
@@ -393,6 +399,7 @@ function CreateAccountModal({ sites, onClose }: { sites: any[]; onClose: () => v
 
 function CreateGroupModal({ sites, accounts, onClose }: { sites: any[]; accounts: any[]; onClose: () => void }) {
   const createGroup = useMutation(api.admin.hierarchy.createGroup);
+  const toast = useToast();
   const [form, setForm] = useState({ siteId: sites[0]?._id || '', accountId: accounts[0]?._id || '', slug: '', groupCode: 'IDEALDO', organizationCode: '', name: '', description: '', maxMembers: '', effectiveDate: '', terminationDate: '', brokerId: '', brokerTrackingCode: '' });
   const [saving, setSaving] = useState(false);
 
@@ -419,7 +426,7 @@ function CreateGroupModal({ sites, accounts, onClose }: { sites: any[]; accounts
       });
       onClose();
     } catch (err) {
-      alert(`Error: ${err instanceof Error ? err.message : 'Failed'}`);
+      toast.fromError(err, 'Could not create organization');
     } finally {
       setSaving(false);
     }
@@ -470,6 +477,7 @@ function CreateGroupModal({ sites, accounts, onClose }: { sites: any[]; accounts
 
 function EditAccountModal({ account, onClose }: { account: any; onClose: () => void }) {
   const updateAccount = useMutation(api.admin.hierarchy.updateAccount);
+  const toast = useToast();
   const [form, setForm] = useState({
     name: account.name || '',
     slug: account.slug || '',
@@ -503,7 +511,7 @@ function EditAccountModal({ account, onClose }: { account: any; onClose: () => v
       });
       onClose();
     } catch (err) {
-      alert(`Error: ${err instanceof Error ? err.message : 'Failed'}`);
+      toast.fromError(err, 'Could not update broker');
     } finally {
       setSaving(false);
     }
@@ -554,6 +562,7 @@ function EditAccountModal({ account, onClose }: { account: any; onClose: () => v
 
 function EditGroupModal({ group, accounts, onClose }: { group: any; accounts: any[]; onClose: () => void }) {
   const updateGroup = useMutation(api.admin.hierarchy.updateGroup);
+  const toast = useToast();
   const [form, setForm] = useState({
     name: group.name || '',
     description: group.description || '',
@@ -601,7 +610,7 @@ function EditGroupModal({ group, accounts, onClose }: { group: any; accounts: an
       } as any);
       onClose();
     } catch (err) {
-      alert(`Error: ${err instanceof Error ? err.message : 'Failed'}`);
+      toast.fromError(err, 'Could not update organization');
     } finally {
       setSaving(false);
     }
@@ -706,12 +715,36 @@ function EditGroupModal({ group, accounts, onClose }: { group: any; accounts: an
 /* ─── Shared helpers ─── */
 
 function ModalWrapper({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKey);
+    // Auto-focus first focusable element
+    const focusable = dialogRef.current?.querySelector<HTMLElement>(
+      'input,select,textarea,button:not([aria-label="Close dialog"])'
+    );
+    focusable?.focus();
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [onClose]);
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        ref={dialogRef}
+        className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+      >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-slate-900">{title}</h2>
-          <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded"><X size={16} /></button>
+          <h2 id="modal-title" className="text-lg font-bold text-slate-900">{title}</h2>
+          <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded" aria-label="Close dialog"><X size={16} /></button>
         </div>
         {children}
       </div>
@@ -722,7 +755,7 @@ function ModalWrapper({ title, children, onClose }: { title: string; children: R
 function Field({ label, value, onChange, required, placeholder }: { label: string; value: string; onChange: (v: string) => void; required?: boolean; placeholder?: string }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
+      <label className="block text-sm font-medium text-slate-700 mb-1">{label}{required && <RequiredMark />}</label>
       <input type="text" value={value} onChange={e => onChange(e.target.value)} required={required} placeholder={placeholder} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
     </div>
   );

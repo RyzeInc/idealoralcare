@@ -3,6 +3,8 @@
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { AlertCircle, Download } from 'lucide-react';
+import { Breadcrumbs } from '@/components/admin/ui';
+import { formatCurrency } from '@/lib/admin-format';
 
 /**
  * COMMISSION REPORTING PAGE
@@ -25,6 +27,7 @@ export default function CommissionsPage() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: 'Commissions' }]} />
       <div>
         <h1 className="text-3xl font-bold text-slate-900">Commission Reporting</h1>
         <p className="text-slate-600">Distribution chain commission tracking and payroll exports</p>
@@ -49,11 +52,11 @@ export default function CommissionsPage() {
         </div>
         <div className="bg-white rounded-lg shadow p-6">
           <p className="text-slate-600 text-sm">Pending Payout</p>
-          <p className="text-4xl font-bold text-amber-600 mt-2">${pendingAmount.toFixed(2)}</p>
+          <p className="text-4xl font-bold text-amber-600 mt-2">{formatCurrency(pendingAmount)}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-6">
           <p className="text-slate-600 text-sm">Total {currentMonth}</p>
-          <p className="text-4xl font-bold text-green-600 mt-2">${totalPayout.toFixed(2)}</p>
+          <p className="text-4xl font-bold text-green-600 mt-2">{formatCurrency(totalPayout)}</p>
         </div>
       </div>
 
@@ -95,10 +98,10 @@ export default function CommissionsPage() {
                 <td className="px-6 py-4 font-medium text-slate-900">{commission.brokerName}</td>
                 <td className="px-6 py-4 text-right">{commission.activeEnrollments}</td>
                 <td className="px-6 py-4 text-right font-mono">
-                  ${commission.commissionRate.toFixed(2)}/member
+                  {formatCurrency(commission.commissionRate)}/member
                 </td>
                 <td className="px-6 py-4 text-right font-semibold text-slate-900">
-                  ${commission.calculatedPayout.toFixed(2)}
+                  {formatCurrency(commission.calculatedPayout)}
                 </td>
                 <td className="px-6 py-4">
                   <span
@@ -120,7 +123,7 @@ export default function CommissionsPage() {
                 Total
               </td>
               <td className="px-6 py-4 text-right font-bold text-lg text-slate-900">
-                ${totalPayout.toFixed(2)}
+                {formatCurrency(totalPayout)}
               </td>
               <td className="px-6 py-4"></td>
             </tr>

@@ -230,7 +230,7 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
                   <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>
                     Teledentistry — DialCare
                   </span>
-                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(800) 290-0523</span>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>support@getidealoh.com</span>
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#475569' }}>
                   {cardData.networks.dialCare.memberUrl.replace('https://', '')}

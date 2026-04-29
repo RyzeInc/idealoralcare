@@ -6,6 +6,7 @@ import { api } from '@/convex/_generated/api';
 import { Doc } from '@/convex/_generated/dataModel';
 import { Plus, Loader2, Check, XCircle, RefreshCw, Tag, Trash2, ChevronDown, ChevronRight, Users } from 'lucide-react';
 import { UserSelector } from './UserSelector';
+import { useToast } from './ui';
 import styles from './RepCodesAdmin.module.css';
 
 interface ClerkUser {
@@ -90,6 +91,7 @@ function EnrollmentDrillDown({ code }: { code: string }) {
 }
 
 export function RepCodesAdmin() {
+  const toast = useToast();
   const [showForm, setShowForm] = useState(false);
   const [useExistingUser, setUseExistingUser] = useState(true);
   const [expandedCode, setExpandedCode] = useState<string | null>(null);
@@ -122,11 +124,11 @@ export function RepCodesAdmin() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.brokerId) {
-      alert('Please select or provide an agent (Clerk User ID)');
+      toast.warning('Agent required', 'Select a user or paste a Clerk User ID for the agent.');
       return;
     }
     if (!formData.code) {
-      alert('Please enter or generate a rep code');
+      toast.warning('Rep code required', 'Enter or generate a rep code before saving.');
       return;
     }
     try {
@@ -137,9 +139,9 @@ export function RepCodesAdmin() {
         notes: formData.notes || undefined,
       });
       resetForm();
+      toast.success('Rep code created', formData.code.toUpperCase());
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Error creating rep code. Please try again.';
-      alert(message);
+      toast.fromError(error, 'Could not create rep code');
     }
   };
 
@@ -147,16 +149,18 @@ export function RepCodesAdmin() {
     if (!confirm(`Revoke code "${code.code}"? It will no longer accept new enrollments.`)) return;
     try {
       await revokeCode({ id: code._id });
-    } catch {
-      alert('Error revoking code. Please try again.');
+      toast.success('Code revoked', code.code);
+    } catch (error) {
+      toast.fromError(error, 'Could not revoke code');
     }
   };
 
   const handleReactivate = async (code: Doc<'brokerTrackingCodes'>) => {
     try {
       await reactivateCode({ id: code._id });
-    } catch {
-      alert('Error reactivating code. Please try again.');
+      toast.success('Code reactivated', code.code);
+    } catch (error) {
+      toast.fromError(error, 'Could not reactivate code');
     }
   };
 
@@ -164,8 +168,9 @@ export function RepCodesAdmin() {
     if (!confirm(`Permanently delete code "${code.code}"? This cannot be undone.`)) return;
     try {
       await removeCode({ id: code._id });
-    } catch {
-      alert('Error deleting code. Please try again.');
+      toast.success('Code deleted', code.code);
+    } catch (error) {
+      toast.fromError(error, 'Could not delete code');
     }
   };
 

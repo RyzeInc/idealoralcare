@@ -120,11 +120,11 @@ export function renderCardBack(cardData: MemberCardData): RenderedCardSide {
           items: [
             {
               name: 'Teledentistry — DialCare',
-              phone: 'support@getidealoh.com',
+              phone: '(855) 335-2255',
               website: cardData.networks.dialCare.memberUrl,
             },
             {
-              name: 'Dental Discount Network',
+              name: 'Careington Dental Discount Network',
               phone: cardData.supportPhone,
               website: cardData.networks.careington.memberUrl,
             },

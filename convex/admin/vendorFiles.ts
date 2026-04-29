@@ -58,11 +58,20 @@ function snapToFirstOfMonth(timestamp: number): Date {
 }
 
 /**
- * Strip punctuation from memberId to produce a Careington-compliant Unique ID
- * (alphanumeric only, max 12 chars, no SSNs)
+ * Produce a Careington-compliant Unique ID:
+ * - Numeric digits only (spec: Data Type = Numeric, "No SSNs or Punctuation")
+ * - Max 12 characters
  */
 function toUniqueId(memberId: string): string {
-  return memberId.replace(/[^A-Za-z0-9]/g, "").slice(0, 12);
+  return memberId.replace(/[^0-9]/g, "").slice(0, 12);
+}
+
+/**
+ * Truncate a sanitized cell value to the field's Careington max length.
+ * Applied after sanitizeCell so the result is never longer than the column allows.
+ */
+function trunc(value: string, maxLen: number): string {
+  return value.slice(0, maxLen);
 }
 
 /**
@@ -132,34 +141,34 @@ function buildCareingtonRow(f: {
   guardian: string;     // "1" for primary/guardian, "0" for dependent
 }): string {
   return [
-    sanitizeCell(f.title),         // [0]  Title
-    sanitizeCell(f.firstName),     // [1]  First Name
-    sanitizeCell(f.middleName),    // [2]  Middle Name
-    sanitizeCell(f.lastName),      // [3]  Last Name
-    sanitizeCell(f.suffix),        // [4]  Post Name / Suffix
-    sanitizeCell(f.uniqueId),      // [5]  Unique ID
-    sanitizeCell(f.seqNum),        // [6]  Sequence Number
-    "",                            // [7]  Filler (SSN — leave empty)
-    sanitizeCell(f.addr1),         // [8]  Address Line 1
-    sanitizeCell(f.addr2),         // [9]  Address Line 2
-    sanitizeCell(f.city),          // [10] City
-    sanitizeCell(f.state),         // [11] State
-    sanitizeCell(f.zip),           // [12] Zip
-    "",                            // [13] Plus 4
-    sanitizeCell(f.phone),         // [14] Home Phone
-    sanitizeCell(f.workPhone),     // [15] Work Phone
-    sanitizeCell(f.coverage),      // [16] Coverage
-    sanitizeCell(f.groupCode),     // [17] Group Code
-    sanitizeCell(f.termDate),      // [18] Termination Date
-    sanitizeCell(f.effDate),       // [19] Effective Date
-    sanitizeCell(f.dob),           // [20] Date of Birth
-    sanitizeCell(f.relation),      // [21] Relation
-    sanitizeCell(f.studentStatus), // [22] Student Status
-    "",                            // [23] Filler
-    sanitizeCell(f.gender),        // [24] Gender
-    sanitizeCell(f.email),         // [25] Email Address
-    sanitizeCell(f.reportingSegment), // [26] Reporting Segment
-    sanitizeCell(f.guardian),      // [27] Guardian
+    trunc(sanitizeCell(f.title), 3),              // [0]  Title             max 3
+    trunc(sanitizeCell(f.firstName), 15),         // [1]  First Name        max 15
+    trunc(sanitizeCell(f.middleName), 1),         // [2]  Middle Name       max 1 (initial)
+    trunc(sanitizeCell(f.lastName), 20),          // [3]  Last Name         max 20
+    trunc(sanitizeCell(f.suffix), 4),             // [4]  Post Name/Suffix  max 4
+    trunc(sanitizeCell(f.uniqueId), 12),          // [5]  Unique ID         max 12, numeric
+    trunc(sanitizeCell(f.seqNum), 2),             // [6]  Sequence Number   max 2
+    "",                                            // [7]  Filler (SSN — leave empty per CI007)
+    trunc(sanitizeCell(f.addr1), 33),             // [8]  Address Line 1   max 33
+    trunc(sanitizeCell(f.addr2), 33),             // [9]  Address Line 2   max 33
+    trunc(sanitizeCell(f.city), 21),              // [10] City             max 21
+    trunc(sanitizeCell(f.state), 2),              // [11] State            max 2
+    trunc(sanitizeCell(f.zip), 5),                // [12] Zip              max 5, numeric
+    "",                                            // [13] Plus 4 (omitted — not collected)
+    trunc(sanitizeCell(f.phone), 10),             // [14] Home Phone       max 10, numeric
+    trunc(sanitizeCell(f.workPhone), 10),         // [15] Work Phone       max 10, numeric
+    trunc(sanitizeCell(f.coverage), 2),           // [16] Coverage         max 2 (MF/MO/MD/MS)
+    trunc(sanitizeCell(f.groupCode), 10),         // [17] Group Code       max 10
+    trunc(sanitizeCell(f.termDate), 8),           // [18] Term Date        max 8, MMDDYYYY
+    trunc(sanitizeCell(f.effDate), 8),            // [19] Effective Date   max 8, MMDDYYYY
+    trunc(sanitizeCell(f.dob), 8),                // [20] Date of Birth    max 8, MMDDYYYY
+    trunc(sanitizeCell(f.relation), 1),           // [21] Relation         max 1 (C/S/O; blank=primary)
+    trunc(sanitizeCell(f.studentStatus), 1),      // [22] Student Status   max 1 (Y/N; blank=primary)
+    "",                                            // [23] Filler (per CI007)
+    trunc(sanitizeCell(f.gender), 1),             // [24] Gender           max 1 (M/F)
+    trunc(sanitizeCell(f.email), 64),             // [25] Email Address    max 64
+    trunc(sanitizeCell(f.reportingSegment), 100), // [26] Reporting Seg    max 100
+    trunc(sanitizeCell(f.guardian), 1),           // [27] Guardian         max 1 (0=No/1=Yes)
   ].join("|");
 }
 
@@ -182,6 +191,48 @@ export const getVendorConfigurations = query({
         status: "ready" as const,
       },
     ];
+  },
+});
+
+/**
+ * Get a preview of members that will be included in a vendor file for a specific group.
+ * Shows which users will be added to the generation before actually generating.
+ */
+export const getVendorFilePreview: any = query({
+  args: {
+    groupId: v.id("groups"),
+  },
+  handler: async (ctx, args): Promise<any> => {
+    const group: any = await ctx.runQuery(api.admin.hierarchy.getGroupById, { groupId: args.groupId });
+    if (!group) throw new Error("Group not found");
+
+    const members: any[] = await ctx.runQuery(api.admin.members.getActiveMembersByGroup, { groupId: args.groupId });
+
+    // Build a preview of members with full dependent details
+    const preview = members.map((member: any) => ({
+      memberId: member.memberId,
+      firstName: member.firstName,
+      lastName: member.lastName,
+      email: member.email,
+      memberType: member.memberType,
+      dependentCount: (member.dependents ?? []).length,
+      totalRecords: 1 + (member.dependents ?? []).length, // primary + dependents
+      dependents: (member.dependents ?? []).map((dep: any) => ({
+        firstName: dep.firstName,
+        lastName: dep.lastName,
+        relationship: dep.relationship,
+        dateOfBirth: dep.dateOfBirth,
+      })),
+    }));
+
+    return {
+      groupId: args.groupId,
+      groupCode: group.groupCode,
+      organizationName: group.name || group.slug,
+      totalMembers: members.length,
+      totalRecords: members.reduce((sum: number, m: any) => sum + 1 + (m.dependents ?? []).length, 0),
+      members: preview,
+    };
   },
 });
 
@@ -217,7 +268,9 @@ export const generateDentalDiscountNetworkFile: any = action({
     let totalRecords = 0;
 
     for (const member of members) {
-      const uniqueId = toUniqueId(member.memberId ?? "UNKNOWN");
+      // Prefer the stored Careington Unique ID (set when member was imported from eligibility file);
+      // fall back to a derived ID for members enrolled directly (DTC, admin-added, etc.)
+      const uniqueId = (member as any).careingtonUniqueId ?? toUniqueId(member.memberId ?? "UNKNOWN");
       const dependents = member.dependents ?? [];
       const hasDependents = dependents.length > 0;
 
@@ -366,7 +419,7 @@ export const generateDialCareFile: any = action({
     const warnings: string[] = [];
 
     for (const member of members) {
-      const uniqueId = toUniqueId(member.memberId ?? "UNKNOWN");
+      const uniqueId = (member as any).careingtonUniqueId ?? toUniqueId(member.memberId ?? "UNKNOWN");
       const dependents = member.dependents ?? [];
       const hasDependents = dependents.length > 0;
       const coverage = hasDependents ? "MF" : "MO";
@@ -543,6 +596,22 @@ export const recordVendorFileGeneration = mutation({
 });
 
 /**
+ * Replace the groupCode in a pipe-delimited Careington row with IDEALDO.
+ * The groupCode is at position 17 (0-indexed) in the pipe-delimited fields.
+ * 
+ * CRITICAL: For aggregated files, ALL users must ALWAYS have groupcode IDEALDO.
+ * This ensures no user data leaves the system with any groupcode other than IDEALDO.
+ */
+function replaceGroupCodeWithIDEALDO(row: string): string {
+  const fields = row.split("|");
+  if (fields.length >= 18) {
+    // Field 17 (0-indexed) is the groupCode
+    fields[17] = "IDEALDO";
+  }
+  return fields.join("|");
+}
+
+/**
  * Get vendor file generation history
  */
 export const getVendorFileHistory = query({
@@ -566,9 +635,9 @@ export const getVendorFileHistory = query({
  * organizations (groups). Used for the monthly outbound batch where Ideal Health
  * forwards one consolidated file to Careington containing every org's members.
  *
- * Each row already carries its own Provider Group Code (per Careington spec),
- * so Careington can attribute members to the correct organization. We simply
- * stack the per-organization output into one file.
+ * CRITICAL REQUIREMENT: ALL rows in aggregated files ALWAYS use groupCode "IDEALDO".
+ * This ensures no user data leaves our system with any groupcode other than IDEALDO.
+ * Individual org groupCodes are stripped and replaced with IDEALDO during aggregation.
  *
  * Filename: IDEALOH-AGG-MMDDYY_{full|delta}.txt
  */
@@ -599,7 +668,13 @@ export const generateAggregatedDentalDiscountNetworkFile: any = action({
         // @ts-ignore
         : await ctx.runAction(api.admin.vendorFiles.generateDentalDiscountNetworkFile, { groupId: group._id, fileType });
 
-      if (result?.content) sections.push(result.content);
+      if (result?.content) {
+        // CRITICAL: Replace all groupCodes with IDEALDO in aggregated files
+        const lines = result.content.split("\r\n").map((line: string) => 
+          line.trim() ? replaceGroupCodeWithIDEALDO(line) : line
+        );
+        sections.push(lines.join("\r\n"));
+      }
       totalMembers += result?.memberCount ?? 0;
       totalRecords += result?.totalRecords ?? 0;
       if (Array.isArray(result?.warnings)) warnings.push(...result.warnings);

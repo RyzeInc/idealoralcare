@@ -4,27 +4,30 @@ import { useState } from 'react';
 import { useQuery, useAction } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
-import { FunctionReference } from 'convex/server';
-import { Download, BarChart3, AlertCircle, CheckCircle, WifiOff, History } from 'lucide-react';
+import { Download, BarChart3, AlertCircle, CheckCircle, WifiOff, History, Eye, EyeOff } from 'lucide-react';
+import { useToast, Breadcrumbs, SkeletonCard } from '@/components/admin/ui';
+import { formatDateTime } from '@/lib/admin-format';
 
 export default function VendorFilesPage() {
+  const toast = useToast();
   const [generatingVendor, setGeneratingVendor] = useState<string | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [fileType, setFileType] = useState<'full' | 'delta'>('full');
   const [showHistory, setShowHistory] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
 
-  const vendorConfigs = useQuery(api.admin.vendorFiles.getVendorConfigurations) || [];
+  const vendorConfigsRaw = useQuery(api.admin.vendorFiles.getVendorConfigurations);
+  const vendorConfigs = vendorConfigsRaw ?? [];
+  const isLoadingVendorConfigs = vendorConfigsRaw === undefined;
   const groups = useQuery(api.admin.hierarchy.getAllGroups) || [];
+  const preview = useQuery(
+    api.admin.vendorFiles.getVendorFilePreview,
+    selectedGroupId ? { groupId: selectedGroupId as Id<'groups'> } : "skip"
+  );
 
-  const generateDDN = useAction(
-    "admin/vendorFiles:generateDentalDiscountNetworkFile" as unknown as FunctionReference<"action", "public", { groupId: Id<'groups'>; fileType?: 'full' | 'delta' }, any>
-  );
-  const generateDialCare = useAction(
-    "admin/vendorFiles:generateDialCareFile" as unknown as FunctionReference<"action", "public", { groupId: Id<'groups'> }, any>
-  );
-  const generateAggregated = useAction(
-    "admin/vendorFiles:generateAggregatedDentalDiscountNetworkFile" as unknown as FunctionReference<"action", "public", { fileType?: 'full' | 'delta'; vendor?: 'careington' | 'dialcare' }, any>
-  );
+  const generateDDN = useAction(api.admin.vendorFiles.generateDentalDiscountNetworkFile);
+  const generateDialCare = useAction(api.admin.vendorFiles.generateDialCareFile);
+  const generateAggregated = useAction(api.admin.vendorFiles.generateAggregatedDentalDiscountNetworkFile);
 
   const downloadFile = (filename: string, content: string) => {
     const blob = new Blob([content], { type: 'text/plain' });
@@ -37,7 +40,10 @@ export default function VendorFilesPage() {
   };
 
   const handleGenerate = async (vendorName: string) => {
-    if (!selectedGroupId) { alert('Please select an organization first.'); return; }
+    if (!selectedGroupId) {
+      toast.warning('Select an organization', 'Pick an organization above before generating a vendor file.');
+      return;
+    }
     setGeneratingVendor(vendorName);
     try {
       const groupId = selectedGroupId as Id<'groups'>;
@@ -49,9 +55,10 @@ export default function VendorFilesPage() {
       }
       if (result?.content) {
         downloadFile(result.filename, result.content);
+        toast.success(`${vendorName} file ready`, `Downloaded ${result.filename}.`);
       }
     } catch (err) {
-      alert(`Generation failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      toast.fromError(err, `${vendorName} file generation failed`);
     } finally {
       setGeneratingVendor(null);
     }
@@ -66,9 +73,12 @@ export default function VendorFilesPage() {
       }
       const orgs = result?.organizationCount ?? 0;
       const members = result?.memberCount ?? 0;
-      alert(`Aggregated file ready: ${result.filename}\n${orgs} organizations, ${members} members.`);
+      toast.success(
+        `Aggregated file ready: ${result.filename}`,
+        `${orgs} organizations · ${members} members. All users use groupcode IDEALDO.`
+      );
     } catch (err) {
-      alert(`Aggregated generation failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      toast.fromError(err, 'Aggregated file generation failed');
     } finally {
       setGeneratingVendor(null);
     }
@@ -76,6 +86,7 @@ export default function VendorFilesPage() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: 'Vendor Files' }]} />
       <div>
         <h1 className="text-3xl font-bold text-slate-900">Vendor File Management</h1>
         <p className="text-slate-600">Generate and download eligibility files for vendors</p>
@@ -116,9 +127,84 @@ export default function VendorFilesPage() {
         </div>
       </div>
 
+      {/* Preview Section */}
+      {selectedGroupId && preview && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <button
+            onClick={() => setShowPreview(!showPreview)}
+            className="flex items-center gap-2 w-full text-left font-semibold text-blue-900 hover:text-blue-700"
+          >
+            {showPreview ? <EyeOff size={18} /> : <Eye size={18} />}
+            <span>
+              Users to be added: {preview.totalMembers} members ({preview.totalRecords} records including dependents)
+            </span>
+          </button>
+          {showPreview && (
+            <div className="mt-4 space-y-3">
+              <div className="text-sm text-blue-800 bg-white rounded p-3 border border-blue-100">
+                <p className="font-semibold mb-2">Organization: {preview.organizationName}</p>
+                <p className="text-xs text-blue-700">GroupCode: <span className="font-mono font-semibold">{preview.groupCode}</span></p>
+                <p className="text-xs text-blue-700 mt-1">Total Records: {preview.totalRecords}</p>
+              </div>
+              <div className="bg-white rounded border border-blue-100 overflow-hidden">
+                <div className="text-xs font-semibold text-slate-700 bg-blue-100 px-3 py-2 border-b border-blue-200 grid grid-cols-12 gap-2">
+                  <div className="col-span-3">Member</div>
+                  <div className="col-span-4">Email</div>
+                  <div className="col-span-2">Status</div>
+                  <div className="col-span-3">Records</div>
+                </div>
+                <div className="divide-y divide-blue-100 max-h-96 overflow-y-auto">
+                  {preview.members.map((member: any, idx: number) => (
+                    <div key={idx}>
+                      {/* Primary member row */}
+                      <div className="px-3 py-2 text-xs grid grid-cols-12 gap-2 hover:bg-blue-50">
+                        <div className="col-span-3 font-medium text-slate-900">{member.firstName} {member.lastName}</div>
+                        <div className="col-span-4 text-slate-600 truncate">{member.email || '—'}</div>
+                        <div className="col-span-2">
+                          <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                            member.memberType === 'active' ? 'bg-green-100 text-green-800' :
+                            member.memberType === 'enrolling' ? 'bg-blue-100 text-blue-800' :
+                            'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {member.memberType}
+                          </span>
+                        </div>
+                        <div className="col-span-3 text-slate-500">
+                          {member.dependentCount > 0 ? `+ ${member.dependentCount} dep${member.dependentCount !== 1 ? 's' : ''}` : 'member only'}
+                        </div>
+                      </div>
+                      {/* Dependent rows */}
+                      {member.dependents?.map((dep: any, dIdx: number) => (
+                        <div key={dIdx} className="px-3 py-1.5 text-xs grid grid-cols-12 gap-2 bg-slate-50 border-t border-slate-100">
+                          <div className="col-span-3 pl-4 text-slate-600 flex items-center gap-1">
+                            <span className="text-slate-400">↳</span> {dep.firstName} {dep.lastName}
+                          </div>
+                          <div className="col-span-4 text-slate-400 italic">—</div>
+                          <div className="col-span-2">
+                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600 capitalize">
+                              {dep.relationship?.replace('_', ' ')}
+                            </span>
+                          </div>
+                          <div className="col-span-3 text-slate-400">{dep.dateOfBirth || '—'}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Vendor Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {vendorConfigs.map((vendor: any) => (
+        {isLoadingVendorConfigs ? (
+          <>
+            <SkeletonCard />
+            <SkeletonCard />
+          </>
+        ) : vendorConfigs.map((vendor: any) => (
           <div key={vendor.vendor} className="bg-white rounded-lg shadow p-6">
             <div className="flex items-start justify-between mb-3">
               <h3 className="text-lg font-semibold text-slate-900">{vendor.vendor}</h3>
@@ -134,7 +220,7 @@ export default function VendorFilesPage() {
             <div className="space-y-1.5 text-sm mb-4">
               <div className="flex justify-between">
                 <span className="text-slate-500">Last Generated:</span>
-                <span className="font-medium">{vendor.lastGenerated ? new Date(vendor.lastGenerated).toLocaleString() : '—'}</span>
+                <span className="font-medium">{formatDateTime(vendor.lastGenerated)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Format:</span>
@@ -192,7 +278,10 @@ export default function VendorFilesPage() {
             <p className="text-sm text-slate-600 mt-1">
               Compile a single eligibility file containing all members across every active organization.
               This is the file Ideal Health forwards to Careington each month.
-              Each row carries its own Provider Group Code so the carrier can attribute members per organization.
+            </p>
+            <p className="text-sm font-semibold text-blue-700 mt-2 flex items-center gap-1">
+              <CheckCircle size={14} className="text-green-600" />
+              All users ALWAYS use groupcode: <span className="font-mono bg-blue-50 px-2 py-1 rounded">IDEALDO</span>
             </p>
           </div>
         </div>

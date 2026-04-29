@@ -1,31 +1,51 @@
 'use client';
 
-import { useState } from 'react';
-import { Search, Eye, Edit, Trash2, X, Clock, Send, CreditCard, Plus, Download, CheckSquare, Square, UserX } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { Search, Eye, Edit, Trash2, X, Clock, Send, CreditCard, Plus, Download, CheckSquare, Square, UserX, ExternalLink, AlertTriangle, CheckCircle2, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { FunctionReference } from 'convex/server';
-
-const STATUS_COLORS: Record<string, string> = {
-  active: 'bg-green-100 text-green-800',
-  enrolling: 'bg-blue-100 text-blue-800',
-  eligible: 'bg-yellow-100 text-yellow-800',
-  inactive: 'bg-gray-100 text-gray-800',
-  terminated: 'bg-red-100 text-red-800',
-  declined: 'bg-orange-100 text-orange-800',
-  lead: 'bg-purple-100 text-purple-800',
-};
+import { useToast, Breadcrumbs, StatusBadge, SkeletonTable, RequiredMark } from '@/components/admin/ui';
+import { formatDate, formatDateTime, formatPhone, formatCurrency } from '@/lib/admin-format';
 
 const ALL_STATUSES = ['lead', 'eligible', 'enrolling', 'active', 'inactive', 'terminated', 'declined'] as const;
 const PAGE_SIZE = 25;
+
+// Census Template required-field check (mirrors validateRequiredFields in eligibility.ts)
+// groupCode is not stored on the member profile directly, so it's excluded from the list check.
+const CENSUS_FIELDS: { key: string; label: string; get: (m: any) => boolean }[] = [
+  { key: 'firstName',       label: 'First Name',      get: (m) => !!m.firstName },
+  { key: 'lastName',        label: 'Last Name',       get: (m) => !!m.lastName },
+  { key: 'careingtonId',    label: 'Unique ID',       get: (m) => !!m.careingtonUniqueId },
+  { key: 'seqNum',          label: 'Sequence #',      get: (m) => !!m.careingtonSeqNum },
+  { key: 'addrLine1',       label: 'Address Line 1',  get: (m) => !!m.address?.line1 },
+  { key: 'city',            label: 'City',            get: (m) => !!m.address?.city },
+  { key: 'state',           label: 'State',           get: (m) => !!m.address?.state },
+  { key: 'zip',             label: 'Zip',             get: (m) => !!m.address?.postalCode },
+  { key: 'email',           label: 'Email',           get: (m) => !!m.email },
+  { key: 'dob',             label: 'Date of Birth',   get: (m) => !!m.dateOfBirth },
+  { key: 'effectiveDate',   label: 'Effective Date',  get: (m) => !!m.effectiveDate },
+];
+
+function getMissingFields(member: any): string[] {
+  return CENSUS_FIELDS.filter((f) => !f.get(member)).map((f) => f.label);
+}
+
+function SortIcon({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
+  if (!active) return <ChevronsUpDown size={12} className="text-slate-300" />;
+  return dir === 'asc'
+    ? <ChevronUp size={12} className="text-blue-600" />
+    : <ChevronDown size={12} className="text-blue-600" />;
+}
 
 function exportCSV(members: any[]) {
   const headers = ['Member ID', 'First Name', 'Last Name', 'Email', 'Phone', 'Status', 'DOB', 'Enrolled'];
   const rows = members.map((m) => [
     m.memberId, m.firstName ?? '', m.lastName ?? '', m.email ?? '', m.phone ?? '',
     m.memberType, m.dateOfBirth ?? '',
-    m.enrolledAt ? new Date(m.enrolledAt).toLocaleDateString() : '',
+    m.enrolledAt ? formatDate(m.enrolledAt) : '',
   ]);
   const csv = [headers, ...rows]
     .map((r) => r.map((v: any) => `"${String(v).replace(/"/g, '""')}"`).join(','))
@@ -38,6 +58,7 @@ function exportCSV(members: any[]) {
 }
 
 export default function MembersAdmin() {
+  const toast = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string | undefined>(undefined);
   const [selectedGroupId, setSelectedGroupId] = useState<string | undefined>(undefined);
@@ -56,8 +77,36 @@ export default function MembersAdmin() {
   const [bulkStatus, setBulkStatus] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState({ groupId: '', firstName: '', lastName: '', email: '', phone: '', dateOfBirth: '', memberType: 'eligible', employeeType: '' });
+  const [showMissingOnly, setShowMissingOnly] = useState(false);
+  const [sortKey, setSortKey] = useState<'name' | 'email' | 'memberId' | 'memberType' | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
-  const members = useQuery(api.admin.members.getAllMembers, {}) || [];
+  const toggleSort = (key: 'name' | 'email' | 'memberId' | 'memberType') => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+    setCurrentPage(0);
+  };
+
+  // ESC closes any open modal
+  useEffect(() => {
+    if (!showAddModal && !showBulkModal && !showStatusModal) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (showAddModal) setShowAddModal(false);
+      if (showBulkModal) setShowBulkModal(false);
+      if (showStatusModal) { setShowStatusModal(false); setStatusTarget(null); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showAddModal, showBulkModal, showStatusModal]);
+
+  const membersRaw = useQuery(api.admin.members.getAllMembers, {});
+  const members = membersRaw ?? [];
+  const isLoadingMembers = membersRaw === undefined;
   const groups = useQuery(api.admin.hierarchy.getAllGroups) || [];
   const memberDetail = useQuery(
     api.admin.members.getMemberDetail,
@@ -82,8 +131,31 @@ export default function MembersAdmin() {
       (member.memberId || '').includes(searchQuery);
     const matchesStatus = !selectedStatus || member.memberType === selectedStatus;
     const matchesGroup = !selectedGroupId || member.groupId === selectedGroupId;
-    return matchesSearch && matchesStatus && matchesGroup;
+    const matchesMissing = !showMissingOnly || getMissingFields(member).length > 0;
+    return matchesSearch && matchesStatus && matchesGroup && matchesMissing;
   });
+
+  // Apply sorting
+  if (sortKey) {
+    const dir = sortDir === 'asc' ? 1 : -1;
+    filteredMembers.sort((a: any, b: any) => {
+      let av: string; let bv: string;
+      if (sortKey === 'name') {
+        av = `${a.firstName ?? ''} ${a.lastName ?? ''}`.toLowerCase();
+        bv = `${b.firstName ?? ''} ${b.lastName ?? ''}`.toLowerCase();
+      } else {
+        av = (a[sortKey] ?? '').toString().toLowerCase();
+        bv = (b[sortKey] ?? '').toString().toLowerCase();
+      }
+      return av < bv ? -1 * dir : av > bv ? 1 * dir : 0;
+    });
+  }
+
+  // Census validation stats across ALL members (not just filtered)
+  const totalMembersCount = (members as any[]).length;
+  const membersWithIssues = (members as any[]).filter((m) => getMissingFields(m).length > 0);
+  const issueCount = membersWithIssues.length;
+  const completeCount = totalMembersCount - issueCount;
 
   const totalPages = Math.ceil(filteredMembers.length / PAGE_SIZE);
   const pagedMembers = filteredMembers.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
@@ -114,8 +186,9 @@ export default function MembersAdmin() {
       setStatusTarget(null);
       setNewStatus('');
       setStatusReason('');
+      toast.success('Status updated', `${statusTarget.name} → ${newStatus}`);
     } catch (err) {
-      alert(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      toast.fromError(err, 'Could not update status');
     }
   };
 
@@ -123,8 +196,9 @@ export default function MembersAdmin() {
     if (!confirm(`Terminate member "${name}"? This marks them as terminated.`)) return;
     try {
       await removeMember({ memberId: id, reason: 'Removed via admin panel' });
+      toast.success('Member terminated', name);
     } catch (err) {
-      alert(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      toast.fromError(err, 'Could not terminate member');
     }
   };
 
@@ -137,15 +211,16 @@ export default function MembersAdmin() {
         noteType: noteType as any,
       });
       setNoteContent('');
+      toast.success('Note added');
     } catch (err) {
-      alert(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      toast.fromError(err, 'Could not add note');
     }
   };
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!addForm.groupId || !addForm.firstName || !addForm.lastName) {
-      alert('Group, first name, and last name are required');
+      toast.warning('Missing required fields', 'Group, first name, and last name are required.');
       return;
     }
     try {
@@ -161,8 +236,9 @@ export default function MembersAdmin() {
       });
       setShowAddModal(false);
       setAddForm({ groupId: '', firstName: '', lastName: '', email: '', phone: '', dateOfBirth: '', memberType: 'eligible', employeeType: '' });
+      toast.success('Member created', `${addForm.firstName} ${addForm.lastName}`);
     } catch (err) {
-      alert(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      toast.fromError(err, 'Could not create member');
     }
   };
 
@@ -190,8 +266,9 @@ export default function MembersAdmin() {
         dateOfBirth: editForm.dateOfBirth || undefined,
       });
       setIsEditMode(false);
+      toast.success('Member updated');
     } catch (err) {
-      alert(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      toast.fromError(err, 'Could not save changes');
     }
   };
 
@@ -206,14 +283,19 @@ export default function MembersAdmin() {
       setShowBulkModal(false);
       setCheckedIds(new Set());
       setBulkStatus('');
-      alert(`Updated ${result.succeeded} of ${result.total} members.`);
+      if (result.succeeded === result.total) {
+        toast.success('Bulk update complete', `Updated ${result.succeeded} of ${result.total} members.`);
+      } else {
+        toast.warning('Bulk update partial', `Updated ${result.succeeded} of ${result.total} members. ${result.total - result.succeeded} failed.`);
+      }
     } catch (err) {
-      alert(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      toast.fromError(err, 'Bulk update failed');
     }
   };
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: 'Members' }]} />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Members</h1>
@@ -236,6 +318,42 @@ export default function MembersAdmin() {
           </button>
         </div>
       </div>
+
+      {/* Census completeness summary */}
+      {totalMembersCount > 0 && (
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 flex items-center gap-4">
+            <div className="p-2 bg-slate-100 rounded-lg"><CheckCircle2 size={20} className="text-slate-500" /></div>
+            <div>
+              <p className="text-2xl font-bold text-slate-900">{totalMembersCount}</p>
+              <p className="text-xs text-slate-500 mt-0.5">Total Members</p>
+            </div>
+          </div>
+          <div
+            className={`border rounded-xl px-5 py-4 flex items-center gap-4 cursor-pointer transition-colors ${showMissingOnly ? 'bg-red-50 border-red-300' : 'bg-white border-slate-200 hover:border-red-200'}`}
+            onClick={() => { setShowMissingOnly((v) => !v); setCurrentPage(0); }}
+          >
+            <div className={`p-2 rounded-lg ${issueCount > 0 ? 'bg-red-100' : 'bg-green-100'}`}>
+              <AlertTriangle size={20} className={issueCount > 0 ? 'text-red-600' : 'text-green-600'} />
+            </div>
+            <div>
+              <p className={`text-2xl font-bold ${issueCount > 0 ? 'text-red-700' : 'text-green-700'}`}>{issueCount}</p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Missing Census Fields {showMissingOnly ? <span className="font-semibold text-red-600">(filtered)</span> : <span className="text-slate-400">— click to filter</span>}
+              </p>
+            </div>
+          </div>
+          <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 flex items-center gap-4">
+            <div className="p-2 bg-green-100 rounded-lg"><CheckCircle2 size={20} className="text-green-600" /></div>
+            <div>
+              <p className="text-2xl font-bold text-green-700">{completeCount}</p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Complete Records {totalMembersCount > 0 && <span className="text-slate-400">({Math.round(completeCount / totalMembersCount * 100)}%)</span>}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search & Filter */}
       <div className="flex gap-4 flex-wrap">
@@ -291,15 +409,37 @@ export default function MembersAdmin() {
                     {allPageChecked ? <CheckSquare size={16} className="text-blue-600" /> : <Square size={16} />}
                   </button>
                 </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Name</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Email</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Member ID</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Status</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">
+                  <button onClick={() => toggleSort('name')} className="inline-flex items-center gap-1 hover:text-blue-600">
+                    Name <SortIcon active={sortKey === 'name'} dir={sortDir} />
+                  </button>
+                </th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">
+                  <button onClick={() => toggleSort('email')} className="inline-flex items-center gap-1 hover:text-blue-600">
+                    Email <SortIcon active={sortKey === 'email'} dir={sortDir} />
+                  </button>
+                </th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">
+                  <button onClick={() => toggleSort('memberId')} className="inline-flex items-center gap-1 hover:text-blue-600">
+                    Member ID <SortIcon active={sortKey === 'memberId'} dir={sortDir} />
+                  </button>
+                </th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">
+                  <button onClick={() => toggleSort('memberType')} className="inline-flex items-center gap-1 hover:text-blue-600">
+                    Status <SortIcon active={sortKey === 'memberType'} dir={sortDir} />
+                  </button>
+                </th>
                 <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {pagedMembers.length === 0 ? (
+              {isLoadingMembers ? (
+                <tr>
+                  <td colSpan={6} className="px-0 py-0">
+                    <SkeletonTable rows={6} cols={6} />
+                  </td>
+                </tr>
+              ) : pagedMembers.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-8 text-center text-slate-500">No members found</td>
                 </tr>
@@ -316,9 +456,7 @@ export default function MembersAdmin() {
                     <td className="px-6 py-4 text-slate-600 text-sm">{member.email}</td>
                     <td className="px-6 py-4 text-slate-600 font-mono text-sm">{member.memberId}</td>
                     <td className="px-6 py-4">
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${STATUS_COLORS[member.memberType] || 'bg-gray-100'}`}>
-                        {member.memberType}
-                      </span>
+                      <StatusBadge status={member.memberType} size="md" />
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex gap-1 justify-end" onClick={e => e.stopPropagation()}>
@@ -361,9 +499,18 @@ export default function MembersAdmin() {
               <h3 className="font-semibold text-slate-900">Member Detail</h3>
               <div className="flex items-center gap-1">
                 {!isEditMode && (
-                  <button onClick={openEdit} className="p-1 hover:bg-slate-100 rounded text-blue-600" title="Edit profile">
-                    <Edit size={15} />
-                  </button>
+                  <>
+                    <Link
+                      href={`/admin/members/${selectedMemberId}`}
+                      className="p-1 hover:bg-slate-100 rounded text-slate-600"
+                      title="View Full Details"
+                    >
+                      <ExternalLink size={15} />
+                    </Link>
+                    <button onClick={openEdit} className="p-1 hover:bg-slate-100 rounded text-blue-600" title="Edit profile">
+                      <Edit size={15} />
+                    </button>
+                  </>
                 )}
                 <button onClick={() => { setSelectedMemberId(null); setIsEditMode(false); }} className="p-1 hover:bg-slate-100 rounded">
                   <X size={16} />
@@ -399,10 +546,10 @@ export default function MembersAdmin() {
                   <dl className="mt-3 space-y-2 text-sm">
                     <div className="flex justify-between"><dt className="text-slate-500">Email</dt><dd className="font-medium">{memberDetail.member.email || '—'}</dd></div>
                     <div className="flex justify-between"><dt className="text-slate-500">Member ID</dt><dd className="font-mono font-medium">{memberDetail.member.memberId}</dd></div>
-                    <div className="flex justify-between"><dt className="text-slate-500">Status</dt><dd><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_COLORS[memberDetail.member.memberType] || ''}`}>{memberDetail.member.memberType}</span></dd></div>
-                    <div className="flex justify-between"><dt className="text-slate-500">Phone</dt><dd>{memberDetail.member.phone || '—'}</dd></div>
+                    <div className="flex justify-between"><dt className="text-slate-500">Status</dt><dd><StatusBadge status={memberDetail.member.memberType} /></dd></div>
+                    <div className="flex justify-between"><dt className="text-slate-500">Phone</dt><dd>{formatPhone(memberDetail.member.phone) || '—'}</dd></div>
                     <div className="flex justify-between"><dt className="text-slate-500">DOB</dt><dd>{memberDetail.member.dateOfBirth || '—'}</dd></div>
-                    <div className="flex justify-between"><dt className="text-slate-500">Enrolled</dt><dd>{memberDetail.member.enrolledAt ? new Date(memberDetail.member.enrolledAt).toLocaleDateString() : '—'}</dd></div>
+                    <div className="flex justify-between"><dt className="text-slate-500">Enrolled</dt><dd>{formatDate(memberDetail.member.enrolledAt)}</dd></div>
                     {memberDetail.member.employeeType && (
                       <div className="flex justify-between"><dt className="text-slate-500">Employee Type</dt><dd className="capitalize">{memberDetail.member.employeeType.replace('_', '-')}</dd></div>
                     )}
@@ -419,7 +566,7 @@ export default function MembersAdmin() {
                           if (win) { win.document.write(result.htmlContent); win.document.close(); }
                         }
                       } catch (err) {
-                        alert(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                        toast.fromError(err, 'Could not generate ID card');
                       }
                     }}
                     className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -438,9 +585,9 @@ export default function MembersAdmin() {
                             if (!confirm('Term this member from the list-bill plan? They will receive a re-enrollment link.')) return;
                             try {
                               await termListBillMember({ memberId: selectedMemberId! });
-                              alert('Member termed from list-bill. Send them a re-enrollment link when ready.');
+                              toast.success('Member termed from list-bill', 'Send them a re-enrollment link when ready.');
                             } catch (err) {
-                              alert(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                              toast.fromError(err, 'Could not term member');
                             }
                           }}
                           className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm border border-red-300 text-red-700 rounded-lg hover:bg-red-50"
@@ -452,16 +599,16 @@ export default function MembersAdmin() {
                         <>
                           <div className="text-xs text-amber-700 bg-amber-50 rounded px-2 py-1">
                             Termed {memberDetail.member.listBillTermedAt
-                              ? new Date(memberDetail.member.listBillTermedAt).toLocaleDateString()
+                              ? formatDate(memberDetail.member.listBillTermedAt)
                               : ''}
                           </div>
                           <button
                             onClick={async () => {
                               try {
                                 await sendReenrollLink({ memberId: selectedMemberId } as any);
-                                alert('Re-enrollment link sent!');
+                                toast.success('Re-enrollment link sent', 'The member should receive an email shortly.');
                               } catch (err) {
-                                alert(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                                toast.fromError(err, 'Could not send re-enrollment link');
                               }
                             }}
                             disabled={!memberDetail.member.email}
@@ -504,7 +651,7 @@ export default function MembersAdmin() {
                     <div key={note._id} className="p-2 bg-slate-50 rounded text-xs">
                       <div className="flex justify-between mb-1">
                         <span className="font-medium text-slate-700">{note.authorName}</span>
-                        <span className="text-slate-400">{new Date(note.createdAt).toLocaleDateString()}</span>
+                        <span className="text-slate-400">{formatDate(note.createdAt)}</span>
                       </div>
                       <p className="text-slate-600">{note.content}</p>
                     </div>
@@ -545,7 +692,7 @@ export default function MembersAdmin() {
                       <Clock size={12} className="text-slate-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0">
                         <p className="font-medium text-slate-700 truncate">{a.title}</p>
-                        <p className="text-slate-400">{new Date(a.createdAt).toLocaleString()}</p>
+                        <p className="text-slate-400">{formatDateTime(a.createdAt)}</p>
                       </div>
                     </div>
                   ))}
@@ -558,9 +705,18 @@ export default function MembersAdmin() {
 
       {/* Status Change Modal */}
       {showStatusModal && statusTarget && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h2 className="text-lg font-bold mb-1">Change Status</h2>
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => { setShowStatusModal(false); setStatusTarget(null); }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="status-modal-title"
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="status-modal-title" className="text-lg font-bold mb-1">Change Status</h2>
             <p className="text-sm text-slate-500 mb-4">{statusTarget.name} — current: <span className="font-medium">{statusTarget.current}</span></p>
             <select
               value={newStatus}
@@ -588,9 +744,18 @@ export default function MembersAdmin() {
       )}
       {/* Bulk Status Modal */}
       {showBulkModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
-            <h2 className="text-lg font-bold mb-1">Bulk Status Change</h2>
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setShowBulkModal(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="bulk-modal-title"
+            className="bg-white rounded-lg p-6 max-w-sm w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="bulk-modal-title" className="text-lg font-bold mb-1">Bulk Status Change</h2>
             <p className="text-sm text-slate-500 mb-4">{checkedIds.size} member(s) selected</p>
             <select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg mb-4">
               <option value="">Select new status...</option>
@@ -606,12 +771,21 @@ export default function MembersAdmin() {
 
       {/* Add Member Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-lg font-bold mb-4">Add New Member</h2>
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setShowAddModal(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-member-modal-title"
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="add-member-modal-title" className="text-lg font-bold mb-4">Add New Member</h2>
             <form onSubmit={handleAddMember} className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Group *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Group<RequiredMark /></label>
                 <select value={addForm.groupId} onChange={(e) => setAddForm((f) => ({ ...f, groupId: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg" required>
                   <option value="">Select a group...</option>
                   {(groups as any[]).map((g) => <option key={g._id} value={g._id}>{g.name}</option>)}
@@ -619,11 +793,11 @@ export default function MembersAdmin() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">First Name *</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">First Name<RequiredMark /></label>
                   <input type="text" value={addForm.firstName} onChange={(e) => setAddForm((f) => ({ ...f, firstName: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg" required />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Last Name *</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Last Name<RequiredMark /></label>
                   <input type="text" value={addForm.lastName} onChange={(e) => setAddForm((f) => ({ ...f, lastName: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg" required />
                 </div>
               </div>

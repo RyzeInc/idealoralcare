@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Scan } from 'lucide-react';
+import { Scan, X } from 'lucide-react';
 import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 
@@ -21,10 +21,10 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [isStartingScan, setIsStartingScan] = useState(false);
-  // When viewing a historical scan in the overlay, we store its URL here
+  // When viewing a completed report in the overlay, we store its reportUrl here
   const [overlayUrl, setOverlayUrl] = useState<string | null>(null);
-  // True when the overlay is resuming an in-progress scan (Done should mark it complete)
-  const [overlayIsResume, setOverlayIsResume] = useState(false);
+  // True when the confirm-on-close modal is visible (during active scan)
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Convex queries — server derives the caller from auth; gate on userId to
   // avoid firing until Clerk is ready.
@@ -41,8 +41,14 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
   const getOrCreateUser = useAction(api.healthplans.toothlens.getOrCreateToothlensUser);
   const startScanMut = useMutation(api.healthplans.toothlens.startScan);
   const markScanCompletedMut = useMutation(api.healthplans.toothlens.markScanCompleted);
+  const markScanAbandonedMut = useMutation(api.healthplans.toothlens.markScanAbandoned);
   const forwardToTeledentistMut = useMutation(api.healthplans.toothlens.forwardToTeledentist);
   const storeReportUrlMut = useMutation(api.healthplans.toothlens.storeReportUrl);
+
+  // Stable ref so the postMessage handler always reads the current convexScanId
+  // without needing to re-register the listener on every scan state change.
+  const convexScanIdRef = useRef<string | null>(null);
+  useEffect(() => { convexScanIdRef.current = convexScanId; }, [convexScanId]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -153,18 +159,7 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
     }
   }, [userId, isStartingScan, ensureToothlensUser, startScanMut]);
 
-  /**
-   * Minimize the inline scanner UI without touching the scan record. The user
-   * may still be scanning on their phone — we only update status when they
-   * explicitly mark complete or the iframe signals completion.
-   */
-  const minimizeScan = useCallback(() => {
-    setScannerActive(false);
-    setActiveScanUrl(null);
-    setConvexScanId(null);
-  }, []);
-
-  /** Mark the active scan complete and close the UI. */
+  /** Mark the active scan complete and close all scan UI. */
   const completeScan = useCallback(() => {
     if (convexScanId) {
       markScanCompletedMut({ scanId: convexScanId as any, completed: true }).catch(() => {});
@@ -172,73 +167,33 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
     setScannerActive(false);
     setActiveScanUrl(null);
     setConvexScanId(null);
+    setShowMobileOverlay(false);
+    setShowConfirmModal(false);
   }, [convexScanId, markScanCompletedMut]);
 
-  /**
-   * After a Toothlens UID repair or company migration, legacy session URLs may
-   * point at an upstream UID that is no longer valid. Completed scans remain
-   * accessible when we captured a direct reportUrl; otherwise only rows that
-   * still match the caller's current Toothlens UID may be reopened.
-   */
-  const canOpenHistoricalScan = useCallback(
-    (scan: { toothlensUid: string; reportUrl?: string }): boolean => {
-      if (scan.reportUrl) return true;
-      if (!toothlensUser?.toothlensUid) return true;
-      return toothlensUser.toothlensUid === scan.toothlensUid;
-    },
-    [toothlensUser]
-  );
+  /** Mark the active scan abandoned (user closed without completing) and clear all scan UI. */
+  const abandonScan = useCallback(() => {
+    if (convexScanId) {
+      markScanAbandonedMut({ scanId: convexScanId as any }).catch(() => {});
+    }
+    setScannerActive(false);
+    setActiveScanUrl(null);
+    setConvexScanId(null);
+    setShowMobileOverlay(false);
+    setShowConfirmModal(false);
+  }, [convexScanId, markScanAbandonedMut]);
 
-  /**
-   * Build a scanner URL for a historical scan. Historical rows always persist
-   * `scanUrl` so we never have to guess the company.
-   */
-  const buildScanUrl = useCallback(
-    (scan: { scanUrl?: string; toothlensUid: string; sessionId: string; reportUrl?: string }): string | null => {
-      if (scan.reportUrl) return scan.reportUrl;
-      if (!canOpenHistoricalScan(scan)) return null;
-      if (scan.scanUrl) return scan.scanUrl;
-      // Legacy rows without scanUrl — fall back to the caller's stored company.
-      if (toothlensUser?.company) {
-        return (
-          `https://selfcheck.toothlens.com/ai/${toothlensUser.company}` +
-          `?uid=${encodeURIComponent(scan.toothlensUid)}` +
-          `&session_id=${encodeURIComponent(scan.sessionId)}`
-        );
-      }
-      return null;
-    },
-    [canOpenHistoricalScan, toothlensUser]
-  );
+  /** Open a completed scan's stored reportUrl in the overlay (read-only). */
+  const openStoredReport = useCallback((reportUrl: string) => {
+    setOverlayUrl(reportUrl);
+    setShowMobileOverlay(true);
+  }, []);
 
-  /**
-   * Open a historical completed scan in the mobile overlay so the postMessage
-   * listener can retroactively capture the reportUrl when Toothlens fires it.
-   */
-  const openReportOverlay = useCallback(
-    (scan: { _id: string; scanUrl?: string; toothlensUid: string; sessionId: string; status?: string }) => {
-      const url = buildScanUrl(scan);
-      if (!url) return;
-      setOverlayUrl(url);
-      setConvexScanId(scan._id);
-      setOverlayIsResume(scan.status === 'started');
-      setShowMobileOverlay(true);
-    },
-    [buildScanUrl]
-  );
-
-  const closeReportOverlay = useCallback(
-    (markComplete = false) => {
-      if (markComplete && convexScanId) {
-        markScanCompletedMut({ scanId: convexScanId as any, completed: true }).catch(() => {});
-      }
-      setShowMobileOverlay(false);
-      setOverlayUrl(null);
-      setOverlayIsResume(false);
-      setConvexScanId(null);
-    },
-    [convexScanId, markScanCompletedMut]
-  );
+  /** Close the report-view overlay. */
+  const closeReportOverlay = useCallback(() => {
+    setShowMobileOverlay(false);
+    setOverlayUrl(null);
+  }, []);
 
   const handleForwardToTeledentist = useCallback(
     async (scanId: string) => {
@@ -304,20 +259,23 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
               </div>
             </div>
             <button
-              onClick={minimizeScan}
+              onClick={() => setShowConfirmModal(true)}
+              aria-label="Close scan"
               style={{
-                background: '#f1f5f9',
-                border: '1px solid #e2e8f0',
-                borderRadius: '8px',
-                padding: '0.5rem 1rem',
+                background: 'rgba(0,0,0,0.06)',
+                border: 'none',
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 cursor: 'pointer',
                 color: '#64748b',
-                fontWeight: 600,
-                fontSize: '0.875rem',
                 flexShrink: 0,
               }}
             >
-              Close
+              <X size={18} />
             </button>
           </div>
 
@@ -422,47 +380,6 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
               ))}
             </div>
           </div>
-
-          {/* Completion footer */}
-          <div
-            style={{
-              marginTop: '2rem',
-              paddingTop: '1.5rem',
-              borderTop: '1px solid #e2e8f0',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1.5rem',
-              flexWrap: 'wrap',
-            }}
-          >
-            <div style={{ flex: 1, minWidth: '180px' }}>
-              <p style={{ fontWeight: 600, color: '#0f172a', margin: '0 0 0.25rem 0' }}>
-                Finished your scan on your phone?
-              </p>
-              <p style={{ color: '#64748b', fontSize: '0.875rem', margin: 0 }}>
-                Tap below to save your session. You can then forward your results to a teledentist.
-              </p>
-            </div>
-            <button
-              onClick={completeScan}
-              style={{
-                background: 'linear-gradient(135deg, #2ECC71, #27AE60)',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '10px',
-                padding: '0.75rem 1.5rem',
-                fontWeight: 700,
-                fontSize: '0.9375rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              ✓ I&rsquo;ve Completed My Scan
-            </button>
-          </div>
         </div>
       )}
 
@@ -478,127 +395,222 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
               width: '100vw',
               height: '100dvh',
               zIndex: 9999,
-              display: 'flex',
-              flexDirection: 'column',
-              background: '#000',
+              background: '#fff',
               overflow: 'hidden',
               contain: 'layout size style',
             }}
           >
-            {/* Header bar */}
-            <div
+            {/* Chromeless iframe — fills the full viewport */}
+            <iframe
+              key={overlayUrl ?? activeScanUrl ?? 'mobile-overlay'}
+              src={overlayUrl ?? getScanUrl()}
               style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                border: 'none',
+                background: '#fff',
+                display: 'block',
+              }}
+              allow="camera; microphone; accelerometer; gyroscope; clipboard-write; downloads; fullscreen"
+              referrerPolicy="origin-when-cross-origin"
+              title={overlayUrl ? 'SmileScan Report' : 'AI Oral Scanning SmileScan — Mobile'}
+            />
+
+            {/* Floating close button — safe-area aware for iOS notch */}
+            <button
+              onClick={() => overlayUrl ? closeReportOverlay() : setShowConfirmModal(true)}
+              aria-label="Close"
+              style={{
+                position: 'absolute',
+                top: 'calc(env(safe-area-inset-top, 0px) + 12px)',
+                right: '12px',
+                zIndex: 10000,
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                background: 'rgba(15, 23, 42, 0.55)',
+                border: '1px solid rgba(255,255,255,0.2)',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0.5rem 1rem',
-                background: '#0f172a',
-                borderBottom: '1px solid rgba(255,255,255,0.1)',
-                flexShrink: 0,
-                minHeight: '44px',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                backdropFilter: 'blur(4px)',
+                WebkitBackdropFilter: 'blur(4px)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden' }}>
-                <Scan size={18} color="#2ECC71" style={{ flexShrink: 0 }} />
-                <span
-                  style={{
-                    color: '#fff',
-                    fontWeight: 700,
-                    fontSize: '0.875rem',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  {overlayUrl ? 'View Report' : 'SmileScan'}
-                </span>
-              </div>
-              <button
-                onClick={() => overlayIsResume || overlayUrl ? closeReportOverlay(false) : setShowMobileOverlay(false)}
-                style={{
-                  background: 'rgba(255,255,255,0.1)',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  borderRadius: '8px',
-                  color: '#fff',
-                  cursor: 'pointer',
-                  padding: '0.35rem 0.75rem',
-                  fontWeight: 600,
-                  fontSize: '0.8125rem',
-                  flexShrink: 0,
-                }}
-              >
-                ✕ Close
-              </button>
-            </div>
+              <X size={18} color="#fff" />
+            </button>
 
-            {/* Iframe */}
-            <div style={{ flex: 1, overflow: 'hidden', position: 'relative', width: '100%' }}>
-              <iframe
-                key={overlayUrl ?? activeScanUrl ?? 'mobile-overlay'}
-                src={overlayUrl ?? getScanUrl()}
+            {/* Confirm-on-close modal — only during active scans (not report view) */}
+            {showConfirmModal && !overlayUrl && (
+              <div
                 style={{
                   position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  border: 'none',
-                  background: '#fff',
-                  display: 'block',
-                }}
-                allow="camera; microphone; accelerometer; gyroscope; clipboard-write; downloads; fullscreen"
-                referrerPolicy="origin-when-cross-origin"
-                title="AI Oral Scanning SmileScan — Mobile"
-              />
-            </div>
-
-            {/* Done bar */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0.5rem 1rem',
-                background: '#f8fafc',
-                borderTop: '1px solid #e2e8f0',
-                flexShrink: 0,
-                minHeight: '44px',
-              }}
-            >
-              <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>
-                {overlayIsResume ? 'Finished your scan?' : overlayUrl ? 'Done viewing your report?' : 'Finished your scan?'}
-              </span>
-              <button
-                onClick={() => {
-                  if (overlayIsResume) {
-                    // Resuming an in-progress scan — mark complete on Done
-                    closeReportOverlay(true);
-                  } else if (overlayUrl) {
-                    // Viewing a completed historical report — just close
-                    closeReportOverlay(false);
-                  } else {
-                    setShowMobileOverlay(false);
-                    completeScan();
-                  }
-                }}
-                style={{
-                  background: 'linear-gradient(135deg, #16a34a, #15803d)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '10px',
-                  padding: '0.5rem 1rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  fontSize: '0.8125rem',
-                  flexShrink: 0,
+                  inset: 0,
+                  zIndex: 10001,
+                  background: 'rgba(0, 0, 0, 0.55)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '1.5rem',
                 }}
               >
-                {overlayIsResume ? 'Done' : overlayUrl ? 'Close' : 'Done'}
-              </button>
-            </div>
+                <div
+                  style={{
+                    background: '#fff',
+                    borderRadius: '20px',
+                    padding: '2rem',
+                    maxWidth: '380px',
+                    width: '100%',
+                    boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+                    textAlign: 'center',
+                  }}
+                >
+                  <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🦷</div>
+                  <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', margin: '0 0 0.5rem 0' }}>
+                    Did you finish your scan?
+                  </h3>
+                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginBottom: '1.75rem', lineHeight: 1.6, margin: '0 0 1.75rem 0' }}>
+                    If you&apos;re still scanning, go back and finish. Once complete, tap &ldquo;Yes, I&apos;m done&rdquo; to save your results.
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <button
+                      onClick={() => setShowConfirmModal(false)}
+                      style={{
+                        background: 'linear-gradient(135deg, #2ECC71, #27AE60)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '12px',
+                        padding: '0.875rem',
+                        fontWeight: 700,
+                        fontSize: '1rem',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Not yet — keep scanning
+                    </button>
+                    <button
+                      onClick={completeScan}
+                      style={{
+                        background: '#f1f5f9',
+                        color: '#0f172a',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '12px',
+                        padding: '0.875rem',
+                        fontWeight: 600,
+                        fontSize: '0.9375rem',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Yes, I&apos;m done — save my results
+                    </button>
+                    <button
+                      onClick={abandonScan}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#94a3b8',
+                        fontSize: '0.8125rem',
+                        cursor: 'pointer',
+                        padding: '0.25rem',
+                        textDecoration: 'underline',
+                      }}
+                    >
+                      Cancel scan
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>,
           document.body
         )}
+
+      {/* Confirm modal portal — for desktop inline card (when overlay is not open) */}
+      {isMounted && showConfirmModal && !showMobileOverlay && createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99999,
+            background: 'rgba(0, 0, 0, 0.55)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1.5rem',
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: '20px',
+              padding: '2rem',
+              maxWidth: '380px',
+              width: '100%',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🦷</div>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', margin: '0 0 0.5rem 0' }}>
+              Did you finish your scan?
+            </h3>
+            <p style={{ color: '#64748b', fontSize: '0.875rem', margin: '0 0 1.75rem 0', lineHeight: 1.6 }}>
+              If you&apos;re still scanning on your phone, go back and finish. Once complete, tap &ldquo;Yes, I&apos;m done&rdquo; to save your results.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                style={{
+                  background: 'linear-gradient(135deg, #2ECC71, #27AE60)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '12px',
+                  padding: '0.875rem',
+                  fontWeight: 700,
+                  fontSize: '1rem',
+                  cursor: 'pointer',
+                }}
+              >
+                Not yet — keep scanning
+              </button>
+              <button
+                onClick={completeScan}
+                style={{
+                  background: '#f1f5f9',
+                  color: '#0f172a',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  padding: '0.875rem',
+                  fontWeight: 600,
+                  fontSize: '0.9375rem',
+                  cursor: 'pointer',
+                }}
+              >
+                Yes, I&apos;m done — save my results
+              </button>
+              <button
+                onClick={abandonScan}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  fontSize: '0.8125rem',
+                  cursor: 'pointer',
+                  padding: '0.25rem',
+                  textDecoration: 'underline',
+                }}
+              >
+                Cancel scan
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* ── Landing content — hidden while scanner is active ── */}
       {!scannerActive && (
@@ -923,9 +935,9 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
                   ? { bg: '#dcfce7', text: '#166534', label: 'Completed' }
                   : scan.status === 'cancelled'
                   ? { bg: '#fef3c7', text: '#92400e', label: 'Cancelled' }
+                  : scan.status === 'abandoned'
+                  ? { bg: '#fef3c7', text: '#92400e', label: 'Not Completed' }
                   : { bg: '#dbeafe', text: '#1e40af', label: 'In Progress' };
-
-              const canOpenScan = canOpenHistoricalScan(scan as { toothlensUid: string; reportUrl?: string });
 
               return (
                 <div
@@ -973,9 +985,10 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
                     >
                       {statusColor.label}
                     </span>
-                    {scan.status === 'completed' && canOpenScan && (
+                    {/* View Report — only shown when a stored reportUrl exists */}
+                    {scan.status === 'completed' && scan.reportUrl && (
                       <button
-                        onClick={() => openReportOverlay(scan as any)}
+                        onClick={() => openStoredReport(scan.reportUrl!)}
                         style={{
                           padding: '0.5rem 0.875rem',
                           background: '#3b82f6',
@@ -987,53 +1000,27 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
                           cursor: 'pointer',
                         }}
                       >
-                        {scan.reportUrl ? 'Open Report' : 'View Report'}
+                        View Report
                       </button>
                     )}
-                    {scan.status === 'completed' && !canOpenScan && (
-                      <span
-                        style={{
-                          padding: '0.25rem 0.75rem',
-                          background: '#fff7ed',
-                          color: '#9a3412',
-                          borderRadius: '9999px',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                        }}
-                      >
-                        Legacy session unavailable
-                      </span>
-                    )}
-                    {scan.status === 'started' && canOpenScan && (
+                    {/* Start New Scan for unfinished entries */}
+                    {(scan.status === 'started' || scan.status === 'abandoned') && !scannerActive && (
                       <button
-                        onClick={() => openReportOverlay(scan as any)}
+                        onClick={openScan}
+                        disabled={isStartingScan}
                         style={{
                           padding: '0.5rem 0.875rem',
-                          background: '#f59e0b',
-                          color: '#fff',
+                          background: isStartingScan ? '#f1f5f9' : '#f59e0b',
+                          color: isStartingScan ? '#94a3b8' : '#fff',
                           border: 'none',
                           borderRadius: '8px',
                           fontSize: '0.75rem',
                           fontWeight: 600,
-                          cursor: 'pointer',
+                          cursor: isStartingScan ? 'default' : 'pointer',
                         }}
                       >
-                        Resume Scan
+                        {isStartingScan ? 'Starting…' : 'Start New Scan'}
                       </button>
-                    )}
-                    {scan.status === 'started' && !canOpenScan && (
-                      <span
-                        style={{
-                          padding: '0.25rem 0.75rem',
-                          background: '#fff7ed',
-                          color: '#9a3412',
-                          borderRadius: '9999px',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                        }}
-                      >
-                        Session expired
-                      </span>
                     )}
                     {scan.status === 'completed' && scan.reportUrl && (
                       <a

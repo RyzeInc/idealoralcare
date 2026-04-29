@@ -208,7 +208,7 @@ export const initializeEnrollment = mutation({
           slug: "default",
           name: "Individual Enrollment",
           description: "Default group for direct-to-consumer enrollment",
-          groupCode: "DTC-DEFAULT",
+          groupCode: "IDEALDO",
           status: "active",
           createdAt: now2,
           updatedAt: now2,
