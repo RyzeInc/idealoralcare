@@ -13,7 +13,7 @@ const TEST_MEMBER = {
   memberServicesPhone: '(800) 290-0523',
 };
 
-type EmailType = 'fulfillment-packet' | 'welcome' | 'confirmation' | 'cancelled' | 'eligibility-set-password';
+type EmailType = 'fulfillment-packet' | 'welcome' | 'confirmation' | 'cancelled' | 'eligibility-set-password' | 'employer-membership-agreement';
 
 export async function POST(req: NextRequest) {
   try {
@@ -147,6 +147,28 @@ export async function POST(req: NextRequest) {
           sponsorName: 'Acme Corp (Test Sponsor)',
           portalUrl,
         });
+        break;
+      }
+
+      case 'employer-membership-agreement': {
+        const { emailTemplates } = await import('@/email-templates/membershipEmails');
+        const tpl = emailTemplates.employerMembershipAgreement({
+          memberName,
+          memberEmail: to,
+          memberAddress: '123 Any Street\nCity, State 00000',
+          memberId: TEST_MEMBER.memberId,
+          groupName: TEST_MEMBER.planName,
+          groupCode: TEST_MEMBER.groupCode,
+          term: 'ANNUAL',
+          effectiveDate: TEST_MEMBER.effectiveDate,
+          employerPhone: '(800) 555-1234',
+          classification: 'Employee',
+          modeOfPayment: 'Payroll Deduction',
+          periodicCharge: '$9.95',
+          processingFee: '$0.00',
+        });
+        subject = tpl.subject;
+        html = tpl.html;
         break;
       }
 
