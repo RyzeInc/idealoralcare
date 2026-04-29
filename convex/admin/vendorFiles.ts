@@ -198,7 +198,7 @@ export const getVendorConfigurations = query({
  * Get a preview of members that will be included in a vendor file for a specific group.
  * Shows which users will be added to the generation before actually generating.
  */
-export const getVendorFilePreview: any = query({
+export const getVendorFilePreview = query({
   args: {
     groupId: v.id("groups"),
   },
