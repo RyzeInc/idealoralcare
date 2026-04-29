@@ -247,12 +247,12 @@ export const getVendorFilePreview = query({
  * - Dependents included with same Unique ID, incrementing sequence numbers
  * - Full file only contains active members; terminated members are termed by absence
  */
-export const generateDentalDiscountNetworkFile: any = action({
+export const generateDentalDiscountNetworkFile = action({
   args: {
     groupId: v.id("groups"),
     fileType: v.optional(v.union(v.literal("full"), v.literal("delta"))),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{ filename: string; content: string; memberCount: number; totalRecords: number; generatedAt: number }> => {
     // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
     await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const group = await ctx.runQuery(api.admin.hierarchy.getGroupById, { groupId: args.groupId });
@@ -397,12 +397,12 @@ export const generateDentalDiscountNetworkFile: any = action({
  * The only difference from the Dental Discount Network file is the group code
  * (DialCare has its own Careington-assigned group code).
  */
-export const generateDialCareFile: any = action({
+export const generateDialCareFile = action({
   args: {
     groupId: v.id("groups"),
     fileType: v.optional(v.union(v.literal("full"), v.literal("delta"))),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{ filename: string; content: string; memberCount: number; totalRecords: number; warnings: string[]; generatedAt: number }> => {
     // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
     await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const group = await ctx.runQuery(api.admin.hierarchy.getGroupById, { groupId: args.groupId });
@@ -542,12 +542,12 @@ export const generateDialCareFile: any = action({
 /**
  * Generic vendor file generator (dispatcher)
  */
-export const generateVendorFile: any = action({
+export const generateVendorFile = action({
   args: {
     groupId: v.id("groups"),
     vendor: v.string(), // "careington" | "dialcare"
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{ filename: string; content: string; memberCount: number; totalRecords: number; generatedAt: number; warnings?: string[] }> => {
     // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
     await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
 
@@ -641,7 +641,7 @@ export const getVendorFileHistory = query({
  *
  * Filename: IDEALOH-AGG-MMDDYY_{full|delta}.txt
  */
-export const generateAggregatedDentalDiscountNetworkFile: any = action({
+export const generateAggregatedDentalDiscountNetworkFile = action({
   args: {
     fileType: v.optional(v.union(v.literal("full"), v.literal("delta"))),
     vendor: v.optional(v.union(v.literal("careington"), v.literal("dialcare"))),

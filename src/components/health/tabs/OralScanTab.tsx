@@ -23,6 +23,7 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
   const [isStartingScan, setIsStartingScan] = useState(false);
   // When viewing a completed report in the overlay, we store its reportUrl here
   const [overlayUrl, setOverlayUrl] = useState<string | null>(null);
+  const [overlayIsResume, setOverlayIsResume] = useState(false);
   // True when the confirm-on-close modal is visible (during active scan)
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
