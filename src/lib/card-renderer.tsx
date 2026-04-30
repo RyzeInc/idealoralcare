@@ -120,7 +120,7 @@ export function renderCardBack(cardData: MemberCardData): RenderedCardSide {
           items: [
             {
               name: 'Teledentistry — DialCare',
-              phone: '(855) 335-2255',
+              phone: cardData.supportPhone,
               website: cardData.networks.dialCare.memberUrl,
             },
             {
@@ -240,9 +240,9 @@ export function fulfillmentToCardData(fulfillmentData: {
   memberWebsite?: string;
   memberEmail?: string;
 }): MemberCardData {
-  const phone = fulfillmentData.memberServicesPhone || 'support@getidealoh.com';
+  const phone = fulfillmentData.memberServicesPhone || '(855)-335-2255';
   const website = fulfillmentData.memberWebsite || 'www.getidealoh.com';
-  const email = fulfillmentData.memberEmail || 'support@getidealoh.com';
+  const email = fulfillmentData.memberEmail || '(855)-335-2255';
 
   return {
     memberName: fulfillmentData.memberName,

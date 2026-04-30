@@ -53,8 +53,8 @@ export async function GET() {
       year: "numeric",
     }),
     term: bundleData?.pricingSnapshot?.totalCents > 2000 ? "Annual" : "Monthly",
-    memberServicesPhone: "support@getidealoh.com",
-    memberWebsite: "getidealoh.com/health/dashboard",
+    memberServicesPhone: "(855)-335-2255",
+    memberWebsite: "www.careington.com",
   };
 
   // Load logo as base64 data URI

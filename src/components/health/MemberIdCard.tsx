@@ -17,6 +17,16 @@ interface MemberIdCardProps {
   onDownload?: () => void;
 }
 
+const CAREINGTON_LOGO_SRC = "/careington-logo.png";
+const cardLogoStyle: React.CSSProperties = {
+  position: 'absolute',
+  bottom: '1.25rem',
+  right: '1.25rem',
+  width: '84px',
+  opacity: 0.28,
+  pointerEvents: 'none',
+};
+
 export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps) {
   const [flipped, setFlipped] = useState(false);
 
@@ -101,6 +111,13 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
                 position: 'absolute', top: 0, left: 0, right: 0, height: '4px',
                 background: 'linear-gradient(90deg, #0066CC, #14b8a6)',
               }}
+            />
+            {/* Logo watermark */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={CAREINGTON_LOGO_SRC}
+              alt="Careington"
+              style={cardLogoStyle}
             />
 
             {/* Header row */}
@@ -219,6 +236,13 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
                 background: 'linear-gradient(90deg, #14b8a6, #0066CC)',
               }}
             />
+            {/* Logo watermark */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={CAREINGTON_LOGO_SRC}
+              alt="Careington"
+              style={cardLogoStyle}
+            />
 
             {/* Networks */}
             <div>
@@ -230,14 +254,14 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
                   <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>
                     Teledentistry — DialCare
                   </span>
-                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>support@getidealoh.com</span>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(855)-335-2255</span>
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#475569' }}>
                   {cardData.networks.dialCare.memberUrl.replace('https://', '')}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
                   <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>
-                    Dental Discount Network
+                    Careington Dental Discount Network
                   </span>
                   <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{cardData.supportPhone}</span>
                 </div>
