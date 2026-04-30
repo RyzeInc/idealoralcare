@@ -125,7 +125,7 @@ export function renderCardBack(cardData: MemberCardData): RenderedCardSide {
             },
             {
               name: 'Careington Dental Discount Network',
-              phone: cardData.supportPhone,
+              phone: '(800) 290-0523',
               website: cardData.networks.careington.memberUrl,
             },
             {

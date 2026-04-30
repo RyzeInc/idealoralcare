@@ -1019,7 +1019,7 @@ function MemberCardFrontPage({ data }: { data: FulfillmentPacketData }) {
             </View>
             <View style={cardStyles.headerRight}>
               <Text style={cardStyles.headerRightLine}>{data.memberWebsite}</Text>
-              <Text style={cardStyles.headerRightLine}>{data.memberServicesPhone}</Text>
+              <Text style={cardStyles.headerRightLine}>{data.memberEmail}</Text>
             </View>
           </View>
 
@@ -1094,7 +1094,7 @@ function MemberCardBackPage({ data }: { data: FulfillmentPacketData }) {
                   Careington Dental Discount Network
                 </Text>
                 <Text style={{ fontSize: 6.5, color: '#94a3b8', marginLeft: 4 }}>
-                  {phone}
+                  (800) 290-0523
                 </Text>
               </View>
               <Text style={{ fontSize: 6.5, color: '#475569', marginTop: 1 }}>

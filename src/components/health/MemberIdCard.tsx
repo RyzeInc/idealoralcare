@@ -137,7 +137,7 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
               </div>
               <div style={{ fontSize: '0.6875rem', color: '#94a3b8', textAlign: 'right' }}>
                 <div>www.getidealoh.com</div>
-                <div>{cardData.supportPhone}</div>
+                <div>support@getidealoh.com</div>
               </div>
             </div>
 
@@ -263,7 +263,7 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
                   <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>
                     Careington Dental Discount Network
                   </span>
-                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{cardData.supportPhone}</span>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(800) 290-0523</span>
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#475569' }}>
                   {cardData.networks.careington.memberUrl.replace('https://', '')}
