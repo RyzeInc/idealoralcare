@@ -1019,6 +1019,7 @@ function MemberCardFrontPage({ data }: { data: FulfillmentPacketData }) {
             </View>
             <View style={cardStyles.headerRight}>
               <Text style={cardStyles.headerRightLine}>{data.memberWebsite}</Text>
+              <Text style={cardStyles.headerRightLine}>{data.memberEmail}</Text>
               <Text style={cardStyles.headerRightLine}>
                 {data.memberServicesPhone ?? '(844) 679-9367'}
               </Text>
