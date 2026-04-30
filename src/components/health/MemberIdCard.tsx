@@ -17,6 +17,16 @@ interface MemberIdCardProps {
   onDownload?: () => void;
 }
 
+const CAREINGTON_LOGO_SRC = "/careington-logo.png";
+const cardLogoStyle: React.CSSProperties = {
+  position: 'absolute',
+  bottom: '1.25rem',
+  right: '1.25rem',
+  width: '84px',
+  opacity: 0.28,
+  pointerEvents: 'none',
+};
+
 export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps) {
   const [flipped, setFlipped] = useState(false);
 
@@ -102,6 +112,13 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
                 background: 'linear-gradient(90deg, #0066CC, #14b8a6)',
               }}
             />
+            {/* Logo watermark */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={CAREINGTON_LOGO_SRC}
+              alt="Careington"
+              style={cardLogoStyle}
+            />
 
             {/* Header row */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -120,7 +137,7 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
               </div>
               <div style={{ fontSize: '0.6875rem', color: '#94a3b8', textAlign: 'right' }}>
                 <div>www.getidealoh.com</div>
-                <div>{cardData.supportPhone}</div>
+                <div>support@getidealoh.com</div>
               </div>
             </div>
 
@@ -219,6 +236,13 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
                 background: 'linear-gradient(90deg, #14b8a6, #0066CC)',
               }}
             />
+            {/* Logo watermark */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={CAREINGTON_LOGO_SRC}
+              alt="Careington"
+              style={cardLogoStyle}
+            />
 
             {/* Networks */}
             <div>
@@ -230,16 +254,16 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
                   <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>
                     Teledentistry — DialCare
                   </span>
-                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>support@getidealoh.com</span>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(855)-335-2255</span>
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#475569' }}>
                   {cardData.networks.dialCare.memberUrl.replace('https://', '')}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
                   <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>
-                    Dental Discount Network
+                    Careington Dental Discount Network
                   </span>
-                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{cardData.supportPhone}</span>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(800) 290-0523</span>
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#475569' }}>
                   {cardData.networks.careington.memberUrl.replace('https://', '')}

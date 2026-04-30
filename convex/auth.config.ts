@@ -27,14 +27,4 @@ const providers: { domain: string; applicationID: string }[] = [
   },
 ];
 
-// Optional override via env var (e.g. if the production domain changes)
-// NOTE: process.env here is read from your LOCAL environment at `npx convex deploy` time,
-// NOT from the Convex dashboard. Set it in .env.local if needed.
-if (process.env.CLERK_JWT_ISSUER_DOMAIN && !providers.some(p => p.domain === process.env.CLERK_JWT_ISSUER_DOMAIN)) {
-  providers.push({
-    domain: process.env.CLERK_JWT_ISSUER_DOMAIN,
-    applicationID: "convex",
-  });
-}
-
 export default { providers };

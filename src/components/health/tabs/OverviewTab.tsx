@@ -69,8 +69,8 @@ export default function OverviewTab({
       dialCare: { name: 'Teledentistry Program', memberUrl: 'https://www.dialcare.com' },
       toothlens: { name: 'AI Oral Scanning', memberUrl: 'https://toothlens.com' },
     },
-    supportPhone: 'support@getidealoh.com',
-    supportEmail: 'support@getidealoh.com',
+    supportPhone: '(855)-335-2255',
+    supportEmail: '(855)-335-2255',
   };
 
   const handleDownloadCard = () => {

@@ -1,4 +1,6 @@
 import React from "react";
+import fs from "fs";
+import path from "path";
 import {
   Document,
   Page,
@@ -9,6 +11,9 @@ import {
   Font,
 } from "@react-pdf/renderer";
 import { renderCardFront, renderCardBack, type MemberCardData } from "@/lib/card-renderer";
+
+const CAREINGTON_LOGO_PATH = path.resolve(process.cwd(), "public", "careington-logo.png");
+const CAREINGTON_LOGO_DATA_URI = `data:image/png;base64,${fs.readFileSync(CAREINGTON_LOGO_PATH).toString("base64")}`;
 
 // ─── Brand colours ────────────────────────────────────────────────────────────
 const BLUE = "#1E88E5";
@@ -274,7 +279,7 @@ function PageHeader({ logoDataUri }: { logoDataUri?: string }) {
 
 // ─── Page 1: Welcome Letter ───────────────────────────────────────────────────
 function WelcomePage({ data }: { data: FulfillmentPacketData }) {
-  const phone = data.memberServicesPhone ?? "support@getidealoh.com";
+  const phone = data.memberServicesPhone ?? "(855)-335-2255";
   const website = data.memberWebsite ?? "www.getidealoh.com";
 
   return (
@@ -641,7 +646,7 @@ function MembershipAgreementPage({ data }: { data: FulfillmentPacketData }) {
       {/* Limitations, Exclusions and Exceptions */}
       <SectionHeadingGreen text="Limitations, Exclusions and Exceptions" />
       <Text style={s.bodySmall}>
-        This is a discount plan offered by Careington International Corporation. Careington is not a licensed insurer, health maintenance organization or other underwriter of health care services. This plan is not insurance. No portion of any provider&apos;s fees will be reimbursed or otherwise paid by Careington. Careington is not licensed to provide and does not provide health care services or items to individuals. You will receive discounts for services at certain health care providers who have contracted with the plan. You are obligated to pay for all health care services at the time of service. Savings are based upon the provider&apos;s normal fees. Actual savings will vary depending upon location and specific services or products purchased. Please verify such services with each individual provider. The plan&apos;s discounts may not be used in conjunction with any other discount plan or program. All listed or quoted prices are current prices by participating providers and subject to change without notice.
+        This is a discount plan offered by Careington International Corporation (Careington). Careington is not a licensed insurer, health maintenance organization or other underwriter of health care services. This plan is not insurance. No portion of any provider&apos;s fees will be reimbursed or otherwise paid by Careington. Careington is not licensed to provide and does not provide health care services or items to individuals. You will receive discounts for services at certain health care providers who have contracted with the plan. You are obligated to pay for all health care services at the time of service. Savings are based upon the provider&apos;s normal fees. Actual savings will vary depending upon location and specific services or products purchased. Please verify such services with each individual provider. The plan&apos;s discounts may not be used in conjunction with any other discount plan or program. All listed or quoted prices are current prices by participating providers and subject to change without notice.
       </Text>
       <Text style={s.bodySmall}>
         Any procedures performed by a non-participating provider are not discounted. From time to time, certain providers may offer products or services to the general public at prices lower than the discounted prices available through this plan. In such event, members will be charged the lowest price. Discounts on professional services are not available when prohibited by law. This plan does not discount all procedures. Providers are subject to change without notice and services may vary in some states. It is your responsibility to verify that the provider participates in the plan. At any time Careington may substitute a provider network at its sole discretion. Careington cannot guarantee the continued participation of any provider. If the provider leaves the plan, you will need to select another provider. Providers contracted by Careington are solely responsible for the professional advice and treatment rendered to members and Careington disclaims any liability with respect to such matters.
@@ -668,7 +673,7 @@ function MembershipAgreementPage({ data }: { data: FulfillmentPacketData }) {
 
 // ─── Page 6: Schedule of Services ────────────────────────────────────────────
 function SchedulePage({ data }: { data: FulfillmentPacketData }) {
-  const phone = data.memberServicesPhone ?? "support@getidealoh.com";
+  const phone = data.memberServicesPhone ?? "(855)-335-2255";
 
   return (
     <Page size="LETTER" style={s.page}>
@@ -837,6 +842,14 @@ const cardStyles = StyleSheet.create({
     height: 4,
     backgroundColor: "#0066CC",
   },
+  careingtonLogo: {
+    position: "absolute",
+    width: 50,
+    height: 16,
+    right: 14,
+    bottom: 14,
+    opacity: 0.28,
+  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -988,6 +1001,7 @@ function MemberCardFrontPage({ data }: { data: FulfillmentPacketData }) {
       <View style={cardStyles.bleedContainer}>
         <View style={cardStyles.cardContainer}>
           <View style={cardStyles.topBar} />
+          <Image style={cardStyles.careingtonLogo} src={CAREINGTON_LOGO_DATA_URI} />
 
           {/* Header with logo and contact info */}
           <View style={cardStyles.header}>
@@ -1005,7 +1019,7 @@ function MemberCardFrontPage({ data }: { data: FulfillmentPacketData }) {
             </View>
             <View style={cardStyles.headerRight}>
               <Text style={cardStyles.headerRightLine}>{data.memberWebsite}</Text>
-              <Text style={cardStyles.headerRightLine}>{data.memberServicesPhone}</Text>
+              <Text style={cardStyles.headerRightLine}>{data.memberEmail}</Text>
             </View>
           </View>
 
@@ -1035,7 +1049,7 @@ function MemberCardFrontPage({ data }: { data: FulfillmentPacketData }) {
 // Back of card - matches dashboard card back exactly
 function MemberCardBackPage({ data }: { data: FulfillmentPacketData }) {
   const website = data.memberWebsite ?? "www.getidealoh.com";
-  const phone = data.memberServicesPhone ?? "support@getidealoh.com";
+  const phone = data.memberServicesPhone ?? "(855)-335-2255";
 
   return (
     <Page style={cardStyles.cardPage} size="LETTER">
@@ -1050,6 +1064,7 @@ function MemberCardBackPage({ data }: { data: FulfillmentPacketData }) {
             height: 4,
             backgroundColor: BLUE,
           }} />
+          <Image style={cardStyles.careingtonLogo} src={CAREINGTON_LOGO_DATA_URI} />
 
           {/* Networks section - matching dashboard layout */}
           <View style={{ marginTop: 8, marginBottom: 12 }}>
@@ -1064,7 +1079,7 @@ function MemberCardBackPage({ data }: { data: FulfillmentPacketData }) {
                   Teledentistry — DialCare
                 </Text>
                 <Text style={{ fontSize: 6.5, color: '#94a3b8', marginLeft: 4 }}>
-                  support@getidealoh.com
+                  (855)-335-2255
                 </Text>
               </View>
               <Text style={{ fontSize: 6.5, color: '#475569', marginTop: 1 }}>
@@ -1072,14 +1087,14 @@ function MemberCardBackPage({ data }: { data: FulfillmentPacketData }) {
               </Text>
             </View>
 
-            {/* Dental Discount Network */}
+            {/* Careington Dental Discount Network */}
             <View style={{ marginBottom: 8 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: DARK, flex: 1 }}>
-                  Dental Discount Network
+                  Careington Dental Discount Network
                 </Text>
                 <Text style={{ fontSize: 6.5, color: '#94a3b8', marginLeft: 4 }}>
-                  {phone}
+                  (800) 290-0523
                 </Text>
               </View>
               <Text style={{ fontSize: 6.5, color: '#475569', marginTop: 1 }}>

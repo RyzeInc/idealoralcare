@@ -65,8 +65,8 @@ export async function GET(req: NextRequest) {
       memberProfile?.effectiveDate ??
       new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
     term: bundleData?.pricingSnapshot?.totalCents > 2000 ? "Annual" : "Monthly",
-    memberServicesPhone: "support@getidealoh.com",
-    memberWebsite: "getidealoh.com/health/dashboard",
+    memberServicesPhone: "(855)-335-2255",
+    memberWebsite: "www.careington.com",
   };
 
   // Load logo
