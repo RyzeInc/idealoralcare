@@ -69,7 +69,7 @@ export default function OverviewTab({
       dialCare: { name: 'Teledentistry Program', memberUrl: 'https://www.dialcare.com' },
       toothlens: { name: 'AI Oral Scanning', memberUrl: 'https://toothlens.com' },
     },
-    supportPhone: '(855)-335-2255',
+    supportPhone: '(844) 679-9367',
     supportEmail: '(855)-335-2255',
   };
 

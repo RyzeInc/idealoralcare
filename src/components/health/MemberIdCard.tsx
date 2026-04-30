@@ -137,7 +137,7 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
               </div>
               <div style={{ fontSize: '0.6875rem', color: '#94a3b8', textAlign: 'right' }}>
                 <div>www.getidealoh.com</div>
-                <div>support@getidealoh.com</div>
+                <div>{cardData.supportPhone ?? '(844) 679-9367'}</div>
               </div>
             </div>
 

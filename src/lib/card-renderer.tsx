@@ -240,7 +240,7 @@ export function fulfillmentToCardData(fulfillmentData: {
   memberWebsite?: string;
   memberEmail?: string;
 }): MemberCardData {
-  const phone = fulfillmentData.memberServicesPhone || '(855)-335-2255';
+  const phone = fulfillmentData.memberServicesPhone || '(844) 679-9367';
   const website = fulfillmentData.memberWebsite || 'www.getidealoh.com';
   const email = fulfillmentData.memberEmail || '(855)-335-2255';
 
