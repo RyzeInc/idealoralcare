@@ -53,7 +53,7 @@ export async function GET() {
       year: "numeric",
     }),
     term: bundleData?.pricingSnapshot?.totalCents > 2000 ? "Annual" : "Monthly",
-    memberServicesPhone: "(855)-335-2255",
+    memberServicesPhone: "(844) 679-9367",
     memberWebsite: "www.careington.com",
   };
 

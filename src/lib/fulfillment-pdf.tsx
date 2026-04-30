@@ -279,7 +279,7 @@ function PageHeader({ logoDataUri }: { logoDataUri?: string }) {
 
 // ─── Page 1: Welcome Letter ───────────────────────────────────────────────────
 function WelcomePage({ data }: { data: FulfillmentPacketData }) {
-  const phone = data.memberServicesPhone ?? "(855)-335-2255";
+  const phone = data.memberServicesPhone ?? "(844) 679-9367";
   const website = data.memberWebsite ?? "www.getidealoh.com";
 
   return (
@@ -673,7 +673,7 @@ function MembershipAgreementPage({ data }: { data: FulfillmentPacketData }) {
 
 // ─── Page 6: Schedule of Services ────────────────────────────────────────────
 function SchedulePage({ data }: { data: FulfillmentPacketData }) {
-  const phone = data.memberServicesPhone ?? "(855)-335-2255";
+  const phone = data.memberServicesPhone ?? "(844) 679-9367";
 
   return (
     <Page size="LETTER" style={s.page}>
@@ -1019,7 +1019,9 @@ function MemberCardFrontPage({ data }: { data: FulfillmentPacketData }) {
             </View>
             <View style={cardStyles.headerRight}>
               <Text style={cardStyles.headerRightLine}>{data.memberWebsite}</Text>
-              <Text style={cardStyles.headerRightLine}>{data.memberEmail}</Text>
+              <Text style={cardStyles.headerRightLine}>
+                {data.memberServicesPhone ?? '(844) 679-9367'}
+              </Text>
             </View>
           </View>
 
@@ -1049,7 +1051,7 @@ function MemberCardFrontPage({ data }: { data: FulfillmentPacketData }) {
 // Back of card - matches dashboard card back exactly
 function MemberCardBackPage({ data }: { data: FulfillmentPacketData }) {
   const website = data.memberWebsite ?? "www.getidealoh.com";
-  const phone = data.memberServicesPhone ?? "(855)-335-2255";
+  const phone = data.memberServicesPhone ?? "(844) 679-9367";
 
   return (
     <Page style={cardStyles.cardPage} size="LETTER">
