@@ -401,7 +401,7 @@ function CreateAccountModal({ sites, onClose }: { sites: any[]; onClose: () => v
 function CreateGroupModal({ sites, accounts, onClose }: { sites: any[]; accounts: any[]; onClose: () => void }) {
   const createGroup = useMutation(api.admin.hierarchy.createGroup);
   const toast = useToast();
-  const [form, setForm] = useState({ siteId: sites[0]?._id || '', accountId: accounts[0]?._id || '', slug: '', groupCode: PROVIDER_GROUP_CODE, organizationCode: '', name: '', description: '', maxMembers: '', effectiveDate: '', terminationDate: '', brokerId: '', brokerTrackingCode: '' });
+  const [form, setForm] = useState({ siteId: sites[0]?._id || '', accountId: accounts[0]?._id || '', slug: '', groupCode: PROVIDER_GROUP_CODE as string, organizationCode: '', name: '', description: '', maxMembers: '', effectiveDate: '', terminationDate: '', brokerId: '', brokerTrackingCode: '' });
   const [saving, setSaving] = useState(false);
 
   const filteredAccounts = accounts.filter((a: any) => !form.siteId || a.siteId === form.siteId);
