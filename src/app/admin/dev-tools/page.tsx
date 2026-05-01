@@ -18,6 +18,7 @@ import {
   Users,
   IdCard,
   Fingerprint,
+  UserX,
 } from 'lucide-react';
 
 type ActionResult = { success: boolean; message: string; data?: unknown };
@@ -45,6 +46,9 @@ export default function DevToolsPage() {
   const linkAdminAsMember = useMutation(api.admin.devTools.linkAdminAsMember);
   const backfillSubscriberIds = useMutation(api.admin.devTools.backfillSubscriberIds);
   const backfillVendorIds = useMutation(api.admin.devTools.backfillVendorIds);
+  const deduplicateMemberProfiles = useMutation(api.admin.devTools.deduplicateMemberProfiles);
+
+  const [dedupeCustomerId, setDedupeCustomerId] = useState('');
 
   // State
   const [running, setRunning] = useState<string | null>(null);
@@ -296,6 +300,61 @@ export default function DevToolsPage() {
             </div>
           );
         })}
+      </div>
+
+      {/* Deduplicate Member Profiles — requires a specific Clerk user ID */}
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+        <div className="flex items-start gap-3 mb-4">
+          <div className="p-2 rounded-lg flex-shrink-0 bg-red-50 text-red-600">
+            <UserX size={18} />
+          </div>
+          <div>
+            <h3 className="font-semibold text-slate-900">Deduplicate Member Profiles</h3>
+            <p className="text-sm text-slate-500 mt-0.5">
+              When a user has multiple non-terminated memberProfile rows (e.g. a dev-tools test row alongside
+              their real enrollment), their card shows inconsistent IDs. This tool keeps the profile linked to
+              their active subscription and terminates the rest. Enter a Clerk User ID (starts with <code className="font-mono text-xs">user_</code>).
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <input
+            type="text"
+            className="flex-1 min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="user_2abc..."
+            value={dedupeCustomerId}
+            onChange={(e) => setDedupeCustomerId(e.target.value)}
+          />
+          <button
+            onClick={() => runAction('dedupe-dry', () => deduplicateMemberProfiles({ customerId: dedupeCustomerId, dryRun: true }))}
+            disabled={!dedupeCustomerId.trim() || running !== null}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {running === 'dedupe-dry' ? <Loader size={14} className="animate-spin inline mr-1" /> : null}
+            Dry Run
+          </button>
+          <button
+            onClick={() => runAction('dedupe-apply', () => deduplicateMemberProfiles({ customerId: dedupeCustomerId, dryRun: false }))}
+            disabled={!dedupeCustomerId.trim() || running !== null}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {running === 'dedupe-apply' ? <Loader size={14} className="animate-spin inline mr-1" /> : null}
+            Apply
+          </button>
+        </div>
+        {(results['dedupe-dry'] || results['dedupe-apply']) && (() => {
+          const result = results['dedupe-apply'] ?? results['dedupe-dry'];
+          return (
+            <div className={`mt-3 rounded-lg p-3 text-sm ${result.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+              <div className="flex items-start gap-2">
+                {result.success
+                  ? <CheckCircle2 size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
+                  : <XCircle size={16} className="text-red-600 mt-0.5 flex-shrink-0" />}
+                <pre className="whitespace-pre-wrap font-mono text-xs break-all">{result.message}</pre>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

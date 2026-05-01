@@ -358,3 +358,78 @@ export const backfillVendorIds = mutation({
     return summary;
   },
 });
+
+/**
+ * CLEANUP: Deactivate duplicate memberProfile rows for a given Clerk user.
+ *
+ * When a user has multiple non-terminated memberProfiles (e.g. a dev-tools
+ * "link admin as member" row alongside a real enrollment row), the card query
+ * may land on the wrong one. This mutation:
+ *   1. Finds all non-terminated profiles for the customerId.
+ *   2. Identifies the canonical profile (the one whose enrolledBundleId matches
+ *      the user's active subscriptionBundle, or the most-recently-updated one).
+ *   3. Sets all OTHER profiles' status to "terminated" so they're excluded
+ *      from card queries.
+ *
+ * Safe to run repeatedly (idempotent). Use dryRun:true to preview.
+ */
+export const deduplicateMemberProfiles = mutation({
+  args: {
+    customerId: v.string(),
+    dryRun: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await requireAdmin(ctx);
+    const dryRun = args.dryRun ?? false;
+
+    const allProfiles = await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_customer", (q: any) => q.eq("customerId", args.customerId))
+      .filter((q: any) => q.neq(q.field("status"), "terminated"))
+      .collect();
+
+    if (allProfiles.length <= 1) {
+      return { customerId: args.customerId, total: allProfiles.length, terminated: 0, canonicalId: allProfiles[0]?._id ?? null, dryRun };
+    }
+
+    // Find the active bundle so we can anchor the canonical profile.
+    const bundles: any[] = await ctx.db
+      .query("subscriptionBundles")
+      .withIndex("by_customer", (q: any) => q.eq("customerId", args.customerId))
+      .filter((q: any) => q.neq(q.field("status"), "cancelled"))
+      .collect();
+    const bundle =
+      bundles.find((b) => b.status === "active") ??
+      bundles.find((b) => b.status === "cancel_at_period_end") ??
+      bundles[0] ?? null;
+
+    const canonical =
+      (bundle ? allProfiles.find((p: any) => p.enrolledBundleId === bundle._id) : null) ??
+      [...allProfiles].sort((a: any, b: any) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))[0];
+
+    const toTerminate = allProfiles.filter((p: any) => p._id !== canonical._id);
+
+    if (!dryRun) {
+      const now = Date.now();
+      for (const p of toTerminate) {
+        await ctx.db.patch(p._id, { status: "terminated", updatedAt: now } as any);
+      }
+      await recordAdminAction(ctx, identity, {
+        action: "deduplicateMemberProfiles",
+        targetType: "memberProfiles",
+        targetId: String(canonical._id),
+        summary: `Terminated ${toTerminate.length} duplicate profile(s) for customerId ${args.customerId}; kept ${canonical._id}`,
+        metadata: { customerId: args.customerId, terminated: toTerminate.map((p: any) => p._id) },
+      });
+    }
+
+    return {
+      customerId: args.customerId,
+      total: allProfiles.length,
+      terminated: toTerminate.length,
+      canonicalId: canonical._id,
+      terminatedIds: toTerminate.map((p: any) => p._id),
+      dryRun,
+    };
+  },
+});

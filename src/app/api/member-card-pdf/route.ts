@@ -47,7 +47,7 @@ export async function GET() {
     memberEmail: user.emailAddresses[0]?.emailAddress ?? "",
     memberId: memberProfile?.memberId ?? "—",
     subscriberId: memberProfile?.subscriberId ?? memberProfile?.memberId,
-    groupCode: "IDEALDO",
+    groupCode: PROVIDER_GROUP_CODE,
     planName: memberProfile?.planName ?? "Ideal Oral Savings Plan",
     effectiveDate: memberProfile?.effectiveDate ?? new Date().toLocaleDateString("en-US", {
       month: "long",

@@ -44,7 +44,7 @@ const ADMIN_NAVIGATION: NavSection[] = [
     section: "Members & Partners",
     items: [
       { label: "Members", href: "/admin/members", icon: Users, tooltip: "All people in your plans (leads, eligible, active, etc.)." },
-      { label: "Distribution", href: "/admin/brokers", icon: Network, tooltip: "Program Managers, FMOs, and agencies that resell your plans." },
+      { label: "Brokers", href: "/admin/brokers", icon: Network, tooltip: "Program Managers, FMOs, and agencies that resell your plans." },
       { label: "Rep Codes", href: "/admin/rep-codes", icon: Tag, tooltip: "Tracking codes that attribute enrollments to agents." },
     ],
   },

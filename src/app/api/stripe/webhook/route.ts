@@ -232,6 +232,19 @@ export async function POST(req: NextRequest) {
             success: true,
             idempotencyKey: event.id,
           });
+
+          // 7. Eager Toothlens registration (safety net — usually already
+          // provisioned by the Clerk user.created webhook, but DTC users
+          // may complete checkout before that webhook lands).
+          try {
+            await convex.action(api.healthplans.toothlens.provisionForClerkUser, {
+              clerkUserId,
+              email: session.customer_email || undefined,
+              name: session.customer_details?.name || undefined,
+            });
+          } catch (toothlensErr) {
+            console.error("[webhook] Toothlens provisioning failed (non-fatal):", toothlensErr);
+          }
         } catch (error) {
           console.error("[webhook] Error processing checkout.session.completed:", error);
           try {

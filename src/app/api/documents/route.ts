@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
     memberEmail: user.emailAddresses[0]?.emailAddress ?? "",
     memberId: memberProfile?.memberId ?? "—",
     subscriberId: memberProfile?.subscriberId ?? memberProfile?.memberId,
-    groupCode: memberProfile?.groupCode ?? "IDEALDO",
+    groupCode: memberProfile?.groupCode ?? PROVIDER_GROUP_CODE,
     planName: memberProfile?.planName ?? "Ideal Oral Savings Plan",
     effectiveDate:
       memberProfile?.effectiveDate ??

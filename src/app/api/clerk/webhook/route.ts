@@ -64,6 +64,24 @@ export async function POST(req: NextRequest) {
   }
 
   const client = new ConvexHttpClient(convexUrl);
+
+  // Eager Toothlens registration — fire as close to Clerk-user creation as
+  // possible so the Toothlens UID is provisioned simultaneously with the
+  // Clerk identity (covers BOTH eligibility-claim and DTC sign-up flows).
+  // Best-effort: do not fail the webhook if Toothlens API is unreachable.
+  const firstName: string | undefined = data.first_name ?? undefined;
+  const lastName: string | undefined = data.last_name ?? undefined;
+  const fullName = [firstName, lastName].filter(Boolean).join(" ").trim() || undefined;
+  try {
+    await client.action(api.healthplans.toothlens.provisionForClerkUser, {
+      clerkUserId,
+      email,
+      name: fullName,
+    });
+  } catch (err) {
+    console.error("[clerk-webhook] Toothlens provisioning failed (non-fatal)", err);
+  }
+
   try {
     const result = await client.mutation(
       api.admin.eligibilityProvisioning.linkInvitedMember,

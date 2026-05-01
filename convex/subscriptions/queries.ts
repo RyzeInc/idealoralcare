@@ -532,19 +532,51 @@ export const hasAccess = query({
 export const getMemberCardDataPublic = query({
   args: { customerId: v.string() },
   handler: async (ctx: QueryCtx, args) => {
-    const profile = await ctx.db
-      .query("memberProfiles")
-      .withIndex("by_customer", (q) => q.eq("customerId", args.customerId))
-      .filter((q) => q.neq(q.field("status" as any), "terminated"))
-      .first();
-
-    if (!profile) return null;
-
-    const bundle = await ctx.db
+    // ── Pick the canonical bundle first ─────────────────────────────────
+    // Priority: active > cancel_at_period_end > any non-cancelled. This
+    // ensures the card always reflects the subscription the member paid for.
+    const allBundles = await ctx.db
       .query("subscriptionBundles")
       .withIndex("by_customer", (q) => q.eq("customerId", args.customerId))
       .filter((q) => q.neq(q.field("status"), "cancelled"))
-      .first();
+      .collect();
+    const bundle =
+      allBundles.find((b) => b.status === "active") ??
+      allBundles.find((b) => b.status === "cancel_at_period_end") ??
+      allBundles[0] ??
+      null;
+
+    // ── Pick the canonical member profile ───────────────────────────────
+    // Prefer the profile whose enrolledBundleId matches the chosen bundle.
+    // If multiple profiles share the same customerId (e.g. legacy dev-tools
+    // rows), this ensures we always land on the one tied to a real payment.
+    const allProfiles = await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_customer", (q) => q.eq("customerId", args.customerId))
+      .filter((q) => q.neq(q.field("status" as any), "terminated"))
+      .collect();
+
+    const profile =
+      (bundle
+        ? allProfiles.find((p) => (p as any).enrolledBundleId === bundle._id)
+        : null) ??
+      // Fallback: most-recently-updated active member profile
+      allProfiles
+        .filter((p) => (p as any).memberType === "active" || (p as any).status === "active")
+        .sort((a, b) => ((b as any).updatedAt ?? 0) - ((a as any).updatedAt ?? 0))[0] ??
+      allProfiles.sort((a, b) => ((b as any).updatedAt ?? 0) - ((a as any).updatedAt ?? 0))[0] ??
+      null;
+
+    if (!profile) return null;
+
+    // ── Resolve subscriberId from stored field → group org code ─────────
+    const group = (profile as any).groupId
+      ? await ctx.db.get((profile as any).groupId)
+      : null;
+    const subscriberId =
+      (profile as any).subscriberId ||
+      (group as any)?.organizationCode ||
+      profile.memberId;
 
     // Try to get a plan name from active entitlements
     let planName = "Ideal Oral Savings Plan";
@@ -593,6 +625,7 @@ export const getMemberCardDataPublic = query({
     return {
       memberName: `${profile.firstName} ${profile.lastName}`,
       memberId: profile.memberId,
+      subscriberId,
       planName,
       productSlug,
       effectiveDate,

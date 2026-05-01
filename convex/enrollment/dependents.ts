@@ -290,6 +290,9 @@ export const addDependent = mutation({
       siteId: primaryProfile.siteId,
       accountId: primaryProfile.accountId,
       groupId: primaryProfile.groupId,
+      // Dependents inherit the primary member's subscriberId so they share
+      // the same org-code lookup key for card rendering and eligibility files.
+      subscriberId: (primaryProfile as any).subscriberId,
       firstName: args.firstName,
       lastName: args.lastName,
       email: args.email,
@@ -378,6 +381,9 @@ export const internalAddDependent = internalMutation({
       siteId: primaryProfile.siteId,
       accountId: primaryProfile.accountId,
       groupId: primaryProfile.groupId,
+      // Inherit subscriberId so the dependent is searchable by org code
+      // and the card renderer doesn't need to fall back to a group lookup.
+      subscriberId: (primaryProfile as any).subscriberId,
       firstName: args.firstName,
       lastName: args.lastName,
       email: args.email,

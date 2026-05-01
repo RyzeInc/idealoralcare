@@ -586,6 +586,74 @@ export const getOrCreateToothlensUser = action({
   },
 });
 
+/**
+ * Server-callable variant of `getOrCreateToothlensUser` for use from
+ * webhooks (Clerk `user.created`, Stripe `checkout.session.completed`)
+ * where there is no Convex auth identity. Idempotent — if a Toothlens
+ * record already exists under the current company, returns it unchanged.
+ *
+ * Intentionally exported as a public action so it can be called from the
+ * Next.js webhook routes via `ConvexHttpClient.action()`. There is no
+ * sensitive data in the response and the worst-case effect of an extra
+ * call is a no-op lookup.
+ */
+export const provisionForClerkUser = action({
+  args: {
+    clerkUserId: v.string(),
+    email: v.optional(v.string()),
+    name: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<{ uid: string; scanBaseUrl: string; alreadyProvisioned: boolean }> => {
+    const company = getClientCompany();
+
+    const existing = (await ctx.runQuery(
+      internal.healthplans.toothlens.getToothlensUserInternal,
+      { clerkUserId: args.clerkUserId },
+    )) as Doc<"toothlensUsers"> | null;
+
+    if (existing && existing.company === company) {
+      return {
+        uid: existing.toothlensUid,
+        scanBaseUrl: `${SELFCHECK_BASE}/${company}`,
+        alreadyProvisioned: true,
+      };
+    }
+
+    const resolvedEmail = args.email;
+    const resolvedBaseName =
+      args.name ?? (resolvedEmail ? resolvedEmail.split("@")[0] : undefined) ?? "Member";
+    const resolvedName = toothlensName(resolvedBaseName, args.clerkUserId);
+
+    const provisioned = await provisionDetectionUser(ctx, {
+      company,
+      name: resolvedName,
+      email: resolvedEmail,
+    });
+    const uid = provisioned.uid;
+    const storedName = provisioned.resolvedName ?? resolvedName;
+
+    if (existing) {
+      await ctx.runMutation(internal.healthplans.toothlens.updateToothlensUserUid, {
+        id: existing._id,
+        toothlensUid: uid,
+        company,
+        name: storedName,
+        email: resolvedEmail,
+      });
+    } else {
+      await ctx.runMutation(internal.healthplans.toothlens.saveToothlensUser, {
+        clerkUserId: args.clerkUserId,
+        toothlensUid: uid,
+        company,
+        name: storedName,
+        email: resolvedEmail,
+      });
+    }
+
+    return { uid, scanBaseUrl: `${SELFCHECK_BASE}/${company}`, alreadyProvisioned: false };
+  },
+});
+
 async function reprovisionStoredUserUnderCurrentCompany(
   ctx: ActionCtx,
   user: Pick<Doc<"toothlensUsers">, "_id" | "clerkUserId" | "name" | "email">,

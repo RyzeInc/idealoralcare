@@ -153,7 +153,7 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
                 { label: 'Member',             value: cardData.memberName,                          mono: false },
                 { label: 'Member ID',           value: cardData.memberId,                            mono: true  },
                 { label: 'Subscriber ID',       value: cardData.subscriberId || cardData.memberId,   mono: true  },
-                { label: 'Provider Group Code', value: cardData.groupCode || 'IDEALDO',              mono: false },
+                { label: 'Provider Group Code', value: cardData.groupCode || PROVIDER_GROUP_CODE,              mono: false },
                 { label: 'Plan',                value: cardData.planName,                            mono: false },
                 { label: 'Effective',           value: cardData.effectiveDate,                       mono: false },
               ].map(({ label, value, mono }) => (

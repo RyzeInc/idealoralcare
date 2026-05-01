@@ -1007,7 +1007,7 @@ function MemberCardFrontPage({ data }: { data: FulfillmentPacketData }) {
     { label: "Member",               value: data.memberName },
     { label: "Member ID",             value: data.memberId,                              isMemberId: true },
     { label: "Subscriber ID",         value: data.subscriberId || data.memberId,          isMemberId: true },
-    { label: "Provider Group Code",   value: data.groupCode || "IDEALDO" },
+    { label: "Provider Group Code",   value: data.groupCode || PROVIDER_GROUP_CODE },
     { label: "Plan",                  value: data.planName },
     { label: "Effective",             value: data.effectiveDate },
   ];
