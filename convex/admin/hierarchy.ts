@@ -330,11 +330,12 @@ export const createGroup = mutation({
 
     const existingGroup = await ctx.db
       .query("groups")
-      .filter((q) => q.eq(q.field("groupCode"), args.groupCode))
+      .withIndex("by_account", (q) => q.eq("accountId", args.accountId))
+      .filter((q) => q.eq(q.field("slug"), args.slug))
       .first();
 
     if (existingGroup) {
-      throw new Error(`Group with code "${args.groupCode}" already exists`);
+      throw new Error(`Organization with slug "${args.slug}" already exists in this account`);
     }
 
     const groupId = await ctx.db.insert("groups", {

@@ -450,12 +450,19 @@ export const provisionEligibilityFile = action({
         result.failed++;
         const msg = err?.message ?? String(err);
         result.errors.push({ email: m.email ?? "(unknown)", message: msg });
-        await ctx.runMutation(internal.admin.eligibilityProvisioning.recordProvisioningError, {
-          fileId: args.fileId,
-          memberProfileId: m._id,
-          email: m.email,
-          message: msg,
-        });
+        try {
+          await ctx.runMutation(internal.admin.eligibilityProvisioning.recordProvisioningError, {
+            fileId: args.fileId,
+            memberProfileId: m._id,
+            email: m.email,
+            message: msg,
+          });
+        } catch (recordErr: any) {
+          console.error(
+            `[provisionEligibilityFile] Failed to record error for ${m.email ?? m._id}:`,
+            recordErr?.message ?? recordErr
+          );
+        }
       }
       await new Promise((r) => setTimeout(r, BATCH_DELAY_MS));
     }
