@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery } from "convex/react";
+import { useAuth } from "@clerk/nextjs";
 import { api } from "../../../convex/_generated/api";
 import {
   LayoutDashboard,
@@ -90,7 +91,9 @@ const ADMIN_NAVIGATION: NavSection[] = [
 
 export function AdminSidebar() {
   const pathname = usePathname();
-  const profile = useQuery(api.admin.adminUsers.getMyAdminProfile);
+  const { isLoaded } = useAuth();
+  // Only call the query after Clerk auth is loaded to ensure JWT is available
+  const profile = isLoaded ? useQuery(api.admin.adminUsers.getMyAdminProfile) : undefined;
   const isOwner = profile?.role === "owner";
 
   const isActive = (href: string) => {
@@ -115,7 +118,8 @@ export function AdminSidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto" aria-label="Admin navigation">
-        {ADMIN_NAVIGATION.map((section, idx) => {
+        {!isLoaded && <div className="px-3 py-2 text-xs text-slate-400">Loading...</div>}
+        {isLoaded && ADMIN_NAVIGATION.map((section, idx) => {
           const visibleItems = section.items.filter((item) => !item.requireOwner || isOwner);
           if (visibleItems.length === 0) return null;
           return (

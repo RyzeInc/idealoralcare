@@ -66,6 +66,9 @@ export const getProvisionableMembersForFile = query({
         groupId: m.groupId,
         accountId: m.accountId,
         siteId: m.siteId,
+        memberRole: (m as any).memberRole ?? "primary",
+        primaryMemberId: (m as any).primaryMemberId ?? null,
+        relationship: (m as any).relationship ?? null,
       })),
     };
   },
@@ -115,18 +118,34 @@ export const linkAndProvisionEmployerAccess = internalMutation({
     if (!group) throw new Error("Group not found");
 
     const now = Date.now();
+    const isDependent = (profile as any).memberRole === "dependent";
 
     // 1. Link Clerk user to memberProfile
     await ctx.db.patch(args.memberProfileId, {
       customerId: args.clerkUserId,
       memberType: "active",
-      enrolledAt: profile.enrolledAt ?? now,
-      listBillStatus: (group as any).listBill?.enabled ? "active" : profile.listBillStatus,
-      employeeType: profile.employeeType ?? ((group as any).listBill?.enabled ? "full_time" : undefined),
+      enrolledAt: (profile as any).enrolledAt ?? now,
+      listBillStatus: (group as any).listBill?.enabled ? "active" : (profile as any).listBillStatus,
+      employeeType: (profile as any).employeeType ?? ((group as any).listBill?.enabled ? "full_time" : undefined),
       updatedAt: now,
     });
 
-    // 2. Skip if there is already an active bundle for this Clerk user
+    // 2. Dependents share the primary's bundle — no separate billing row
+    if (isDependent) {
+      await ctx.db.insert("memberActivities", {
+        memberProfileId: args.memberProfileId,
+        siteId: profile.siteId,
+        groupId: profile.groupId,
+        activityType: "enrollment_completed",
+        title: "Dependent provisioned via eligibility file",
+        description: `Clerk account ${args.clerkUserId} linked; access inherited from primary member's bundle`,
+        actorType: "system",
+        createdAt: now,
+      });
+      return { bundleId: null, created: false };
+    }
+
+    // 3. Skip if there is already an active bundle for this Clerk user
     const existingBundle = (await ctx.db.query("subscriptionBundles").collect()).find(
       (b) => b.customerId === args.clerkUserId && (b.status === "active" || b.status === "draft")
     );
@@ -250,18 +269,33 @@ export const provisionEligibilityFile = action({
     mode: v.optional(v.union(v.literal("invite"), v.literal("create"))),
   },
   handler: async (ctx, args): Promise<ProvisionResult> => {
-    // @ts-ignore - same pattern as elsewhere to avoid deep instantiation
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    try {
+      // @ts-ignore - same pattern as elsewhere to avoid deep instantiation
+      await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    } catch (authErr: any) {
+      console.error("[provisionEligibilityFile] Auth check failed:", authErr?.message ?? authErr);
+      throw authErr;
+    }
 
     const secret = process.env.CLERK_SECRET_KEY;
-    if (!secret) throw new Error("CLERK_SECRET_KEY env var is not set on Convex deployment");
+    if (!secret) {
+      const err = new Error("CLERK_SECRET_KEY env var is not set on Convex deployment");
+      console.error("[provisionEligibilityFile]", err.message);
+      throw err;
+    }
 
     const mode = args.mode ?? "invite";
 
-    const list: any = await ctx.runQuery(
-      api.admin.eligibilityProvisioning.getProvisionableMembersForFile,
-      { fileId: args.fileId }
-    );
+    let list: any;
+    try {
+      list = await ctx.runQuery(
+        api.admin.eligibilityProvisioning.getProvisionableMembersForFile,
+        { fileId: args.fileId }
+      );
+    } catch (queryErr: any) {
+      console.error("[provisionEligibilityFile] Query failed:", queryErr?.message ?? queryErr);
+      throw new Error(`Failed to fetch provisioning members: ${queryErr?.message ?? queryErr}`);
+    }
 
     const result: ProvisionResult = {
       attempted: list.members.length,
@@ -443,8 +477,9 @@ export const provisionEligibilityFile = action({
           },
         );
       }
-    } catch {
+    } catch (auditErr: any) {
       // Audit logging is best-effort; never fail the provisioning run on it
+      console.error("[provisionEligibilityFile] Audit logging failed:", auditErr?.message ?? auditErr);
     }
 
     return result;

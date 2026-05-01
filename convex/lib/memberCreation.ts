@@ -161,6 +161,10 @@ export interface CreateMemberProfileInput {
   externalMemberId?: string;
   customerId?: string;
 
+  /** Family / dependent link */
+  primaryMemberId?: Id<"memberProfiles">;
+  relationship?: "spouse" | "child" | "domestic_partner" | "other";
+
   /** Optional staff assignment (for admin-assisted enrollment). */
   assignedStaffId?: Id<"adminUsers">;
   assignedStaffName?: string;
@@ -255,6 +259,8 @@ export async function createMemberProfile(
     toothlensMemberId,
     memberType: input.memberType ?? "eligible",
     memberRole: input.memberRole ?? "primary",
+    primaryMemberId: input.primaryMemberId,
+    relationship: input.relationship,
     employeeType: input.employeeType,
     listBillStatus,
     leadType: input.leadType,

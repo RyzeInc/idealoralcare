@@ -530,6 +530,10 @@ function parseXlsxBuffer(
       .map((d, di) => ({
         firstName: d!.firstName,
         lastName: d!.lastName,
+        email: d!.email,
+        phone: d!.phone,
+        address: d!.address,
+        gender: d!.gender,
         dateOfBirth: d!.dateOfBirth,
         relationship: (d!.relationship ?? "other") as "spouse" | "child" | "domestic_partner" | "other",
         seqNum: d!.seqNum ?? String(di + 1).padStart(2, "0"),
@@ -693,6 +697,10 @@ export const processEligibilityFile = action({
           const deps = family.dependents.map((d, di) => ({
             firstName: d.firstName,
             lastName: d.lastName,
+            email: d.email,
+            phone: d.phone,
+            address: d.address,
+            gender: d.gender,
             dateOfBirth: d.dateOfBirth,
             relationship: (d.relationship ?? "other") as "spouse" | "child" | "domestic_partner" | "other",
             seqNum: d.seqNum ?? String(di + 1).padStart(2, "0"),
@@ -1221,8 +1229,14 @@ export const internalBatchCreateMembers = internalMutation({
     const results = { created: 0, updated: 0, failed: 0, errors: [] as any[] };
     const now = Date.now();
 
-    // Reserve a range of member IDs atomically
-    const idStart = await reserveCounterRange(ctx, "memberIdSeq", args.records.length);
+    // Count total dependents so we can reserve enough IDs for primaries + all dependents
+    const totalDependents = args.records.reduce(
+      (sum, r) => sum + (Array.isArray(r.dependents) ? r.dependents.length : 0),
+      0
+    );
+    const idStart = await reserveCounterRange(ctx, "memberIdSeq", args.records.length + totalDependents);
+    // depIdOffset tracks which slot in the reserved range is next for a dependent
+    let depIdOffset = args.records.length;
 
     for (let i = 0; i < args.records.length; i++) {
       const record = args.records[i];
@@ -1252,14 +1266,15 @@ export const internalBatchCreateMembers = internalMutation({
             .first();
         }
 
-        // Also match by Careington Unique ID — employer-paid files often lack email
+        // Also match by Careington Unique ID (seqNum "00" = primary)
         if (!existing && record.uniqueId) {
-          existing = await ctx.db
+          const sameUniqueId = await ctx.db
             .query("memberProfiles")
             .withIndex("by_careington_id", (q: any) =>
               q.eq("careingtonUniqueId", record.uniqueId)
             )
-            .first();
+            .collect();
+          existing = sameUniqueId.find((m: any) => (m.careingtonSeqNum ?? "00") === "00") ?? null;
         }
 
         // Normalize gender
@@ -1268,7 +1283,7 @@ export const internalBatchCreateMembers = internalMutation({
           ? (genderLower as any)
           : undefined;
 
-        // Parse dependents if attached — include seqNum and toothlensMemberId for Toothlens
+        // Build the embedded dependents snapshot (still kept on primary for vendor file generation)
         const dependents = Array.isArray(record.dependents) && record.dependents.length > 0
           ? record.dependents.map((d: any, di: number) => {
               const depSeqNum = d.seqNum ?? String(di + 1).padStart(2, "0");
@@ -1283,8 +1298,12 @@ export const internalBatchCreateMembers = internalMutation({
             })
           : undefined;
 
+        let primaryProfileId: any;
+        let careingtonUniqueId: string;
+
         if (existing) {
-          // ── Update existing member ──
+          // ── Update existing primary member ──
+          careingtonUniqueId = record.uniqueId || (existing as any).careingtonUniqueId;
           await ctx.db.patch(existing._id, {
             title: record.title || existing.title,
             firstName: record.firstName,
@@ -1299,27 +1318,26 @@ export const internalBatchCreateMembers = internalMutation({
             gender: validGender ?? existing.gender,
             address: record.address || existing.address,
             dependents: dependents ?? existing.dependents,
-            careingtonUniqueId: record.uniqueId || (existing as any).careingtonUniqueId,
-            careingtonSeqNum: (existing as any).careingtonSeqNum ?? "00",
-            toothlensMemberId: record.uniqueId
-              ? record.uniqueId + ((existing as any).careingtonSeqNum ?? "00")
-              : (existing as any).toothlensMemberId,
+            careingtonUniqueId,
+            careingtonSeqNum: "00",
+            toothlensMemberId: careingtonUniqueId + "00",
             eligibilityFileId: args.fileId,
             updatedAt: now,
           });
+          primaryProfileId = existing._id;
           results.updated++;
         } else {
-          // ── Create new member with atomic counter-based ID ──
+          // ── Create new primary member with atomic counter-based ID ──
           const seqNum = idStart + i;
           const memberId = `MBR-${String(seqNum)}`;
           const year = String(new Date().getFullYear()).slice(2);
           const random = Math.random().toString(36).substring(2, 8).toUpperCase();
           const barcode = `ELG${year}${random}`;
 
-          // If no uniqueId came from the source file, auto-generate a zero-padded 10-digit one
-          const careingtonUniqueId = record.uniqueId || String(seqNum).padStart(10, "0");
+          // If no uniqueId came from the source file, auto-generate one
+          careingtonUniqueId = record.uniqueId || String(seqNum).padStart(10, "0");
 
-          await createMemberProfile(ctx, {
+          const created = await createMemberProfile(ctx, {
             groupId: args.groupId,
             memberIdOverride: memberId,
             barcodeOverride: barcode,
@@ -1341,7 +1359,89 @@ export const internalBatchCreateMembers = internalMutation({
             memberType: "eligible",
             eligibilityFileId: args.fileId,
           });
+          primaryProfileId = created._id;
           results.created++;
+        }
+
+        // ── Create/update a separate memberProfile for each dependent ──
+        if (Array.isArray(record.dependents) && record.dependents.length > 0) {
+          for (let di = 0; di < record.dependents.length; di++) {
+            const dep = record.dependents[di] as any;
+            const depSeqNum: string = dep.seqNum ?? String(di + 1).padStart(2, "0");
+
+            // Find existing dependent profile: same Careington ID + same seqNum
+            const existingWithSameUniqueId = await ctx.db
+              .query("memberProfiles")
+              .withIndex("by_careington_id", (q: any) =>
+                q.eq("careingtonUniqueId", careingtonUniqueId)
+              )
+              .collect();
+            let existingDep: any = existingWithSameUniqueId.find(
+              (m: any) => m.careingtonSeqNum === depSeqNum
+            ) ?? null;
+
+            // Fall back to email match within the group
+            if (!existingDep && dep.email) {
+              existingDep = await ctx.db
+                .query("memberProfiles")
+                .withIndex("by_group_email", (q: any) =>
+                  q.eq("groupId", args.groupId).eq("email", dep.email)
+                )
+                .first();
+            }
+
+            const depGenderLower = (dep.gender || "").toLowerCase();
+            const depGender = (["male", "female", "non_binary", "prefer_not_to_say", "other"].includes(depGenderLower))
+              ? (depGenderLower as any)
+              : undefined;
+
+            if (existingDep) {
+              await ctx.db.patch(existingDep._id, {
+                firstName: dep.firstName,
+                lastName: dep.lastName,
+                email: dep.email || existingDep.email,
+                phone: dep.phone || existingDep.phone,
+                address: dep.address || existingDep.address,
+                dateOfBirth: dep.dateOfBirth || existingDep.dateOfBirth,
+                gender: depGender ?? existingDep.gender,
+                relationship: dep.relationship || existingDep.relationship,
+                primaryMemberId: primaryProfileId,
+                memberRole: "dependent",
+                careingtonUniqueId,
+                careingtonSeqNum: depSeqNum,
+                toothlensMemberId: careingtonUniqueId + depSeqNum,
+                eligibilityFileId: args.fileId,
+                updatedAt: now,
+              });
+            } else {
+              const depSeq = idStart + depIdOffset;
+              depIdOffset++;
+              const depMemberId = `MBR-${String(depSeq)}`;
+              const depYear = String(new Date().getFullYear()).slice(2);
+              const depRandom = Math.random().toString(36).substring(2, 8).toUpperCase();
+              const depBarcode = `ELG${depYear}${depRandom}`;
+
+              await createMemberProfile(ctx, {
+                groupId: args.groupId,
+                memberIdOverride: depMemberId,
+                barcodeOverride: depBarcode,
+                firstName: dep.firstName,
+                lastName: dep.lastName,
+                email: dep.email || undefined,
+                phone: dep.phone || undefined,
+                address: dep.address,
+                dateOfBirth: dep.dateOfBirth || undefined,
+                gender: depGender,
+                careingtonUniqueId,
+                careingtonSeqNum: depSeqNum,
+                memberType: "eligible",
+                memberRole: "dependent",
+                relationship: dep.relationship || "other",
+                primaryMemberId: primaryProfileId,
+                eligibilityFileId: args.fileId,
+              });
+            }
+          }
         }
       } catch (error) {
         results.failed++;
