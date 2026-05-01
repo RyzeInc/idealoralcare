@@ -41,6 +41,12 @@ export const sendFulfillmentPacketEmail = action({
     processingFee: v.optional(v.string()),
     memberServicesPhone: v.optional(v.string()),
     memberWebsite: v.optional(v.string()),
+    // Per-member network URLs — forwarded to PDF so the card back matches the dashboard
+    networks: v.optional(v.object({
+      careington: v.object({ name: v.string(), memberUrl: v.string() }),
+      dialCare:   v.object({ name: v.string(), memberUrl: v.string() }),
+      toothlens:  v.object({ name: v.string(), memberUrl: v.string() }),
+    })),
     // Allows callers to override the app base URL (useful in tests / staging)
     appUrl: v.optional(v.string()),
   },
@@ -63,6 +69,7 @@ export const sendFulfillmentPacketEmail = action({
       processingFee: args.processingFee,
       memberServicesPhone: args.memberServicesPhone,
       memberWebsite: args.memberWebsite,
+      networks: args.networks,
     };
 
     const pdfHeaders: Record<string, string> = {

@@ -45,6 +45,7 @@ export async function GET() {
     memberFirstName: user.firstName ?? "Member",
     memberEmail: user.emailAddresses[0]?.emailAddress ?? "",
     memberId: memberProfile?.memberId ?? "—",
+    subscriberId: memberProfile?.subscriberId ?? memberProfile?.memberId,
     groupCode: "IDEALDO",
     planName: memberProfile?.planName ?? "Ideal Oral Savings Plan",
     effectiveDate: memberProfile?.effectiveDate ?? new Date().toLocaleDateString("en-US", {
@@ -54,7 +55,8 @@ export async function GET() {
     }),
     term: bundleData?.pricingSnapshot?.totalCents > 2000 ? "Annual" : "Monthly",
     memberServicesPhone: "(844) 679-9367",
-    memberWebsite: "www.careington.com",
+    memberWebsite: "www.getidealoh.com",
+    networks: memberProfile?.networks,
   };
 
   // Load logo as base64 data URI

@@ -59,6 +59,7 @@ export async function GET(req: NextRequest) {
     memberFirstName: user.firstName ?? "Member",
     memberEmail: user.emailAddresses[0]?.emailAddress ?? "",
     memberId: memberProfile?.memberId ?? "—",
+    subscriberId: memberProfile?.subscriberId ?? memberProfile?.memberId,
     groupCode: memberProfile?.groupCode ?? "IDEALDO",
     planName: memberProfile?.planName ?? "Ideal Oral Savings Plan",
     effectiveDate:
@@ -66,7 +67,8 @@ export async function GET(req: NextRequest) {
       new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
     term: bundleData?.pricingSnapshot?.totalCents > 2000 ? "Annual" : "Monthly",
     memberServicesPhone: "(844) 679-9367",
-    memberWebsite: "www.careington.com",
+    memberWebsite: "www.getidealoh.com",
+    networks: memberProfile?.networks,
   };
 
   // Load logo

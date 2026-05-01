@@ -20,10 +20,10 @@ interface MemberIdCardProps {
 const CAREINGTON_LOGO_SRC = "/careington-logo.png";
 const cardLogoStyle: React.CSSProperties = {
   position: 'absolute',
-  bottom: '1.25rem',
-  right: '1.25rem',
-  width: '84px',
-  opacity: 0.28,
+  bottom: '0.875rem',
+  right: '0.875rem',
+  width: '72px',
+  opacity: 0.22,
   pointerEvents: 'none',
 };
 
@@ -67,13 +67,15 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
         </div>
       </div>
 
-      {/* Card with flip */}
+      {/* Card with flip — capped at standard credit-card proportions (CR80: 3.375" × 2.125") */}
+      {/* Max-width 480px ≈ card at ~142 DPI, a comfortable on-screen size */}
       <div
         style={{
           perspective: '1000px',
           cursor: 'pointer',
-          maxWidth: '100%',
-          overflow: 'hidden',
+          width: '100%',
+          maxWidth: '480px',
+          margin: '0 auto',
         }}
         onClick={() => setFlipped(!flipped)}
       >
@@ -81,8 +83,7 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
           style={{
             position: 'relative',
             width: '100%',
-            maxWidth: '100%',
-            aspectRatio: '1.586',
+            aspectRatio: '1.5882',   /* 3.375 / 2.125 — exact CR80 ratio */
             transition: 'transform 0.6s',
             transformStyle: 'preserve-3d',
             transform: flipped ? 'rotateY(180deg)' : 'rotateY(0)',
@@ -95,20 +96,21 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
               background: '#fff',
-              borderRadius: '14px',
+              borderRadius: '10px',
               border: '1px solid #cbd5e1',
               boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-              padding: '1.5rem',
+              padding: '4.5% 5%',     /* percentage padding scales with card width */
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
               overflow: 'hidden',
+              boxSizing: 'border-box',
             }}
           >
             {/* Top decoration */}
             <div
               style={{
-                position: 'absolute', top: 0, left: 0, right: 0, height: '4px',
+                position: 'absolute', top: 0, left: 0, right: 0, height: '3px',
                 background: 'linear-gradient(90deg, #0066CC, #14b8a6)',
               }}
             />
@@ -121,91 +123,68 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
             />
 
             {/* Header row */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', minWidth: 0 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/ideal-oral-health-logo.png"
                   alt="Ideal Oral Health"
-                  style={{ height: '36px', width: 'auto', objectFit: 'contain' }}
+                  style={{ height: '28px', width: 'auto', objectFit: 'contain', flexShrink: 0 }}
                 />
-                <div>
-                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: '0.625rem', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap' }}>
+                    Ideal Oral Health
+                  </div>
+                  <div style={{ fontSize: '0.5625rem', color: '#64748b' }}>
                     Member ID Card
                   </div>
                 </div>
               </div>
-              <div style={{ fontSize: '0.6875rem', color: '#94a3b8', textAlign: 'right' }}>
+              <div style={{ fontSize: '0.5625rem', color: '#94a3b8', textAlign: 'right', flexShrink: 0 }}>
                 <div>www.getidealoh.com</div>
                 <div>{cardData.supportPhone ?? '(844) 679-9367'}</div>
               </div>
             </div>
 
-            {/* Fields grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.625rem 1.5rem', marginTop: '0.25rem' }}>
-              <div>
-                <div style={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  Member
+            {/* Fields grid — 2-column, 3-row layout */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px' }}>
+              {[
+                { label: 'Member',             value: cardData.memberName,                          mono: false },
+                { label: 'Member ID',           value: cardData.memberId,                            mono: true  },
+                { label: 'Subscriber ID',       value: cardData.subscriberId || cardData.memberId,   mono: true  },
+                { label: 'Provider Group Code', value: cardData.groupCode || 'IDEALDO',              mono: false },
+                { label: 'Plan',                value: cardData.planName,                            mono: false },
+                { label: 'Effective',           value: cardData.effectiveDate,                       mono: false },
+              ].map(({ label, value, mono }) => (
+                <div key={label}>
+                  <div style={{ fontSize: '0.5rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    {label}
+                  </div>
+                  <div style={{
+                    fontSize: '0.6875rem', fontWeight: mono ? 700 : 600, color: '#0f172a',
+                    fontFamily: mono ? 'monospace' : 'inherit',
+                    textTransform: mono ? 'uppercase' : 'none',
+                    marginTop: '1px',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {value}
+                  </div>
                 </div>
-                <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', marginTop: '1px' }}>
-                  {cardData.memberName}
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  Member ID
-                </div>
-                <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', marginTop: '1px', textTransform: 'uppercase' }}>
-                  {cardData.memberId}
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  Subscriber ID
-                </div>
-                <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', marginTop: '1px', textTransform: 'uppercase' }}>
-                  {cardData.subscriberId || cardData.memberId}
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  Provider Group Code
-                </div>
-                <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', marginTop: '1px' }}>
-                  {cardData.groupCode || 'IDEALDO'}
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  Plan
-                </div>
-                <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', marginTop: '1px' }}>
-                  {cardData.planName}
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  Effective
-                </div>
-                <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', marginTop: '1px' }}>
-                  {cardData.effectiveDate}
-                </div>
-              </div>
+              ))}
             </div>
 
             {/* Footer */}
             <div
               style={{
                 borderTop: '1px solid #e2e8f0',
-                paddingTop: '0.625rem',
-                marginTop: '0.25rem',
+                paddingTop: '0.375rem',
                 textAlign: 'center',
               }}
             >
-              <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#0f172a', letterSpacing: '0.04em' }}>
+              <div style={{ fontSize: '0.5625rem', fontWeight: 800, color: '#0f172a', letterSpacing: '0.04em' }}>
                 THIS IS NOT INSURANCE.
               </div>
-              <div style={{ fontSize: '0.625rem', color: '#94a3b8', marginTop: '2px' }}>
+              <div style={{ fontSize: '0.5rem', color: '#94a3b8', marginTop: '1px' }}>
                 This is a discount program. Savings vary by provider.
               </div>
             </div>
@@ -219,20 +198,21 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
               WebkitBackfaceVisibility: 'hidden',
               transform: 'rotateY(180deg)',
               background: '#f8fafc',
-              borderRadius: '14px',
+              borderRadius: '10px',
               border: '1px solid #cbd5e1',
               boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-              padding: '1.25rem 1.5rem',
+              padding: '4.5% 5%',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
               overflow: 'hidden',
+              boxSizing: 'border-box',
             }}
           >
             {/* Top decoration */}
             <div
               style={{
-                position: 'absolute', top: 0, left: 0, right: 0, height: '4px',
+                position: 'absolute', top: 0, left: 0, right: 0, height: '3px',
                 background: 'linear-gradient(90deg, #14b8a6, #0066CC)',
               }}
             />
@@ -245,36 +225,40 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
             />
 
             {/* Networks */}
-            <div>
-              <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.625rem' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <div style={{ fontSize: '0.5rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.375rem' }}>
                 Networks &amp; Services
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>
-                    Teledentistry — DialCare
-                  </span>
-                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(855)-335-2255</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3125rem' }}>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.25rem' }}>
+                    <span style={{ fontSize: '0.625rem', fontWeight: 600, color: '#0f172a' }}>
+                      Teledentistry — DialCare
+                    </span>
+                    <span style={{ fontSize: '0.5625rem', color: '#64748b', flexShrink: 0 }}>(855) 335-2255</span>
+                  </div>
+                  <div style={{ fontSize: '0.5625rem', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {cardData.networks.dialCare.memberUrl.replace('https://', '')}
+                  </div>
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#475569' }}>
-                  {cardData.networks.dialCare.memberUrl.replace('https://', '')}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.25rem' }}>
+                    <span style={{ fontSize: '0.625rem', fontWeight: 600, color: '#0f172a' }}>
+                      Careington Dental Network
+                    </span>
+                    <span style={{ fontSize: '0.5625rem', color: '#64748b', flexShrink: 0 }}>(800) 290-0523</span>
+                  </div>
+                  <div style={{ fontSize: '0.5625rem', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {cardData.networks.careington.memberUrl.replace('https://', '')}
+                  </div>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
-                  <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>
-                    Careington Dental Discount Network
-                  </span>
-                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(800) 290-0523</span>
-                </div>
-                <div style={{ fontSize: '0.75rem', color: '#475569' }}>
-                  {cardData.networks.careington.memberUrl.replace('https://', '')}
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
-                  <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>
+                <div>
+                  <div style={{ fontSize: '0.625rem', fontWeight: 600, color: '#0f172a' }}>
                     AI Oral Scan
-                  </span>
-                </div>
-                <div style={{ fontSize: '0.75rem', color: '#475569' }}>
-                  {cardData.networks.toothlens.memberUrl.replace('https://', '')}
+                  </div>
+                  <div style={{ fontSize: '0.5625rem', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {cardData.networks.toothlens.memberUrl.replace('https://', '')}
+                  </div>
                 </div>
               </div>
             </div>
@@ -283,12 +267,11 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
             <div
               style={{
                 borderTop: '1px solid #e2e8f0',
-                paddingTop: '0.625rem',
-                marginTop: '0.25rem',
+                paddingTop: '0.375rem',
                 textAlign: 'center',
               }}
             >
-              <div style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#0f172a', letterSpacing: '0.02em' }}>
+              <div style={{ fontSize: '0.5rem', fontWeight: 800, color: '#0f172a', letterSpacing: '0.02em' }}>
                 THIS IS NOT INSURANCE. IT IS A DISCOUNT PROGRAM.
               </div>
             </div>

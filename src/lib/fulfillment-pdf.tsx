@@ -263,6 +263,12 @@ export interface FulfillmentPacketData {
   memberServicesPhone?: string;
   memberWebsite?: string;
   logoDataUri?: string;
+  /** Per-member network URLs — matches MemberCardData.networks from the dashboard */
+  networks?: {
+    careington: { name: string; memberUrl: string };
+    dialCare: { name: string; memberUrl: string };
+    toothlens: { name: string; memberUrl: string };
+  };
 }
 
 // ─── Page logo/footer wrapper ─────────────────────────────────────────────────
@@ -804,7 +810,7 @@ const cardStyles = StyleSheet.create({
     fontFamily: "Helvetica-Bold",
     color: BLUE,
   },
-  // Card Pages - designed for 8.5x11 printing with card in center
+  // Card pages — centered on 8.5×11, card printed at exact CR80 size (3.375" × 2.125")
   cardPage: {
     padding: 40,
     display: "flex",
@@ -812,8 +818,9 @@ const cardStyles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "#ffffff",
   },
+  // Outer bleed area matches CR80 + 0.125" bleed on each edge
   bleedContainer: {
-    width: "3.75in",
+    width: "3.625in",
     height: "2.375in",
     backgroundColor: "#ffffff",
     display: "flex",
@@ -821,13 +828,14 @@ const cardStyles = StyleSheet.create({
     justifyContent: "center",
     padding: "0.125in",
   },
+  // Inner card is exactly 3.375" × 2.125" (standard CR80 credit/ID card)
   cardContainer: {
     width: "100%",
     height: "100%",
     backgroundColor: "#ffffff",
-    borderRadius: 12,
+    borderRadius: 10,
     border: "1px solid #cbd5e1",
-    padding: 18,
+    padding: 11,
     display: "flex",
     flexDirection: "column",
     justifyContent: "space-between",
@@ -839,74 +847,75 @@ const cardStyles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 4,
+    height: 3,
     backgroundColor: "#0066CC",
   },
   careingtonLogo: {
     position: "absolute",
-    width: 50,
-    height: 16,
-    right: 14,
-    bottom: 14,
-    opacity: 0.28,
+    width: 44,
+    height: 14,
+    right: 11,
+    bottom: 11,
+    opacity: 0.22,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 8,
+    marginBottom: 4,
   },
   headerLeft: {
     flexDirection: "row",
-    gap: 8,
+    gap: 5,
     alignItems: "center",
     flex: 1,
   },
   logo: {
-    width: 40,
-    height: 40,
+    width: 28,
+    height: 28,
   },
   headerText: {
     flex: 1,
   },
   brandName: {
-    fontSize: 10.5,
+    fontSize: 8.5,
     fontWeight: "bold",
     color: "#0f172a",
     marginBottom: 1,
   },
   cardType: {
-    fontSize: 7,
+    fontSize: 6,
     color: "#64748b",
   },
   headerRight: {
-    fontSize: 6.5,
+    fontSize: 5.5,
     color: "#94a3b8",
     textAlign: "right",
   },
   headerRightLine: {
-    marginBottom: 2,
+    marginBottom: 1,
   },
   fieldsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    marginTop: 2,
+    marginTop: 0,
+    flex: 1,
   },
   field: {
     width: "50%",
-    marginBottom: 6,
-    paddingRight: 6,
+    marginBottom: 5,
+    paddingRight: 5,
   },
   fieldLabel: {
-    fontSize: 5.5,
+    fontSize: 5,
     fontWeight: "bold",
     color: "#94a3b8",
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
     marginBottom: 1,
   },
   fieldValue: {
-    fontSize: 8.5,
+    fontSize: 7.5,
     fontWeight: "bold",
     color: "#0f172a",
   },
@@ -916,18 +925,18 @@ const cardStyles = StyleSheet.create({
   footer: {
     borderTopWidth: 1,
     borderTopColor: "#e2e8f0",
-    paddingTop: 6,
-    marginTop: 4,
+    paddingTop: 4,
+    marginTop: 2,
     textAlign: "center",
   },
   footerMain: {
-    fontSize: 7,
+    fontSize: 6,
     fontWeight: "bold",
     color: "#0f172a",
-    letterSpacing: 0.4,
+    letterSpacing: 0.3,
   },
   footerSub: {
-    fontSize: 5.5,
+    fontSize: 5,
     color: "#94a3b8",
     marginTop: 1,
   },
@@ -987,13 +996,19 @@ function MemberCardTitlePage({ data }: { data: FulfillmentPacketData }) {
   );
 }
 
-// Front of card
+// Front of card — 6-field layout matching the dashboard MemberIdCard component
 function MemberCardFrontPage({ data }: { data: FulfillmentPacketData }) {
-  const fields: MemberCardField[] = [
-    { label: "Member", value: data.memberName },
-    { label: "Member ID", value: data.memberId },
-    { label: "Group Code", value: data.groupCode || "IDEALDO" },
-    { label: "Effective", value: data.effectiveDate },
+  // Same 6-field, 2-column layout as dashboard MemberIdCard.tsx:
+  // Row 1: Member | Member ID
+  // Row 2: Subscriber ID | Provider Group Code
+  // Row 3: Plan | Effective
+  const fields: (MemberCardField & { isMemberId?: boolean })[] = [
+    { label: "Member",               value: data.memberName },
+    { label: "Member ID",             value: data.memberId,                              isMemberId: true },
+    { label: "Subscriber ID",         value: data.subscriberId || data.memberId,          isMemberId: true },
+    { label: "Provider Group Code",   value: data.groupCode || "IDEALDO" },
+    { label: "Plan",                  value: data.planName },
+    { label: "Effective",             value: data.effectiveDate },
   ];
 
   return (
@@ -1018,8 +1033,7 @@ function MemberCardFrontPage({ data }: { data: FulfillmentPacketData }) {
               </View>
             </View>
             <View style={cardStyles.headerRight}>
-              <Text style={cardStyles.headerRightLine}>{data.memberWebsite}</Text>
-              <Text style={cardStyles.headerRightLine}>{data.memberEmail}</Text>
+              <Text style={cardStyles.headerRightLine}>www.getidealoh.com</Text>
               <Text style={cardStyles.headerRightLine}>
                 {data.memberServicesPhone ?? '(844) 679-9367'}
               </Text>
@@ -1031,7 +1045,7 @@ function MemberCardFrontPage({ data }: { data: FulfillmentPacketData }) {
             {fields.map((field, idx) => (
               <View key={idx} style={cardStyles.field}>
                 <Text style={cardStyles.fieldLabel}>{field.label}</Text>
-                <Text style={[cardStyles.fieldValue, field.label === "Member ID" ? cardStyles.memberId : {}]}>
+                <Text style={[cardStyles.fieldValue, field.isMemberId ? cardStyles.memberId : {}]}>
                   {field.value}
                 </Text>
               </View>
@@ -1049,69 +1063,71 @@ function MemberCardFrontPage({ data }: { data: FulfillmentPacketData }) {
   );
 }
 
-// Back of card - matches dashboard card back exactly
+// Back of card — matches dashboard MemberIdCard back exactly
 function MemberCardBackPage({ data }: { data: FulfillmentPacketData }) {
-  const website = data.memberWebsite ?? "www.getidealoh.com";
-  const phone = data.memberServicesPhone ?? "(844) 679-9367";
+  // Use per-member network URLs when available (matches dashboard behaviour)
+  const dialCareUrl  = (data.networks?.dialCare.memberUrl   ?? "https://www.dialcare.com").replace("https://", "");
+  const careingtonUrl = (data.networks?.careington.memberUrl ?? "https://getidealoh.com/health/dashboard").replace("https://", "");
+  const toothlensUrl  = (data.networks?.toothlens.memberUrl  ?? "https://toothlens.com").replace("https://", "");
 
   return (
     <Page style={cardStyles.cardPage} size="LETTER">
       <View style={cardStyles.bleedContainer}>
         <View style={cardStyles.cardContainer}>
-          {/* Top bar gradient */}
+          {/* Top bar */}
           <View style={{
             position: 'absolute',
             top: 0,
             left: 0,
             right: 0,
-            height: 4,
+            height: 3,
             backgroundColor: BLUE,
           }} />
           <Image style={cardStyles.careingtonLogo} src={CAREINGTON_LOGO_DATA_URI} />
 
-          {/* Networks section - matching dashboard layout */}
-          <View style={{ marginTop: 8, marginBottom: 12 }}>
-            <Text style={{ fontSize: 6.5, fontWeight: 'bold', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 5 }}>
+          {/* Networks section */}
+          <View style={{ marginTop: 4, flex: 1 }}>
+            <Text style={{ fontSize: 5.5, fontWeight: 'bold', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 4 }}>
               Networks &amp; Services
             </Text>
 
             {/* Teledentistry - DialCare */}
-            <View style={{ marginBottom: 8 }}>
+            <View style={{ marginBottom: 6 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: DARK, flex: 1 }}>
+                <Text style={{ fontSize: 7, fontWeight: 'bold', color: DARK, flex: 1 }}>
                   Teledentistry — DialCare
                 </Text>
-                <Text style={{ fontSize: 6.5, color: '#94a3b8', marginLeft: 4 }}>
-                  (855)-335-2255
+                <Text style={{ fontSize: 5.5, color: '#94a3b8', marginLeft: 3 }}>
+                  (855) 335-2255
                 </Text>
               </View>
-              <Text style={{ fontSize: 6.5, color: '#475569', marginTop: 1 }}>
-                www.dialcare.com
+              <Text style={{ fontSize: 5.5, color: '#475569', marginTop: 1 }}>
+                {dialCareUrl}
               </Text>
             </View>
 
             {/* Careington Dental Discount Network */}
-            <View style={{ marginBottom: 8 }}>
+            <View style={{ marginBottom: 6 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: DARK, flex: 1 }}>
+                <Text style={{ fontSize: 7, fontWeight: 'bold', color: DARK, flex: 1 }}>
                   Careington Dental Discount Network
                 </Text>
-                <Text style={{ fontSize: 6.5, color: '#94a3b8', marginLeft: 4 }}>
+                <Text style={{ fontSize: 5.5, color: '#94a3b8', marginLeft: 3 }}>
                   (800) 290-0523
                 </Text>
               </View>
-              <Text style={{ fontSize: 6.5, color: '#475569', marginTop: 1 }}>
-                {website.replace('https://', '')}
+              <Text style={{ fontSize: 5.5, color: '#475569', marginTop: 1 }}>
+                {careingtonUrl}
               </Text>
             </View>
 
             {/* AI Oral Scan */}
             <View>
-              <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: DARK }}>
+              <Text style={{ fontSize: 7, fontWeight: 'bold', color: DARK }}>
                 AI Oral Scan
               </Text>
-              <Text style={{ fontSize: 6.5, color: '#475569', marginTop: 1 }}>
-                www.getidealoh.com
+              <Text style={{ fontSize: 5.5, color: '#475569', marginTop: 1 }}>
+                {toothlensUrl}
               </Text>
             </View>
           </View>
@@ -1120,11 +1136,11 @@ function MemberCardBackPage({ data }: { data: FulfillmentPacketData }) {
           <View style={{
             borderTopWidth: 1,
             borderTopColor: '#e2e8f0',
-            paddingTop: 6,
-            marginTop: 8,
+            paddingTop: 4,
+            marginTop: 4,
             textAlign: 'center',
           }}>
-            <Text style={{ fontSize: 6.5, fontWeight: 'bold', color: DARK, letterSpacing: 0.2 }}>
+            <Text style={{ fontSize: 5.5, fontWeight: 'bold', color: DARK, letterSpacing: 0.2 }}>
               THIS IS NOT INSURANCE. IT IS A DISCOUNT PROGRAM.
             </Text>
           </View>
