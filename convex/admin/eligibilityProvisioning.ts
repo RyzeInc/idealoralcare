@@ -74,6 +74,74 @@ export const getProvisionableMembersForFile = query({
   },
 });
 
+/** Returns ALL members for a file with their full status — used by the Grant Access modal.
+ *  Primary lookup is by eligibilityFileId; falls back to the file's groupId so that
+ *  older members (created before the eligibilityFileId field was added) are still shown.
+ */
+export const getAllMembersForFile = query({
+  args: { fileId: v.id("eligibilityFiles") },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    // Get the file so we know its groupId
+    const file = await ctx.db.get(args.fileId);
+    if (!file) return [];
+
+    // First try: members that explicitly reference this file
+    const byFileId = await ctx.db
+      .query("memberProfiles")
+      .filter((q) => q.eq(q.field("eligibilityFileId"), args.fileId))
+      .collect();
+
+    // Second try: all members in the same group (covers members created before field existed)
+    const byGroupId = await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_group", (q: any) => q.eq("groupId", file.groupId))
+      .collect();
+
+    // Merge: use byGroupId as the base, but if byFileId is non-empty only return those
+    const members = byFileId.length > 0 ? byFileId : byGroupId;
+
+    // Fetch last invited-at and email delivery event from memberActivities in one pass
+    const activities = await ctx.db
+      .query("memberActivities")
+      .withIndex("by_group", (q: any) => q.eq("groupId", file.groupId))
+      .collect();
+    const lastInvitedMap = new Map<string, number>();
+    // Track the emailEvent on the most-recent email_sent activity per member
+    const emailEventMap = new Map<string, { event: string; ts: number }>();
+    for (const a of activities) {
+      if (a.activityType === "email_sent" && a.memberProfileId) {
+        const key = String(a.memberProfileId);
+        const prev = lastInvitedMap.get(key) ?? 0;
+        if (a.createdAt > prev) {
+          lastInvitedMap.set(key, a.createdAt);
+          if ((a as any).emailEvent) {
+            emailEventMap.set(key, { event: (a as any).emailEvent, ts: a.createdAt });
+          }
+        }
+      }
+    }
+
+    return members.map((m) => ({
+      _id: m._id,
+      memberId: m.memberId,
+      firstName: m.firstName,
+      lastName: m.lastName,
+      email: m.email ?? null,
+      memberType: m.memberType,
+      memberRole: (m as any).memberRole ?? "primary",
+      primaryMemberId: (m as any).primaryMemberId ?? null,
+      relationship: (m as any).relationship ?? null,
+      customerId: m.customerId ?? null,
+      groupId: m.groupId,
+      fromThisFile: (m as any).eligibilityFileId === args.fileId,
+      lastInvitedAt: lastInvitedMap.get(String(m._id)) ?? null,
+      emailEvent: emailEventMap.get(String(m._id))?.event ?? null,
+    }));
+  },
+});
+
 /**
  * Look up the right product for an employer-paid bundle.
  * Defaults to Family ($24.99 catalog) if dependents exist, Individual otherwise.
@@ -267,6 +335,8 @@ export const provisionEligibilityFile = action({
   args: {
     fileId: v.id("eligibilityFiles"),
     mode: v.optional(v.union(v.literal("invite"), v.literal("create"))),
+    /** When provided, only provision these specific member profile IDs (subset selection). */
+    memberIds: v.optional(v.array(v.id("memberProfiles"))),
   },
   handler: async (ctx, args): Promise<ProvisionResult> => {
     try {
@@ -305,7 +375,15 @@ export const provisionEligibilityFile = action({
       errors: [],
     };
 
-    for (const m of list.members) {
+    // If caller selected a specific subset, filter to only those IDs
+    const memberIdSet = args.memberIds ? new Set(args.memberIds as string[]) : null;
+    const membersToProcess = memberIdSet
+      ? list.members.filter((m: any) => memberIdSet.has(m._id))
+      : list.members;
+
+    result.attempted = membersToProcess.length;
+
+    for (const m of membersToProcess) {
       try {
         const email: string = m.email;
         if (!email) {
@@ -360,9 +438,10 @@ export const provisionEligibilityFile = action({
             const invitation: any = await inviteRes.json();
             const invitationUrl: string | undefined = invitation?.url;
 
-            // Send our branded set-password welcome email via Resend.
-            // We swallow email failures so a transient Resend outage doesn't
-            // roll back the invitation — the admin can resend from the UI.
+            // Invitations don't yield a user_id; member will be linked when
+            // they accept (via the Clerk webhook → linkInvitedMember below).
+            // Record the invitation on the member so we know it's pending.
+            let resendEmailId: string | null = null;
             if (invitationUrl) {
               const memberName =
                 [m.firstName, m.lastName].filter(Boolean).join(" ").trim() ||
@@ -373,7 +452,7 @@ export const provisionEligibilityFile = action({
                   { groupId: m.groupId }
                 )) ?? undefined;
               try {
-                await ctx.runAction(
+                const emailResult: any = await ctx.runAction(
                   api.legal.emailFulfillment
                     .sendEligibilityWelcomeSetPasswordEmail,
                   {
@@ -383,6 +462,8 @@ export const provisionEligibilityFile = action({
                     sponsorName,
                   }
                 );
+                // Capture Resend email ID for delivery tracking
+                resendEmailId = emailResult?.emailId ?? null;
               } catch (emailErr: any) {
                 console.error(
                   `[provisionEligibilityFile] welcome email failed for ${email}:`,
@@ -401,6 +482,7 @@ export const provisionEligibilityFile = action({
             await ctx.runMutation(internal.admin.eligibilityProvisioning.markInvited, {
               memberProfileId: m._id,
               fileId: args.fileId,
+              resendEmailId: resendEmailId ?? undefined,
             });
             result.succeeded++;
             await new Promise((r) => setTimeout(r, BATCH_DELAY_MS));
@@ -551,6 +633,7 @@ export const markInvited = internalMutation({
   args: {
     memberProfileId: v.id("memberProfiles"),
     fileId: v.id("eligibilityFiles"),
+    resendEmailId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const profile = await ctx.db.get(args.memberProfileId);
@@ -567,6 +650,7 @@ export const markInvited = internalMutation({
       title: "Clerk invitation sent",
       description: `Invitation email sent to ${profile.email}`,
       actorType: "system",
+      resendEmailId: args.resendEmailId,
       createdAt: Date.now(),
     });
   },
@@ -652,6 +736,201 @@ export const linkInvitedMember = mutation({
 // ─────────────────────────────────────────────────────────────────────
 // helpers
 // ─────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────
+// RESEND INVITE — re-issue a Clerk invitation and welcome email
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Resend a Clerk invitation + set-password welcome email to an `enrolling`
+ * member. Revokes any existing pending invitations first so only one link is
+ * active at a time.
+ */
+export const resendInvite = action({
+  args: { memberProfileId: v.id("memberProfiles") },
+  handler: async (ctx, args): Promise<{ success: boolean; message: string }> => {
+    // @ts-ignore
+    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+
+    const secret = process.env.CLERK_SECRET_KEY;
+    if (!secret) throw new Error("CLERK_SECRET_KEY not set");
+
+    const profile: any = await ctx.runQuery(
+      internal.admin.eligibilityProvisioning.getMemberProfileById,
+      { memberProfileId: args.memberProfileId }
+    );
+    if (!profile) throw new Error("Member profile not found");
+    const email: string = profile.email;
+    if (!email) throw new Error("Member has no email address");
+
+    // 1. Revoke any pending Clerk invitations for this email
+    try {
+      const listRes = await fetch(
+        `https://api.clerk.com/v1/invitations?status=pending&limit=10`,
+        { headers: { Authorization: `Bearer ${secret}` } }
+      );
+      if (listRes.ok) {
+        const body: any = await listRes.json();
+        const pending: any[] = Array.isArray(body) ? body : body.data ?? [];
+        for (const inv of pending) {
+          if (inv.email_address?.toLowerCase() === email.toLowerCase()) {
+            await fetch(`https://api.clerk.com/v1/invitations/${inv.id}/revoke`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${secret}` },
+            });
+          }
+        }
+      }
+    } catch (revokeErr: any) {
+      console.warn("[resendInvite] revoke failed (non-fatal):", revokeErr?.message);
+    }
+
+    // 2. Create a fresh invitation
+    const inviteRes = await fetch("https://api.clerk.com/v1/invitations", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email_address: email,
+        public_metadata: {
+          memberProfileId: profile._id,
+          groupId: profile.groupId,
+          source: "eligibility_file_resend",
+        },
+        notify: false,
+        ignore_existing: true,
+      }),
+    });
+    if (!inviteRes.ok) {
+      const text = await inviteRes.text();
+      throw new Error(`Clerk invite failed (${inviteRes.status}): ${text.slice(0, 200)}`);
+    }
+    const invitation: any = await inviteRes.json();
+    const invitationUrl: string | undefined = invitation?.url;
+    if (!invitationUrl) throw new Error("Clerk returned no invitation URL");
+
+    // 3. Send branded set-password email
+    const memberName =
+      [profile.firstName, profile.lastName].filter(Boolean).join(" ").trim() || email;
+    const sponsorName: string | undefined =
+      (await ctx.runQuery(
+        internal.admin.eligibilityProvisioning.getGroupName,
+        { groupId: profile.groupId }
+      )) ?? undefined;
+    let resendEmailId: string | undefined;
+    try {
+      const emailResult: any = await ctx.runAction(api.legal.emailFulfillment.sendEligibilityWelcomeSetPasswordEmail, {
+        memberName,
+        memberEmail: email,
+        invitationUrl,
+        sponsorName,
+      });
+      resendEmailId = emailResult?.emailId ?? undefined;
+    } catch (emailErr: any) {
+      // Email failure is non-fatal for resend — keep invitiation alive
+      console.error(`[resendInvite] email send failed for ${email}:`, emailErr?.message ?? emailErr);
+    }
+
+    // 4. Record activity
+    await ctx.runMutation(internal.admin.eligibilityProvisioning.markInvited, {
+      memberProfileId: args.memberProfileId,
+      fileId: (profile.eligibilityFileId ?? profile.groupId) as any,
+      resendEmailId,
+    });
+
+    return { success: true, message: `Invite resent to ${email}` };
+  },
+});
+
+/** Internal helper to load a single memberProfile by ID (used from actions). */
+export const getMemberProfileById = internalQuery({
+  args: { memberProfileId: v.id("memberProfiles") },
+  handler: async (ctx, args) => {
+    return ctx.db.get(args.memberProfileId);
+  },
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// RESEND DELIVERY EVENTS (called from /api/resend/webhook)
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Called from the Resend webhook route when an email delivery event fires.
+ * Looks up the memberActivity by resendEmailId, records the event, and on
+ * hard bounce/complaint reverts the member back to "eligible" so the admin
+ * can see and re-invite them.
+ */
+export const recordEmailDeliveryEvent = mutation({
+  args: {
+    resendEmailId: v.string(),
+    eventType: v.string(), // e.g. "email.delivered", "email.bounced", "email.complained", "email.failed"
+    bounceType: v.optional(v.string()),   // "Permanent" | "Transient" | "Undetermined"
+    bounceMessage: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Find the email_sent activity that originated this email
+    const activity = await ctx.db
+      .query("memberActivities")
+      .withIndex("by_resend_email_id", (q: any) => q.eq("resendEmailId", args.resendEmailId))
+      .first();
+
+    if (!activity) {
+      // Email isn't one we're tracking — ignore
+      return { matched: false };
+    }
+
+    // Map Resend event to our activityType
+    const activityMap: Record<string, string> = {
+      "email.delivered":        "email_delivered",
+      "email.bounced":          "email_bounced",
+      "email.complained":       "email_complained",
+      "email.failed":           "email_failed",
+      "email.opened":           "email_opened",
+      "email.clicked":          "email_clicked",
+    };
+    const activityType = (activityMap[args.eventType] ?? "custom") as any;
+
+    // Update the original email_sent activity with latest event status
+    await ctx.db.patch(activity._id, { emailEvent: args.eventType });
+
+    // Insert a new activity record for the event
+    const profile = activity.memberProfileId
+      ? await ctx.db.get(activity.memberProfileId)
+      : null;
+
+    await ctx.db.insert("memberActivities", {
+      memberProfileId: activity.memberProfileId,
+      siteId: activity.siteId,
+      groupId: activity.groupId,
+      activityType,
+      title: `Email ${args.eventType.replace("email.", "")}`,
+      description: args.bounceMessage
+        ? `Bounce (${args.bounceType ?? "unknown"}): ${args.bounceMessage}`
+        : `Resend event: ${args.eventType}`,
+      actorType: "system",
+      resendEmailId: args.resendEmailId,
+      emailEvent: args.eventType,
+      createdAt: Date.now(),
+    });
+
+    // Hard bounce or complaint → revert to "eligible" so admin sees the failure
+    const isHardBounce =
+      args.eventType === "email.bounced" && args.bounceType === "Permanent";
+    const isComplaint = args.eventType === "email.complained";
+    const isFailure = args.eventType === "email.failed";
+
+    if ((isHardBounce || isComplaint || isFailure) && profile && profile.memberType === "enrolling") {
+      await ctx.db.patch(profile._id, {
+        memberType: "eligible",
+        updatedAt: Date.now(),
+      });
+    }
+
+    return { matched: true, activityType, profileId: profile?._id };
+  },
+});
 
 function generateTempPassword() {
   // 16-char password with mixed case, digits, and symbols

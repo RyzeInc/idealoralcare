@@ -1130,6 +1130,10 @@ export default defineSchema({
       v.literal("payment_method_updated"),
       // Communications
       v.literal("email_sent"),
+      v.literal("email_delivered"),
+      v.literal("email_bounced"),
+      v.literal("email_complained"),
+      v.literal("email_failed"),
       v.literal("email_opened"),
       v.literal("email_clicked"),
       v.literal("sms_sent"),
@@ -1153,6 +1157,10 @@ export default defineSchema({
     title: v.string(),
     description: v.optional(v.string()),
     metadata: v.optional(v.any()),
+    /** Resend email ID — set on email_sent activities so we can correlate delivery events. */
+    resendEmailId: v.optional(v.string()),
+    /** Last known delivery status from Resend webhook (delivered, bounced, complained, etc.). */
+    emailEvent: v.optional(v.string()),
     
     actorType: v.union(
       v.literal("system"),
@@ -1168,7 +1176,8 @@ export default defineSchema({
     .index("by_member", ["memberProfileId"])
     .index("by_group", ["groupId"])
     .index("by_activity_type", ["activityType"])
-    .index("by_created", ["createdAt"]),
+    .index("by_created", ["createdAt"])
+    .index("by_resend_email_id", ["resendEmailId"]),
 
   // MEMBER NOTES (Staff notes)
   memberNotes: defineTable({

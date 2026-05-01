@@ -37,9 +37,19 @@ export default function EligibilityUploadPage() {
   const processFile = useAction(api.admin.eligibility.processEligibilityFile);
   const previewEligibilityFile = useAction(api.admin.eligibility.previewEligibilityFile);
   const provisionFile = useAction(api.admin.eligibilityProvisioning.provisionEligibilityFile);
+  const resendInvite = useAction(api.admin.eligibilityProvisioning.resendInvite);
   const sendVendorFile = useAction(api.admin.sftpDelivery.generateAndSendVendorFile);
   const [provisioningFileId, setProvisioningFileId] = useState<string | null>(null);
   const [sendingFileId, setSendingFileId] = useState<string | null>(null);
+  const [resendingMemberId, setResendingMemberId] = useState<string | null>(null);
+
+  // Grant Access modal state
+  const [grantAccessFileId, setGrantAccessFileId] = useState<Id<'eligibilityFiles'> | null>(null);
+  const [selectedMemberIds, setSelectedMemberIds] = useState<Set<string>>(new Set());
+  const allFileMembers = useQuery(
+    api.admin.eligibilityProvisioning.getAllMembersForFile,
+    grantAccessFileId ? { fileId: grantAccessFileId } : 'skip'
+  );
 
   // Restore last-used group + action from localStorage
   useEffect(() => {
@@ -386,6 +396,7 @@ export default function EligibilityUploadPage() {
   };
 
   return (
+    <>
     <div className="space-y-6">
       <Breadcrumbs items={[{ label: 'Eligibility Files' }]} />
       <div className="flex items-center justify-between">
@@ -799,29 +810,12 @@ export default function EligibilityUploadPage() {
                             {(file.status === 'completed' || file.status === 'completed_with_errors') && (
                               <button
                                 disabled={provisioningFileId === file._id}
-                                onClick={async () => {
-                                  const ok = window.confirm(
-                                    `Send Clerk invitations and grant employer-paid access to all eligible members in "${file.fileName}"?`
-                                  );
-                                  if (!ok) return;
-                                  setProvisioningFileId(file._id);
-                                  try {
-                                    const res: any = await provisionFile({ fileId: file._id, mode: 'invite' });
-                                    const summary = `Attempted ${res.attempted} · Succeeded ${res.succeeded} · Failed ${res.failed} · Skipped ${res.alreadyLinked}`;
-                                    if (res.failed === 0) {
-                                      toast.success('Provisioning complete', summary);
-                                    } else {
-                                      const firstErrors = res.errors.slice(0, 3).map((e: any) => `${e.email}: ${e.message}`).join(' • ');
-                                      toast.warning('Provisioning partial', `${summary}${firstErrors ? ` — ${firstErrors}` : ''}`);
-                                    }
-                                  } catch (err) {
-                                    toast.fromError(err, 'Provisioning failed');
-                                  } finally {
-                                    setProvisioningFileId(null);
-                                  }
+                                onClick={() => {
+                                  setGrantAccessFileId(file._id as Id<'eligibilityFiles'>);
+                                  setSelectedMemberIds(new Set());
                                 }}
                                 className="text-xs px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded hover:bg-blue-100 disabled:opacity-50 whitespace-nowrap"
-                                title="Create Clerk invitations and grant employer-paid access to all members."
+                                title="Preview and select members before granting access."
                               >
                                 {provisioningFileId === file._id ? 'Granting…' : 'Grant Access'}
                               </button>
@@ -913,6 +907,263 @@ export default function EligibilityUploadPage() {
         )}
       </div>
     </div>
+
+    {/* ── Grant Access preview/selection modal ── */}
+    {grantAccessFileId && (() => {
+      const members = allFileMembers ?? [];
+
+      // "Ready to invite" = eligible/lead, has email, not yet linked to Clerk
+      const PROVISIONABLE_STATUSES = new Set(['eligible', 'lead']);
+      const provisionable = members.filter((m: any) => !!m.email && !m.customerId && PROVISIONABLE_STATUSES.has(m.memberType));
+      const provisionableIds = new Set(provisionable.map((m: any) => m._id));
+
+      // "Invited, pending acceptance" = enrolling + no customerId
+      const pendingMembers = members.filter((m: any) => m.memberType === 'enrolling' && !m.customerId);
+
+      const STATUS_META: Record<string, { label: string; bg: string; text: string; description: string }> = {
+        active:     { label: 'Active',           bg: 'bg-green-50',  text: 'text-green-700',  description: 'Clerk account + Toothlens registered' },
+        enrolling:  { label: 'Invited — Pending', bg: 'bg-blue-50',   text: 'text-blue-700',   description: 'Invite sent, awaiting acceptance' },
+        eligible:   { label: 'Ready to Invite',  bg: 'bg-amber-50',  text: 'text-amber-700',  description: 'Can receive invite now' },
+        lead:       { label: 'Ready to Invite',  bg: 'bg-amber-50',  text: 'text-amber-700',  description: 'Can receive invite now' },
+        inactive:   { label: 'Inactive',         bg: 'bg-slate-100', text: 'text-slate-500',  description: 'Not currently eligible' },
+        terminated: { label: 'Terminated',       bg: 'bg-red-50',    text: 'text-red-600',    description: 'Removed from eligibility' },
+        declined:   { label: 'Declined',         bg: 'bg-orange-50', text: 'text-orange-600', description: 'Member declined enrollment' },
+      };
+
+      const statusCounts: Record<string, number> = {};
+      for (const m of members) statusCounts[m.memberType] = (statusCounts[m.memberType] ?? 0) + 1;
+
+      function timeAgo(ts: number | null): string | null {
+        if (!ts) return null;
+        const diff = Date.now() - ts;
+        const mins = Math.floor(diff / 60000);
+        if (mins < 60) return `${mins}m ago`;
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return `${hrs}h ago`;
+        return `${Math.floor(hrs / 24)}d ago`;
+      }
+
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 flex flex-col max-h-[90vh]">
+
+            {/* Header */}
+            <div className="px-6 py-4 border-b">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900">Grant Access — Member Review</h2>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    Sends a <strong>set-password email</strong> to selected members. When they accept,
+                    their <strong>Clerk account</strong> is created, employer-paid plan is activated,
+                    and <strong>Toothlens AI scan</strong> is registered automatically.
+                  </p>
+                </div>
+                <button
+                  onClick={() => { setGrantAccessFileId(null); setSelectedMemberIds(new Set()); }}
+                  className="flex-shrink-0 text-slate-400 hover:text-slate-600 text-xl leading-none mt-0.5"
+                  aria-label="Close"
+                >✕</button>
+              </div>
+
+              {/* Status summary pills */}
+              {members.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {Object.entries(statusCounts).map(([status, count]) => {
+                    const meta = STATUS_META[status] ?? { label: status, bg: 'bg-slate-100', text: 'text-slate-600', description: '' };
+                    return (
+                      <span key={status} title={meta.description} className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full cursor-default ${meta.bg} ${meta.text}`}>
+                        {meta.label} <span className="font-bold">{count}</span>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Member list */}
+            <div className="flex-1 overflow-y-auto">
+              {!allFileMembers ? (
+                <div className="px-6 py-8 text-center text-slate-400 text-sm">Loading members…</div>
+              ) : members.length === 0 ? (
+                <div className="px-6 py-8 text-center text-slate-500 text-sm">No members found in this file.</div>
+              ) : (
+                <>
+                  {/* Select-all bar — only shown when there are provisionable members */}
+                  {provisionable.length > 0 && (
+                    <div className="px-6 py-2 border-b bg-amber-50 flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="select-all-members"
+                        className="h-4 w-4 rounded border-amber-300 text-amber-600 cursor-pointer"
+                        checked={provisionable.every((m: any) => selectedMemberIds.has(m._id))}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedMemberIds(new Set(provisionable.map((m: any) => m._id)));
+                          } else {
+                            setSelectedMemberIds(new Set());
+                          }
+                        }}
+                      />
+                      <label htmlFor="select-all-members" className="text-xs font-medium text-amber-800 cursor-pointer select-none">
+                        Select all {provisionable.length} ready-to-invite member{provisionable.length !== 1 ? 's' : ''}
+                      </label>
+                    </div>
+                  )}
+
+                  <ul className="divide-y divide-slate-100">
+                    {members.map((m: any) => {
+                      const isProvisionable = provisionableIds.has(m._id);
+                      const isPending = m.memberType === 'enrolling' && !m.customerId;
+                      const checked = selectedMemberIds.has(m._id);
+                      const name = [m.firstName, m.lastName].filter(Boolean).join(' ') || '(No name)';
+                      const isDependent = m.memberRole === 'dependent';
+                      const meta = STATUS_META[m.memberType] ?? { label: m.memberType, bg: 'bg-slate-100', text: 'text-slate-600', description: '' };
+                      const isResending = resendingMemberId === m._id;
+
+                      return (
+                        <li
+                          key={m._id}
+                          className={`flex items-center gap-3 px-6 py-3 ${isProvisionable ? 'cursor-pointer hover:bg-slate-50' : 'opacity-70'} ${checked ? 'bg-amber-50/50' : ''}`}
+                          onClick={() => {
+                            if (!isProvisionable) return;
+                            setSelectedMemberIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(m._id)) next.delete(m._id); else next.add(m._id);
+                              return next;
+                            });
+                          }}
+                        >
+                          {/* Checkbox or status indicator */}
+                          <div className="w-4 flex-shrink-0">
+                            {isProvisionable ? (
+                              <input type="checkbox" readOnly checked={checked} className="h-4 w-4 rounded border-slate-300 text-blue-600 pointer-events-none" />
+                            ) : (
+                              <span className={`block h-2 w-2 rounded-full ml-1 ${m.memberType === 'active' ? 'bg-green-400' : m.memberType === 'enrolling' ? 'bg-blue-400' : 'bg-slate-300'}`} />
+                            )}
+                          </div>
+
+                          {/* Name + email */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-800 truncate">{name}</p>
+                            <p className="text-xs text-slate-500 truncate">
+                              {m.email ?? <span className="italic text-red-400">No email — cannot invite</span>}
+                              {isPending && m.lastInvitedAt && (
+                                <span className="ml-2 text-blue-400">· invited {timeAgo(m.lastInvitedAt)}</span>
+                              )}
+                            </p>
+                          </div>
+
+                          {/* Role badge */}
+                          <span className={`flex-shrink-0 text-xs px-1.5 py-0.5 rounded font-medium ${isDependent ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'}`}>
+                            {isDependent ? `Dep${m.relationship ? ` · ${m.relationship}` : ''}` : 'Primary'}
+                          </span>
+
+                          {/* Status badge or Resend button */}
+                          {isPending ? (
+                            <div className="flex-shrink-0 flex flex-col items-end gap-1">
+                              <button
+                                disabled={isResending}
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  setResendingMemberId(m._id);
+                                  try {
+                                    await resendInvite({ memberProfileId: m._id });
+                                    toast.success('Invite resent', `Set-password email resent to ${m.email}`);
+                                  } catch (err) {
+                                    toast.fromError(err, 'Resend failed');
+                                  } finally {
+                                    setResendingMemberId(null);
+                                  }
+                                }}
+                                className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200 hover:bg-blue-200 disabled:opacity-50 whitespace-nowrap"
+                              >
+                                {isResending ? 'Sending…' : 'Resend'}
+                              </button>
+                              {(m as any).emailEvent && (m as any).emailEvent !== 'email.sent' && (m as any).emailEvent !== 'email.delivered' && (
+                                <span className={`text-xs px-1.5 py-0.5 rounded font-medium whitespace-nowrap ${
+                                  (m as any).emailEvent === 'email.bounced' ? 'bg-red-100 text-red-700' :
+                                  (m as any).emailEvent === 'email.complained' ? 'bg-orange-100 text-orange-700' :
+                                  (m as any).emailEvent === 'email.failed' ? 'bg-red-100 text-red-700' :
+                                  'bg-slate-100 text-slate-600'
+                                }`}>
+                                  {(m as any).emailEvent === 'email.bounced' ? '⚠ Bounced' :
+                                   (m as any).emailEvent === 'email.complained' ? '⚠ Complaint' :
+                                   (m as any).emailEvent === 'email.failed' ? '⚠ Failed' :
+                                   (m as any).emailEvent.replace('email.', '')}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span title={meta.description} className={`flex-shrink-0 text-xs px-1.5 py-0.5 rounded font-medium ${meta.bg} ${meta.text}`}>
+                              {meta.label}
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t bg-slate-50 flex items-center justify-between gap-3">
+              <p className="text-xs text-slate-500">
+                {selectedMemberIds.size > 0
+                  ? `${selectedMemberIds.size} of ${provisionable.length} ready member${provisionable.length !== 1 ? 's' : ''} selected`
+                  : provisionable.length === 0
+                    ? pendingMembers.length > 0
+                      ? `${pendingMembers.length} member${pendingMembers.length !== 1 ? 's' : ''} awaiting acceptance — use Resend`
+                      : 'No members are ready to invite'
+                    : `${provisionable.length} ready to invite — select to continue`}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setGrantAccessFileId(null); setSelectedMemberIds(new Set()); }}
+                  className="text-xs px-3 py-1.5 rounded border border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={selectedMemberIds.size === 0 || provisioningFileId === grantAccessFileId}
+                  onClick={async () => {
+                    if (selectedMemberIds.size === 0) return;
+                    const fileId = grantAccessFileId!;
+                    setGrantAccessFileId(null);
+                    setProvisioningFileId(fileId);
+                    try {
+                      const res: any = await provisionFile({
+                        fileId,
+                        mode: 'invite',
+                        memberIds: Array.from(selectedMemberIds) as any[],
+                      });
+                      const summary = `Attempted ${res.attempted} · Succeeded ${res.succeeded} · Failed ${res.failed} · Skipped ${res.alreadyLinked}`;
+                      if (res.failed === 0) {
+                        toast.success('Invites sent', summary);
+                      } else {
+                        const firstErrors = res.errors.slice(0, 3).map((e: any) => `${e.email}: ${e.message}`).join(' • ');
+                        toast.warning('Provisioning partial', `${summary}${firstErrors ? ` — ${firstErrors}` : ''}`);
+                      }
+                    } catch (err) {
+                      toast.fromError(err, 'Provisioning failed');
+                    } finally {
+                      setProvisioningFileId(null);
+                      setSelectedMemberIds(new Set());
+                    }
+                  }}
+                  className="text-xs px-3 py-1.5 rounded bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {provisioningFileId === grantAccessFileId
+                    ? 'Sending invites…'
+                    : `Send invite to ${selectedMemberIds.size} member${selectedMemberIds.size !== 1 ? 's' : ''}`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    })()}
+    </>
   );
 }
 
