@@ -92,8 +92,8 @@ const ADMIN_NAVIGATION: NavSection[] = [
 export function AdminSidebar() {
   const pathname = usePathname();
   const { isLoaded } = useAuth();
-  // Only call the query after Clerk auth is loaded to ensure JWT is available
-  const profile = isLoaded ? useQuery(api.admin.adminUsers.getMyAdminProfile) : undefined;
+  // Pass "skip" until Clerk auth is ready to prevent unauthenticated query attempts
+  const profile = useQuery(api.admin.adminUsers.getMyAdminProfile, isLoaded ? {} : "skip");
   const isOwner = profile?.role === "owner";
 
   const isActive = (href: string) => {
