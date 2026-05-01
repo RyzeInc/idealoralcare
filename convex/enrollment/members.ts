@@ -2,6 +2,7 @@ import { mutation, query, internalMutation } from "../_generated/server";
 import { MutationCtx, QueryCtx } from "../_generated/server";
 import { v } from "convex/values";
 import { requireAuth, requireAdmin, requireSelf } from "../lib/authGuards";
+import { createMemberProfile as createMemberProfileShared } from "../lib/memberCreation";
 
 /**
  * Member Profile Management
@@ -103,25 +104,12 @@ export const createMemberProfile = mutation({
   handler: async (ctx: MutationCtx, args: any) => {
     // Authenticated users can create member profiles
     const identity = await requireAuth(ctx);
-    
-    // Generate unique member ID and barcode
-    const memberCount = await ctx.db
-      .query("memberProfiles")
-      .withIndex("by_site", (q: any) => q.eq("siteId", args.siteId))
-      .collect();
-
-    const memberId = generateMemberId(memberCount.length + 1);
-    const barcode = generateBarcode("default"); // TODO: Get site slug
 
     const now = Date.now();
 
-    const profile = await ctx.db.insert("memberProfiles", {
-      memberId,
-      barcode,
-      customerId: identity.clerkUserId, // Link to the authenticated Clerk user
-      siteId: args.siteId,
-      accountId: args.accountId,
+    const { _id: profile } = await createMemberProfileShared(ctx, {
       groupId: args.groupId,
+      customerId: identity.clerkUserId,
       firstName: args.firstName,
       lastName: args.lastName,
       email: args.email,
@@ -136,14 +124,6 @@ export const createMemberProfile = mutation({
       enrollmentSessionId: args.enrollmentSessionId,
       groupMemberId: args.groupMemberId,
       externalMemberId: args.externalMemberId,
-      status: "active",
-      communicationPrefs: {
-        emailOptIn: true,
-        smsOptIn: true,
-        callOptIn: true,
-      },
-      createdAt: now,
-      updatedAt: now,
     });
 
     // Log activity
@@ -201,24 +181,11 @@ export const internalCreateMemberProfile = internalMutation({
     customerId: v.optional(v.string()), // Optional Clerk user ID
   },
   handler: async (ctx: MutationCtx, args: any) => {
-    // Generate unique member ID and barcode
-    const memberCount = await ctx.db
-      .query("memberProfiles")
-      .withIndex("by_site", (q: any) => q.eq("siteId", args.siteId))
-      .collect();
-
-    const memberId = generateMemberId(memberCount.length + 1);
-    const barcode = generateBarcode("default");
-
     const now = Date.now();
 
-    const profile = await ctx.db.insert("memberProfiles", {
-      memberId,
-      barcode,
-      customerId: args.customerId, // Include if provided
-      siteId: args.siteId,
-      accountId: args.accountId,
+    const { _id: profile } = await createMemberProfileShared(ctx, {
       groupId: args.groupId,
+      customerId: args.customerId,
       firstName: args.firstName,
       lastName: args.lastName,
       email: args.email,
@@ -228,19 +195,11 @@ export const internalCreateMemberProfile = internalMutation({
       address: args.address,
       dependents: args.dependents,
       memberType: args.memberType,
-      leadType: args.leadType,
+      leadType: args.leadType as any,
       signupSource: args.signupSource,
       enrollmentSessionId: args.enrollmentSessionId,
       groupMemberId: args.groupMemberId,
       externalMemberId: args.externalMemberId,
-      status: "active",
-      communicationPrefs: {
-        emailOptIn: true,
-        smsOptIn: true,
-        callOptIn: true,
-      },
-      createdAt: now,
-      updatedAt: now,
     });
 
     // Log activity
@@ -289,41 +248,17 @@ export const webhookCreateMemberProfile = mutation({
   handler: async (ctx, args) => {
     const now = Date.now();
 
-    // Generate unique member ID and barcode
-    const memberCount = await ctx.db
-      .query("memberProfiles")
-      .withIndex("by_site", (q: any) => q.eq("siteId", args.siteId))
-      .collect();
-    const memberId = generateMemberId(memberCount.length + 1);
-    const barcode = generateBarcode("default");
-
-    const profile = await ctx.db.insert("memberProfiles", {
-      memberId,
-      barcode,
-      customerId: args.customerId, // Link to Clerk user if provided
-      siteId: args.siteId,
-      accountId: args.accountId,
+    const { _id: profile } = await createMemberProfileShared(ctx, {
       groupId: args.groupId,
+      customerId: args.customerId,
       firstName: args.firstName,
       lastName: args.lastName,
       email: args.email,
-      phone: "",
-      dateOfBirth: "",
-      address: { line1: "", city: "", state: "", postalCode: "", country: "" },
-      dependents: [],
       memberType: args.memberType,
       signupSource: args.signupSource,
       groupMemberId: args.groupMemberId,
       externalMemberId: args.externalMemberId,
       enrollmentSessionId: args.enrollmentSessionId,
-      status: "active",
-      communicationPrefs: {
-        emailOptIn: true,
-        smsOptIn: true,
-        callOptIn: true,
-      },
-      createdAt: now,
-      updatedAt: now,
     });
 
     // Log activity
@@ -615,42 +550,17 @@ export const createLeadFromAdmin = mutation({
       throw new Error("Admin user not found");
     }
 
-    // Generate unique member ID and barcode
-    const memberCount = await ctx.db
-      .query("memberProfiles")
-      .withIndex("by_site", (q: any) => q.eq("siteId", args.siteId))
-      .collect();
-    const memberId = generateMemberId(memberCount.length + 1);
-    const barcode = generateBarcode("default");
-
-    const profile = await ctx.db.insert("memberProfiles", {
-      memberId,
-      barcode,
-      siteId: args.siteId,
-      accountId: args.accountId,
+    const { _id: profile, memberId } = await createMemberProfileShared(ctx, {
       groupId: args.groupId,
       firstName: args.firstName,
       lastName: args.lastName,
       email: args.email,
       phone: args.phone,
-      dateOfBirth: "",
-      gender: undefined,
-      address: { line1: "", city: "", state: "", postalCode: "", country: "" },
-      dependents: [],
       memberType: "lead",
       leadType: "partner",
       signupSource: "admin_enrollment",
-      status: "active",
       assignedStaffId: adminUser._id,
       assignedStaffName: args.assignedStaffName,
-      assignedAt: now,
-      communicationPrefs: {
-        emailOptIn: true,
-        smsOptIn: true,
-        callOptIn: true,
-      },
-      createdAt: now,
-      updatedAt: now,
     });
 
     // Log activity

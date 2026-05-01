@@ -41,10 +41,28 @@ function SortIcon({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
 }
 
 function exportCSV(members: any[]) {
-  const headers = ['Member ID', 'First Name', 'Last Name', 'Email', 'Phone', 'Status', 'DOB', 'Enrolled'];
+  const headers = [
+    'Member ID', 'Subscriber ID', 'Organization Code', 'First Name', 'Last Name',
+    'Email', 'Phone', 'Status', 'Subscription Status', 'Subscription Cadence',
+    'Pending Downgrade', 'Downgrade Effective', 'Careington Unique ID', 'Toothlens Member ID',
+    'DOB', 'Enrolled',
+  ];
   const rows = members.map((m) => [
-    m.memberId, m.firstName ?? '', m.lastName ?? '', m.email ?? '', m.phone ?? '',
-    m.memberType, m.dateOfBirth ?? '',
+    m.memberId,
+    m.subscriberId ?? '',
+    m.organizationCode ?? '',
+    m.firstName ?? '',
+    m.lastName ?? '',
+    m.email ?? '',
+    m.phone ?? '',
+    m.memberType,
+    m.subscriptionStatus ?? '',
+    m.subscriptionCadence ?? '',
+    m.pendingDowngrade ? (m.pendingDowngrade.targetCadence ?? 'yes') : '',
+    m.pendingDowngrade?.effectiveDate ?? '',
+    m.careingtonUniqueId ?? '',
+    m.toothlensMemberId ?? '',
+    m.dateOfBirth ?? '',
     m.enrolledAt ? formatDate(m.enrolledAt) : '',
   ]);
   const csv = [headers, ...rows]
@@ -429,19 +447,20 @@ export default function MembersAdmin() {
                     Status <SortIcon active={sortKey === 'memberType'} dir={sortDir} />
                   </button>
                 </th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Subscription</th>
                 <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {isLoadingMembers ? (
                 <tr>
-                  <td colSpan={6} className="px-0 py-0">
-                    <SkeletonTable rows={6} cols={6} />
+                  <td colSpan={7} className="px-0 py-0">
+                    <SkeletonTable rows={6} cols={7} />
                   </td>
                 </tr>
               ) : pagedMembers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-slate-500">No members found</td>
+                  <td colSpan={7} className="px-6 py-8 text-center text-slate-500">No members found</td>
                 </tr>
               ) : (
                 pagedMembers.map((member: any) => (
@@ -457,6 +476,25 @@ export default function MembersAdmin() {
                     <td className="px-6 py-4 text-slate-600 font-mono text-sm">{member.memberId}</td>
                     <td className="px-6 py-4">
                       <StatusBadge status={member.memberType} size="md" />
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      {member.subscriptionStatus ? (
+                        <div className="flex flex-col gap-1">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            member.subscriptionStatus === 'active' ? 'bg-green-100 text-green-800' :
+                            member.subscriptionStatus === 'past_due' ? 'bg-amber-100 text-amber-800' :
+                            member.subscriptionStatus === 'canceled' ? 'bg-slate-100 text-slate-700' :
+                            'bg-slate-100 text-slate-700'
+                          }`}>{member.subscriptionStatus}{member.subscriptionCadence ? ` · ${member.subscriptionCadence}` : ''}</span>
+                          {member.pendingDowngrade && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200" title={`Downgrade to ${member.pendingDowngrade.targetCadence ?? 'lower tier'} on ${member.pendingDowngrade.effectiveDate ?? 'period end'}`}>
+                              ↓ Pending downgrade
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-xs">—</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex gap-1 justify-end" onClick={e => e.stopPropagation()}>

@@ -8,6 +8,7 @@ import type { DocumentProps } from "@react-pdf/renderer";
 import path from "path";
 import fs from "fs";
 import { MemberCardPdf, type FulfillmentPacketData } from "@/lib/fulfillment-pdf";
+import { PROVIDER_GROUP_CODE } from "@/lib/constants";
 
 /**
  * GET /api/member-card-pdf

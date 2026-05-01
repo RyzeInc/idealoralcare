@@ -2,6 +2,7 @@ import { mutation, query, action, internalMutation } from "../_generated/server"
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
 import { requireAdmin, requireAdminAction } from "../lib/authGuards";
+import { createMemberProfile } from "../lib/memberCreation";
 import * as XLSX from "xlsx";
 
 /**
@@ -576,10 +577,21 @@ export const processEligibilityFile = action({
     // but internalBatchCreateMembers requires it. Always fall back to the group's
     // accountId which is guaranteed non-null by the groups schema.
     let resolvedAccountId = file.accountId;
+    const targetGroup = await ctx.runQuery(api.admin.hierarchy.getGroupById, { groupId: file.groupId });
     if (!resolvedAccountId) {
-      const group = await ctx.runQuery(api.admin.hierarchy.getGroupById, { groupId: file.groupId });
-      if (!group?.accountId) throw new Error(`Group ${file.groupId} has no accountId — cannot process file`);
-      resolvedAccountId = group.accountId;
+      if (!targetGroup?.accountId) throw new Error(`Group ${file.groupId} has no accountId — cannot process file`);
+      resolvedAccountId = targetGroup.accountId;
+    }
+
+    // GATE: refuse to ingest if the destination Organization has no
+    // organizationCode — every member created here would otherwise have a
+    // missing Subscriber ID. Admins must set the Organization Code first via
+    // /admin/hierarchy before re-running the file.
+    if (!targetGroup?.organizationCode) {
+      throw new Error(
+        `Organization "${targetGroup?.name ?? file.groupId}" has no Organization Code (Subscriber ID). ` +
+        `Set it via Admin → Hierarchy → Organizations before processing this eligibility file.`,
+      );
     }
 
     // Update status → validating  AND reset counters so Re-process gives
@@ -1307,12 +1319,10 @@ export const internalBatchCreateMembers = internalMutation({
           // If no uniqueId came from the source file, auto-generate a zero-padded 10-digit one
           const careingtonUniqueId = record.uniqueId || String(seqNum).padStart(10, "0");
 
-          await ctx.db.insert("memberProfiles", {
-            memberId,
-            barcode,
-            siteId: args.siteId,
-            accountId: args.accountId,
+          await createMemberProfile(ctx, {
             groupId: args.groupId,
+            memberIdOverride: memberId,
+            barcodeOverride: barcode,
             title: record.title || undefined,
             firstName: record.firstName,
             middleName: record.middleName || undefined,
@@ -1328,17 +1338,8 @@ export const internalBatchCreateMembers = internalMutation({
             dependents,
             careingtonUniqueId,
             careingtonSeqNum: "00",
-            toothlensMemberId: careingtonUniqueId + "00",
-            status: "active",
             memberType: "eligible",
             eligibilityFileId: args.fileId,
-            communicationPrefs: {
-              emailOptIn: true,
-              smsOptIn: true,
-              callOptIn: true,
-            },
-            createdAt: now,
-            updatedAt: now,
           });
           results.created++;
         }
@@ -1476,28 +1477,18 @@ export const createMembersFromEligibilityFile = mutation({
           const random = Math.random().toString(36).substring(2, 8).toUpperCase();
           const barcode = `ELG${year}${random}`;
 
-          await ctx.db.insert("memberProfiles", {
-            memberId,
-            barcode,
-            siteId: file.siteId,
-            accountId: file.accountId!,
+          await createMemberProfile(ctx, {
             groupId: file.groupId,
+            memberIdOverride: memberId,
+            barcodeOverride: barcode,
             firstName: record.firstName,
             lastName: record.lastName,
             email: record.email,
             phone: record.phone,
             dateOfBirth: record.dateOfBirth,
             gender: validGender,
-            status: "active",
             memberType: "eligible",
             eligibilityFileId: args.fileId,
-            communicationPrefs: {
-              emailOptIn: true,
-              smsOptIn: true,
-              callOptIn: true,
-            },
-            createdAt: now,
-            updatedAt: now,
           });
           results.created++;
         }

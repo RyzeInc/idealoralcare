@@ -28,7 +28,7 @@ export default function BillingPage() {
   const isLoadingGroups = billingGroupsRaw === undefined;
 
   // Sort state for organizations summary table
-  const [sortKey, setSortKey] = useState<'groupCode' | 'groupName' | 'memberCount' | 'paidCount' | 'freeCount' | 'totalAmount' | null>(null);
+  const [sortKey, setSortKey] = useState<'providerGroupCode' | 'organizationCode' | 'organizationName' | 'memberCount' | 'paidCount' | 'freeCount' | 'totalAmount' | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const toggleSort = (key: typeof sortKey) => {
     if (!key) return;
@@ -68,9 +68,9 @@ export default function BillingPage() {
   const selectedGroup = billingGroups.find((g: any) => g.groupId === selectedGroupId);
 
   const handleExportCsv = () => {
-    const header = 'group_code,group_name,total_members,paid_members,free_members,rate_per_member,billable_amount,period_start,period_end\n';
+    const header = 'provider_group_code,organization_code,organization_name,total_members,paid_members,free_members,pending_downgrades,rate_per_member,billable_amount,period_start,period_end\n';
     const rows = billingGroups.map((g: any) =>
-      `"${g.groupCode}","${g.groupName}",${g.memberCount},${g.paidCount},${g.freeCount},${g.ratePerMember.toFixed(2)},${g.totalAmount.toFixed(2)},"${formatIsoDate(billingPeriodStart)}","${formatIsoDate(billingPeriodEnd)}"`
+      `"${g.providerGroupCode ?? g.groupCode}","${g.organizationCode ?? ''}","${g.organizationName ?? g.groupName}",${g.memberCount},${g.paidCount},${g.freeCount},${g.pendingDowngradeCount ?? 0},${g.ratePerMember.toFixed(2)},${g.totalAmount.toFixed(2)},"${formatIsoDate(billingPeriodStart)}","${formatIsoDate(billingPeriodEnd)}"`
     ).join('\n');
     const csv = header + rows;
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -94,8 +94,8 @@ export default function BillingPage() {
             <ArrowLeft size={20} />
           </button>
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">{selectedGroup.groupCode}</h1>
-            <p className="text-slate-600">{selectedGroup.groupName} — {(groupMembers || []).length} active members</p>
+            <h1 className="text-3xl font-bold text-slate-900">{selectedGroup.organizationCode ?? selectedGroup.providerGroupCode ?? selectedGroup.groupCode}</h1>
+            <p className="text-slate-600">{selectedGroup.organizationName ?? selectedGroup.groupName} — {(groupMembers || []).length} active members</p>
           </div>
         </div>
 
@@ -301,10 +301,13 @@ export default function BillingPage() {
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
               <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">
-                <button onClick={() => toggleSort('groupCode')} className="inline-flex items-center gap-1 hover:text-blue-600">Org / Group Code <SortIcon active={sortKey === 'groupCode'} dir={sortDir} /></button>
+                <button onClick={() => toggleSort('providerGroupCode')} className="inline-flex items-center gap-1 hover:text-blue-600">Provider Group Code <SortIcon active={sortKey === 'providerGroupCode'} dir={sortDir} /></button>
               </th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">
-                <button onClick={() => toggleSort('groupName')} className="inline-flex items-center gap-1 hover:text-blue-600">Organization Name <SortIcon active={sortKey === 'groupName'} dir={sortDir} /></button>
+                <button onClick={() => toggleSort('organizationCode')} className="inline-flex items-center gap-1 hover:text-blue-600">Organization Code <SortIcon active={sortKey === 'organizationCode'} dir={sortDir} /></button>
+              </th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">
+                <button onClick={() => toggleSort('organizationName')} className="inline-flex items-center gap-1 hover:text-blue-600">Organization Name <SortIcon active={sortKey === 'organizationName'} dir={sortDir} /></button>
               </th>
               <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">
                 <button onClick={() => toggleSort('memberCount')} className="inline-flex items-center gap-1 hover:text-blue-600">Total <SortIcon active={sortKey === 'memberCount'} dir={sortDir} /></button>
@@ -315,6 +318,7 @@ export default function BillingPage() {
               <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">
                 <button onClick={() => toggleSort('freeCount')} className="inline-flex items-center gap-1 hover:text-blue-600">Free <SortIcon active={sortKey === 'freeCount'} dir={sortDir} /></button>
               </th>
+              <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">Pending Downgrade</th>
               <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">
                 <button onClick={() => toggleSort('totalAmount')} className="inline-flex items-center gap-1 hover:text-blue-600">Billable Amount <SortIcon active={sortKey === 'totalAmount'} dir={sortDir} /></button>
               </th>
@@ -323,13 +327,13 @@ export default function BillingPage() {
           <tbody className="divide-y divide-slate-200">
             {isLoadingGroups ? (
               <tr>
-                <td colSpan={6} className="px-0 py-0">
-                  <SkeletonTable rows={5} cols={6} />
+                <td colSpan={8} className="px-0 py-0">
+                  <SkeletonTable rows={5} cols={8} />
                 </td>
               </tr>
             ) : billingGroups.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-slate-500">No billing data for this period</td>
+                <td colSpan={8} className="px-6 py-8 text-center text-slate-500">No billing data for this period</td>
               </tr>
             ) : billingGroups.map((group: any) => (
               <tr
@@ -337,8 +341,9 @@ export default function BillingPage() {
                 onClick={() => setSelectedGroupId(group.groupId)}
                 className="hover:bg-blue-50 cursor-pointer transition-colors"
               >
-                <td className="px-6 py-4 font-medium font-mono text-sm text-blue-600">{group.groupCode}</td>
-                <td className="px-6 py-4 text-slate-900">{group.groupName}</td>
+                <td className="px-6 py-4 font-mono text-sm text-slate-700">{group.providerGroupCode ?? group.groupCode}</td>
+                <td className="px-6 py-4 font-mono text-sm text-blue-600">{group.organizationCode ?? <span className="text-amber-600">— not set</span>}</td>
+                <td className="px-6 py-4 text-slate-900">{group.organizationName ?? group.groupName}</td>
                 <td className="px-6 py-4 text-right">{group.memberCount}</td>
                 <td className="px-6 py-4 text-right">
                   {group.paidCount > 0 ? (
@@ -354,6 +359,13 @@ export default function BillingPage() {
                     <span className="text-slate-400">0</span>
                   )}
                 </td>
+                <td className="px-6 py-4 text-right">
+                  {group.pendingDowngradeCount > 0 ? (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">{group.pendingDowngradeCount}</span>
+                  ) : (
+                    <span className="text-slate-300">—</span>
+                  )}
+                </td>
                 <td className="px-6 py-4 text-right font-semibold text-slate-900">
                   {formatCurrency(group.totalAmount)}
                 </td>
@@ -362,10 +374,11 @@ export default function BillingPage() {
           </tbody>
           <tfoot className="bg-slate-50 border-t border-slate-200">
             <tr>
-              <td colSpan={2} className="px-6 py-4 font-semibold text-slate-900">Total</td>
+              <td colSpan={3} className="px-6 py-4 font-semibold text-slate-900">Total</td>
               <td className="px-6 py-4 text-right font-semibold text-slate-900">{totalMembers}</td>
               <td className="px-6 py-4 text-right font-semibold text-green-700">{totalPaid}</td>
               <td className="px-6 py-4 text-right font-semibold text-purple-700">{totalFree}</td>
+              <td className="px-6 py-4 text-right font-semibold text-amber-700">{billingGroups.reduce((s: number, g: any) => s + (g.pendingDowngradeCount ?? 0), 0)}</td>
               <td className="px-6 py-4 text-right font-bold text-lg text-green-600">
                 {formatCurrency(totalAmount)}
               </td>

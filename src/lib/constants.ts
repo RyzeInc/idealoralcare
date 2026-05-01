@@ -47,3 +47,31 @@ export const CONTACT_INFO = {
   email: "hello@idealhealth.com",
   supportEmail: "support@idealhealth.com",
 } as const
+
+// ============================================
+// CARRIER / PARTNER VENDOR / PROVIDER CONSTANTS
+// Single source of truth for the (currently fixed) carrier/vendor stack.
+// If we ever support multiple providers these become per-Organization fields.
+// ============================================
+
+/**
+ * The provider group code embedded on every member ID card and on every row
+ * of every outbound vendor (Careington / DialCare / Dental Discount Network)
+ * eligibility file. The carrier requires a single code so members can be
+ * identified at point of service regardless of which Organization they came
+ * through. DO NOT inline the literal string anywhere — import this.
+ */
+export const PROVIDER_GROUP_CODE = "IDEALDO" as const
+
+/** Display name of the carrier (top of the hierarchy). */
+export const CARRIER_NAME = "Ryze Nexus" as const
+
+/** Display name of the partner vendor (Ideal Health stack). */
+export const PARTNER_VENDOR_NAME = "Ideal Health" as const
+
+/**
+ * Default Direct-To-Consumer organization code. Used as the Subscriber ID
+ * fallback for self-enrolled members who don't belong to an employer org.
+ */
+export const DTC_ORGANIZATION_CODE = "IDC-0001" as const
+

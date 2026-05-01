@@ -378,6 +378,7 @@ export const getMemberInspectorData = query({
       hierarchy: {
         groupName: group?.name ?? "Unknown Group",
         groupCode: (group as any)?.groupCode ?? null,
+        organizationCode: (group as any)?.organizationCode ?? null,
         accountName: account?.name ?? "Unknown Account",
         siteName: site?.name ?? "Unknown Site",
       },
@@ -395,6 +396,7 @@ export const getMemberInspectorData = query({
             createdAt: bundle.createdAt,
             activatedAt: bundle.activatedAt,
             cancelledAt: bundle.cancelledAt,
+            pendingDowngrade: (bundle as any).pendingDowngrade ?? null,
           }
         : null,
       entitlements,

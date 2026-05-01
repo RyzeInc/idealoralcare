@@ -1,4 +1,5 @@
 import { emailTemplates } from "@/email-templates/membershipEmails";
+import { PROVIDER_GROUP_CODE } from "@/lib/constants";
 
 // Sample data mirrors the DialCare example — swap in real values when testing
 const SAMPLE_DATA = {
@@ -7,7 +8,7 @@ const SAMPLE_DATA = {
   memberAddress: "123 Any Street\nCity, State 00000",
   memberId: "IOH-EMP-001",
   groupName: "Ideal Oral Savings Plan",
-  groupCode: "IDEALDO",
+  groupCode: PROVIDER_GROUP_CODE,
   term: "ANNUAL",
   effectiveDate: new Date().toLocaleDateString("en-US", {
     month: "2-digit",

@@ -16,6 +16,13 @@ interface MembershipAgreementModalProps {
     groupCode: string;
     effectiveDate: string;
     billingInterval?: "monthly" | "annual";
+    /**
+     * Periodic charge in cents, sourced from catalogProducts.pricing (and
+     * verified against Stripe at checkout). When provided, it overrides the
+     * legacy hardcoded $14.99 / $164.99 fallback so members always see the
+     * exact amount they are about to be charged.
+     */
+    periodicChargeCents?: number;
   };
 }
 
@@ -144,7 +151,9 @@ export const MembershipAgreementModal: React.FC<MembershipAgreementModalProps> =
                 </div>
                 <div>
                   <span className="font-medium">Periodic Charge:</span>{" "}
-                  {memberData.billingInterval === "monthly" ? "$14.99" : "$164.99"}
+                  {typeof memberData.periodicChargeCents === "number"
+                    ? `$${(memberData.periodicChargeCents / 100).toFixed(2)}`
+                    : (memberData.billingInterval === "monthly" ? "$14.99" : "$164.99")}
                 </div>
                 <div>
                   <span className="font-medium">Processing Fee:</span> $0.00

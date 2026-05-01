@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { PROVIDER_GROUP_CODE } from '@/lib/constants';
 
-// ── Test data defaults ───────────────────────────────────────────────────────
+// ── Test data defaults ────────────────────────────────────────────────
 const TEST_MEMBER = {
   memberName: 'Test Member',
   memberFirstName: 'Test',
   memberEmail: '',
   memberId: 'IOH-TEST-001',
   planName: 'Ideal Oral Savings Plan',
-  groupCode: 'IDEALDO',
+  groupCode: PROVIDER_GROUP_CODE,
   effectiveDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
   billingAmount: '$19.95/mo',
   memberServicesPhone: 'support@getidealoh.com',

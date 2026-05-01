@@ -2,6 +2,7 @@ import { mutation, query, action } from "../_generated/server";
 import { v } from "convex/values";
 import { requireAdmin, requireAdminAction } from "../lib/authGuards";
 import { recordAdminAction } from "./adminAudit";
+import { createMemberProfile } from "../lib/memberCreation";
 // @ts-ignore - Type instantiation too deep
 import { api as apiOriginal } from "../_generated/api";
 
@@ -26,7 +27,36 @@ export const getAllMembers = query({
   },
   handler: async (ctx, args) => {
     const limit = Math.min(args.limit ?? 500, 500);
-    return await ctx.db.query("memberProfiles").order("asc").take(limit);
+    const members = await ctx.db.query("memberProfiles").order("asc").take(limit);
+
+    // Build a customerId → bundle map (single scan vs N+1 lookups)
+    const allBundles = await ctx.db.query("subscriptionBundles").collect();
+    const bundleByCustomer = new Map<string, any>();
+    for (const b of allBundles) {
+      // Prefer the active bundle for a given customer; fall back to most recent
+      const existing = bundleByCustomer.get(b.customerId);
+      if (!existing || b.status === "active" || (b._creationTime ?? 0) > (existing._creationTime ?? 0)) {
+        bundleByCustomer.set(b.customerId, b);
+      }
+    }
+
+    // Build a groupId → group map for organizationCode/name (single scan)
+    const allGroups = await ctx.db.query("groups").collect();
+    const groupById = new Map<string, any>();
+    for (const g of allGroups) groupById.set(g._id, g);
+
+    return members.map((m) => {
+      const bundle = m.customerId ? bundleByCustomer.get(m.customerId) : null;
+      const group = m.groupId ? groupById.get(m.groupId) : null;
+      return {
+        ...m,
+        subscriptionStatus: bundle?.status ?? null,
+        subscriptionCadence: bundle?.cadence ?? null,
+        pendingDowngrade: bundle?.pendingDowngrade ?? null,
+        organizationCode: group?.organizationCode ?? null,
+        organizationName: group?.name ?? group?.slug ?? null,
+      };
+    });
   },
 });
 
@@ -111,11 +141,25 @@ export const getMemberDetail = query({
           .collect()
       : [];
 
+    // Get the active subscription bundle (so the UI can show pending downgrades, status, etc.)
+    let subscriptionBundle: any = null;
+    if (member.customerId) {
+      const bundles = await ctx.db
+        .query("subscriptionBundles")
+        .filter((q) => q.eq(q.field("customerId"), member.customerId))
+        .collect();
+      subscriptionBundle =
+        bundles.find((b) => b.status === "active") ??
+        bundles.sort((a, b) => (b._creationTime ?? 0) - (a._creationTime ?? 0))[0] ??
+        null;
+    }
+
     return {
       member,
       activities,
       notes,
       entitlements,
+      subscriptionBundle,
     };
   },
 });
@@ -857,41 +901,32 @@ export const createAdminMember = mutation({
     )),
     groupMemberId: v.optional(v.string()),
     employeeType: v.optional(v.union(v.literal("full_time"), v.literal("part_time"))),
+    // New: allow admin to override vendor IDs / subscriber ID when needed
+    careingtonUniqueId: v.optional(v.string()),
+    careingtonSeqNum: v.optional(v.string()),
+    subscriberId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
     const group = await ctx.db.get(args.groupId);
     if (!group) throw new Error("Group not found");
 
-    const allMembers = await ctx.db.query("memberProfiles").collect();
-    const seq = String(allMembers.length + 1).padStart(5, "0");
-    const memberId = `MBR-${new Date().getFullYear()}-${seq}`;
-    const barcode = memberId.replace(/-/g, "");
-
-    // Infer list-bill status for FT members in a list-bill group
-    const isListBillGroup = (group as any).listBill?.enabled === true;
-    const isFT = args.employeeType === "full_time";
-
-    const id = await ctx.db.insert("memberProfiles", {
-      memberId,
-      barcode,
-      siteId: group.siteId,
-      accountId: group.accountId,
+    const { _id: id } = await createMemberProfile(ctx, {
       groupId: args.groupId,
+      groupOverride: group,
       firstName: args.firstName,
       lastName: args.lastName,
       email: args.email,
       phone: args.phone,
       dateOfBirth: args.dateOfBirth,
-      groupMemberId: args.groupMemberId,
-      employeeType: args.employeeType,
-      listBillStatus: isListBillGroup && isFT ? "active" : undefined,
       memberType: args.memberType ?? "eligible",
       memberRole: "primary",
-      status: "active",
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    } as any);
+      groupMemberId: args.groupMemberId,
+      employeeType: args.employeeType,
+      careingtonUniqueId: args.careingtonUniqueId,
+      careingtonSeqNum: args.careingtonSeqNum,
+      subscriberIdOverride: args.subscriberId,
+    });
 
     await ctx.db.insert("memberActivities", {
       memberProfileId: id,

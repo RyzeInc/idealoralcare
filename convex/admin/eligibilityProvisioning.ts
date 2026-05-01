@@ -426,7 +426,67 @@ export const provisionEligibilityFile = action({
       await new Promise((r) => setTimeout(r, BATCH_DELAY_MS));
     }
 
+    // Audit-log a single bulk-provision summary entry for this run.
+    try {
+      const ident = await ctx.auth.getUserIdentity();
+      if (ident?.subject) {
+        await ctx.runMutation(
+          internal.admin.eligibilityProvisioning.recordProvisioningSummary,
+          {
+            actorClerkUserId: ident.subject,
+            fileId: args.fileId,
+            mode,
+            attempted: result.attempted,
+            succeeded: result.succeeded,
+            failed: result.failed,
+            alreadyLinked: result.alreadyLinked,
+          },
+        );
+      }
+    } catch {
+      // Audit logging is best-effort; never fail the provisioning run on it
+    }
+
     return result;
+  },
+});
+
+/**
+ * Audit-log helper for the bulk provisioning action (actions cannot write to
+ * the DB directly, so they invoke this internal mutation).
+ */
+export const recordProvisioningSummary = internalMutation({
+  args: {
+    actorClerkUserId: v.string(),
+    fileId: v.id("eligibilityFiles"),
+    mode: v.union(v.literal("invite"), v.literal("create")),
+    attempted: v.number(),
+    succeeded: v.number(),
+    failed: v.number(),
+    alreadyLinked: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const admin = await ctx.db
+      .query("adminUsers")
+      .withIndex("by_clerk_id", (q: any) => q.eq("clerkUserId", args.actorClerkUserId))
+      .first();
+    await ctx.db.insert("adminAuditLog", {
+      actorClerkUserId: args.actorClerkUserId,
+      actorName: admin?.name,
+      actorRole: admin?.role,
+      action: "provisionEligibilityFile",
+      targetType: "eligibilityFiles",
+      targetId: String(args.fileId),
+      summary: `Bulk provision (${args.mode}) — attempted ${args.attempted}, succeeded ${args.succeeded}, failed ${args.failed}, already linked ${args.alreadyLinked}`,
+      metadata: {
+        mode: args.mode,
+        attempted: args.attempted,
+        succeeded: args.succeeded,
+        failed: args.failed,
+        alreadyLinked: args.alreadyLinked,
+      },
+      createdAt: Date.now(),
+    });
   },
 });
 

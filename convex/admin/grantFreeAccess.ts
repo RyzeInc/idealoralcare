@@ -9,6 +9,7 @@ import { mutation, query, internalMutation } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import { v } from "convex/values";
 import { requireAdmin } from "../lib/authGuards";
+import { recordAdminAction } from "./adminAudit";
 
 /**
  * Shared helper — call from within any mutation to auto-grant free full access.
@@ -163,7 +164,7 @@ export const createFreeBundle = mutation({
     durationDays: v.optional(v.number()), // How many days the free access lasts (default: 365)
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    const identity = await requireAdmin(ctx);
     
     const now = Date.now();
     const durationMs = (args.durationDays ?? 365) * 24 * 60 * 60 * 1000;
@@ -191,6 +192,14 @@ export const createFreeBundle = mutation({
       updatedAt: now,
       activatedAt: now,
     });
+
+    await recordAdminAction(ctx, identity, {
+      action: "createFreeBundle",
+      targetType: "subscriptionBundles",
+      targetId: String(bundleId),
+      summary: `Granted free bundle to ${args.customerId} for ${args.durationDays ?? 365} days`,
+      metadata: { customerId: args.customerId, durationDays: args.durationDays ?? 365 },
+    });
     
     return { bundleId, periodEnd };
   },
@@ -209,7 +218,7 @@ export const grantFreePlanAccess = mutation({
     notes: v.optional(v.string()), // Why access was granted
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    const identity = await requireAdmin(ctx);
     
     const now = Date.now();
     const durationMs = (args.durationDays ?? 365) * 24 * 60 * 60 * 1000;
@@ -230,6 +239,14 @@ export const grantFreePlanAccess = mutation({
       createdVia: "admin_action",
       notes: args.notes ?? `Free access granted by admin on ${new Date().toISOString()}`,
     });
+
+    await recordAdminAction(ctx, identity, {
+      action: "grantFreePlanAccess",
+      targetType: "entitlements",
+      targetId: String(entitlementId),
+      summary: `Granted free plan access to ${args.customerId}`,
+      metadata: { customerId: args.customerId, productId: args.productId, bundleId: args.bundleId, durationDays: args.durationDays ?? 365, notes: args.notes },
+    });
     
     return { entitlementId, periodEnd };
   },
@@ -247,7 +264,7 @@ export const grantFullFreeAccess = mutation({
     reason: v.optional(v.string()), // Reason for grant
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    const identity = await requireAdmin(ctx);
     
     const now = Date.now();
     const durationMs = (args.durationDays ?? 365) * 24 * 60 * 60 * 1000;
@@ -294,6 +311,14 @@ export const grantFullFreeAccess = mutation({
       });
       entitlementIds.push(entitlementId);
     }
+
+    await recordAdminAction(ctx, identity, {
+      action: "grantFullFreeAccess",
+      targetType: "subscriptionBundles",
+      targetId: String(bundleId),
+      summary: `Granted full free access (${args.productIds.length} product(s)) to ${args.customerId}`,
+      metadata: { customerId: args.customerId, productCount: args.productIds.length, durationDays: args.durationDays ?? 365, reason: args.reason },
+    });
     
     return {
       bundleId,

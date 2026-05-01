@@ -287,6 +287,25 @@ export default function MemberInspectorPage({
         </div>
       )}
 
+      {/* Pending downgrade banner */}
+      {subscription?.pendingDowngrade && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <div className="flex items-start gap-2">
+            <Clock size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-900">Pending Downgrade Scheduled</p>
+              <p className="text-sm text-amber-800 mt-0.5">
+                {subscription.cadence} → <strong>{subscription.pendingDowngrade.targetCadence ?? 'lower tier'}</strong>
+                {subscription.pendingDowngrade.effectiveDate && <> on <strong>{subscription.pendingDowngrade.effectiveDate}</strong></>}
+                {subscription.pendingDowngrade.requestedAt && (
+                  <span className="text-xs text-amber-700"> · requested {fmt(subscription.pendingDowngrade.requestedAt)}</span>
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
         {/* ── Left column ── */}
@@ -340,13 +359,15 @@ export default function MemberInspectorPage({
             {/* Hierarchy */}
             <div className="mt-4 pt-4 border-t border-slate-100">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3 flex items-center gap-1">
-                <Building2 size={11} /> Group / Account
+                <Building2 size={11} /> Organization
               </p>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <Field label="Site" value={hierarchy.siteName} />
-                <Field label="Account" value={hierarchy.accountName} />
-                <Field label="Group" value={hierarchy.groupName} />
-                <Field label="Group Code" value={hierarchy.groupCode} mono />
+                <Field label="Carrier" value={hierarchy.siteName} />
+                <Field label="Broker" value={hierarchy.accountName} />
+                <Field label="Organization" value={hierarchy.groupName} />
+                <Field label="Provider Group Code" value={hierarchy.groupCode} mono />
+                <Field label="Organization Code" value={(hierarchy as any).organizationCode} mono />
+                <Field label="Subscriber ID" value={(member as any).subscriberId} mono />
               </div>
             </div>
           </Card>

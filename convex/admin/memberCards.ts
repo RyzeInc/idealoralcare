@@ -2,6 +2,7 @@ import { action } from "../_generated/server";
 import { v } from "convex/values";
 import { api } from "../_generated/api";
 import { requireAdminAction } from "../lib/authGuards";
+import { PROVIDER_GROUP_CODE } from "../lib/constants";
 
 /** Returns the 1st of the month following the given timestamp (defaults to now). */
 function firstOfNextMonth(ts?: number): string {
@@ -52,8 +53,8 @@ export const getMemberCardData: any = action({
       planName: "Oral Health Plan",
       effectiveDate: firstOfNextMonth(member.createdAt),
       barcode: member.barcode,
-      // Provider Group Code (Careington/DialCare-required) — currently fixed to "IDEALDO"
-      groupCode: "IDEALDO",
+      // Provider Group Code (Careington/DialCare-required) — sourced from PROVIDER_GROUP_CODE constant.
+      groupCode: PROVIDER_GROUP_CODE,
       // Subscriber ID = Organization Code (e.g. "ACME-0042"); falls back to memberId.
       subscriberId: organizationCode || member.subscriberId || member.memberId,
       networks: {

@@ -51,7 +51,7 @@ const ADMIN_NAVIGATION: NavSection[] = [
   {
     section: "Operations",
     items: [
-      { label: "Hierarchy", href: "/admin/hierarchy", icon: Building2, tooltip: "Sites → Accounts → Groups: the organizational tree." },
+      { label: "Hierarchy", href: "/admin/hierarchy", icon: Building2, tooltip: "Carrier → Brokers → Organizations: the partner & member tree." },
       { label: "Eligibility Files", href: "/admin/eligibility", icon: FileText, tooltip: "Upload member rosters from groups/employers." },
       { label: "Vendor Files", href: "/admin/vendor-files", icon: FileOutput, tooltip: "Outbound files sent to fulfillment vendors." },
     ],

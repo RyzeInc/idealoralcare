@@ -9,6 +9,8 @@
  * Card structure: Front side (member info) + Back side (networks/services)
  */
 
+import { PROVIDER_GROUP_CODE } from './constants';
+
 export interface MemberCardData {
   memberName: string;
   memberId: string;
@@ -73,7 +75,7 @@ export function renderCardFront(cardData: MemberCardData): RenderedCardSide {
         },
         {
           label: 'Provider Group Code',
-          value: cardData.groupCode || 'IDEALDO',
+          value: cardData.groupCode || PROVIDER_GROUP_CODE,
           column: 1,
         },
         {

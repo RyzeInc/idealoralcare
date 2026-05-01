@@ -16,6 +16,8 @@ import {
   Database,
   Zap,
   Users,
+  IdCard,
+  Fingerprint,
 } from 'lucide-react';
 
 type ActionResult = { success: boolean; message: string; data?: unknown };
@@ -41,6 +43,8 @@ export default function DevToolsPage() {
   const migrateAllToothlens = useAction(api.healthplans.toothlens.migrateAllUsers);
   const seedCatalog = useMutation(api.admin.devTools.seedCatalog);
   const linkAdminAsMember = useMutation(api.admin.devTools.linkAdminAsMember);
+  const backfillSubscriberIds = useMutation(api.admin.devTools.backfillSubscriberIds);
+  const backfillVendorIds = useMutation(api.admin.devTools.backfillVendorIds);
 
   // State
   const [running, setRunning] = useState<string | null>(null);
@@ -140,6 +144,42 @@ export default function DevToolsPage() {
       icon: Users,
       variant: 'default',
       fn: () => linkAdminAsMember({ clerkUserId }),
+    },
+    {
+      id: 'backfill-subscriber-ids-dry',
+      label: 'Backfill Subscriber IDs (Dry Run)',
+      description:
+        'Preview how many member records would receive a Subscriber ID populated from their organization code. No writes performed.',
+      icon: IdCard,
+      variant: 'default',
+      fn: () => backfillSubscriberIds({ dryRun: true }),
+    },
+    {
+      id: 'backfill-subscriber-ids',
+      label: 'Backfill Subscriber IDs (Apply)',
+      description:
+        'Populate `subscriberId` on every member from their group\'s `organizationCode`. Skips members whose group has no organization code.',
+      icon: IdCard,
+      variant: 'warning',
+      fn: () => backfillSubscriberIds({ dryRun: false }),
+    },
+    {
+      id: 'backfill-vendor-ids-dry',
+      label: 'Backfill Vendor IDs (Dry Run)',
+      description:
+        'Preview which members are missing Careington Unique IDs and Toothlens member IDs. Deterministic — re-runs produce the same IDs.',
+      icon: Fingerprint,
+      variant: 'default',
+      fn: () => backfillVendorIds({ dryRun: true }),
+    },
+    {
+      id: 'backfill-vendor-ids',
+      label: 'Backfill Vendor IDs (Apply)',
+      description:
+        'Populate Careington Unique ID and Toothlens member ID on every member missing them; also fills dependent toothlensMemberId values.',
+      icon: Fingerprint,
+      variant: 'warning',
+      fn: () => backfillVendorIds({ dryRun: false }),
     },
   ];
 

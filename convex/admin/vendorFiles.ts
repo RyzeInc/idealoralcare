@@ -2,6 +2,7 @@ import { action, query, mutation } from "../_generated/server";
 import { v } from "convex/values";
 import { api } from "../_generated/api";
 import { requireAdmin, requireAdminAction } from "../lib/authGuards";
+import { PROVIDER_GROUP_CODE } from "../lib/constants";
 
 /**
  * VENDOR FILE GENERATION
@@ -596,20 +597,29 @@ export const recordVendorFileGeneration = mutation({
 });
 
 /**
- * Replace the groupCode in a pipe-delimited Careington row with IDEALDO.
- * The groupCode is at position 17 (0-indexed) in the pipe-delimited fields.
- * 
- * CRITICAL: For aggregated files, ALL users must ALWAYS have groupcode IDEALDO.
- * This ensures no user data leaves the system with any groupcode other than IDEALDO.
+ * Replace the groupCode in a pipe-delimited Careington row with the configured
+ * provider group code (PROVIDER_GROUP_CODE). Field 17 (0-indexed) is the
+ * groupCode in the spec.
+ *
+ * CRITICAL: For aggregated files, ALL users must ALWAYS use the same provider
+ * group code so no per-Organization identifier leaks to the vendor.
  */
-function replaceGroupCodeWithIDEALDO(row: string): string {
+function replaceGroupCodeWithProviderCode(row: string): string {
   const fields = row.split("|");
   if (fields.length >= 18) {
     // Field 17 (0-indexed) is the groupCode
-    fields[17] = "IDEALDO";
+    fields[17] = PROVIDER_GROUP_CODE;
   }
   return fields.join("|");
 }
+
+// Exported solely for unit-tests in convex/admin/vendorFiles.test.ts —
+// asserts the per-org and aggregated Careington outputs differ only in the
+// group-code column. Production code should keep using the file-local name.
+export const __testOnly_replaceGroupCodeWithProviderCode = replaceGroupCodeWithProviderCode;
+
+// Backwards-compatible alias kept temporarily; prefer replaceGroupCodeWithProviderCode.
+const replaceGroupCodeWithIDEALDO = replaceGroupCodeWithProviderCode;
 
 /**
  * Get vendor file generation history
@@ -647,6 +657,13 @@ export const generateAggregatedDentalDiscountNetworkFile = action({
     vendor: v.optional(v.union(v.literal("careington"), v.literal("dialcare"))),
   },
   handler: async (ctx, args) => {
+    // PARITY GUARANTEE: This action does NOT format rows itself — it
+    // delegates each organization to `generateDentalDiscountNetworkFile`
+    // (or `generateDialCareFile`) and only post-processes the result by
+    // replacing each line's group-code column with the provider group code
+    // via `replaceGroupCodeWithProviderCode`. As a result, the per-org and
+    // aggregated outputs are byte-identical except for the group-code
+    // column. Do not introduce alternate row-formatting logic here.
     // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
     await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     const fileType = args.fileType ?? "full";

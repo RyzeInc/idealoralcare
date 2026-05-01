@@ -267,7 +267,9 @@ export const emailTemplates = {
       `,
     };
   },
-  // Employer-paid membership agreement email (DialCare DPO Employer Funded layout)
+  // Employer-paid membership agreement email — uses the standard Ideal Oral
+  // Health branded layout (matches welcome / set-password / dependent-invite
+  // emails) and embeds the formal Membership Agreement document inside.
   employerMembershipAgreement: (data: {
     memberName: string;
     memberEmail: string;
@@ -286,208 +288,222 @@ export const emailTemplates = {
     to: data.memberEmail,
     subject: "Your Ideal Oral Health Employer-Paid Membership Agreement",
     html: `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
-      <body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,Helvetica,sans-serif;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:20px 0;">
-          <tr><td align="center">
-            <table width="680" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #cccccc;max-width:680px;">
+      <div style="font-family: Arial, sans-serif; max-width: 680px; margin: 0 auto; color: #333;">
+        <div style="background: linear-gradient(135deg, #0066CC 0%, #14b8a6 100%); color: white; padding: 24px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1 style="margin: 0; font-size: 22px;">Your Membership Agreement</h1>
+          <p style="margin: 10px 0 0 0; font-size: 14px; opacity: 0.95;">Employer-Paid Ideal Oral Health Membership</p>
+        </div>
 
-              <!-- Document Header -->
-              <tr>
-                <td style="padding:16px 24px 12px 24px;border-bottom:2px solid #000000;">
-                  <table width="100%" cellpadding="0" cellspacing="0">
-                    <tr>
-                      <td style="vertical-align:top;">
-                        <div style="font-size:20px;font-weight:bold;color:#000000;letter-spacing:1px;">MEMBERSHIP AGREEMENT</div>
-                      </td>
-                      <td style="vertical-align:top;text-align:right;padding-left:20px;border-left:1px solid #000000;">
-                        <div style="font-size:9px;font-weight:bold;color:#000000;text-transform:uppercase;margin-bottom:2px;">DISCOUNT PLAN<br/>ORGANIZATION</div>
-                        <div style="font-size:9px;color:#000000;">Careington International Corporation<br/>7400 Gaylord Parkway Frisco, TX 75034</div>
-                      </td>
-                    </tr>
-                  </table>
-                </td>
+        <div style="padding: 30px; background: #f9fafb; border-radius: 0 0 8px 8px;">
+          <p style="font-size: 16px;">Hi ${data.memberName},</p>
+
+          <p style="font-size: 14px; line-height: 1.7;">
+            Thank you for joining the <strong>Ideal Oral Health</strong> program through your employer.
+            Below is your Membership Agreement for your records. Your access has been activated and
+            you can begin using your AI Oral Scan, DialCare teledentistry, and Dental Discount Network
+            benefits immediately.
+          </p>
+
+          <!-- Membership Agreement Document Card -->
+          <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 24px; margin: 24px 0;">
+
+            <div style="border-bottom: 2px solid #0066CC; padding-bottom: 12px; margin-bottom: 16px;">
+              <h2 style="margin: 0; font-size: 18px; color: #0066CC; letter-spacing: 0.5px;">MEMBERSHIP AGREEMENT</h2>
+              <p style="margin: 4px 0 0 0; font-size: 11px; color: #6b7280;">Discount Plan Organization: Careington International Corporation &middot; 7400 Gaylord Parkway, Frisco, TX 75034</p>
+            </div>
+
+            <!-- Member Information -->
+            <h3 style="margin: 0 0 8px 0; font-size: 13px; color: #0066CC; text-transform: uppercase; letter-spacing: 0.5px;">Member Information</h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px;">
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 6px 0; font-weight: bold; width: 40%; color: #475569;">Member ID</td>
+                <td style="padding: 6px 0;">${data.memberId}</td>
               </tr>
-
-              <!-- Member Info Row -->
-              <tr>
-                <td style="padding:12px 24px;border-bottom:1px solid #cccccc;">
-                  <table width="100%" cellpadding="0" cellspacing="0">
-                    <tr>
-                      <td style="vertical-align:top;width:50%;">
-                        <div style="font-size:9px;color:#555555;text-transform:uppercase;font-weight:bold;margin-bottom:2px;">Member ID &nbsp;&nbsp;&nbsp; Member Name &amp; Address</div>
-                        <div style="font-size:10px;color:#000000;">
-                          <strong>[${data.memberId}]</strong> &nbsp;&nbsp;
-                          ${data.memberName}
-                        </div>
-                        ${data.memberAddress ? `<div style="font-size:10px;color:#000000;margin-top:2px;">${data.memberAddress.replace(/\n/g, '<br/>')}</div>` : ''}
-                      </td>
-                      <td style="vertical-align:top;text-align:right;">
-                        <div style="font-size:9px;color:#555555;text-transform:uppercase;font-weight:bold;margin-bottom:2px;">Group Name</div>
-                        <div style="font-size:10px;color:#000000;">${data.groupName}</div>
-                        <br/>
-                        <table cellpadding="0" cellspacing="0" style="margin-left:auto;">
-                          <tr>
-                            <td style="font-size:9px;font-weight:bold;color:#555555;text-transform:uppercase;padding-right:12px;">Group Code</td>
-                            <td style="font-size:9px;font-weight:bold;color:#555555;text-transform:uppercase;padding-right:12px;">Term</td>
-                            <td style="font-size:9px;font-weight:bold;color:#555555;text-transform:uppercase;">Effective Date</td>
-                          </tr>
-                          <tr>
-                            <td style="font-size:10px;color:#000000;padding-right:12px;">${data.groupCode}</td>
-                            <td style="font-size:10px;color:#000000;padding-right:12px;">${data.term ?? 'ANNUAL'}</td>
-                            <td style="font-size:10px;color:#000000;">${data.effectiveDate}</td>
-                          </tr>
-                        </table>
-                      </td>
-                    </tr>
-                  </table>
-                </td>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 6px 0; font-weight: bold; color: #475569;">Member Name</td>
+                <td style="padding: 6px 0;">${data.memberName}</td>
               </tr>
-
-              <!-- Contact Info + Total Fees Row -->
-              <tr>
-                <td style="padding:12px 24px;border-bottom:1px solid #cccccc;">
-                  <table width="100%" cellpadding="0" cellspacing="0">
-                    <tr>
-                      <td style="vertical-align:top;width:55%;">
-                        <p style="margin:0 0 6px 0;font-size:10px;color:#000000;">
-                          To add a family member to your plan, contact your employer
-                          at ${data.employerPhone ? `<strong>${data.employerPhone}</strong>` : '[Employer&rsquo;s Phone Number]'}.
-                          For assistance using your plan, please contact Member Services at
-                          <strong>support@getidealoh.com</strong>.
-                        </p>
-                      </td>
-                      <td style="vertical-align:top;padding-left:20px;border-left:1px solid #cccccc;">
-                        <div style="font-size:9px;font-weight:bold;color:#000000;margin-bottom:4px;">Total Fees</div>
-                        <div style="font-size:9px;color:#000000;">Classification: [${data.classification ?? '&nbsp;&nbsp;&nbsp;'}]</div>
-                        <div style="font-size:9px;color:#000000;">Mode of Payment [${data.modeOfPayment ?? '&nbsp;&nbsp;&nbsp;'}]</div>
-                        <div style="font-size:9px;color:#000000;">Periodic Charge: [${data.periodicCharge ?? '&nbsp;&nbsp;&nbsp;'}]</div>
-                        <div style="font-size:9px;color:#000000;">Processing Fee: [${data.processingFee ?? '&nbsp;&nbsp;&nbsp;'}]</div>
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-
-              <!-- Agreement Body -->
-              <tr>
-                <td style="padding:16px 24px;font-size:10px;line-height:1.6;color:#000000;">
-
-                  <p style="margin:0 0 10px 0;">
-                    <strong style="text-decoration:underline;">Terms and Conditions:</strong>
-                    The Terms and Conditions you have accepted or will accept upon registering at
-                    <a href="https://www.dialcare.com" style="color:#000000;">www.dialcare.com</a>,
-                    are part of this membership agreement (Agreement) between you and DialCare, LLC
-                    (&ldquo;DialCare&rdquo;). DialCare provides administrative services to DialCare
-                    clinicians and does not provide professional medical services. The Terms and
-                    Conditions define the obligations of DialCare, its authorized agents and
-                    yourself, and they establish the basic rules of safe and fair use of DialCare&rsquo;s
-                    public website, member website, and services (Services). DialCare and its
-                    authorized agents reserve the right to immediately and without advance notice
-                    terminate the Services and deny access to individuals who do not abide by the
-                    Terms and Conditions.
-                  </p>
-
-                  <p style="margin:0 0 10px 0;">
-                    <strong style="text-decoration:underline;">Membership and Renewal Conditions:</strong>
-                    By joining a plan, for yourself or on behalf of a minor child for whom you are a
-                    parent or legal guardian, you confirm that you are at least 18 years old and have
-                    read and agree to the terms and conditions of the plan.
-                  </p>
-
-                  <p style="margin:0 0 10px 0;font-style:italic;">
-                    This plan will automatically renew at the end of your membership term.
-                  </p>
-
-                  <p style="margin:0 0 10px 0;">
-                    <strong style="text-decoration:underline;">Termination Conditions:</strong>
-                    Your employer and DialCare reserve the right to terminate plan members from its
-                    plan for any reason.
-                  </p>
-
-                  <p style="margin:0 0 10px 0;">
-                    <strong style="text-decoration:underline;">Cancellation Conditions:</strong>
-                    You have the right to cancel within the first 30 days after effective date or
-                    receipt of membership materials (whichever is later) and receive a full refund,
-                    less the processing fee and/or any employer contributions, if applicable. If for
-                    any reason you wish to cancel, submit a cancellation request with your name and
-                    member ID by mail, email or phone &nbsp;to your employer. Your employer will stop
-                    collecting membership fees in a reasonable amount of time, but no later than 30
-                    days after receiving a cancellation request. When you cancel, you will continue
-                    to have access to the plan for the remainder of the period for which you have
-                    paid; your membership will terminate at the end of that period. The preceding
-                    sentence does not apply to quarterly, semi-annual or annual memberships in FL
-                    and OK, where you will receive a pro-rata refund whenever you cancel.
-                  </p>
-
-                  <p style="margin:0 0 10px 0;">
-                    <strong style="text-decoration:underline;">Description of Services:</strong>
-                    Please see the enclosed materials for a specific description of the programs
-                    included in your plan.
-                  </p>
-
-                  <p style="margin:0 0 10px 0;">
-                    <strong style="text-decoration:underline;">Limitations, Exclusions &amp; Exceptions:</strong>
-                    This is a discount plan offered by Careington International Corporation
-                    (Careington). Careington is not a licensed insurer, health maintenance
-                    organization or other underwriter of health care services. This plan is not
-                    insurance. No portion of any provider&rsquo;s fees will be reimbursed or
-                    otherwise paid by Careington. Careington is not licensed to provide and does
-                    not provide health care services or items to individuals. You will receive
-                    discounts for services at certain health care providers who have contracted
-                    with the plan. You are obligated to pay for all health care services at the
-                    time of service. Savings are based upon the provider&rsquo;s normal fees.
-                    Actual savings will vary depending upon location and specific services or
-                    products purchased. Please verify such services with each individual provider.
-                    The plan&rsquo;s discounts may not be used in conjunction with any other
-                    discount plan or program. All listed or quoted prices are current prices by
-                    participating providers and subject to change without notice. Any procedures
-                    performed by a non-participating provider are not discounted. From time to
-                    time, certain providers may offer products or services to the general public
-                    at prices lower than the discounted prices available through this plan. In
-                    such event, members will be charged the lowest price. Discounts on
-                    professional services are not available when prohibited by law. This plan
-                    does not discount all procedures. Providers are subject to change without
-                    notice and services may vary in some states. It is your responsibility to
-                    verify that the provider participates in the plan. At any time Careington may
-                    substitute a provider network at its sole discretion. Careington cannot
-                    guarantee the continued participation of any provider. If the provider leaves
-                    the plan, you will need to select another provider. Providers contracted by
-                    Careington are solely responsible for the professional advice and treatment
-                    rendered to members and Careington disclaims any liability with respect to
-                    such matters.
-                  </p>
-
-                  <p style="margin:0 0 10px 0;">
-                    <strong style="text-decoration:underline;">Complaint Procedure:</strong>
-                    If you would like to file a complaint regarding your plan membership, you must
-                    submit your complaint in writing to: DialCare, P.O. Box 2568, Frisco, TX 75034.
-                    You have the right to request an appeal if you are dissatisfied with the
-                    complaint resolution. After completing the complaint resolution process, if you
-                    remain dissatisfied you may contact your state insurance department. Contact
-                    information for your state insurance department is available upon request.
-                  </p>
-
-                </td>
-              </tr>
-
-              <!-- Footer -->
-              <tr>
-                <td style="padding:10px 24px;border-top:1px solid #cccccc;background:#f9f9f9;">
-                  <p style="margin:0;font-size:8px;color:#666666;text-align:center;">
-                    DialCare DPO Employer Funded Partial Pay Membership Agreement &mdash;
-                    Ideal Oral Health &bull; Powered by Careington International Corporation
-                  </p>
-                </td>
-              </tr>
-
+              ${data.memberAddress ? `<tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 6px 0; font-weight: bold; color: #475569;">Address</td><td style="padding: 6px 0;">${data.memberAddress.replace(/\n/g, '<br/>')}</td></tr>` : ''}
             </table>
-          </td></tr>
-        </table>
-      </body>
-      </html>
+
+            <!-- Plan Details -->
+            <h3 style="margin: 16px 0 8px 0; font-size: 13px; color: #0066CC; text-transform: uppercase; letter-spacing: 0.5px;">Plan Details</h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px;">
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 6px 0; font-weight: bold; width: 40%; color: #475569;">Group Name</td>
+                <td style="padding: 6px 0;">${data.groupName}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 6px 0; font-weight: bold; color: #475569;">Group Code</td>
+                <td style="padding: 6px 0;">${data.groupCode}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 6px 0; font-weight: bold; color: #475569;">Coverage Term</td>
+                <td style="padding: 6px 0;">${data.term ?? 'ANNUAL'}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 6px 0; font-weight: bold; color: #475569;">Effective Date</td>
+                <td style="padding: 6px 0;">${data.effectiveDate}</td>
+              </tr>
+            </table>
+
+            <!-- Billing Information -->
+            <h3 style="margin: 16px 0 8px 0; font-size: 13px; color: #0066CC; text-transform: uppercase; letter-spacing: 0.5px;">Billing Information</h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 8px;">
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 6px 0; font-weight: bold; width: 40%; color: #475569;">Classification</td>
+                <td style="padding: 6px 0;">${data.classification ?? 'Employee'}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 6px 0; font-weight: bold; color: #475569;">Mode of Payment</td>
+                <td style="padding: 6px 0;">${data.modeOfPayment ?? 'Employer-Paid'}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 6px 0; font-weight: bold; color: #475569;">Periodic Charge</td>
+                <td style="padding: 6px 0;">${data.periodicCharge ?? '$0.00 (paid by employer)'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; font-weight: bold; color: #475569;">Processing Fee</td>
+                <td style="padding: 6px 0;">${data.processingFee ?? '$0.00'}</td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- Contact callout -->
+          <div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 18px 0;">
+            <p style="margin: 0 0 6px 0; font-size: 13px; line-height: 1.6;">
+              <strong>To add a family member to your plan</strong>, contact your employer${data.employerPhone ? ` at <strong>${data.employerPhone}</strong>` : ''}.
+            </p>
+            <p style="margin: 0; font-size: 13px; line-height: 1.6;">
+              <strong>For assistance using your plan</strong>, contact Member Services at
+              <a href="mailto:support@getidealoh.com" style="color: #0066CC; text-decoration: none;">support@getidealoh.com</a>
+              or call DialCare at <strong>1-855-335-2255</strong>.
+            </p>
+          </div>
+
+          <!-- Terms & Conditions -->
+          <h3 style="color: #0066CC; font-size: 15px; margin-top: 24px;">Terms and Conditions</h3>
+
+          <p style="font-size: 13px; line-height: 1.7; color: #374151;">
+            <strong>Terms and Conditions:</strong>
+            The Terms and Conditions you have accepted or will accept upon registering at
+            <a href="https://www.dialcare.com" style="color: #0066CC; text-decoration: none;">www.dialcare.com</a>
+            are part of this membership agreement (Agreement) between you and DialCare, LLC
+            (&ldquo;DialCare&rdquo;). DialCare provides administrative services to DialCare clinicians
+            and does not provide professional medical services. The Terms and Conditions define the
+            obligations of DialCare, its authorized agents and yourself, and they establish the basic
+            rules of safe and fair use of DialCare&rsquo;s public website, member website, and services
+            (Services). DialCare and its authorized agents reserve the right to immediately and without
+            advance notice terminate the Services and deny access to individuals who do not abide by
+            the Terms and Conditions.
+          </p>
+
+          <p style="font-size: 13px; line-height: 1.7; color: #374151;">
+            <strong>Membership and Renewal Conditions:</strong>
+            By joining a plan, for yourself or on behalf of a minor child for whom you are a parent or
+            legal guardian, you confirm that you are at least 18 years old and have read and agree to
+            the terms and conditions of the plan.
+          </p>
+
+          <p style="font-size: 13px; line-height: 1.7; color: #374151; font-style: italic;">
+            This plan will automatically renew at the end of your membership term.
+          </p>
+
+          <p style="font-size: 13px; line-height: 1.7; color: #374151;">
+            <strong>Termination Conditions:</strong>
+            Your employer and DialCare reserve the right to terminate plan members from its plan for
+            any reason.
+          </p>
+
+          <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 16px 0; border-left: 4px solid #ffc107;">
+            <p style="margin: 0 0 6px 0; font-size: 13px; font-weight: bold; color: #92400e;">Cancellation Conditions</p>
+            <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #374151;">
+              You have the right to cancel within the first 30 days after effective date or receipt of
+              membership materials (whichever is later) and receive a full refund, less the processing
+              fee and/or any employer contributions, if applicable. To cancel, submit a request with
+              your name and member ID to your employer, or email
+              <a href="mailto:support@getidealoh.com" style="color: #0066CC; text-decoration: none;">support@getidealoh.com</a>.
+              Your employer will stop collecting membership fees in a reasonable amount of time, but
+              no later than 30 days after receiving a cancellation request. When you cancel, you will
+              continue to have access to the plan for the remainder of the period for which you have
+              paid; your membership will terminate at the end of that period. The preceding sentence
+              does not apply to quarterly, semi-annual or annual memberships in FL and OK, where you
+              will receive a pro-rata refund whenever you cancel.
+            </p>
+          </div>
+
+          <p style="font-size: 13px; line-height: 1.7; color: #374151;">
+            <strong>Description of Services:</strong>
+            Please see the enclosed materials for a specific description of the programs included in
+            your plan.
+          </p>
+
+          <p style="font-size: 13px; line-height: 1.7; color: #374151;">
+            <strong>Limitations, Exclusions &amp; Exceptions:</strong>
+            This is a discount plan offered by Careington International Corporation (Careington).
+            Careington is not a licensed insurer, health maintenance organization or other underwriter
+            of health care services. This plan is not insurance. No portion of any provider&rsquo;s fees
+            will be reimbursed or otherwise paid by Careington. Careington is not licensed to provide
+            and does not provide health care services or items to individuals. You will receive
+            discounts for services at certain health care providers who have contracted with the plan.
+            You are obligated to pay for all health care services at the time of service. Savings are
+            based upon the provider&rsquo;s normal fees. Actual savings will vary depending upon
+            location and specific services or products purchased. Please verify such services with
+            each individual provider. The plan&rsquo;s discounts may not be used in conjunction with
+            any other discount plan or program. All listed or quoted prices are current prices by
+            participating providers and subject to change without notice. Any procedures performed by
+            a non-participating provider are not discounted. From time to time, certain providers may
+            offer products or services to the general public at prices lower than the discounted
+            prices available through this plan. In such event, members will be charged the lowest
+            price. Discounts on professional services are not available when prohibited by law. This
+            plan does not discount all procedures. Providers are subject to change without notice and
+            services may vary in some states. It is your responsibility to verify that the provider
+            participates in the plan. At any time Careington may substitute a provider network at its
+            sole discretion. Careington cannot guarantee the continued participation of any provider.
+            If the provider leaves the plan, you will need to select another provider. Providers
+            contracted by Careington are solely responsible for the professional advice and treatment
+            rendered to members and Careington disclaims any liability with respect to such matters.
+          </p>
+
+          <p style="font-size: 13px; line-height: 1.7; color: #374151;">
+            <strong>Complaint Procedure:</strong>
+            If you would like to file a complaint regarding your plan membership, you must submit your
+            complaint in writing to: DialCare, P.O. Box 2568, Frisco, TX 75034. You have the right to
+            request an appeal if you are dissatisfied with the complaint resolution. After completing
+            the complaint resolution process, if you remain dissatisfied you may contact your state
+            insurance department. Contact information for your state insurance department is available
+            upon request.
+          </p>
+
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+
+          <p style="font-size: 13px; line-height: 1.7;">
+            Best regards,<br/>
+            <strong>The Ideal Oral Health Team</strong>
+          </p>
+
+          <p style="font-size: 12px; color: #6b7280; margin-top: 16px;">
+            <strong>Contact Information</strong><br/>
+            Email: <a href="mailto:support@getidealoh.com" style="color: #0066CC; text-decoration: none;">support@getidealoh.com</a><br/>
+            DialCare Member Services: 1-855-335-2255<br/>
+            Website: <a href="https://www.getidealoh.com" style="color: #0066CC; text-decoration: none;">www.getidealoh.com</a>
+          </p>
+
+          <p style="font-size: 11px; color: #9ca3af; margin-top: 16px; line-height: 1.5;">
+            <strong>Important:</strong> This plan is NOT insurance, is not intended to replace insurance,
+            and is not a qualified health plan under the Affordable Care Act. The plan provides
+            discounts on certain dental services from participating providers. The plan does not make
+            payments directly to providers; you are obligated to pay for all services at the time of
+            service but will receive a discount from participating providers. The discount program is
+            administered by Careington International Corporation, 7400 Gaylord Parkway, Frisco, TX
+            75034. Teledentistry services are provided by DialCare. Not available in all states.
+          </p>
+
+          <p style="font-size: 10px; color: #9ca3af; text-align: center; margin-top: 16px;">
+            DialCare DPO Employer Funded Membership Agreement &middot; Ideal Oral Health &middot; Powered by Careington International Corporation
+          </p>
+        </div>
+      </div>
     `,
   }),
 

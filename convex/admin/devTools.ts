@@ -1,5 +1,8 @@
 import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
+import { createMemberProfile, deriveCareingtonUniqueId } from "../lib/memberCreation";
+import { requireAdmin } from "../lib/authGuards";
+import { recordAdminAction } from "./adminAudit";
 
 /**
  * Seed the catalog with initial products — no auth required.
@@ -131,31 +134,14 @@ export const linkAdminAsMember = mutation({
       .first();
     if (!group) throw new Error("No active group found under that account.");
 
-    // Generate member ID
-    const memberCount = await ctx.db
-      .query("memberProfiles")
-      .withIndex("by_site", (q) => q.eq("siteId", site._id))
-      .collect();
-
-    const sequence = memberCount.length + 1;
-    const memberId = String(100000000 + sequence).slice(0, 9);
-    const year = String(new Date().getFullYear()).slice(2);
-    const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const barcode = `ADM${year}${random}`;
-
     const nameParts = adminRecord.name.split(" ");
     const firstName = nameParts[0];
     const lastName = nameParts.slice(1).join(" ") || "-";
 
-    const now = Date.now();
-
-    const profileId = await ctx.db.insert("memberProfiles", {
-      memberId,
-      barcode,
-      customerId: args.clerkUserId,
-      siteId: site._id,
-      accountId: account._id,
+    const { _id: profileId, memberId } = await createMemberProfile(ctx, {
       groupId: group._id,
+      groupOverride: group,
+      customerId: args.clerkUserId,
       firstName,
       lastName,
       email: adminRecord.email,
@@ -163,15 +149,12 @@ export const linkAdminAsMember = mutation({
       memberType: "active",
       memberRole: "primary",
       signupSource: "admin-dev-tool",
-      status: "active",
       communicationPrefs: {
         emailOptIn: true,
         smsOptIn: false,
         callOptIn: false,
         preferredChannel: "email",
       },
-      createdAt: now,
-      updatedAt: now,
     });
 
     return { profileId, memberId, created: true };
@@ -223,5 +206,155 @@ export const setTestStripeIds = mutation({
     });
 
     return { success: true, productId: product._id, slug: args.slug };
+  },
+});
+
+/**
+ * BACKFILL: populate `subscriberId` on every memberProfile from its
+ * group's `organizationCode`. Skips members whose group has no
+ * `organizationCode`. Idempotent — only writes when the value would change.
+ */
+export const backfillSubscriberIds = mutation({
+  args: {
+    dryRun: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await requireAdmin(ctx);
+    const dryRun = args.dryRun ?? false;
+
+    const groups = await ctx.db.query("groups").collect();
+    const groupById = new Map<string, any>();
+    for (const g of groups) groupById.set(g._id, g);
+
+    const members = await ctx.db.query("memberProfiles").collect();
+    let updated = 0;
+    let skippedNoOrgCode = 0;
+    let alreadyCorrect = 0;
+    const skippedGroupIds = new Set<string>();
+
+    for (const m of members) {
+      const group = m.groupId ? groupById.get(m.groupId) : null;
+      const orgCode = (group as any)?.organizationCode;
+      if (!orgCode) {
+        skippedNoOrgCode++;
+        if (m.groupId) skippedGroupIds.add(String(m.groupId));
+        continue;
+      }
+      if ((m as any).subscriberId === orgCode) {
+        alreadyCorrect++;
+        continue;
+      }
+      if (!dryRun) {
+        await ctx.db.patch(m._id, { subscriberId: orgCode, updatedAt: Date.now() });
+      }
+      updated++;
+    }
+
+    const summary = {
+      dryRun,
+      totalMembers: members.length,
+      updated,
+      alreadyCorrect,
+      skippedNoOrgCode,
+      groupsMissingOrgCode: Array.from(skippedGroupIds),
+    };
+
+    if (!dryRun) {
+      await recordAdminAction(ctx, identity, {
+        action: "backfillSubscriberIds",
+        summary: `Backfilled ${updated} member subscriberIds (${alreadyCorrect} already correct, ${skippedNoOrgCode} skipped)`,
+        metadata: summary,
+      });
+    }
+
+    return summary;
+  },
+});
+
+/**
+ * BACKFILL: populate `careingtonUniqueId` and `toothlensMemberId` on every
+ * member missing them. Uses the deterministic FNV-1a hash of memberId so
+ * future runs produce the same IDs (idempotent). Dependents are also given
+ * a `toothlensMemberId` derived from the parent's Careington Unique ID +
+ * the dependent's seqNum.
+ */
+export const backfillVendorIds = mutation({
+  args: {
+    dryRun: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await requireAdmin(ctx);
+    const dryRun = args.dryRun ?? false;
+
+    const members = await ctx.db.query("memberProfiles").collect();
+    let careingtonAdded = 0;
+    let toothlensAdded = 0;
+    let dependentsUpdated = 0;
+    let untouched = 0;
+
+    for (const m of members) {
+      let needsPatch = false;
+      const patch: any = {};
+
+      let careingtonUniqueId = (m as any).careingtonUniqueId as string | undefined;
+      if (!careingtonUniqueId) {
+        careingtonUniqueId = deriveCareingtonUniqueId(m.memberId ?? String(m._id));
+        patch.careingtonUniqueId = careingtonUniqueId;
+        patch.careingtonSeqNum = (m as any).careingtonSeqNum ?? "00";
+        careingtonAdded++;
+        needsPatch = true;
+      }
+
+      if (!(m as any).toothlensMemberId && careingtonUniqueId) {
+        patch.toothlensMemberId = careingtonUniqueId + ((m as any).careingtonSeqNum ?? "00");
+        toothlensAdded++;
+        needsPatch = true;
+      }
+
+      // Backfill dependents that are missing toothlensMemberId
+      const deps = (m as any).dependents as any[] | undefined;
+      if (Array.isArray(deps) && deps.length > 0 && careingtonUniqueId) {
+        let depsChanged = false;
+        const newDeps = deps.map((d: any, idx: number) => {
+          if (d.toothlensMemberId) return d;
+          const seqNum = d.seqNum ?? String(idx + 1).padStart(2, "0");
+          depsChanged = true;
+          return { ...d, seqNum, toothlensMemberId: careingtonUniqueId + seqNum };
+        });
+        if (depsChanged) {
+          patch.dependents = newDeps;
+          dependentsUpdated++;
+          needsPatch = true;
+        }
+      }
+
+      if (needsPatch) {
+        if (!dryRun) {
+          patch.updatedAt = Date.now();
+          await ctx.db.patch(m._id, patch);
+        }
+      } else {
+        untouched++;
+      }
+    }
+
+    const summary = {
+      dryRun,
+      totalMembers: members.length,
+      careingtonAdded,
+      toothlensAdded,
+      dependentsUpdated,
+      untouched,
+    };
+
+    if (!dryRun) {
+      await recordAdminAction(ctx, identity, {
+        action: "backfillVendorIds",
+        summary: `Backfilled vendor IDs: +${careingtonAdded} Careington, +${toothlensAdded} Toothlens, +${dependentsUpdated} dependents updated`,
+        metadata: summary,
+      });
+    }
+
+    return summary;
   },
 });

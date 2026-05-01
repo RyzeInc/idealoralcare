@@ -7,6 +7,7 @@ import { Id } from '@/convex/_generated/dataModel';
 import { Plus, Edit, Trash2, X } from 'lucide-react';
 import { useToast, Breadcrumbs, RequiredMark } from '@/components/admin/ui';
 import { useEffect, useRef } from 'react';
+import { PROVIDER_GROUP_CODE } from '@/lib/constants';
 
 type TabType = 'sites' | 'accounts' | 'groups';
 
@@ -400,7 +401,7 @@ function CreateAccountModal({ sites, onClose }: { sites: any[]; onClose: () => v
 function CreateGroupModal({ sites, accounts, onClose }: { sites: any[]; accounts: any[]; onClose: () => void }) {
   const createGroup = useMutation(api.admin.hierarchy.createGroup);
   const toast = useToast();
-  const [form, setForm] = useState({ siteId: sites[0]?._id || '', accountId: accounts[0]?._id || '', slug: '', groupCode: 'IDEALDO', organizationCode: '', name: '', description: '', maxMembers: '', effectiveDate: '', terminationDate: '', brokerId: '', brokerTrackingCode: '' });
+  const [form, setForm] = useState({ siteId: sites[0]?._id || '', accountId: accounts[0]?._id || '', slug: '', groupCode: PROVIDER_GROUP_CODE, organizationCode: '', name: '', description: '', maxMembers: '', effectiveDate: '', terminationDate: '', brokerId: '', brokerTrackingCode: '' });
   const [saving, setSaving] = useState(false);
 
   const filteredAccounts = accounts.filter((a: any) => !form.siteId || a.siteId === form.siteId);
@@ -408,6 +409,10 @@ function CreateGroupModal({ sites, accounts, onClose }: { sites: any[]; accounts
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.siteId || !form.accountId || !form.slug || !form.groupCode) return;
+    if (!form.organizationCode.trim()) {
+      toast.warning('Organization Code required', 'Set the Subscriber ID before creating the organization. Members enrolled here will be missing their Subscriber ID without it.');
+      return;
+    }
     setSaving(true);
     try {
       await createGroup({
@@ -415,7 +420,7 @@ function CreateGroupModal({ sites, accounts, onClose }: { sites: any[]; accounts
         accountId: form.accountId as Id<'accounts'>,
         slug: form.slug,
         groupCode: form.groupCode,
-        organizationCode: form.organizationCode || undefined,
+        organizationCode: form.organizationCode.trim(),
         name: form.name || undefined,
         description: form.description || undefined,
         maxMembers: form.maxMembers ? Number(form.maxMembers) : undefined,
@@ -448,11 +453,18 @@ function CreateGroupModal({ sites, accounts, onClose }: { sites: any[]; accounts
             {filteredAccounts.map((a: any) => <option key={a._id} value={a._id}>{a.slug}</option>)}
           </select>
         </div>
-        <Field label="Organization Name" value={form.name} onChange={v => setForm({ ...form, name: v })} placeholder="e.g. ACME Corp / Ideal Direct Consumer" />
+        <Field label="Organization Name" value={form.name} onChange={v => {
+          // Auto-suggest organizationCode from name if user hasn't typed one yet
+          setForm(f => {
+            const slugCode = v.toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 12);
+            const suggest = slugCode ? `${slugCode}-0001` : '';
+            return { ...f, name: v, organizationCode: f.organizationCode ? f.organizationCode : suggest };
+          });
+        }} placeholder="e.g. ACME Corp / Ideal Direct Consumer" />
         <Field label="Description" value={form.description} onChange={v => setForm({ ...form, description: v })} />
         <Field label="Slug" value={form.slug} onChange={v => setForm({ ...form, slug: v })} required placeholder="e.g. acme / ideal-direct-consumer" />
-        <Field label="Organization Code (Subscriber ID)" value={form.organizationCode} onChange={v => setForm({ ...form, organizationCode: v })} placeholder="e.g. ACME-0042 or IDC-0001" />
-        <Field label="Provider Group Code" value={form.groupCode} onChange={v => setForm({ ...form, groupCode: v })} required placeholder="e.g. IDEALDO (Careington/DialCare-required)" />
+        <Field label="Organization Code (Subscriber ID)" value={form.organizationCode} onChange={v => setForm({ ...form, organizationCode: v })} required placeholder="e.g. ACME-0042 or IDC-0001" />
+        <Field label="Provider Group Code" value={form.groupCode} onChange={v => setForm({ ...form, groupCode: v })} required placeholder={`e.g. ${PROVIDER_GROUP_CODE} (Careington/DialCare-required)`} />
         <Field label="Max Members" value={form.maxMembers} onChange={v => setForm({ ...form, maxMembers: v })} placeholder="Leave blank for unlimited" />
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -622,7 +634,7 @@ function EditGroupModal({ group, accounts, onClose }: { group: any; accounts: an
         <Field label="Organization Name" value={form.name} onChange={(v) => setForm((f) => ({ ...f, name: v }))} />
         <Field label="Description" value={form.description} onChange={(v) => setForm((f) => ({ ...f, description: v }))} />
         <Field label="Organization Code (Subscriber ID)" value={form.organizationCode} onChange={(v) => setForm((f) => ({ ...f, organizationCode: v }))} placeholder="e.g. ACME-0042 or IDC-0001" />
-        <Field label="Provider Group Code" value={form.groupCode} onChange={(v) => setForm((f) => ({ ...f, groupCode: v }))} placeholder="e.g. IDEALDO" />
+        <Field label="Provider Group Code" value={form.groupCode} onChange={(v) => setForm((f) => ({ ...f, groupCode: v }))} placeholder={`e.g. ${PROVIDER_GROUP_CODE}`} />
         <Field label="Max Members" value={form.maxMembers} onChange={(v) => setForm((f) => ({ ...f, maxMembers: v }))} placeholder="Leave blank for unlimited" />
         <div className="grid grid-cols-2 gap-3">
           <div>

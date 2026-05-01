@@ -19,7 +19,7 @@ export default function EligibilityUploadPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileAction, setFileAction] = useState<FileAction>('full_replace');
-  const [selectedGroupId, setSelectedGroupId] = useState('');
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState('');
   const [uploading, setUploading] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [previewResult, setPreviewResult] = useState<any | null>(null);
@@ -46,20 +46,20 @@ export default function EligibilityUploadPage() {
     try {
       const g = localStorage.getItem(LS_GROUP_KEY);
       const a = localStorage.getItem(LS_ACTION_KEY) as FileAction | null;
-      if (g) setSelectedGroupId(g);
+      if (g) setSelectedOrganizationId(g);
       if (a) setFileAction(a);
     } catch {}
   }, []);
   useEffect(() => {
-    if (selectedGroupId) {
-      try { localStorage.setItem(LS_GROUP_KEY, selectedGroupId); } catch {}
+    if (selectedOrganizationId) {
+      try { localStorage.setItem(LS_GROUP_KEY, selectedOrganizationId); } catch {}
     }
-  }, [selectedGroupId]);
+  }, [selectedOrganizationId]);
   useEffect(() => {
     try { localStorage.setItem(LS_ACTION_KEY, fileAction); } catch {}
   }, [fileAction]);
 
-  const selectedGroup: any = groups.find((g: any) => g._id === selectedGroupId);
+  const selectedGroup: any = groups.find((g: any) => g._id === selectedOrganizationId);
   const selectedSite: any = selectedGroup ? sites.find((s: any) => s._id === selectedGroup.siteId) : null;
 
   const resetWizard = () => {
@@ -287,8 +287,8 @@ export default function EligibilityUploadPage() {
   const handleUpload = async () => {
     // Legacy single-shot path retained for backwards compatibility.
     // Wizard now uses handlePreview → handleCommit instead.
-    if (!selectedFile || !selectedGroupId) return;
-    const group = groups.find((g: any) => g._id === selectedGroupId);
+    if (!selectedFile || !selectedOrganizationId) return;
+    const group = groups.find((g: any) => g._id === selectedOrganizationId);
     if (!group) return;
 
     setUploading(true);
@@ -469,8 +469,8 @@ export default function EligibilityUploadPage() {
                 Organization<RequiredMark />
               </label>
               <select
-                value={selectedGroupId}
-                onChange={(e) => setSelectedGroupId(e.target.value)}
+                value={selectedOrganizationId}
+                onChange={(e) => setSelectedOrganizationId(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded"
               >
                 <option value="">Select an organization…</option>
@@ -503,7 +503,7 @@ export default function EligibilityUploadPage() {
             <div className="flex justify-end pt-2">
               <button
                 onClick={() => setStep(2)}
-                disabled={!selectedGroupId}
+                disabled={!selectedOrganizationId}
                 className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed font-semibold"
               >
                 Next: Upload File <ArrowRight size={16} />

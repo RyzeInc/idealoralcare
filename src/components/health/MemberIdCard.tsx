@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Download, RotateCcw } from 'lucide-react';
 import { renderCardFront, renderCardBack, type MemberCardData } from '@/lib/card-renderer';
+import { PROVIDER_GROUP_CODE } from '@/lib/constants';
 
 /**
  * MEMBER ID CARD COMPONENT

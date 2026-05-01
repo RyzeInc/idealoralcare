@@ -11,6 +11,7 @@ import {
   Font,
 } from "@react-pdf/renderer";
 import { renderCardFront, renderCardBack, type MemberCardData } from "@/lib/card-renderer";
+import { PROVIDER_GROUP_CODE } from "@/lib/constants";
 
 const CAREINGTON_LOGO_PATH = path.resolve(process.cwd(), "public", "careington-logo.png");
 const CAREINGTON_LOGO_DATA_URI = `data:image/png;base64,${fs.readFileSync(CAREINGTON_LOGO_PATH).toString("base64")}`;

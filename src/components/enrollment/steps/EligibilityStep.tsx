@@ -13,6 +13,7 @@
 
 import { useState } from "react";
 import { useEnrollmentStep, useEnrollment } from "@/components/enrollment/EnrollmentProvider";
+import { PROVIDER_GROUP_CODE } from "@/lib/constants";
 import { ArrowRight, AlertCircle, Loader, WifiOff } from "lucide-react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -100,7 +101,7 @@ export function EligibilityStep() {
         _id: "group_default",
         slug: "default",
         name: "Default Group",
-        groupCode: "IDEALDO",
+        groupCode: PROVIDER_GROUP_CODE,
       },
     };
   };

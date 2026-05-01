@@ -25,14 +25,19 @@ export const getAllGroupBillingSummaries = query({
     const groups = await ctx.db.query("groups").collect();
     const allBundles = await ctx.db.query("subscriptionBundles").collect();
 
-    // Build a set of customerIds with paid active subscriptions (totalCents > 0)
+    // Build a set of customerIds with paid active subscriptions (totalCents > 0),
+    // and a separate set of customerIds with a pendingDowngrade scheduled.
     const paidCustomerIds = new Set<string>();
+    const pendingDowngradeCustomerIds = new Set<string>();
     for (const bundle of allBundles) {
       if (
         bundle.status === "active" &&
         bundle.pricingSnapshot?.totalCents > 0
       ) {
         paidCustomerIds.add(bundle.customerId);
+      }
+      if (bundle.pendingDowngrade) {
+        pendingDowngradeCustomerIds.add(bundle.customerId);
       }
     }
 
@@ -58,12 +63,16 @@ export const getAllGroupBillingSummaries = query({
 
       let paidCount = 0;
       let freeCount = 0;
+      let pendingDowngradeCount = 0;
 
       for (const member of members) {
         if (member.customerId && paidCustomerIds.has(member.customerId)) {
           paidCount++;
         } else {
           freeCount++;
+        }
+        if (member.customerId && pendingDowngradeCustomerIds.has(member.customerId)) {
+          pendingDowngradeCount++;
         }
       }
 
@@ -72,11 +81,16 @@ export const getAllGroupBillingSummaries = query({
       summaries.push({
         groupId: group._id,
         accountId: group.accountId,
+        organizationName: (group as any).name ?? group.slug,
+        organizationCode: (group as any).organizationCode ?? null,
+        providerGroupCode: group.groupCode,
+        // Backwards-compatible aliases (consumers should migrate):
         groupName: (group as any).name ?? group.slug,
         groupCode: group.groupCode,
         memberCount: members.length,
         paidCount,
         freeCount,
+        pendingDowngradeCount,
         ratePerMember: PAID_RATE,
         totalAmount,
       });
@@ -107,6 +121,8 @@ export const getGroupMembersWithBillingStatus = query({
     for (const member of members) {
       let billingType: "paid" | "free" = "free";
       let bundleInfo: any = null;
+      let pendingDowngrade: any = null;
+      let subscriptionStatus: string | null = null;
 
       if (member.customerId) {
         const bundle = (await ctx.db.query("subscriptionBundles").collect()).find(
@@ -114,14 +130,20 @@ export const getGroupMembersWithBillingStatus = query({
             b.customerId === member.customerId &&
             b.status === "active"
         );
-        if (bundle && bundle.pricingSnapshot?.totalCents > 0) {
-          billingType = "paid";
-          bundleInfo = {
-            cadence: bundle.cadence,
-            totalCents: bundle.pricingSnapshot.totalCents,
-            currentPeriodEnd: bundle.currentPeriodEnd,
-            stripeSubscriptionId: bundle.stripeSubscriptionId,
-          };
+        if (bundle) {
+          subscriptionStatus = bundle.status;
+          if (bundle.pricingSnapshot?.totalCents > 0) {
+            billingType = "paid";
+            bundleInfo = {
+              cadence: bundle.cadence,
+              totalCents: bundle.pricingSnapshot.totalCents,
+              currentPeriodEnd: bundle.currentPeriodEnd,
+              stripeSubscriptionId: bundle.stripeSubscriptionId,
+            };
+          }
+          if (bundle.pendingDowngrade) {
+            pendingDowngrade = bundle.pendingDowngrade;
+          }
         }
       }
 
@@ -135,6 +157,8 @@ export const getGroupMembersWithBillingStatus = query({
         enrolledAt: member.enrolledAt,
         billingType,
         bundleInfo,
+        pendingDowngrade,
+        subscriptionStatus,
       });
     }
 
@@ -175,6 +199,10 @@ export const getGroupBillingSummary = query({
 
     return {
       groupId: args.groupId,
+      organizationName: (group as any).name ?? group.slug,
+      organizationCode: (group as any).organizationCode ?? null,
+      providerGroupCode: group.groupCode,
+      // Backwards-compatible aliases:
       groupName: group.slug,
       groupCode: group.groupCode,
       memberCount: members.length,
@@ -225,6 +253,10 @@ export const getAccountBillingSummary = query({
 
       groupSummaries.push({
         groupId: group._id,
+        organizationName: (group as any).name ?? group.slug,
+        organizationCode: (group as any).organizationCode ?? null,
+        providerGroupCode: group.groupCode,
+        // Backwards-compatible aliases:
         groupName: group.slug,
         groupCode: group.groupCode,
         memberCount: members.length,
@@ -469,6 +501,10 @@ export const getListBillMonthlySummary = query({
       results.push({
         groupId: group._id,
         accountId: group.accountId,
+        organizationName: (group as any).name ?? group.slug,
+        organizationCode: (group as any).organizationCode ?? null,
+        providerGroupCode: group.groupCode,
+        // Backwards-compatible aliases:
         groupName: (group as any).name ?? group.slug,
         groupCode: group.groupCode,
         listBillConfig: (group as any).listBill,

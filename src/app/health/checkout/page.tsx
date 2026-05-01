@@ -1491,9 +1491,10 @@ function CheckoutContent() {
           memberAddress: "Address on file",
           email: user?.emailAddresses?.[0]?.emailAddress || "",
           planName: cart.items?.[0]?.product?.name || "Ideal Oral Savings Plan",
-          groupCode: "IDEALDO",
+          groupCode: PROVIDER_GROUP_CODE,
           effectiveDate: new Date().toISOString().split("T")[0],
           billingInterval: cart.cadence,
+          periodicChargeCents: subtotalCents,
         }}
       />
       <TermsAndConditionsModal

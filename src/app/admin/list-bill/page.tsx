@@ -100,11 +100,11 @@ export default function ListBillPage() {
 
   // Export CSV
   const handleExportCsv = () => {
-    const header = 'group_code,group_name,billing_period,member_count,rate_per_member,total_amount,payment_method,payment_status\n';
+    const header = 'provider_group_code,organization_code,organization_name,billing_period,member_count,rate_per_member,total_amount,payment_method,payment_status\n';
     const rows = summary.map((g: any) => {
       const rate = (g.ratePerMemberCents / 100).toFixed(2);
       const total = (g.totalCents / 100).toFixed(2);
-      return `"${g.groupCode}","${g.groupName}","${billingPeriod}",${g.memberCount},${rate},${total},"${g.listBillConfig?.paymentMethod ?? 'check'}","${g.payment?.paymentStatus ?? 'pending'}"`;
+      return `"${g.providerGroupCode ?? g.groupCode}","${g.organizationCode ?? ''}","${g.organizationName ?? g.groupName}","${billingPeriod}",${g.memberCount},${rate},${total},"${g.listBillConfig?.paymentMethod ?? 'check'}","${g.payment?.paymentStatus ?? 'pending'}"`;
     }).join('\n');
     const blob = new Blob([header + rows], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -163,9 +163,10 @@ export default function ListBillPage() {
             <ChevronLeft size={20} />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">{selectedGroup.groupName}</h1>
+            <h1 className="text-2xl font-bold text-slate-900">{selectedGroup.organizationName ?? selectedGroup.groupName}</h1>
             <p className="text-slate-500 text-sm">
-              Provider Group Code: <span className="font-mono">{selectedGroup.groupCode}</span> ·
+              Provider Group Code: <span className="font-mono">{selectedGroup.providerGroupCode ?? selectedGroup.groupCode}</span> ·
+              Organization Code: <span className="font-mono">{selectedGroup.organizationCode ?? <span className="text-amber-600">not set</span>}</span> ·
               Payment Method: <span className="capitalize">{selectedGroup.listBillConfig?.paymentMethod ?? 'check'}</span>
             </p>
           </div>
@@ -612,8 +613,10 @@ export default function ListBillPage() {
             <thead className="bg-slate-50 border-b border-slate-200 text-sm">
               <tr>
                 <th className="px-6 py-3 text-left font-semibold text-slate-700">
-                  <button onClick={() => toggleSort('groupName')} className="inline-flex items-center gap-1 hover:text-blue-600">Group <SortIcon active={sortKey === 'groupName'} dir={sortDir} /></button>
+                  <button onClick={() => toggleSort('groupName')} className="inline-flex items-center gap-1 hover:text-blue-600">Organization <SortIcon active={sortKey === 'groupName'} dir={sortDir} /></button>
                 </th>
+                <th className="px-6 py-3 text-left font-semibold text-slate-700">Provider Group Code</th>
+                <th className="px-6 py-3 text-left font-semibold text-slate-700">Organization Code</th>
                 <th className="px-6 py-3 text-left font-semibold text-slate-700">Pay Method</th>
                 <th className="px-6 py-3 text-right font-semibold text-slate-700">
                   <button onClick={() => toggleSort('memberCount')} className="inline-flex items-center gap-1 hover:text-blue-600">FT Members <SortIcon active={sortKey === 'memberCount'} dir={sortDir} /></button>
@@ -635,9 +638,10 @@ export default function ListBillPage() {
                   className="hover:bg-blue-50 cursor-pointer transition-colors"
                 >
                   <td className="px-6 py-4">
-                    <p className="font-medium text-slate-900">{g.groupName}</p>
-                    <p className="font-mono text-xs text-slate-400">{g.groupCode}</p>
+                    <p className="font-medium text-slate-900">{g.organizationName ?? g.groupName}</p>
                   </td>
+                  <td className="px-6 py-4 font-mono text-xs text-slate-600">{g.providerGroupCode ?? g.groupCode}</td>
+                  <td className="px-6 py-4 font-mono text-xs text-blue-600">{g.organizationCode ?? <span className="text-amber-600">—</span>}</td>
                   <td className="px-6 py-4 capitalize text-slate-700">
                     {g.listBillConfig?.paymentMethod ?? 'check'}
                   </td>

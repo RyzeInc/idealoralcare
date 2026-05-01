@@ -7,11 +7,12 @@ import { Id } from '@/convex/_generated/dataModel';
 import { Download, BarChart3, AlertCircle, CheckCircle, WifiOff, History, Eye, EyeOff } from 'lucide-react';
 import { useToast, Breadcrumbs, SkeletonCard } from '@/components/admin/ui';
 import { formatDateTime } from '@/lib/admin-format';
+import { PROVIDER_GROUP_CODE } from '@/lib/constants';
 
 export default function VendorFilesPage() {
   const toast = useToast();
   const [generatingVendor, setGeneratingVendor] = useState<string | null>(null);
-  const [selectedGroupId, setSelectedGroupId] = useState('');
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState('');
   const [fileType, setFileType] = useState<'full' | 'delta'>('full');
   const [showHistory, setShowHistory] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -22,7 +23,7 @@ export default function VendorFilesPage() {
   const groups = useQuery(api.admin.hierarchy.getAllGroups) || [];
   const preview = useQuery(
     api.admin.vendorFiles.getVendorFilePreview,
-    selectedGroupId ? { groupId: selectedGroupId as Id<'groups'> } : "skip"
+    selectedOrganizationId ? { groupId: selectedOrganizationId as Id<'groups'> } : "skip"
   );
 
   const generateDDN = useAction(api.admin.vendorFiles.generateDentalDiscountNetworkFile);
@@ -40,13 +41,13 @@ export default function VendorFilesPage() {
   };
 
   const handleGenerate = async (vendorName: string) => {
-    if (!selectedGroupId) {
+    if (!selectedOrganizationId) {
       toast.warning('Select an organization', 'Pick an organization above before generating a vendor file.');
       return;
     }
     setGeneratingVendor(vendorName);
     try {
-      const groupId = selectedGroupId as Id<'groups'>;
+      const groupId = selectedOrganizationId as Id<'groups'>;
       let result: any;
       if (vendorName === 'Dental Discount Network') {
         result = await generateDDN({ groupId, fileType });
@@ -75,7 +76,7 @@ export default function VendorFilesPage() {
       const members = result?.memberCount ?? 0;
       toast.success(
         `Aggregated file ready: ${result.filename}`,
-        `${orgs} organizations · ${members} members. All users use groupcode IDEALDO.`
+        `${orgs} organizations · ${members} members. All users use groupcode ${PROVIDER_GROUP_CODE}.`
       );
     } catch (err) {
       toast.fromError(err, 'Aggregated file generation failed');
@@ -97,8 +98,8 @@ export default function VendorFilesPage() {
         <div>
           <label className="block text-sm font-semibold text-slate-900 mb-2">Select Organization</label>
           <select
-            value={selectedGroupId}
-            onChange={e => setSelectedGroupId(e.target.value)}
+            value={selectedOrganizationId}
+            onChange={e => setSelectedOrganizationId(e.target.value)}
             className="w-64 px-3 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 text-sm"
           >
             <option value="">Select Organization...</option>
@@ -128,7 +129,7 @@ export default function VendorFilesPage() {
       </div>
 
       {/* Preview Section */}
-      {selectedGroupId && preview && (
+      {selectedOrganizationId && preview && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
           <button
             onClick={() => setShowPreview(!showPreview)}
@@ -236,7 +237,7 @@ export default function VendorFilesPage() {
             <div className="flex gap-2">
               <button
                 onClick={() => handleGenerate(vendor.vendor)}
-                disabled={generatingVendor === vendor.vendor || !selectedGroupId}
+                disabled={generatingVendor === vendor.vendor || !selectedOrganizationId}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
                 {generatingVendor === vendor.vendor ? 'Generating...' : (<><Download size={14} /> Generate & Download</>)}
@@ -281,7 +282,7 @@ export default function VendorFilesPage() {
             </p>
             <p className="text-sm font-semibold text-blue-700 mt-2 flex items-center gap-1">
               <CheckCircle size={14} className="text-green-600" />
-              All users ALWAYS use groupcode: <span className="font-mono bg-blue-50 px-2 py-1 rounded">IDEALDO</span>
+              All users ALWAYS use groupcode: <span className="font-mono bg-blue-50 px-2 py-1 rounded">{PROVIDER_GROUP_CODE}</span>
             </p>
           </div>
         </div>

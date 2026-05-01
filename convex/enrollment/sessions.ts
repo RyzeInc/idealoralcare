@@ -1,6 +1,7 @@
 import { mutation, query } from "../_generated/server";
 import { MutationCtx, QueryCtx } from "../_generated/server";
 import { v } from "convex/values";
+import { PROVIDER_GROUP_CODE } from "../lib/constants";
 
 /**
  * Enrollment Session Management
@@ -208,7 +209,7 @@ export const initializeEnrollment = mutation({
           slug: "default",
           name: "Individual Enrollment",
           description: "Default group for direct-to-consumer enrollment",
-          groupCode: "IDEALDO",
+          groupCode: PROVIDER_GROUP_CODE,
           status: "active",
           createdAt: now2,
           updatedAt: now2,
