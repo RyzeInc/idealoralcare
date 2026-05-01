@@ -602,7 +602,7 @@ export const getMemberCardDataPublic = query({
         dialCare: { name: "Teledentistry Program", memberUrl: "https://www.dialcare.com" },
         toothlens: { name: "AI Oral Scanning", memberUrl: "https://toothlens.com" },
       },
-      supportPhone: "support@getidealoh.com",
+      supportPhone: "(844) 679-9367",
       supportEmail: "support@getidealoh.com",
     };
   },

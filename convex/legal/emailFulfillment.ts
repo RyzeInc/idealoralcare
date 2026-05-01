@@ -116,7 +116,7 @@ export const sendFulfillmentPacketEmail = action({
           planName: args.planName,
           effectiveDate: args.effectiveDate,
           groupCode: args.groupCode,
-          memberServicesPhone: args.memberServicesPhone ?? "support@getidealoh.com",
+          memberServicesPhone: args.memberServicesPhone ?? "(844) 679-9367",
           portalUrl: baseUrl,
         }),
         attachments: [
