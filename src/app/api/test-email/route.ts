@@ -11,7 +11,7 @@ const TEST_MEMBER = {
   groupCode: PROVIDER_GROUP_CODE,
   effectiveDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
   billingAmount: '$19.95/mo',
-  memberServicesPhone: 'support@getidealoh.com',
+  memberServicesPhone: '(844) 679-9367',
 };
 
 type EmailType = 'fulfillment-packet' | 'welcome' | 'confirmation' | 'cancelled' | 'eligibility-set-password' | 'employer-membership-agreement';
