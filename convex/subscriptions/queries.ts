@@ -622,9 +622,22 @@ export const getMemberCardDataPublic = query({
       year: "numeric",
     });
 
+    // The member-facing ID must exactly match the Unique ID we submit to
+    // Careington and DialCare in the eligibility file. WE assign this ID —
+    // Careington does not assign it. The formula must stay in sync with
+    // the `toUniqueId` function in convex/admin/vendorFiles.ts.
+    //   Priority 1: careingtonUniqueId already stored on the profile (set at
+    //               import time for eligibility-file members, or written back
+    //               after the first outbound file generation for direct-enroll).
+    //   Priority 2: Numeric digits of memberId, max 12 chars — identical to
+    //               what vendorFiles.ts derives when careingtonUniqueId is absent.
+    const memberFacingId: string =
+      (profile as any).careingtonUniqueId ??
+      profile.memberId.replace(/[^0-9]/g, "").slice(0, 12);
+
     return {
       memberName: `${profile.firstName} ${profile.lastName}`,
-      memberId: profile.memberId,
+      memberId: memberFacingId,
       subscriberId,
       planName,
       productSlug,

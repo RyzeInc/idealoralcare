@@ -16,7 +16,6 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
   // Full scanner URL for the active scan, returned by startScan (server-built)
   const [activeScanUrl, setActiveScanUrl] = useState<string | null>(null);
   const [convexScanId, setConvexScanId] = useState<string | null>(null);
-  const [forwardingIds, setForwardingIds] = useState<Set<string>>(new Set());
   const [showMobileOverlay, setShowMobileOverlay] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
@@ -43,7 +42,6 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
   const startScanMut = useMutation(api.healthplans.toothlens.startScan);
   const markScanCompletedMut = useMutation(api.healthplans.toothlens.markScanCompleted);
   const markScanAbandonedMut = useMutation(api.healthplans.toothlens.markScanAbandoned);
-  const forwardToTeledentistMut = useMutation(api.healthplans.toothlens.forwardToTeledentist);
   const storeReportUrlMut = useMutation(api.healthplans.toothlens.storeReportUrl);
 
   // Stable ref so the postMessage handler always reads the current convexScanId
@@ -196,25 +194,7 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
     setOverlayUrl(null);
   }, []);
 
-  const handleForwardToTeledentist = useCallback(
-    async (scanId: string) => {
-      setForwardingIds((prev) => new Set(prev).add(scanId));
-      try {
-        await forwardToTeledentistMut({ scanId: scanId as any });
-        // Navigate to teledentistry tab so user can start a consultation
-        if (onTabChange) {
-          onTabChange('teledentistry');
-        }
-      } finally {
-        setForwardingIds((prev) => {
-          const n = new Set(prev);
-          n.delete(scanId);
-          return n;
-        });
-      }
-    },
-    [forwardToTeledentistMut, onTabChange]
-  );
+
 
   // URL for the scanner iframe / QR code — always set server-side.
   const getScanUrl = useCallback(() => activeScanUrl ?? '', [activeScanUrl]);
@@ -884,7 +864,7 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
         </>
       )}
 
-      {/* ── SCAN HISTORY ── */}
+      {/* ── SCAN HISTORY ── (temporarily commented out — no Toothlens scan history API)
       <div className="glass-card" style={{ padding: '2rem' }}>
         <h3
           style={{
@@ -897,13 +877,12 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
           Your Scan History
         </h3>
         <p style={{ color: '#64748b', fontSize: '0.875rem', marginBottom: '1rem' }}>
-          Every SmileScan you start is logged here. Completed scans can be forwarded to a teledentist when
-          you&apos;re ready for a virtual consultation.
+          Scans with a completed AI report appear here. You can view or download your PDF results at any time.
         </p>
 
         {scanHistory === undefined && <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Loading scan history…</p>}
 
-        {scanHistory !== undefined && scanHistory.length === 0 && (
+        {scanHistory !== undefined && scanHistory.filter((s) => s.reportUrl).length === 0 && (
           <div
             style={{
               textAlign: 'center',
@@ -914,13 +893,15 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
             }}
           >
             <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🦷</div>
-            <p style={{ color: '#64748b', margin: 0 }}>No scans yet. Start your first SmileScan above.</p>
+            <p style={{ color: '#64748b', margin: 0 }}>
+              No completed reports yet. Finish a SmileScan above to generate your first AI report.
+            </p>
           </div>
         )}
 
-        {scanHistory && scanHistory.length > 0 && (
+        {scanHistory && scanHistory.filter((s) => s.reportUrl).length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {scanHistory.map((scan) => {
+            {scanHistory.filter((s) => s.reportUrl).map((scan) => {
               const date = new Date(scan.startedAt).toLocaleDateString('en-US', {
                 month: 'short',
                 day: 'numeric',
@@ -930,15 +911,6 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
                 hour: 'numeric',
                 minute: '2-digit',
               });
-
-              const statusColor =
-                scan.status === 'completed'
-                  ? { bg: '#dcfce7', text: '#166534', label: 'Completed' }
-                  : scan.status === 'cancelled'
-                  ? { bg: '#fef3c7', text: '#92400e', label: 'Cancelled' }
-                  : scan.status === 'abandoned'
-                  ? { bg: '#fef3c7', text: '#92400e', label: 'Not Completed' }
-                  : { bg: '#dbeafe', text: '#1e40af', label: 'In Progress' };
 
               return (
                 <div
@@ -966,7 +938,7 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
                           fontSize: '0.9375rem',
                         }}
                       >
-                        SmileScan
+                        SmileScan Report
                       </p>
                       <p style={{ color: '#64748b', fontSize: '0.8125rem', margin: 0 }}>
                         {date} at {time}
@@ -977,108 +949,52 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
                     <span
                       style={{
                         padding: '0.25rem 0.75rem',
-                        background: statusColor.bg,
-                        color: statusColor.text,
+                        background: '#dcfce7',
+                        color: '#166534',
                         borderRadius: '9999px',
                         fontSize: '0.75rem',
                         fontWeight: 600,
                       }}
                     >
-                      {statusColor.label}
+                      Report Ready
                     </span>
-                    {/* View Report — only shown when a stored reportUrl exists */}
-                    {scan.status === 'completed' && scan.reportUrl && (
-                      <button
-                        onClick={() => openStoredReport(scan.reportUrl!)}
-                        style={{
-                          padding: '0.5rem 0.875rem',
-                          background: '#3b82f6',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: '8px',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        View Report
-                      </button>
-                    )}
-                    {/* Start New Scan for unfinished entries */}
-                    {(scan.status === 'started' || scan.status === 'abandoned') && !scannerActive && (
-                      <button
-                        onClick={openScan}
-                        disabled={isStartingScan}
-                        style={{
-                          padding: '0.5rem 0.875rem',
-                          background: isStartingScan ? '#f1f5f9' : '#f59e0b',
-                          color: isStartingScan ? '#94a3b8' : '#fff',
-                          border: 'none',
-                          borderRadius: '8px',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          cursor: isStartingScan ? 'default' : 'pointer',
-                        }}
-                      >
-                        {isStartingScan ? 'Starting…' : 'Start New Scan'}
-                      </button>
-                    )}
-                    {scan.status === 'completed' && scan.reportUrl && (
-                      <a
-                        href={scan.reportUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        download
-                        style={{
-                          padding: '0.5rem 0.875rem',
-                          background: '#0f172a',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: '8px',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          textDecoration: 'none',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.35rem',
-                        }}
-                      >
-                        ↓ Download PDF
-                      </a>
-                    )}
-                    {scan.status === 'completed' && !scan.forwardedToTeledentist && (
-                      <button
-                        onClick={() => handleForwardToTeledentist(scan._id as string)}
-                        disabled={forwardingIds.has(scan._id as string)}
-                        style={{
-                          padding: '0.5rem 0.875rem',
-                          background: forwardingIds.has(scan._id as string) ? '#f1f5f9' : '#2ECC71',
-                          color: forwardingIds.has(scan._id as string) ? '#94a3b8' : '#fff',
-                          border: 'none',
-                          borderRadius: '8px',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          cursor: forwardingIds.has(scan._id as string) ? 'default' : 'pointer',
-                        }}
-                      >
-                        {forwardingIds.has(scan._id as string) ? 'Forwarding…' : 'Forward to Dentist'}
-                      </button>
-                    )}
-                    {scan.status === 'completed' && scan.forwardedToTeledentist && (
-                      <span
-                        style={{
-                          padding: '0.25rem 0.75rem',
-                          background: '#ede9fe',
-                          color: '#6d28d9',
-                          borderRadius: '9999px',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                        }}
-                      >
-                        Forwarded ✓
-                      </span>
-                    )}
+                    <button
+                      onClick={() => openStoredReport(scan.reportUrl!)}
+                      style={{
+                        padding: '0.5rem 0.875rem',
+                        background: '#3b82f6',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      View Report
+                    </button>
+                    <a
+                      href={scan.reportUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download
+                      style={{
+                        padding: '0.5rem 0.875rem',
+                        background: '#0f172a',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        textDecoration: 'none',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                      }}
+                    >
+                      ↓ Download PDF
+                    </a>
                   </div>
                 </div>
               );
@@ -1086,6 +1002,7 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
           </div>
         )}
       </div>
+      */ }
     </div>
   );
 }

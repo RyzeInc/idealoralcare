@@ -8,6 +8,7 @@ import { Download, BarChart3, AlertCircle, CheckCircle, WifiOff, History, Eye, E
 import { useToast, Breadcrumbs, SkeletonCard } from '@/components/admin/ui';
 import { formatDateTime } from '@/lib/admin-format';
 import { PROVIDER_GROUP_CODE } from '@/lib/constants';
+import IdMaintenancePanel from './IdMaintenancePanel';
 
 export default function VendorFilesPage() {
   const toast = useToast();
@@ -197,6 +198,9 @@ export default function VendorFilesPage() {
           )}
         </div>
       )}
+
+      {/* ID Maintenance */}
+      <IdMaintenancePanel />
 
       {/* Vendor Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -1,273 +1,149 @@
 'use client';
 
-import { Video } from 'lucide-react';
+import { ExternalLink, Video, Copy, CheckCheck } from 'lucide-react';
+import { useState } from 'react';
 
-export default function TeledentistryTab() {
+interface TeledentistryTabProps {
+  memberId: string | null;
+  firstName: string | null;
+  fullName: string | null;
+}
+
+export default function TeledentistryTab({ memberId, firstName, fullName }: TeledentistryTabProps) {
+  const [copied, setCopied] = useState(false);
+
+  const copyMemberId = () => {
+    if (!memberId) return;
+    navigator.clipboard.writeText(memberId).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  if (!memberId) {
+    return (
+      <div style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        padding: '3rem 2rem', textAlign: 'center', gap: '1rem',
+        background: '#f8fafc', borderRadius: '16px', border: '1.5px solid #e2e8f0',
+      }}>
+        <Video size={40} color="#94a3b8" />
+        <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' }}>Teledentistry Access</h3>
+        <p style={{ margin: 0, color: '#64748b', maxWidth: '400px', lineHeight: 1.6 }}>
+          An active membership is required to access DialCare teledentistry. Please contact{' '}
+          <a href="mailto:support@getidealoh.com" style={{ color: '#0066CC' }}>support@getidealoh.com</a>{' '}
+          if you believe this is an error.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Hero */}
-      <div
-        className="glass-card"
-        style={{
-          padding: '2rem',
-          background: 'linear-gradient(135deg, #3498DB 0%, #2980B9 100%)',
-          color: '#fff',
-          overflow: 'hidden',
-          position: 'relative',
-        }}
-      >
-        <div
-          style={{
-            position: 'absolute',
-            top: '-40px',
-            right: '-40px',
-            width: '200px',
-            height: '200px',
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(255,255,255,0.15), transparent 70%)',
-            pointerEvents: 'none',
-          }}
-        />
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-          <div
-            style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '12px',
-              background: 'rgba(255,255,255,0.2)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
+      <div style={{
+        padding: '2rem',
+        background: 'linear-gradient(135deg, #3498DB 0%, #2980B9 100%)',
+        borderRadius: '16px',
+        color: '#fff',
+        overflow: 'hidden',
+        position: 'relative',
+      }}>
+        <div style={{ position: 'absolute', top: '-40px', right: '-40px', width: '200px', height: '200px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,255,255,0.15), transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.75rem', position: 'relative' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <Video size={24} color="#fff" />
           </div>
           <div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>
-              Teledentistry
-            </h2>
-            <p style={{ opacity: 0.8, fontSize: '0.9375rem' }}>24/7 Virtual Dental Care</p>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Teledentistry via DialCare</h2>
+            <p style={{ opacity: 0.8, fontSize: '0.9rem', margin: 0, marginTop: '0.2rem' }}>24/7 Virtual Dental Consultations</p>
           </div>
         </div>
-        <p style={{ opacity: 0.9, lineHeight: 1.7, marginBottom: '1.5rem', maxWidth: '600px' }}>
-          Connect with licensed dentists anytime, anywhere through secure video consultations. Get professional
-          advice, diagnosis, and treatment plans from the comfort of your home.
+        <p style={{ opacity: 0.9, lineHeight: 1.7, margin: 0, maxWidth: '600px', position: 'relative' }}>
+          Your plan includes unlimited teledentistry visits through DialCare. Connect with licensed
+          dentists anytime from your phone or computer — no waiting room required.
         </p>
-        <a
-          href="#"
-          className="button"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            background: 'rgba(255,255,255,0.2)',
-            color: '#fff',
-            border: '2px solid rgba(255,255,255,0.4)',
-            padding: '0.75rem 1.5rem',
-            borderRadius: '10px',
-            textDecoration: 'none',
-            fontWeight: 700,
-            fontSize: '0.9375rem',
-            backdropFilter: 'blur(8px)',
-          }}
-        >
-          <Video size={18} />
-          Schedule Consultation
-        </a>
       </div>
 
-      {/* Preview image */}
-      <div
-        className="glass-card"
-        style={{
-          padding: '0',
-          overflow: 'hidden',
-          borderRadius: '16px',
-          border: '1px solid #e2e8f0',
-          maxHeight: '380px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: '#eff6ff',
-        }}
-      >
-        <img
-          src="/health-assets/teledentistr_1024x1024.png"
-          alt="Teledentistry Consultation"
-          style={{
-            width: '100%',
-            maxHeight: '380px',
-            objectFit: 'cover',
-            display: 'block',
-          }}
-        />
-      </div>
-
-      {/* How it works */}
-      <div className="glass-card" style={{ padding: '2rem' }}>
-        <h3
-          style={{
-            fontSize: '1.25rem',
-            fontWeight: 700,
-            color: '#0f172a',
-            marginBottom: '1.5rem',
-          }}
-        >
-          How It Works
+      {/* Member ID Card */}
+      <div style={{
+        padding: '1.75rem',
+        background: '#fff',
+        borderRadius: '16px',
+        border: '1.5px solid #e2e8f0',
+      }}>
+        <h3 style={{ margin: '0 0 1.25rem', fontSize: '1.1rem', fontWeight: 700, color: '#0f172a' }}>
+          Your DialCare Credentials
         </h3>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: '1.25rem',
-          }}
-        >
-          {[
-            {
-              icon: '📅',
-              step: '1',
-              title: 'Book Your Appointment',
-              desc: 'Choose a time that works for you. Available 24/7 for urgent concerns or scheduled appointments.',
-            },
-            {
-              icon: '💬',
-              step: '2',
-              title: 'Connect with a Dentist',
-              desc: 'Join a secure video call with an experienced, licensed dentist who will review your concerns.',
-            },
-            {
-              icon: '📋',
-              step: '3',
-              title: 'Get Your Treatment Plan',
-              desc: 'Receive professional recommendations, prescriptions if needed, and referrals to in-person care.',
-            },
-          ].map(({ icon, step, title, desc }) => (
-            <div
-              key={step}
+        <p style={{ margin: '0 0 1.25rem', fontSize: '0.9rem', color: '#64748b', lineHeight: 1.6 }}>
+          You&apos;ll use these details to register or log in at{' '}
+          <strong style={{ color: '#0f172a' }}>dialcare.com/verify</strong>.
+          DialCare will also send a registration email to your account email address.
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+          {/* Member ID */}
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '1rem 1.25rem', background: '#f8fafc',
+            borderRadius: '12px', border: '1.5px solid #e2e8f0', gap: '1rem',
+          }}>
+            <div>
+              <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Member ID</p>
+              <p style={{ margin: '0.25rem 0 0', fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', letterSpacing: '0.05em', fontFamily: 'monospace' }}>{memberId}</p>
+            </div>
+            <button
+              onClick={copyMemberId}
               style={{
-                padding: '1.5rem',
-                background: 'linear-gradient(135deg, #eff6ff, #e8f4fd)',
-                borderRadius: '14px',
-                border: '1px solid #bfdbfe',
-                textAlign: 'center',
+                display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                padding: '0.5rem 0.875rem', borderRadius: '8px',
+                border: '1.5px solid', borderColor: copied ? '#bbf7d0' : '#e2e8f0',
+                background: copied ? '#f0fdf4' : '#fff',
+                color: copied ? '#15803d' : '#64748b',
+                cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600,
+                transition: 'all 0.15s',
               }}
             >
-              <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>{icon}</div>
-              <div
-                style={{
-                  display: 'inline-block',
-                  padding: '0.2rem 0.6rem',
-                  background: 'linear-gradient(135deg, #3498DB, #2980B9)',
-                  color: '#fff',
-                  borderRadius: '9999px',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  marginBottom: '0.625rem',
-                }}
-              >
-                Step {step}
-              </div>
-              <h4
-                style={{
-                  fontWeight: 700,
-                  color: '#0f172a',
-                  marginBottom: '0.5rem',
-                  fontSize: '1rem',
-                }}
-              >
-                {title}
-              </h4>
-              <p style={{ fontSize: '0.875rem', color: '#64748b', lineHeight: 1.6, margin: 0 }}>
-                {desc}
+              {copied ? <CheckCheck size={15} /> : <Copy size={15} />}
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+
+          {/* Name fields */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem' }}>
+            <div style={{ padding: '1rem 1.25rem', background: '#f8fafc', borderRadius: '12px', border: '1.5px solid #e2e8f0' }}>
+              <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>First Name</p>
+              <p style={{ margin: '0.25rem 0 0', fontSize: '1rem', fontWeight: 600, color: '#0f172a' }}>{firstName || '—'}</p>
+            </div>
+            <div style={{ padding: '1rem 1.25rem', background: '#f8fafc', borderRadius: '12px', border: '1.5px solid #e2e8f0' }}>
+              <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Last Name</p>
+              <p style={{ margin: '0.25rem 0 0', fontSize: '1rem', fontWeight: 600, color: '#0f172a' }}>
+                {fullName && firstName ? fullName.replace(firstName, '').trim() || '—' : '—'}
               </p>
             </div>
-          ))}
+          </div>
         </div>
       </div>
 
-      {/* Benefits */}
-      <div className="glass-card" style={{ padding: '2rem' }}>
-        <h3
-          style={{
-            fontSize: '1.25rem',
-            fontWeight: 700,
-            color: '#0f172a',
-            marginBottom: '1.25rem',
-          }}
-        >
-          Why Teledentistry?
-        </h3>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-            gap: '1rem',
-          }}
-        >
+      {/* How to access */}
+      <div style={{ padding: '1.75rem', background: '#fff', borderRadius: '16px', border: '1.5px solid #e2e8f0' }}>
+        <h3 style={{ margin: '0 0 1.25rem', fontSize: '1.1rem', fontWeight: 700, color: '#0f172a' }}>How to Access DialCare</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {[
-            {
-              icon: '🕐',
-              title: 'Available 24/7',
-              desc: 'Get dental advice any time of day, including nights and weekends.',
-            },
-            {
-              icon: '🏠',
-              title: 'From Your Home',
-              desc: 'No travel required — consult from wherever you are most comfortable.',
-            },
-            {
-              icon: '💊',
-              title: 'Prescriptions Available',
-              desc: 'Dentists can send prescriptions electronically when clinically appropriate.',
-            },
-            {
-              icon: '🔒',
-              title: 'Secure & Private',
-              desc: 'HIPAA-compliant video consultations keep your health data protected.',
-            },
-          ].map(({ icon, title, desc }) => (
-            <div
-              key={title}
-              style={{
-                padding: '1.25rem',
-                background: '#f8fafc',
-                borderRadius: '12px',
-                border: '1px solid #e2e8f0',
-                display: 'flex',
-                gap: '1rem',
-                alignItems: 'flex-start',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '1.5rem',
-                  flexShrink: 0,
-                  width: '40px',
-                  height: '40px',
-                  background: '#eff6ff',
-                  borderRadius: '10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {icon}
-              </div>
+            { step: '1', title: 'Check your email', desc: 'DialCare will send a registration email to your account email address. Check your inbox (and spam folder).' },
+            { step: '2', title: 'Or visit dialcare.com/verify', desc: 'Go directly to dialcare.com/verify and enter your Member ID, First Name, and Last Name to register or log in.' },
+            { step: '3', title: 'Start your consultation', desc: 'Connect with a licensed dentist 24/7 for advice, prescriptions, and treatment plans — all from your device.' },
+          ].map(({ step, title, desc }) => (
+            <div key={step} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+              <div style={{
+                width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0,
+                background: 'linear-gradient(135deg, #3498DB, #2980B9)',
+                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '0.75rem', fontWeight: 800,
+              }}>{step}</div>
               <div>
-                <h4
-                  style={{
-                    fontWeight: 700,
-                    color: '#0f172a',
-                    marginBottom: '0.25rem',
-                    fontSize: '0.9375rem',
-                  }}
-                >
-                  {title}
-                </h4>
-                <p style={{ fontSize: '0.875rem', color: '#64748b', lineHeight: 1.5, margin: 0 }}>
-                  {desc}
-                </p>
+                <p style={{ margin: 0, fontWeight: 700, color: '#0f172a', fontSize: '0.9375rem' }}>{title}</p>
+                <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: '#64748b', lineHeight: 1.6 }}>{desc}</p>
               </div>
             </div>
           ))}
@@ -275,47 +151,32 @@ export default function TeledentistryTab() {
       </div>
 
       {/* CTA */}
-      <div
-        style={{
-          textAlign: 'center',
-          padding: '2.5rem',
-          background: 'linear-gradient(135deg, #eff6ff, #e8f4fd)',
-          borderRadius: '16px',
-          border: '1px solid #bfdbfe',
-        }}
-      >
-        <h3
-          style={{
-            fontSize: '1.25rem',
-            fontWeight: 700,
-            color: '#0f172a',
-            marginBottom: '0.75rem',
-          }}
-        >
-          Ready to talk to a dentist?
-        </h3>
-        <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
-          Book a virtual consultation and get expert dental care today.
+      <div style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        padding: '2rem', background: 'linear-gradient(135deg, #eff6ff, #e8f4fd)',
+        borderRadius: '16px', border: '1px solid #bfdbfe', textAlign: 'center', gap: '1rem',
+      }}>
+        <p style={{ margin: 0, fontSize: '0.9375rem', color: '#1e40af', fontWeight: 600 }}>
+          Ready to speak with a dentist?
         </p>
         <a
-          href="#"
-          className="button"
+          href="https://dialcare.com/verify"
+          target="_blank"
+          rel="noopener noreferrer"
           style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            background: '#3498DB',
-            color: '#fff',
-            padding: '0.75rem 1.5rem',
-            borderRadius: '10px',
-            textDecoration: 'none',
-            fontWeight: 700,
-            fontSize: '0.9375rem',
+            display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+            padding: '0.875rem 2rem', borderRadius: '10px',
+            background: 'linear-gradient(135deg, #3498DB, #2980B9)',
+            color: '#fff', textDecoration: 'none', fontWeight: 700,
+            fontSize: '0.9375rem', boxShadow: '0 4px 14px rgba(52,152,219,0.35)',
           }}
         >
-          <Video size={18} />
-          Schedule Now
+          <ExternalLink size={17} />
+          Go to dialcare.com/verify
         </a>
+        <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>
+          Opens in a new tab · Use your Member ID above to sign in
+        </p>
       </div>
     </div>
   );

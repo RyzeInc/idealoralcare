@@ -1024,11 +1024,24 @@ export default defineSchema({
     eligibilityFileId: v.optional(v.id("eligibilityFiles")),
     
     // VENDOR IDENTITY — CAREINGTON / DIALCARE / TOOTHLENS
-    // careingtonUniqueId  = the Unique ID in the Careington/DialCare eligibility file (shared by whole family)
+    //
+    // IMPORTANT: The Careington/DialCare Unique ID is ASSIGNED BY US (Ideal Health).
+    // We determine this number and report it to Careington in the outbound eligibility
+    // file. Careington does NOT assign it. The same ID must be shown to the member on
+    // their ID card, PDF, and in all emails — so they can use it to register at
+    // dialcare.com/verify and to present at dental providers.
+    //
+    // careingtonUniqueId  = the Unique ID we assign and submit in the Careington/DialCare
+    //                       eligibility file (shared by the whole family, numeric, max 12 chars)
     // careingtonSeqNum    = "00" for primary; "01", "02"... for dependents
     // toothlensMemberId   = careingtonUniqueId + careingtonSeqNum  (e.g., "1234567801")
     //   → Careington and DialCare both use careingtonUniqueId for eligibility lookups
     //   → Toothlens uses toothlensMemberId so each family member has a distinct account
+    //
+    // If careingtonUniqueId is not set, the system derives it from memberId by stripping
+    // non-numeric characters (see toUniqueId() in convex/admin/vendorFiles.ts). The
+    // getMemberCardDataPublic query applies this same logic when building the member-facing
+    // memberId so the card, PDF, and emails always match the eligibility file.
     careingtonUniqueId: v.optional(v.string()),
     careingtonSeqNum: v.optional(v.string()),
     toothlensMemberId: v.optional(v.string()),

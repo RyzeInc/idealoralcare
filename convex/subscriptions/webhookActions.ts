@@ -427,8 +427,13 @@ export const getMemberForCancellation = query({
       .first();
 
     if (!profile) return null;
+    // Return the member-facing ID (matches what we send to Careington/DialCare),
+    // not the raw internal memberId, so cancellation emails show the correct ID.
+    const memberFacingId: string =
+      (profile as any).careingtonUniqueId ??
+      profile.memberId.replace(/[^0-9]/g, "").slice(0, 12);
     return {
-      memberId: profile.memberId,
+      memberId: memberFacingId,
       firstName: profile.firstName,
       lastName: profile.lastName,
       email: profile.email ?? null,

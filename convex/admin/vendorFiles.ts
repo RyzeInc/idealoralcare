@@ -59,9 +59,18 @@ function snapToFirstOfMonth(timestamp: number): Date {
 }
 
 /**
- * Produce a Careington-compliant Unique ID:
- * - Numeric digits only (spec: Data Type = Numeric, "No SSNs or Punctuation")
- * - Max 12 characters
+ * Derive the Careington/DialCare Unique ID from an internal memberId.
+ *
+ * IMPORTANT: This ID is ASSIGNED BY US (Ideal Health) and reported to Careington
+ * in the outbound eligibility file. Careington does not assign it.
+ *
+ * Rules per Careington spec:
+ * - Numeric digits only (spec preferred; max 12 characters)
+ * - No punctuation or special characters (dashes, spaces, etc.)
+ *
+ * Only used as a fallback when careingtonUniqueId is not yet stored on the profile.
+ * The same derivation logic is used in getMemberCardDataPublic (subscriptions/queries.ts)
+ * so the member-facing ID always matches what we send in the eligibility file.
  */
 function toUniqueId(memberId: string): string {
   return memberId.replace(/[^0-9]/g, "").slice(0, 12);

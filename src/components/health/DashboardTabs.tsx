@@ -184,7 +184,13 @@ export default function DashboardTabs({
 
         {activeTab === 'oral-scan' && <OralScanTab userId={userId} onTabChange={setActiveTab} />}
 
-        {activeTab === 'teledentistry' && <TeledentistryTab />}
+        {activeTab === 'teledentistry' && (
+          <TeledentistryTab
+            memberId={memberCardData?.memberId ?? null}
+            firstName={firstName}
+            fullName={fullName}
+          />
+        )}
       </Suspense>
     </>
   );

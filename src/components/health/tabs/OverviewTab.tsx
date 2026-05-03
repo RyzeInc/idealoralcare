@@ -13,6 +13,8 @@ import {
   Video,
   ShieldCheck,
   LayoutDashboard,
+  Mail,
+  Phone,
 } from 'lucide-react';
 import FamilySection from '../FamilySection';
 import MemberIdCard, { type MemberCardData } from '../MemberIdCard';
@@ -39,6 +41,128 @@ interface OverviewTabProps {
   memberCardData?: MemberCardData | null;
   isFamily?: boolean;
 }
+
+const SUPPORT_PHONE_OPTIONS = [
+  { label: 'Tech / Plan Support', number: '(844) 679-9367', tel: '+18446799367' },
+  { label: 'Teledentistry Support', number: '(855) 335-2255', tel: '+18553352255' },
+  { label: 'Dentist Network Support', number: '(800) 290-0526', tel: '+18002900526' },
+];
+
+function SupportCard() {
+  const [phoneOpen, setPhoneOpen] = useState(false);
+
+  return (
+    <div
+      className="glass-card"
+      style={{
+        padding: '1.5rem',
+        background: 'linear-gradient(135deg, #0066CC, #0052a3)',
+        color: '#fff',
+      }}
+    >
+      <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+        Need Help?
+      </h3>
+      <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.8)', marginBottom: '1rem', lineHeight: 1.5 }}>
+        Our support team is here to help you with any questions about your plans.
+      </p>
+
+      {/* Email button */}
+      <a
+        href="mailto:Support@getidealoh.com"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          padding: '0.75rem 1rem',
+          background: 'rgba(255,255,255,0.15)',
+          borderRadius: '10px',
+          color: '#fff',
+          textDecoration: 'none',
+          fontWeight: 600,
+          fontSize: '0.9rem',
+          border: '1px solid rgba(255,255,255,0.2)',
+          backdropFilter: 'blur(8px)',
+          marginBottom: '0.625rem',
+        }}
+      >
+        <Mail size={16} />
+        Support@getidealoh.com
+      </a>
+
+      {/* Phone button + dropdown */}
+      <div style={{ position: 'relative' }}>
+        <button
+          onClick={() => setPhoneOpen((o) => !o)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.75rem 1rem',
+            background: 'rgba(255,255,255,0.15)',
+            borderRadius: '10px',
+            color: '#fff',
+            fontWeight: 600,
+            fontSize: '0.9rem',
+            border: '1px solid rgba(255,255,255,0.2)',
+            backdropFilter: 'blur(8px)',
+            cursor: 'pointer',
+            width: '100%',
+            textAlign: 'left',
+          }}
+        >
+          <Phone size={16} />
+          Call Support
+          <ChevronRight
+            size={15}
+            style={{ marginLeft: 'auto', transform: phoneOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+          />
+        </button>
+
+        {phoneOpen && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 'calc(100% + 6px)',
+              left: 0,
+              right: 0,
+              background: '#fff',
+              borderRadius: '12px',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+              overflow: 'hidden',
+              zIndex: 50,
+            }}
+          >
+            {SUPPORT_PHONE_OPTIONS.map(({ label, number, tel }) => (
+              <a
+                key={tel}
+                href={`tel:${tel}`}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  padding: '0.875rem 1rem',
+                  textDecoration: 'none',
+                  borderBottom: '1px solid #f1f5f9',
+                  color: '#0f172a',
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+              >
+                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>{label}</span>
+                <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0066CC', marginTop: '0.15rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                  <Phone size={13} />
+                  {number}
+                </span>
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 
 export default function OverviewTab({
   firstName,
@@ -357,47 +481,7 @@ export default function OverviewTab({
         </div>
 
         {/* Support Card */}
-        <div
-          className="glass-card"
-          style={{
-            padding: '1.5rem',
-            background: 'linear-gradient(135deg, #0066CC, #0052a3)',
-            color: '#fff',
-          }}
-        >
-          <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.75rem' }}>
-            Need Help?
-          </h3>
-          <p
-            style={{
-              fontSize: '0.9375rem',
-              color: '#0f172a',
-              marginBottom: '1.25rem',
-              lineHeight: 1.6,
-            }}
-          >
-            Our support team is here to help you with any questions about your plans.
-          </p>
-          <Link
-            href="/contact"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.75rem 1.25rem',
-              background: 'rgba(255,255,255,0.15)',
-              borderRadius: '10px',
-              color: '#fff',
-              textDecoration: 'none',
-              fontWeight: 600,
-              fontSize: '0.9375rem',
-              border: '1px solid rgba(255,255,255,0.2)',
-              backdropFilter: 'blur(8px)',
-            }}
-          >
-            Contact Support
-          </Link>
-        </div>
+        <SupportCard />
 
         {/* Important Notice */}
         <div

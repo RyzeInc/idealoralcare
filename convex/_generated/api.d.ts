@@ -20,6 +20,7 @@ import type * as admin_eligibility from "../admin/eligibility.js";
 import type * as admin_eligibilityProvisioning from "../admin/eligibilityProvisioning.js";
 import type * as admin_grantFreeAccess from "../admin/grantFreeAccess.js";
 import type * as admin_hierarchy from "../admin/hierarchy.js";
+import type * as admin_idMaintenance from "../admin/idMaintenance.js";
 import type * as admin_index from "../admin/index.js";
 import type * as admin_memberCards from "../admin/memberCards.js";
 import type * as admin_members from "../admin/members.js";
@@ -96,6 +97,7 @@ declare const fullApi: ApiFromModules<{
   "admin/eligibilityProvisioning": typeof admin_eligibilityProvisioning;
   "admin/grantFreeAccess": typeof admin_grantFreeAccess;
   "admin/hierarchy": typeof admin_hierarchy;
+  "admin/idMaintenance": typeof admin_idMaintenance;
   "admin/index": typeof admin_index;
   "admin/memberCards": typeof admin_memberCards;
   "admin/members": typeof admin_members;

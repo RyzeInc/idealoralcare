@@ -14,3 +14,4 @@ export * as notifications from "./notifications";
 export * as walletPasses from "./walletPasses";
 export * as eligibility from "./eligibility";
 export * as vendorFiles from "./vendorFiles";
+export * as idMaintenance from "./idMaintenance";
