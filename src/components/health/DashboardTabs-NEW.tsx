@@ -28,6 +28,7 @@ interface DashboardTabsProps {
   hasSubscriptions: boolean;
   subscriptions: Subscription[];
   userId: string | null;
+  memberId?: string | null;
 }
 
 type TabId = 'overview' | 'provider-search' | 'oral-scan' | 'teledentistry';
@@ -62,6 +63,7 @@ export default function DashboardTabs({
   hasSubscriptions,
   subscriptions,
   userId,
+  memberId,
 }: DashboardTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
 
@@ -129,7 +131,13 @@ export default function DashboardTabs({
 
         {activeTab === 'oral-scan' && <OralScanTab userId={userId} onTabChange={setActiveTab} />}
 
-        {activeTab === 'teledentistry' && <TeledentistryTab />}
+        {activeTab === 'teledentistry' && (
+          <TeledentistryTab
+            memberId={memberId ?? userId ?? null}
+            firstName={firstName}
+            fullName={fullName}
+          />
+        )}
       </Suspense>
     </>
   );
