@@ -27,7 +27,7 @@
  */
 
 import { action, internalMutation, internalQuery, internalAction, query, mutation } from "../_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { api, internal } from "../_generated/api";
 import { requireAdmin, requireAdminAction } from "../lib/authGuards";
 
@@ -214,9 +214,13 @@ export const linkAndProvisionEmployerAccess = internalMutation({
     }
 
     // 3. Skip if there is already an active bundle for this Clerk user
-    const existingBundle = (await ctx.db.query("subscriptionBundles").collect()).find(
-      (b) => b.customerId === args.clerkUserId && (b.status === "active" || b.status === "draft")
-    );
+    const existingBundle = await ctx.db
+      .query("subscriptionBundles")
+      .withIndex("by_customer", (q: any) => q.eq("customerId", args.clerkUserId))
+      .filter((q: any) =>
+        q.or(q.eq(q.field("status"), "active"), q.eq(q.field("status"), "draft"))
+      )
+      .first();
     if (existingBundle) {
       return { bundleId: existingBundle._id, created: false };
     }
@@ -240,7 +244,6 @@ export const linkAndProvisionEmployerAccess = internalMutation({
       cadence: "monthly",
       paymentMethod: "ach", // employer remits via ACH or check
       stripeCustomerId: `employer_listbill_${profile.groupId}`,
-      stripeSubscriptionId: undefined,
       status: "active",
       currentPeriodStart: effectiveDate,
       currentPeriodEnd: periodEnd,
@@ -344,14 +347,14 @@ export const provisionEligibilityFile = action({
       await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
     } catch (authErr: any) {
       console.error("[provisionEligibilityFile] Auth check failed:", authErr?.message ?? authErr);
-      throw authErr;
+      throw new ConvexError(authErr?.message ?? "Unauthorized");
     }
 
     const secret = process.env.CLERK_SECRET_KEY;
     if (!secret) {
-      const err = new Error("CLERK_SECRET_KEY env var is not set on Convex deployment");
-      console.error("[provisionEligibilityFile]", err.message);
-      throw err;
+      const msg = "CLERK_SECRET_KEY env var is not set on Convex deployment";
+      console.error("[provisionEligibilityFile]", msg);
+      throw new ConvexError(msg);
     }
 
     const mode = args.mode ?? "invite";
@@ -363,8 +366,9 @@ export const provisionEligibilityFile = action({
         { fileId: args.fileId }
       );
     } catch (queryErr: any) {
+      const msg = `Failed to fetch provisioning members: ${queryErr?.message ?? queryErr}`;
       console.error("[provisionEligibilityFile] Query failed:", queryErr?.message ?? queryErr);
-      throw new Error(`Failed to fetch provisioning members: ${queryErr?.message ?? queryErr}`);
+      throw new ConvexError(msg);
     }
 
     const result: ProvisionResult = {
