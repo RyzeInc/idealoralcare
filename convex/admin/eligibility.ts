@@ -1380,15 +1380,10 @@ export const internalBatchCreateMembers = internalMutation({
               (m: any) => m.careingtonSeqNum === depSeqNum
             ) ?? null;
 
-            // Fall back to email match within the group
-            if (!existingDep && dep.email) {
-              existingDep = await ctx.db
-                .query("memberProfiles")
-                .withIndex("by_group_email", (q: any) =>
-                  q.eq("groupId", args.groupId).eq("email", dep.email)
-                )
-                .first();
-            }
+            // NOTE: We intentionally do NOT fall back to email lookup for dependents.
+            // Employer eligibility file dependents share the primary's email address,
+            // so an email-based lookup would incorrectly match the primary's profile.
+            // If no profile is found by careingtonUniqueId + seqNum, we always create.
 
             const depGenderLower = (dep.gender || "").toLowerCase();
             const depGender = (["male", "female", "non_binary", "prefer_not_to_say", "other"].includes(depGenderLower))
@@ -1700,5 +1695,117 @@ export const getEligibilityStats = query({
     };
 
     return stats;
+  },
+});
+
+/**
+ * BACKFILL: Create missing dependent memberProfile records from the embedded
+ * `dependents` array stored on primary profiles.
+ *
+ * Run this when an eligibility file was processed before the per-dependent
+ * profile creation logic existed (or when records were otherwise skipped).
+ * Safe to run multiple times — skips dependents that already have a profile.
+ */
+export const internalBackfillDependents = internalMutation({
+  args: { fileId: v.id("eligibilityFiles") },
+  handler: async (ctx, args): Promise<{ created: number; skipped: number; errors: string[] }> => {
+    const now = Date.now();
+    let created = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+
+    // Load all non-dependent profiles from this file that have an embedded dependents array
+    const allProfiles = await ctx.db
+      .query("memberProfiles")
+      .filter((q) => q.eq(q.field("eligibilityFileId"), args.fileId))
+      .collect();
+
+    const primaryProfiles = allProfiles.filter(
+      (m) =>
+        (m as any).memberRole !== "dependent" &&
+        Array.isArray((m as any).dependents) &&
+        (m as any).dependents.length > 0
+    );
+
+    for (const primary of primaryProfiles) {
+      const deps: any[] = (primary as any).dependents ?? [];
+      const careingtonUniqueId: string | undefined = (primary as any).careingtonUniqueId;
+
+      for (let di = 0; di < deps.length; di++) {
+        const dep = deps[di];
+        const depSeqNum: string = dep.seqNum ?? String(di + 1).padStart(2, "0");
+
+        try {
+          // Check if a separate profile already exists for this dependent
+          if (careingtonUniqueId) {
+            const existingWithId = await ctx.db
+              .query("memberProfiles")
+              .withIndex("by_careington_id", (q: any) =>
+                q.eq("careingtonUniqueId", careingtonUniqueId)
+              )
+              .collect();
+            const existingDep = existingWithId.find(
+              (m: any) => m.careingtonSeqNum === depSeqNum
+            );
+            if (existingDep) {
+              skipped++;
+              continue;
+            }
+          }
+
+          // Reserve a member ID for this dependent
+          const idStart = await reserveCounterRange(ctx, "memberIdSeq", 1);
+          const depMemberId = `MBR-${String(idStart)}`;
+          const depYear = String(new Date().getFullYear()).slice(2);
+          const depRandom = Math.random().toString(36).substring(2, 8).toUpperCase();
+          const depBarcode = `ELG${depYear}${depRandom}`;
+
+          const depGenderLower = (dep.gender || "").toLowerCase();
+          const depGender = (
+            ["male", "female", "non_binary", "prefer_not_to_say", "other"].includes(depGenderLower)
+              ? depGenderLower
+              : undefined
+          ) as any;
+
+          // Determine memberType: active if primary is already active, enrolling if
+          // primary invite is pending, otherwise eligible.
+          const primaryType: string = (primary as any).memberType ?? "eligible";
+          const depMemberType: any =
+            primaryType === "active" ? "active" :
+            primaryType === "enrolling" ? "enrolling" : "eligible";
+
+          await createMemberProfile(ctx, {
+            groupId: primary.groupId,
+            memberIdOverride: depMemberId,
+            barcodeOverride: depBarcode,
+            firstName: dep.firstName,
+            lastName: dep.lastName,
+            // Dependents share the primary's email, phone, and address
+            email: primary.email || undefined,
+            phone: primary.phone || undefined,
+            address: (primary as any).address,
+            dateOfBirth: dep.dateOfBirth || undefined,
+            gender: depGender,
+            careingtonUniqueId: careingtonUniqueId,
+            careingtonSeqNum: depSeqNum,
+            memberType: depMemberType,
+            memberRole: "dependent",
+            relationship: (dep.relationship || "other") as any,
+            primaryMemberId: primary._id,
+            eligibilityFileId: args.fileId,
+            // If primary is already active (accepted invite), link dependent to same Clerk user
+            customerId: (primary as any).customerId || undefined,
+          });
+
+          created++;
+        } catch (err: any) {
+          errors.push(
+            `Dependent ${dep.firstName} ${dep.lastName} (seq ${depSeqNum}) of ${primary.firstName} ${primary.lastName}: ${err?.message ?? err}`
+          );
+        }
+      }
+    }
+
+    return { created, skipped, errors };
   },
 });

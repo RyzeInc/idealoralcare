@@ -38,10 +38,12 @@ export default function EligibilityUploadPage() {
   const previewEligibilityFile = useAction(api.admin.eligibility.previewEligibilityFile);
   const provisionFile = useAction(api.admin.eligibilityProvisioning.provisionEligibilityFile);
   const resendInvite = useAction(api.admin.eligibilityProvisioning.resendInvite);
+  const backfillDependents = useAction(api.admin.eligibilityProvisioning.backfillDependentsForFile);
   const sendVendorFile = useAction(api.admin.sftpDelivery.generateAndSendVendorFile);
   const [provisioningFileId, setProvisioningFileId] = useState<string | null>(null);
   const [sendingFileId, setSendingFileId] = useState<string | null>(null);
   const [resendingMemberId, setResendingMemberId] = useState<string | null>(null);
+  const [backfillingFileId, setBackfillingFileId] = useState<string | null>(null);
 
   // Grant Access modal state
   const [grantAccessFileId, setGrantAccessFileId] = useState<Id<'eligibilityFiles'> | null>(null);
@@ -818,6 +820,36 @@ export default function EligibilityUploadPage() {
                                 title="Preview and select members before granting access."
                               >
                                 {provisioningFileId === file._id ? 'Granting…' : 'Grant Access'}
+                              </button>
+                            )}
+                            {(file.status === 'completed' || file.status === 'completed_with_errors') && (
+                              <button
+                                disabled={backfillingFileId === file._id}
+                                onClick={async () => {
+                                  setBackfillingFileId(file._id);
+                                  try {
+                                    const res: any = await backfillDependents({ fileId: file._id });
+                                    if (res.errors?.length > 0) {
+                                      toast.warning(
+                                        `Backfill partial: ${res.created} created, ${res.skipped} skipped`,
+                                        res.errors.slice(0, 3).join(' • ')
+                                      );
+                                    } else {
+                                      toast.success(
+                                        'Dependents backfilled',
+                                        `${res.created} dependent profile${res.created !== 1 ? 's' : ''} created, ${res.skipped} already existed`
+                                      );
+                                    }
+                                  } catch (err) {
+                                    toast.fromError(err, 'Backfill failed');
+                                  } finally {
+                                    setBackfillingFileId(null);
+                                  }
+                                }}
+                                className="text-xs px-2 py-1 bg-purple-50 text-purple-700 border border-purple-200 rounded hover:bg-purple-100 disabled:opacity-50 whitespace-nowrap"
+                                title="Create missing dependent profiles from the embedded dependents array on primary profiles."
+                              >
+                                {backfillingFileId === file._id ? 'Backfilling…' : 'Backfill Deps'}
                               </button>
                             )}
                             {(file.status === 'completed' || file.status === 'completed_with_errors') && (

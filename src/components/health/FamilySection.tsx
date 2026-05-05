@@ -45,6 +45,13 @@ export default function FamilySection({ isFamily = true }: { isFamily?: boolean 
     convexApi.enrollment.dependents.getMyDependents,
     isAuthenticated ? {} : "skip"
   ) as any[] | undefined;
+  // Determine if the current user is themselves a dependent (not a primary member).
+  // Dependents cannot add further dependents — the server also enforces this.
+  const myPrimary = useQuery(
+    convexApi.enrollment.dependents.getMyPrimaryMember,
+    isAuthenticated ? {} : "skip"
+  ) as any | null | undefined;
+  const isDependent = myPrimary !== null && myPrimary !== undefined;
   const addDependent = useMutation(convexApi.enrollment.dependents.addDependent);
   const removeDependent = useMutation(convexApi.enrollment.dependents.removeDependent);
   const resendInvite = useMutation(convexApi.enrollment.dependents.resendDependentInvite);
@@ -156,7 +163,7 @@ export default function FamilySection({ isFamily = true }: { isFamily?: boolean 
           <Users size={24} color="#0066CC" />
           Family Members
         </h2>
-        {!showForm && !showUpgradeCta && (
+        {!showForm && !showUpgradeCta && !isDependent && (
           <button
             onClick={() => isFamily ? setShowForm(true) : setShowUpgradeCta(true)}
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.875rem', background: '#0066CC', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}
@@ -195,6 +202,16 @@ export default function FamilySection({ isFamily = true }: { isFamily?: boolean 
       {dependents === undefined ? (
         <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Loading…</p>
       ) : dependents.length === 0 && !showForm && !showUpgradeCta ? (
+        isDependent ? (
+          <div style={{ textAlign: 'center', padding: '2rem 1rem', background: '#f8fafc', borderRadius: '10px', border: '1px dashed #cbd5e1' }}>
+            <Users size={28} color="#94a3b8" style={{ marginBottom: '0.75rem' }} />
+            <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
+              You are enrolled as a dependent under{' '}
+              <strong>{myPrimary?.firstName} {myPrimary?.lastName}</strong>.
+              Family coverage is managed by the primary account holder.
+            </p>
+          </div>
+        ) : (
         <div style={{ textAlign: 'center', padding: '2rem 1rem', background: '#f8fafc', borderRadius: '10px', border: '1px dashed #cbd5e1' }}>
           <Users size={28} color="#94a3b8" style={{ marginBottom: '0.75rem' }} />
           <p style={{ color: '#64748b', marginBottom: '1rem', fontSize: '0.9rem' }}>
@@ -207,6 +224,7 @@ export default function FamilySection({ isFamily = true }: { isFamily?: boolean 
             <UserPlus size={15} /> Add Family Member
           </button>
         </div>
+        )
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {dependents.map((dep: any) => (

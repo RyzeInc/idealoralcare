@@ -50,7 +50,13 @@ export const getProvisionableMembersForFile = query({
       .filter((q) => q.eq(q.field("eligibilityFileId"), args.fileId))
       .collect();
     const provisionable = all.filter(
-      (m) => !!m.email && !m.customerId && (m.memberType === "eligible" || m.memberType === "lead")
+      (m) =>
+        !!m.email &&
+        !m.customerId &&
+        (m.memberType === "eligible" || m.memberType === "lead") &&
+        // Dependents share the primary's email — they are linked automatically
+        // when the primary accepts their invite, not through a separate invite.
+        (m as any).memberRole !== "dependent"
     );
     return {
       total: all.length,
@@ -286,6 +292,35 @@ export const linkAndProvisionEmployerAccess = internalMutation({
       actorType: "system",
       createdAt: now,
     });
+
+    // 7. Link all dependent profiles to the same Clerk user.
+    // Dependents share the primary's email and do not get separate invites;
+    // they inherit the primary's Clerk account when the primary activates.
+    const dependentProfiles = await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_primary_member", (q: any) =>
+        q.eq("primaryMemberId", args.memberProfileId)
+      )
+      .collect();
+    for (const dep of dependentProfiles) {
+      if (!(dep as any).customerId) {
+        await ctx.db.patch(dep._id, {
+          customerId: args.clerkUserId,
+          memberType: "active",
+          updatedAt: now,
+        });
+        await ctx.db.insert("memberActivities", {
+          memberProfileId: dep._id,
+          siteId: dep.siteId,
+          groupId: dep.groupId,
+          activityType: "enrollment_completed",
+          title: "Dependent linked via primary member activation",
+          description: `Linked to Clerk account ${args.clerkUserId} when primary member's eligibility invite was accepted`,
+          actorType: "system",
+          createdAt: now,
+        });
+      }
+    }
 
     return { bundleId, created: true, productSlug: product.slug };
   },
@@ -657,6 +692,21 @@ export const markInvited = internalMutation({
       resendEmailId: args.resendEmailId,
       createdAt: Date.now(),
     });
+
+    // Also cascade "enrolling" to dependent profiles so they don't appear as
+    // "Ready to Invite" in the Grant Access modal while the primary's invite is pending.
+    const dependents = await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_primary_member", (q: any) =>
+        q.eq("primaryMemberId", args.memberProfileId)
+      )
+      .collect();
+    const cascadeAt = Date.now();
+    for (const dep of dependents) {
+      if ((dep as any).memberType === "eligible" || (dep as any).memberType === "lead") {
+        await ctx.db.patch(dep._id, { memberType: "enrolling", updatedAt: cascadeAt });
+      }
+    }
   },
 });
 
@@ -953,3 +1003,32 @@ function generateTempPassword() {
   }
   return out;
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// DEPENDENT BACKFILL
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Create missing dependent memberProfile records for an eligibility file.
+ *
+ * Use this when a file was processed before the per-dependent profile
+ * creation logic was in place. The action reads the embedded `dependents`
+ * array on each primary profile and creates any absent dependent profiles,
+ * inheriting the primary's email, phone, and address. Already-existing
+ * dependent profiles are skipped. Safe to run multiple times (idempotent).
+ *
+ * If a primary member has already accepted their invite (memberType=active),
+ * the newly-created dependent profiles are immediately linked to the same
+ * Clerk account.
+ */
+export const backfillDependentsForFile = action({
+  args: { fileId: v.id("eligibilityFiles") },
+  handler: async (ctx, args): Promise<{ created: number; skipped: number; errors: string[] }> => {
+    // @ts-ignore
+    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    return await ctx.runMutation(
+      internal.admin.eligibility.internalBackfillDependents,
+      { fileId: args.fileId }
+    );
+  },
+});
