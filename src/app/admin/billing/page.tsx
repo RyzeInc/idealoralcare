@@ -28,7 +28,7 @@ export default function BillingPage() {
   const isLoadingGroups = billingGroupsRaw === undefined;
 
   // Sort state for organizations summary table
-  const [sortKey, setSortKey] = useState<'providerGroupCode' | 'organizationCode' | 'organizationName' | 'memberCount' | 'paidCount' | 'freeCount' | 'totalAmount' | null>(null);
+  const [sortKey, setSortKey] = useState<'providerGroupCode' | 'organizationCode' | 'organizationName' | 'memberCount' | 'paidCount' | 'listBillCount' | 'freeCount' | 'totalAmount' | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const toggleSort = (key: typeof sortKey) => {
     if (!key) return;
@@ -56,6 +56,7 @@ export default function BillingPage() {
 
   const totalMembers = billingGroups.reduce((sum: number, g: any) => sum + g.memberCount, 0);
   const totalPaid = billingGroups.reduce((sum: number, g: any) => sum + g.paidCount, 0);
+  const totalListBill = billingGroups.reduce((sum: number, g: any) => sum + (g.listBillCount ?? 0), 0);
   const totalFree = billingGroups.reduce((sum: number, g: any) => sum + g.freeCount, 0);
   const totalAmount = billingGroups.reduce((sum: number, g: any) => sum + g.totalAmount, 0);
 
@@ -68,9 +69,9 @@ export default function BillingPage() {
   const selectedGroup = billingGroups.find((g: any) => g.groupId === selectedGroupId);
 
   const handleExportCsv = () => {
-    const header = 'provider_group_code,organization_code,organization_name,total_members,paid_members,free_members,pending_downgrades,rate_per_member,billable_amount,period_start,period_end\n';
+    const header = 'provider_group_code,organization_code,organization_name,is_list_bill,total_members,paid_members,list_bill_members,free_members,pending_downgrades,rate_per_member,billable_amount,period_start,period_end\n';
     const rows = billingGroups.map((g: any) =>
-      `"${g.providerGroupCode ?? g.groupCode}","${g.organizationCode ?? ''}","${g.organizationName ?? g.groupName}",${g.memberCount},${g.paidCount},${g.freeCount},${g.pendingDowngradeCount ?? 0},${g.ratePerMember.toFixed(2)},${g.totalAmount.toFixed(2)},"${formatIsoDate(billingPeriodStart)}","${formatIsoDate(billingPeriodEnd)}"`
+      `"${g.providerGroupCode ?? g.groupCode}","${g.organizationCode ?? ''}","${g.organizationName ?? g.groupName}",${g.isListBill ? 'yes' : 'no'},${g.memberCount},${g.paidCount},${g.listBillCount ?? 0},${g.freeCount},${g.pendingDowngradeCount ?? 0},${g.ratePerMember.toFixed(2)},${g.totalAmount.toFixed(2)},"${formatIsoDate(billingPeriodStart)}","${formatIsoDate(billingPeriodEnd)}"`
     ).join('\n');
     const csv = header + rows;
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -85,6 +86,7 @@ export default function BillingPage() {
   // ── Group member drill-down view ──
   if (selectedGroupId && selectedGroup) {
     const paidMembers = (groupMembers || []).filter((m: any) => m.billingType === 'paid');
+    const listBillMembers = (groupMembers || []).filter((m: any) => m.billingType === 'list_bill');
     const freeMembers = (groupMembers || []).filter((m: any) => m.billingType === 'free');
 
     return (
@@ -100,7 +102,7 @@ export default function BillingPage() {
         </div>
 
         {/* Group summary cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white rounded-lg shadow p-5 flex items-center gap-4">
             <div className="p-3 bg-blue-100 rounded-lg"><Users size={20} className="text-blue-600" /></div>
             <div>
@@ -113,6 +115,13 @@ export default function BillingPage() {
             <div>
               <p className="text-sm text-slate-500">Paid Subscriptions</p>
               <p className="text-2xl font-bold text-green-600">{selectedGroup.paidCount}</p>
+            </div>
+          </div>
+          <div className="bg-white rounded-lg shadow p-5 flex items-center gap-4">
+            <div className="p-3 bg-amber-100 rounded-lg"><Building2 size={20} className="text-amber-600" /></div>
+            <div>
+              <p className="text-sm text-slate-500">List-Bill (Employer)</p>
+              <p className="text-2xl font-bold text-amber-600">{selectedGroup.listBillCount ?? 0}</p>
             </div>
           </div>
           <div className="bg-white rounded-lg shadow p-5 flex items-center gap-4">
@@ -150,6 +159,42 @@ export default function BillingPage() {
                     <td className="px-6 py-3 text-right font-semibold text-green-700">
                       {formatCurrency((m.bundleInfo?.totalCents || 0), { fromCents: true })}
                       {m.bundleInfo?.cadence === 'annual' ? '/yr' : '/mo'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* List-Bill (Employer-Paid) members */}
+        {listBillMembers.length > 0 && (
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200 bg-amber-50">
+              <h2 className="text-base font-semibold text-amber-800">List-Bill Members ({listBillMembers.length})</h2>
+              <p className="text-xs text-amber-700 mt-0.5">Employer is invoiced directly via list-bill — no Stripe subscription on file.</p>
+            </div>
+            <table className="w-full">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Name</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Email</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Member ID</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Role</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Enrolled</th>
+                  <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">Billing</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {listBillMembers.map((m: any) => (
+                  <tr key={m._id} className="hover:bg-slate-50">
+                    <td className="px-6 py-3 font-medium text-slate-900">{m.firstName} {m.lastName}</td>
+                    <td className="px-6 py-3 text-slate-600 text-sm">{m.email || '—'}</td>
+                    <td className="px-6 py-3 font-mono text-sm text-slate-600">{m.memberId}</td>
+                    <td className="px-6 py-3 text-slate-600 text-sm capitalize">{m.memberRole}</td>
+                    <td className="px-6 py-3 text-slate-600 text-sm">{formatDate(m.enrolledAt)}</td>
+                    <td className="px-6 py-3 text-right">
+                      <span className="px-2 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">List-Bill</span>
                     </td>
                   </tr>
                 ))}
@@ -259,7 +304,7 @@ export default function BillingPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className="bg-white rounded-lg shadow p-6">
           <p className="text-slate-600 text-sm">Total Active Members</p>
           <p className="text-3xl font-bold text-slate-900 mt-2">{totalMembers}</p>
@@ -269,11 +314,15 @@ export default function BillingPage() {
           <p className="text-3xl font-bold text-green-600 mt-2">{totalPaid}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-6">
+          <p className="text-slate-600 text-sm">List-Bill (Employer)</p>
+          <p className="text-3xl font-bold text-amber-600 mt-2">{totalListBill}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-6">
           <p className="text-slate-600 text-sm">Free / Comp Access</p>
           <p className="text-3xl font-bold text-purple-600 mt-2">{totalFree}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-6">
-          <p className="text-slate-600 text-sm">Billable Revenue</p>
+          <p className="text-slate-600 text-sm">Stripe Billable Revenue</p>
           <p className="text-3xl font-bold text-green-600 mt-2">{formatCurrency(totalAmount)}</p>
         </div>
       </div>
@@ -316,6 +365,9 @@ export default function BillingPage() {
                 <button onClick={() => toggleSort('paidCount')} className="inline-flex items-center gap-1 hover:text-blue-600">Paid <SortIcon active={sortKey === 'paidCount'} dir={sortDir} /></button>
               </th>
               <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">
+                <button onClick={() => toggleSort('listBillCount')} className="inline-flex items-center gap-1 hover:text-blue-600">List-Bill <SortIcon active={sortKey === 'listBillCount'} dir={sortDir} /></button>
+              </th>
+              <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">
                 <button onClick={() => toggleSort('freeCount')} className="inline-flex items-center gap-1 hover:text-blue-600">Free <SortIcon active={sortKey === 'freeCount'} dir={sortDir} /></button>
               </th>
               <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">Pending Downgrade</th>
@@ -327,13 +379,13 @@ export default function BillingPage() {
           <tbody className="divide-y divide-slate-200">
             {isLoadingGroups ? (
               <tr>
-                <td colSpan={8} className="px-0 py-0">
-                  <SkeletonTable rows={5} cols={8} />
+                <td colSpan={9} className="px-0 py-0">
+                  <SkeletonTable rows={5} cols={9} />
                 </td>
               </tr>
             ) : billingGroups.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-6 py-8 text-center text-slate-500">No billing data for this period</td>
+                <td colSpan={9} className="px-6 py-8 text-center text-slate-500">No billing data for this period</td>
               </tr>
             ) : billingGroups.map((group: any) => (
               <tr
@@ -343,11 +395,23 @@ export default function BillingPage() {
               >
                 <td className="px-6 py-4 font-mono text-sm text-slate-700">{group.providerGroupCode ?? group.groupCode}</td>
                 <td className="px-6 py-4 font-mono text-sm text-blue-600">{group.organizationCode ?? <span className="text-amber-600">— not set</span>}</td>
-                <td className="px-6 py-4 text-slate-900">{group.organizationName ?? group.groupName}</td>
+                <td className="px-6 py-4 text-slate-900">
+                  {group.organizationName ?? group.groupName}
+                  {group.isListBill && (
+                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">List-Bill</span>
+                  )}
+                </td>
                 <td className="px-6 py-4 text-right">{group.memberCount}</td>
                 <td className="px-6 py-4 text-right">
                   {group.paidCount > 0 ? (
                     <span className="text-green-700 font-medium">{group.paidCount}</span>
+                  ) : (
+                    <span className="text-slate-400">0</span>
+                  )}
+                </td>
+                <td className="px-6 py-4 text-right">
+                  {(group.listBillCount ?? 0) > 0 ? (
+                    <span className="text-amber-700 font-medium">{group.listBillCount}</span>
                   ) : (
                     <span className="text-slate-400">0</span>
                   )}
@@ -377,6 +441,7 @@ export default function BillingPage() {
               <td colSpan={3} className="px-6 py-4 font-semibold text-slate-900">Total</td>
               <td className="px-6 py-4 text-right font-semibold text-slate-900">{totalMembers}</td>
               <td className="px-6 py-4 text-right font-semibold text-green-700">{totalPaid}</td>
+              <td className="px-6 py-4 text-right font-semibold text-amber-700">{totalListBill}</td>
               <td className="px-6 py-4 text-right font-semibold text-purple-700">{totalFree}</td>
               <td className="px-6 py-4 text-right font-semibold text-amber-700">{billingGroups.reduce((s: number, g: any) => s + (g.pendingDowngradeCount ?? 0), 0)}</td>
               <td className="px-6 py-4 text-right font-bold text-lg text-green-600">
@@ -390,8 +455,7 @@ export default function BillingPage() {
       {/* Notes */}
       <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
         <p className="text-sm text-slate-600">
-          <strong>Note:</strong> Only members with active paid Stripe subscriptions are counted toward billable revenue.
-          Free access members (admin/comp grants) are shown separately and do not generate billing charges.
+          <strong>Note:</strong> This page summarizes <em>Stripe-collected</em> billable revenue for E123 import. Members in <strong>List-Bill</strong> groups (employer payroll deduction) are invoiced directly to the employer via the <a href="/admin/list-bill-invoices" className="text-blue-600 hover:underline">List-Bill Invoices</a> module and are <em>not</em> counted in the Stripe billable total. Free / Comp members generate no charge.
         </p>
       </div>
     </div>

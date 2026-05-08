@@ -116,6 +116,23 @@ export interface InvoiceBreakdown {
 // ---------------------------------------------------------------------------
 
 /**
+ * Classify a list-bill primary's dispersal tier from their household
+ * structure. List-bill members do NOT carry a Stripe bundle — the employer
+ * is invoiced via the list-bill invoice — so the only way to determine
+ * their tier is from their active dependents:
+ *   • 0 active dependents       → "individual" (MO)
+ *   • ≥1 active dependent       → "family"     (MS / MF)
+ *
+ * The dispersal model only has individual/family buckets, so MS and MF
+ * both map to "family" for revenue distribution purposes.
+ */
+function classifyListBillTierFromHousehold(
+  activeDepCount: number,
+): PlanTier {
+  return activeDepCount === 0 ? "individual" : "family";
+}
+
+/**
  * Compute a per-group breakdown from the LIVE tables.
  *
  * For closed periods (where bundles or members may have changed since
@@ -160,6 +177,20 @@ async function computeLiveBreakdown(
   const groupRows: GroupBreakdown[] = [];
   for (const group of groups) {
     const members = membersByGroup.get(group._id) ?? [];
+    const isListBill = group.listBill?.enabled === true;
+
+    // For list-bill groups, count active dependents per primary so we can
+    // classify each primary's tier from their household instead of looking
+    // for a Stripe bundle (which list-bill members don't have).
+    const depCountByPrimary = new Map<string, number>();
+    if (isListBill) {
+      for (const m of members) {
+        if (m.memberRole !== "dependent" || !m.primaryMemberId) continue;
+        const key = m.primaryMemberId;
+        depCountByPrimary.set(key, (depCountByPrimary.get(key) ?? 0) + 1);
+      }
+    }
+
     let activeMemberCount = 0;
     let individualPrimaryCount = 0;
     let familyPrimaryCount = 0;
@@ -178,21 +209,28 @@ async function computeLiveBreakdown(
         continue;
       }
 
-      const customerId = member.customerId;
-      const tier: PlanTier = customerId
-        ? tierByCustomer.get(customerId) ?? "none"
-        : "none";
+      let tier: PlanTier;
+      if (isListBill) {
+        // Household-based classification. Employer is billed via list-bill
+        // invoice, so this primary always contributes their dispersal split.
+        tier = classifyListBillTierFromHousehold(
+          depCountByPrimary.get(member._id) ?? 0,
+        );
+      } else {
+        const customerId = member.customerId;
+        tier = customerId ? tierByCustomer.get(customerId) ?? "none" : "none";
+        if (tier !== "none") {
+          const bid = customerId ? bundleIdByCustomer.get(customerId) : undefined;
+          if (bid) bundleIds.add(bid);
+        }
+      }
 
       if (tier === "individual") {
         individualPrimaryCount++;
         totals = addSplits(totals, getSplitForTier("individual"));
-        const bid = customerId ? bundleIdByCustomer.get(customerId) : undefined;
-        if (bid) bundleIds.add(bid);
       } else if (tier === "family") {
         familyPrimaryCount++;
         totals = addSplits(totals, getSplitForTier("family"));
-        const bid = customerId ? bundleIdByCustomer.get(customerId) : undefined;
-        if (bid) bundleIds.add(bid);
       } else {
         unbilledPrimaryCount++;
       }
@@ -209,7 +247,7 @@ async function computeLiveBreakdown(
       groupName: group.name,
       accountId: group.accountId,
       accountName: (account as any)?.name ?? null,
-      isListBill: group.listBill?.enabled === true,
+      isListBill,
       activeMemberCount,
       individualPrimaryCount,
       familyPrimaryCount,
@@ -419,6 +457,20 @@ export const getGroupInvoice = query({
         tierByCustomer.set(b.customerId, t);
       }
 
+      const isListBill = group.listBill?.enabled === true;
+
+      // For list-bill groups, count active dependents per primary so each
+      // primary can be classified from their household. List-bill members
+      // are not Stripe-billed, so bundle-based classification doesn't apply.
+      const depCountByPrimary = new Map<string, number>();
+      if (isListBill) {
+        for (const m of members) {
+          if (m.memberRole !== "dependent" || !m.primaryMemberId) continue;
+          const key = m.primaryMemberId;
+          depCountByPrimary.set(key, (depCountByPrimary.get(key) ?? 0) + 1);
+        }
+      }
+
       const lines: MemberLine[] = [];
       let totals: DispersalSplit = ZERO_SPLIT;
       let individualPrimaryCount = 0;
@@ -444,9 +496,11 @@ export const getGroupInvoice = query({
           });
           continue;
         }
-        const tier: PlanTier = m.customerId
-          ? tierByCustomer.get(m.customerId) ?? "none"
-          : "none";
+        const tier: PlanTier = isListBill
+          ? classifyListBillTierFromHousehold(depCountByPrimary.get(m._id) ?? 0)
+          : m.customerId
+            ? tierByCustomer.get(m.customerId) ?? "none"
+            : "none";
         const contribution =
           tier === "none" ? ZERO_SPLIT : getSplitForTier(tier);
         if (tier === "individual") individualPrimaryCount++;

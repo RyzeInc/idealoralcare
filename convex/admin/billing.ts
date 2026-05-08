@@ -49,6 +49,7 @@ export const getAllGroupBillingSummaries = query({
       const account = await ctx.db.get(group.accountId);
       const rateFromAccount = (account as any)?.billingDetails?.perMemberRateCents;
       const PAID_RATE = rateFromAccount ? rateFromAccount / 100 : DEFAULT_RATE;
+      const isListBillGroup = group.listBill?.enabled === true;
 
       const members = await ctx.db
         .query("memberProfiles")
@@ -62,12 +63,20 @@ export const getAllGroupBillingSummaries = query({
         .collect();
 
       let paidCount = 0;
+      let listBillCount = 0;
       let freeCount = 0;
       let pendingDowngradeCount = 0;
 
       for (const member of members) {
-        if (member.customerId && paidCustomerIds.has(member.customerId)) {
+        const hasPaidBundle =
+          member.customerId && paidCustomerIds.has(member.customerId);
+        if (hasPaidBundle) {
           paidCount++;
+        } else if (
+          isListBillGroup &&
+          (!member.listBillStatus || member.listBillStatus === "active")
+        ) {
+          listBillCount++;
         } else {
           freeCount++;
         }
@@ -76,6 +85,8 @@ export const getAllGroupBillingSummaries = query({
         }
       }
 
+      // Billable revenue we collect through Stripe (E123 import). List-bill
+      // members are billed via list-bill invoice and tracked separately.
       const totalAmount = paidCount * PAID_RATE;
 
       summaries.push({
@@ -87,8 +98,10 @@ export const getAllGroupBillingSummaries = query({
         // Backwards-compatible aliases (consumers should migrate):
         groupName: (group as any).name ?? group.slug,
         groupCode: group.groupCode,
+        isListBill: isListBillGroup,
         memberCount: members.length,
         paidCount,
+        listBillCount,
         freeCount,
         pendingDowngradeCount,
         ratePerMember: PAID_RATE,
@@ -101,11 +114,22 @@ export const getAllGroupBillingSummaries = query({
 });
 
 /**
- * Get members for a specific group with their billing status (paid/free)
+ * Get members for a specific group with their billing status.
+ *
+ * Taxonomy:
+ *   • "paid"      — has an active Stripe bundle with totalCents > 0
+ *   • "list_bill" — group is list-bill enabled AND member is not in
+ *                   listBillStatus = "termed"/"converted" (employer pays
+ *                   us directly via list-bill invoice; no Stripe bundle)
+ *   • "free"      — comp access / employer-comped with no bundle and not
+ *                   list-billed (truly $0 to anyone)
  */
 export const getGroupMembersWithBillingStatus = query({
   args: { groupId: v.id("groups") },
   handler: async (ctx, args) => {
+    const group = await ctx.db.get(args.groupId);
+    const isListBillGroup = group?.listBill?.enabled === true;
+
     const members = await ctx.db
       .query("memberProfiles")
       .filter(
@@ -119,7 +143,7 @@ export const getGroupMembersWithBillingStatus = query({
 
     const result = [];
     for (const member of members) {
-      let billingType: "paid" | "free" = "free";
+      let billingType: "paid" | "list_bill" | "free" = "free";
       let bundleInfo: any = null;
       let pendingDowngrade: any = null;
       let subscriptionStatus: string | null = null;
@@ -147,6 +171,17 @@ export const getGroupMembersWithBillingStatus = query({
         }
       }
 
+      // If not Stripe-paid but the group is list-bill (and the member hasn't
+      // converted/termed off payroll deduction), the employer is invoiced
+      // directly — this is NOT free comp access.
+      if (
+        billingType === "free" &&
+        isListBillGroup &&
+        (!member.listBillStatus || member.listBillStatus === "active")
+      ) {
+        billingType = "list_bill";
+      }
+
       result.push({
         _id: member._id,
         firstName: member.firstName,
@@ -154,6 +189,8 @@ export const getGroupMembersWithBillingStatus = query({
         email: member.email,
         memberId: member.memberId,
         memberType: member.memberType,
+        memberRole: member.memberRole ?? "primary",
+        listBillStatus: member.listBillStatus ?? null,
         enrolledAt: member.enrolledAt,
         billingType,
         bundleInfo,
