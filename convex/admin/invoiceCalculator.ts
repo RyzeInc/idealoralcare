@@ -142,19 +142,34 @@ function classifyListBillTierFromHousehold(
 async function computeLiveBreakdown(
   ctx: QueryCtx,
 ): Promise<InvoiceBreakdown> {
-  const [groups, accounts, allBundles, allMembers] = await Promise.all([
+  // Use index-filtered queries so we only read relevant documents.
+  // Without these filters the function reads every document in each table,
+  // which can exceed Convex's per-query read limit once data grows.
+  const [groups, accounts, allBundles, activeMembers, enrollingMembers] = await Promise.all([
     ctx.db.query("groups").collect(),
     ctx.db.query("accounts").collect(),
-    ctx.db.query("subscriptionBundles").collect(),
-    ctx.db.query("memberProfiles").collect(),
+    // Only active bundles determine a member's billable tier.
+    ctx.db.query("subscriptionBundles")
+      .withIndex("by_status", (q) => q.eq("status", "active"))
+      .collect(),
+    // Active members — on a paying plan or list-bill.
+    ctx.db.query("memberProfiles")
+      .withIndex("by_member_type", (q) => q.eq("memberType", "active"))
+      .collect(),
+    // Enrolling members — eligibility-loaded; show on invoice before activation.
+    ctx.db.query("memberProfiles")
+      .withIndex("by_member_type", (q) => q.eq("memberType", "enrolling"))
+      .collect(),
   ]);
+
+  // Merge active + enrolling into one list (both contribute to billing).
+  const allMembers = [...activeMembers, ...enrollingMembers];
 
   // customerId → tier of CURRENT active paying bundle. Family wins over
   // Individual if a customer somehow has multiple active bundles.
   const tierByCustomer = new Map<string, PlanTier>();
   const bundleIdByCustomer = new Map<string, Id<"subscriptionBundles">>();
   for (const bundle of allBundles) {
-    if (bundle.status !== "active") continue;
     const tier = classifyTier(bundle.pricingSnapshot?.totalCents);
     if (tier === "none") continue;
     if (tierByCustomer.get(bundle.customerId) === "family") continue;
@@ -166,9 +181,7 @@ async function computeLiveBreakdown(
   type ActiveMember = (typeof allMembers)[number];
   const membersByGroup = new Map<string, ActiveMember[]>();
   for (const m of allMembers) {
-    // Include both active and enrolling members so eligibility-loaded
-    // members show up on the invoice even before they finish self-activation.
-    if (m.memberType !== "active" && m.memberType !== "enrolling") continue;
+    // All members in allMembers are already active or enrolling (filtered above).
     const list = membersByGroup.get(m.groupId) ?? [];
     list.push(m);
     membersByGroup.set(m.groupId, list);
