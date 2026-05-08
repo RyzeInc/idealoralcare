@@ -147,7 +147,9 @@ async function computeLiveBreakdown(
   type ActiveMember = (typeof allMembers)[number];
   const membersByGroup = new Map<string, ActiveMember[]>();
   for (const m of allMembers) {
-    if (m.memberType !== "active") continue;
+    // Include both active and enrolling members so eligibility-loaded
+    // members show up on the invoice even before they finish self-activation.
+    if (m.memberType !== "active" && m.memberType !== "enrolling") continue;
     const list = membersByGroup.get(m.groupId) ?? [];
     list.push(m);
     membersByGroup.set(m.groupId, list);
@@ -376,12 +378,17 @@ export const getGroupInvoice = query({
 
     if (isLive) {
       // Live drill-down — compute from current tables for this group only.
+      // Include both active and enrolling members; enrolling members without
+      // a paying bundle surface as Unbilled (counted in unbilledPrimaryCount).
       const members = await ctx.db
         .query("memberProfiles")
         .filter((q) =>
           q.and(
             q.eq(q.field("groupId"), groupId),
-            q.eq(q.field("memberType"), "active"),
+            q.or(
+              q.eq(q.field("memberType"), "active"),
+              q.eq(q.field("memberType"), "enrolling"),
+            ),
           ),
         )
         .collect();

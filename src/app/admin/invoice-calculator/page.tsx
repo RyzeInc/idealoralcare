@@ -562,7 +562,7 @@ function GroupDrillDown({
             {isLoading ? 'Loading…' : (data!.group.organizationCode ?? data!.group.groupCode)}
           </h1>
           <p className="text-slate-600">
-            {isLoading ? '' : <>{data!.group.groupName} — {data!.group.activeMemberCount} active members · period <span className="font-mono">{data!.period}</span> · <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${data!.source === 'closed' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}`}>{data!.source}</span></>}
+            {isLoading ? '' : <>{data!.group.groupName} — {data!.group.activeMemberCount} eligible members · period <span className="font-mono">{data!.period}</span> · <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${data!.source === 'closed' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}`}>{data!.source}</span></>}
           </p>
         </div>
       </div>
@@ -618,7 +618,7 @@ function GroupDrillDown({
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {data!.members.length === 0 ? (
-                  <tr><td colSpan={6} className="px-5 py-8 text-center text-slate-500">No active members.</td></tr>
+                  <tr><td colSpan={6} className="px-5 py-8 text-center text-slate-500">No eligible members.</td></tr>
                 ) : data!.members.map((m) => (
                   <tr key={m.memberProfileId}>
                     <td className="px-5 py-3 font-mono text-xs text-slate-700">{m.memberId}</td>
