@@ -105,7 +105,7 @@ function GenerateInvoiceModal({
   onClose: () => void;
   onSuccess: (id: Id<'listBillInvoices'>) => void;
 }) {
-  const { showToast } = useToast();
+  const toast = useToast();
   const generateInvoice = useMutation(api.admin.listBillInvoices.generateInvoice);
   const [groupId, setGroupId] = useState('');
   const [period, setPeriod] = useState(() => {
@@ -125,22 +125,21 @@ function GenerateInvoiceModal({
         groupId: groupId.trim() as Id<'groups'>,
         coveragePeriod: period.trim(),
       });
-      showToast(
+      toast.success(
         result.created
           ? `Invoice created successfully`
           : `Invoice already exists for this period`,
-        'success',
       );
       onSuccess(result.invoiceId);
     } catch (err: unknown) {
-      showToast((err as Error).message ?? 'Failed to generate invoice', 'error');
+      toast.error((err as Error).message ?? 'Failed to generate invoice');
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <Modal title="Generate Invoice" onClose={onClose}>
+    <Modal open title="Generate Invoice" onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4 p-1">
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -198,26 +197,24 @@ function GenerateAllModal({
   period: string;
   onClose: (ran: boolean) => void;
 }) {
-  const { showToast } = useToast();
-  const generateMonthly = useMutation(
-    api.admin.listBillInvoices.generateMonthlyInvoices as never,
-  );
+  const toast = useToast();
+  const generateMonthly = useMutation(api.admin.listBillInvoices.triggerMonthlyGeneration);
   const [running, setRunning] = useState(false);
 
   async function handleConfirm() {
     setRunning(true);
     try {
-      await (generateMonthly as () => Promise<unknown>)();
-      showToast(`Monthly invoice generation triggered for ${period}`, 'success');
+      const result = await generateMonthly({});
+      toast.success(`Generated ${result.generated} invoice(s), skipped ${result.skipped} for ${period}`);
       onClose(true);
     } catch (err: unknown) {
-      showToast((err as Error).message ?? 'Generation failed', 'error');
+      toast.error((err as Error).message ?? 'Generation failed');
       setRunning(false);
     }
   }
 
   return (
-    <Modal title={`Generate All Invoices — ${period}`} onClose={() => onClose(false)}>
+    <Modal open title={`Generate All Invoices — ${period}`} onClose={() => onClose(false)}>
       <div className="space-y-4 p-1">
         <p className="text-sm text-slate-600">
           This will create draft invoices for <strong>all active list-bill groups</strong>{' '}
@@ -251,7 +248,7 @@ function GenerateAllModal({
 // ---------------------------------------------------------------------------
 
 export default function ListBillInvoicesPage() {
-  const { showToast } = useToast();
+  const toast = useToast();
 
   // Filter state
   const [periodFilter, setPeriodFilter] = useState('');

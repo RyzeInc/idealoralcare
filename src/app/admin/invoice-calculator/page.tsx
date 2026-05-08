@@ -782,7 +782,7 @@ function VendorPayableModal({
 function AdjustmentModal({ period, onClose }: { period: string; onClose: () => void }) {
   const periodRows = useQuery(api.admin.invoiceCalculator.getInvoiceBreakdownForPeriod, { period });
   const recordAdjustment = useMutation(api.admin.invoiceCalculator.recordAdjustment);
-  const { showToast } = useToast();
+  const toast = useToast();
 
   const [groupId, setGroupId] = useState<Id<'groups'> | ''>('');
   const [reason, setReason] = useState<'refund' | 'chargeback' | 'retroactive_term' | 'retroactive_enrollment' | 'misclassification' | 'other'>('refund');
@@ -796,7 +796,7 @@ function AdjustmentModal({ period, onClose }: { period: string; onClose: () => v
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!groupId || !amountDollars || !notes.trim()) {
-      showToast('Group, amount, and notes are required.', 'error');
+      toast.error('Group, amount, and notes are required.');
       return;
     }
     // Look up the periodId for the chosen group via the breakdown rows;
@@ -821,10 +821,10 @@ function AdjustmentModal({ period, onClose }: { period: string; onClose: () => v
         appliedToPeriod: appliedToPeriod || undefined,
         notes: notes.trim(),
       });
-      showToast('Adjustment recorded.', 'success');
+      toast.success('Adjustment recorded.');
       onClose();
     } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to record adjustment.', 'error');
+      toast.error(err instanceof Error ? err.message : 'Failed to record adjustment.');
     } finally {
       setSubmitting(false);
     }
@@ -966,7 +966,7 @@ function AdjustmentModal({ period, onClose }: { period: string; onClose: () => v
 
 function ManualClosePanel({ period }: { period: string }) {
   const closePeriodManual = useMutation(api.admin.invoiceCalculator.closePeriodManual);
-  const { showToast } = useToast();
+  const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
 
   const handleClose = async () => {
@@ -976,12 +976,12 @@ function ManualClosePanel({ period }: { period: string }) {
     try {
       const result = await closePeriodManual({ year: Number(yStr), month: Number(mStr) });
       if (result.skipped) {
-        showToast('Period was already closed.', 'info');
+        toast.info('Period was already closed.');
       } else {
-        showToast(`Closed ${result.period}: ${result.rowsWritten} group snapshots.`, 'success');
+        toast.success(`Closed ${result.period}: ${result.rowsWritten} group snapshots.`);
       }
     } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Close failed.', 'error');
+      toast.error(err instanceof Error ? err.message : 'Close failed.');
     } finally {
       setSubmitting(false);
     }

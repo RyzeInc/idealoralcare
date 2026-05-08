@@ -112,7 +112,7 @@ function IssueModal({
   inv: NonNullable<ReturnType<typeof useInvoice>>;
   onClose: () => void;
 }) {
-  const { showToast } = useToast();
+  const toast = useToast();
   const issue = useMutation(api.admin.listBillInvoices.issueInvoice);
   const [loading, setLoading] = useState(false);
 
@@ -120,16 +120,16 @@ function IssueModal({
     setLoading(true);
     try {
       await issue({ invoiceId: inv._id });
-      showToast(`Invoice #${inv.invoiceNumberDisplay} issued`, 'success');
+      toast.success(`Invoice #${inv.invoiceNumberDisplay} issued`);
       onClose();
     } catch (e: unknown) {
-      showToast((e as Error).message, 'error');
+      toast.error((e as Error).message);
       setLoading(false);
     }
   }
 
   return (
-    <Modal title={`Issue Invoice #${inv.invoiceNumberDisplay}`} onClose={onClose}>
+    <Modal open title={`Issue Invoice #${inv.invoiceNumberDisplay}`} onClose={onClose}>
       <div className="space-y-4 p-1">
         <p className="text-sm text-slate-600">
           This will mark the invoice as <strong>Issued</strong> and make it visible to the
@@ -167,7 +167,7 @@ function PaymentModal({
   inv: NonNullable<ReturnType<typeof useInvoice>>;
   onClose: () => void;
 }) {
-  const { showToast } = useToast();
+  const toast = useToast();
   const record = useMutation(api.admin.listBillInvoices.recordPayment);
   const [amount, setAmount] = useState(
     ((inv.balanceCents) / 100).toFixed(2),
@@ -181,7 +181,7 @@ function PaymentModal({
     e.preventDefault();
     const cents = Math.round(parseFloat(amount) * 100);
     if (!cents || cents <= 0) {
-      showToast('Enter a valid amount', 'error');
+      toast.error('Enter a valid amount');
       return;
     }
     setLoading(true);
@@ -193,16 +193,16 @@ function PaymentModal({
         ...(method === 'check' && checkNumber ? { checkNumber } : {}),
         ...(method === 'ach' && achConf ? { achConfirmationNumber: achConf } : {}),
       });
-      showToast('Payment recorded', 'success');
+      toast.success('Payment recorded');
       onClose();
     } catch (e: unknown) {
-      showToast((e as Error).message, 'error');
+      toast.error((e as Error).message);
       setLoading(false);
     }
   }
 
   return (
-    <Modal title={`Record Payment — #${inv.invoiceNumberDisplay}`} onClose={onClose}>
+    <Modal open title={`Record Payment — #${inv.invoiceNumberDisplay}`} onClose={onClose}>
       <form onSubmit={handle} className="space-y-4 p-1">
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Amount ($)</label>
@@ -280,7 +280,7 @@ function AdjustModal({
   inv: NonNullable<ReturnType<typeof useInvoice>>;
   onClose: () => void;
 }) {
-  const { showToast } = useToast();
+  const toast = useToast();
   const adjust = useMutation(api.admin.listBillInvoices.applyAdjustment);
   const [amount, setAmount] = useState('');
   const [notes, setNotes] = useState('');
@@ -290,26 +290,26 @@ function AdjustModal({
     e.preventDefault();
     const cents = Math.round(parseFloat(amount) * 100);
     if (isNaN(cents)) {
-      showToast('Enter a valid adjustment amount', 'error');
+      toast.error('Enter a valid adjustment amount');
       return;
     }
     if (!notes.trim()) {
-      showToast('Notes are required', 'error');
+      toast.error('Notes are required');
       return;
     }
     setLoading(true);
     try {
       await adjust({ invoiceId: inv._id, adjustmentCents: cents, notes });
-      showToast('Adjustment applied', 'success');
+      toast.success('Adjustment applied');
       onClose();
     } catch (e: unknown) {
-      showToast((e as Error).message, 'error');
+      toast.error((e as Error).message);
       setLoading(false);
     }
   }
 
   return (
-    <Modal title={`Adjust Invoice #${inv.invoiceNumberDisplay}`} onClose={onClose}>
+    <Modal open title={`Adjust Invoice #${inv.invoiceNumberDisplay}`} onClose={onClose}>
       <form onSubmit={handle} className="space-y-4 p-1">
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -366,7 +366,7 @@ function VoidModal({
   inv: NonNullable<ReturnType<typeof useInvoice>>;
   onClose: () => void;
 }) {
-  const { showToast } = useToast();
+  const toast = useToast();
   const voidInv = useMutation(api.admin.listBillInvoices.voidInvoice);
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
@@ -374,22 +374,22 @@ function VoidModal({
   async function handle(e: React.FormEvent) {
     e.preventDefault();
     if (!reason.trim()) {
-      showToast('Reason is required', 'error');
+      toast.error('Reason is required');
       return;
     }
     setLoading(true);
     try {
       await voidInv({ invoiceId: inv._id, reason });
-      showToast(`Invoice #${inv.invoiceNumberDisplay} voided`, 'success');
+      toast.success(`Invoice #${inv.invoiceNumberDisplay} voided`);
       onClose();
     } catch (e: unknown) {
-      showToast((e as Error).message, 'error');
+      toast.error((e as Error).message);
       setLoading(false);
     }
   }
 
   return (
-    <Modal title={`Void Invoice #${inv.invoiceNumberDisplay}`} onClose={onClose}>
+    <Modal open title={`Void Invoice #${inv.invoiceNumberDisplay}`} onClose={onClose}>
       <form onSubmit={handle} className="space-y-4 p-1">
         <p className="text-sm text-red-600 font-medium">
           This action is irreversible. The invoice will be permanently marked as Voided.

@@ -886,3 +886,77 @@ export const markOverdueInvoices = internalMutation({
     return { marked };
   },
 });
+
+// ---------------------------------------------------------------------------
+// Admin-triggered bulk generation (public wrapper for the cron logic)
+// ---------------------------------------------------------------------------
+
+export const triggerMonthlyGeneration = mutation({
+  args: {},
+  handler: async (ctx): Promise<{ generated: number; skipped: number }> => {
+    await requireAdmin(ctx);
+    const period = nextMonthPeriod();
+    const allGroups = await ctx.db.query("groups").collect();
+    const listBillGroups = allGroups.filter((g) => g.listBill?.enabled === true && g.status === "active");
+
+    let generated = 0, skipped = 0;
+    for (const group of listBillGroups) {
+      const exists = await ctx.db
+        .query("listBillInvoices")
+        .withIndex("by_group_period", (q) =>
+          q.eq("groupId", group._id).eq("coveragePeriod", period),
+        )
+        .first();
+      if (exists && exists.status !== "voided") { skipped++; continue; }
+
+      const account = await ctx.db.get(group.accountId);
+      if (!account) { skipped++; continue; }
+
+      const { moCents, msCents, mfCents, rateLabel } = resolveRates(group, account);
+      const lines = await buildInvoiceLines(ctx, group._id, group, account);
+      const { moCount, msCount, mfCount, subtotalCents } = computeCounts(lines);
+      const { coverageStart, coverageEnd } = periodWindow(period);
+      const { invoiceNumber, invoiceNumberDisplay } = await allocateInvoiceNumber(ctx);
+      const now = Date.now();
+
+      await ctx.db.insert("listBillInvoices", {
+        invoiceNumber,
+        invoiceNumberDisplay,
+        groupId: group._id,
+        accountId: group.accountId,
+        siteId: group.siteId,
+        coveragePeriod: period,
+        coverageStart,
+        coverageEnd,
+        billingDate: now,
+        paymentDueDate: coverageStart,
+        groupName: group.name,
+        groupCode: group.groupCode,
+        organizationCode: group.organizationCode,
+        accountName: (account as any).name ?? "",
+        billingContactEmail: group.listBill?.employerContactEmail,
+        moCents,
+        msCents,
+        mfCents,
+        rateLabel,
+        lines,
+        memberCount: lines.length,
+        moCount,
+        msCount,
+        mfCount,
+        subtotalCents,
+        adjustmentCents: 0,
+        totalCents: subtotalCents,
+        amountPaidCents: 0,
+        balanceCents: subtotalCents,
+        status: "draft",
+        generatedBy: "admin",
+        memberProfileIdsSnapshot: lines.map((l) => l.memberProfileId),
+        createdAt: now,
+        updatedAt: now,
+      });
+      generated++;
+    }
+    return { generated, skipped };
+  },
+});

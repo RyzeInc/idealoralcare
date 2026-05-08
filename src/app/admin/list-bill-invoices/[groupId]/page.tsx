@@ -61,7 +61,7 @@ function AgingPanel({
 }) {
   const aging = useQuery(api.admin.listBillInvoices.getGroupAgingSummary, { groupId });
 
-  const rows: { label: string; key: keyof typeof aging; color: string }[] = [
+  const rows: { label: string; key: 'current' | 'upTo30Days' | 'days31To60' | 'days61To90' | 'days91Plus' | 'totalDue'; color: string }[] = [
     { label: 'Current', key: 'current', color: 'text-green-600' },
     { label: '1–30 Days', key: 'upTo30Days', color: 'text-yellow-600' },
     { label: '31–60 Days', key: 'days31To60', color: 'text-orange-600' },
