@@ -8,6 +8,7 @@ export * as adminUsers from "./adminUsers";
 export * as commissions from "./commissions";
 export * as distributionPartners from "./distributionPartners";
 export * as invoiceCalculator from "./invoiceCalculator";
+export * as listBillInvoices from "./listBillInvoices";
 export * as repCodes from "./repCodes";
 export * as members from "./members";
 export * as memberCards from "./memberCards";

@@ -38,4 +38,25 @@ crons.cron(
   internal.admin.invoiceCalculator.closePreviousMonth,
 );
 
+// ---------------------------------------------------------------------------
+// List-Bill Invoice Generator — monthly draft generation (spec §14.1)
+// Fires on the 25th of every UTC month at 08:00; drafts invoices for all
+// list-bill groups for the upcoming calendar month. Idempotent.
+// ---------------------------------------------------------------------------
+crons.cron(
+  "list-bill-monthly-generate",
+  "0 8 25 * *",
+  internal.admin.listBillInvoices.generateMonthlyInvoices,
+);
+
+// ---------------------------------------------------------------------------
+// List-Bill Invoice Generator — daily overdue check (spec §14.2)
+// Fires every day at 08:00 UTC; flips past-due issued/partial → overdue.
+// ---------------------------------------------------------------------------
+crons.cron(
+  "list-bill-daily-overdue",
+  "0 8 * * *",
+  internal.admin.listBillInvoices.markOverdueInvoices,
+);
+
 export default crons;

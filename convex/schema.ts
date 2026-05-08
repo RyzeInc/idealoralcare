@@ -901,6 +901,15 @@ export default defineSchema({
       paymentDueDayOfMonth: v.optional(v.number()), // e.g. 1 = 1st of month
       employerContactEmail: v.optional(v.string()),  // billing contact at the employer
       notes: v.optional(v.string()),
+      autoIssue: v.optional(v.boolean()),           // auto-transition draft → issued on 1st of coverage month
+      // Per-tier contracted rates (override dispersal defaults)
+      rates: v.optional(v.object({
+        moCents: v.number(),          // Member Only rate in cents
+        msCents: v.number(),          // Member + Spouse rate in cents
+        mfCents: v.number(),          // Member + Family rate in cents
+        effectiveFrom: v.optional(v.string()), // "YYYY-MM" — applies from this period onward
+        rateLabel: v.optional(v.string()),     // e.g. "Financial Shield (List Bill)"
+      })),
     })),
     
     // AUDIT
@@ -1851,6 +1860,121 @@ export default defineSchema({
     .index("by_period_group", ["period", "groupId"])
     .index("by_periodId", ["periodId"])
     .index("by_group", ["groupId"]),
+
+  // ============================================
+  // LIST-BILL INVOICE GENERATOR
+  // See docs/internal/LIST_BILL_INVOICE_SPEC.md
+  // ============================================
+
+  /**
+   * Employer-facing billing documents. One row per (group, coveragePeriod).
+   * Member lines are embedded as an array snapshot.
+   * Invariants: LBI-01 through LBI-09 (see spec §16).
+   */
+  listBillInvoices: defineTable({
+    // ── IDENTITY ──────────────────────────────────────────────────────────
+    invoiceNumber: v.number(),         // sequential integer from counters["listBillInvoiceSeq"]
+    invoiceNumberDisplay: v.string(),  // zero-padded, e.g. "10113"
+
+    // ── SCOPE ─────────────────────────────────────────────────────────────
+    groupId: v.id("groups"),
+    accountId: v.id("accounts"),
+    siteId: v.id("sites"),
+
+    // ── BILLING PERIOD ────────────────────────────────────────────────────
+    coveragePeriod: v.string(),        // "YYYY-MM"
+    coverageStart: v.number(),         // Unix ms — first day of coverage month (UTC)
+    coverageEnd: v.number(),           // Unix ms — last day of coverage month (UTC, inclusive)
+
+    // ── DATES ─────────────────────────────────────────────────────────────
+    billingDate: v.number(),           // Unix ms — when generated/issued
+    paymentDueDate: v.number(),        // Unix ms — when payment is due
+
+    // ── FROZEN GROUP METADATA ─────────────────────────────────────────────
+    groupName: v.string(),
+    groupCode: v.string(),
+    organizationCode: v.optional(v.string()),
+    accountName: v.string(),
+    billingContactEmail: v.optional(v.string()),
+    billingContactName: v.optional(v.string()),
+
+    // ── RATES (frozen at generation) ──────────────────────────────────────
+    moCents: v.number(),
+    msCents: v.number(),
+    mfCents: v.number(),
+    rateLabel: v.string(),
+
+    // ── MEMBER LINE ITEMS (one per active primary, snapshot) ──────────────
+    lines: v.array(v.object({
+      memberProfileId: v.id("memberProfiles"),
+      memberId: v.string(),
+      lastName: v.string(),
+      firstName: v.string(),
+      tier: v.union(v.literal("MO"), v.literal("MS"), v.literal("MF")),
+      dependentCount: v.number(),
+      rateCents: v.number(),
+      productLabel: v.string(),
+    })),
+
+    // ── HEAD COUNTS ───────────────────────────────────────────────────────
+    memberCount: v.number(),
+    moCount: v.number(),
+    msCount: v.number(),
+    mfCount: v.number(),
+
+    // ── FINANCIALS (integer cents) ─────────────────────────────────────────
+    subtotalCents: v.number(),         // sum(lines[i].rateCents)
+    adjustmentCents: v.number(),       // signed; positive = credit
+    totalCents: v.number(),            // subtotalCents + adjustmentCents
+    adjustmentNotes: v.optional(v.string()),
+    carriedForwardCents: v.optional(v.number()), // from prior period adjustment
+
+    // ── PAYMENT TRACKING ──────────────────────────────────────────────────
+    status: v.union(
+      v.literal("draft"),
+      v.literal("issued"),
+      v.literal("paid"),
+      v.literal("partial"),
+      v.literal("overdue"),
+      v.literal("voided"),
+      v.literal("disputed")
+    ),
+    paymentMethod: v.optional(v.union(
+      v.literal("check"),
+      v.literal("ach"),
+      v.literal("wire")
+    )),
+    checkNumber: v.optional(v.string()),
+    checkDate: v.optional(v.string()),
+    achConfirmationNumber: v.optional(v.string()),
+    amountPaidCents: v.number(),       // running total paid (starts at 0)
+    balanceCents: v.number(),          // totalCents - amountPaidCents
+    paidAt: v.optional(v.number()),
+
+    // ── VOID / REPLACEMENT CHAIN ──────────────────────────────────────────
+    voidedAt: v.optional(v.number()),
+    voidedBy: v.optional(v.string()),
+    voidReason: v.optional(v.string()),
+    supersededById: v.optional(v.id("listBillInvoices")),
+
+    // ── SOURCE PROVENANCE ─────────────────────────────────────────────────
+    generatedBy: v.string(),           // "cron" | admin Clerk user ID
+    memberProfileIdsSnapshot: v.array(v.id("memberProfiles")),
+
+    // ── AUDIT ─────────────────────────────────────────────────────────────
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    issuedAt: v.optional(v.number()),
+    reconciledAt: v.optional(v.number()),
+    reconciledBy: v.optional(v.string()),
+  })
+    .index("by_group", ["groupId"])
+    .index("by_account", ["accountId"])
+    .index("by_period", ["coveragePeriod"])
+    .index("by_group_period", ["groupId", "coveragePeriod"])
+    .index("by_status", ["status"])
+    .index("by_invoice_number", ["invoiceNumber"])
+    .index("by_due_date", ["paymentDueDate"]),
 
   // ============================================
   // SYSTEM COUNTERS (for atomic ID generation)
