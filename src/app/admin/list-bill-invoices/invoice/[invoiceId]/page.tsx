@@ -568,6 +568,15 @@ export default function InvoiceDetailPage({
             <Download size={14} />
             Export CSV
           </button>
+          <a
+            href={`/api/admin/list-bill-invoices/${inv._id}/group-pdf`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
+          >
+            <FileText size={14} />
+            Generate Invoice
+          </a>
           {canVoid && (
             <button
               onClick={() => setShowVoid(true)}
