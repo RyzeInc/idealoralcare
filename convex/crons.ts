@@ -1,4 +1,5 @@
 import { cronJobs } from "convex/server";
+import { internal } from "./_generated/api";
 
 /**
  * CONVEX CRON JOBS
@@ -8,6 +9,7 @@ import { cronJobs } from "convex/server";
  * - 1st of month: Generate list-bill summaries
  * - 25th of month: Send eligibility reminder emails to group admins
  * - 1st of month: Calculate monthly commissions
+ * - 1st of month 00:05 UTC: Close prior month's invoice period (Invoice Calculator)
  * - Hourly: Check for expired entitlements
  * - Daily: Monitor stale eligibility files
  * 
@@ -25,5 +27,15 @@ const crons = cronJobs();
 // 4. Commission calculation - awaits api.admin.commissions
 // 5. Entitlement expiration - awaits scheduled mutation
 // 6. File monitoring - awaits scheduled action
+
+// ---------------------------------------------------------------------------
+// Invoice Calculator — monthly close (spec §12.1)
+// Fires on the 1st of every UTC month at 00:05; idempotent if already closed.
+// ---------------------------------------------------------------------------
+crons.cron(
+  "invoice-calculator-monthly-close",
+  "5 0 1 * *",
+  internal.admin.invoiceCalculator.closePreviousMonth,
+);
 
 export default crons;

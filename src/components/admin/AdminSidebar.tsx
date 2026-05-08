@@ -21,6 +21,7 @@ import {
   Headphones,
   Receipt,
   Terminal,
+  Calculator,
   ClipboardList,
   HelpCircle,
 } from "lucide-react";
@@ -62,6 +63,7 @@ const ADMIN_NAVIGATION: NavSection[] = [
     items: [
       { label: "Billing", href: "/admin/billing", icon: DollarSign, tooltip: "Subscription billing and group invoices." },
       { label: "List-Bill", href: "/admin/list-bill", icon: Receipt, tooltip: "Group-paid roster invoices." },
+      { label: "Invoice Calculator", href: "/admin/invoice-calculator", icon: Calculator, tooltip: "Per-member revenue and dispersal breakdown by group and partner." },
       { label: "Commissions", href: "/admin/commissions", icon: BarChart3, tooltip: "Agent commission calculations and payouts." },
     ],
   },

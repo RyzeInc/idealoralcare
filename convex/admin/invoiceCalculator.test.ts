@@ -1,0 +1,565 @@
+/**
+ * INVOICE CALCULATOR — server tests
+ *
+ * Covers spec §11.2 fixtures + closePeriod idempotency + recordAdjustment
+ * validation + INV-01 penny-perfect invariant.
+ */
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { describe, test, expect } from "vitest";
+import { convexTest } from "convex-test";
+import schema from "../schema";
+import { api, internal } from "../_generated/api";
+import {
+  addSplits,
+  DISPERSAL,
+  ZERO_SPLIT,
+  type DispersalSplit,
+} from "../lib/dispersal";
+import type { Id } from "../_generated/dataModel";
+
+// ---------------------------------------------------------------------------
+// Auth identity helpers
+// ---------------------------------------------------------------------------
+
+const ADMIN_TOKEN = "https://test.clerk.dev|admin_user_inv";
+
+async function seedAdmin(t: ReturnType<typeof convexTest>) {
+  await t.run(async (ctx) => {
+    await ctx.db.insert("adminUsers", {
+      clerkUserId: "admin_user_inv",
+      email: "admin@inv.test",
+      name: "Inv Admin",
+      role: "owner",
+      createdAt: Date.now(),
+    });
+  });
+}
+
+function asAdmin(t: ReturnType<typeof convexTest>) {
+  return t.withIdentity({ tokenIdentifier: ADMIN_TOKEN });
+}
+
+// ---------------------------------------------------------------------------
+// World seeding
+// ---------------------------------------------------------------------------
+
+interface World {
+  siteId: Id<"sites">;
+  accountId: Id<"accounts">;
+  groupId: Id<"groups">;
+}
+
+async function seedWorld(
+  t: ReturnType<typeof convexTest>,
+  opts: { listBill?: boolean; groupCode?: string } = {},
+): Promise<World> {
+  return t.run(async (ctx) => {
+    const now = Date.now();
+    const siteId = await ctx.db.insert("sites", {
+      slug: `s-${Math.random().toString(36).slice(2)}`,
+      name: "Inv Site",
+      type: "primary",
+      branding: {},
+      allowedPlanIds: [],
+      enrollmentDefaults: {
+        requireGroupCode: false,
+        requireEligibilityMatch: false,
+        allowSelfEnrollment: true,
+        requirePayment: true,
+        autoActivate: true,
+        collectAddress: false,
+        collectPhone: false,
+        collectEmployeeId: false,
+      },
+      status: "active",
+      createdAt: now,
+      updatedAt: now,
+    });
+    const accountId = await ctx.db.insert("accounts", {
+      siteId,
+      slug: `a-${Math.random().toString(36).slice(2)}`,
+      name: "Inv Account",
+      accountType: "individual",
+      billingModel: "direct",
+      contacts: [],
+      status: "active",
+      createdAt: now,
+      updatedAt: now,
+    });
+    const groupId = await ctx.db.insert("groups", {
+      siteId,
+      accountId,
+      slug: `g-${Math.random().toString(36).slice(2)}`,
+      name: "Inv Group",
+      groupCode: opts.groupCode ?? "IDEALDO",
+      status: "active",
+      ...(opts.listBill
+        ? { listBill: { enabled: true, paymentMethod: "ach" as const } }
+        : {}),
+      createdAt: now,
+      updatedAt: now,
+    });
+    return { siteId, accountId, groupId };
+  });
+}
+
+async function seedMember(
+  t: ReturnType<typeof convexTest>,
+  world: World,
+  opts: {
+    customerId: string;
+    role: "primary" | "dependent";
+    primaryMemberId?: Id<"memberProfiles">;
+    memberType?: "active" | "terminated";
+    memberId?: string;
+  },
+): Promise<Id<"memberProfiles">> {
+  return t.run(async (ctx) => {
+    return ctx.db.insert("memberProfiles", {
+      memberId: opts.memberId ?? Math.random().toString(36).slice(2, 11),
+      barcode: Math.random().toString(36).slice(2, 12).toUpperCase(),
+      customerId: opts.customerId,
+      siteId: world.siteId,
+      accountId: world.accountId,
+      groupId: world.groupId,
+      memberRole: opts.role,
+      ...(opts.primaryMemberId ? { primaryMemberId: opts.primaryMemberId } : {}),
+      firstName: opts.role === "primary" ? "Pri" : "Dep",
+      lastName: "Test",
+      email: `${opts.customerId}@test.inv`,
+      memberType: opts.memberType ?? "active",
+      status: "active",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  });
+}
+
+async function seedBundle(
+  t: ReturnType<typeof convexTest>,
+  opts: {
+    customerId: string;
+    totalCents: number;
+    status?: "active" | "cancelled";
+  },
+) {
+  return t.run(async (ctx) => {
+    const now = Date.now();
+    return ctx.db.insert("subscriptionBundles", {
+      customerId: opts.customerId,
+      cadence: "monthly",
+      paymentMethod: "card",
+      stripeCustomerId: `cus_${opts.customerId}`,
+      status: opts.status ?? "active",
+      currentPeriodStart: now,
+      currentPeriodEnd: now + 30 * 24 * 60 * 60 * 1000,
+      pricingSnapshot: {
+        cadence: "monthly",
+        paymentMethod: "card",
+        totalCents: opts.totalCents,
+        planCount: 1,
+        capturedAt: now,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const get = api.admin.invoiceCalculator.getInvoiceBreakdown;
+const getForPeriod = api.admin.invoiceCalculator.getInvoiceBreakdownForPeriod;
+const getGroup = api.admin.invoiceCalculator.getGroupInvoice;
+const closeManual = api.admin.invoiceCalculator.closePeriodManual;
+const recordAdj = api.admin.invoiceCalculator.recordAdjustment;
+const listClosed = api.admin.invoiceCalculator.listClosedPeriods;
+const getAdj = api.admin.invoiceCalculator.getAdjustmentsForPeriod;
+const getVendor = api.admin.invoiceCalculator.getVendorPayables;
+
+function expectInv01(splits: DispersalSplit, label = "splits") {
+  const sum =
+    splits.toothlensCents +
+    splits.careingtonCents +
+    splits.processingCents +
+    splits.partnerVendorCents +
+    splits.ryzeKeepCents;
+  expect(sum, `INV-01 violated for ${label}`).toBe(splits.grossCents);
+}
+
+// ---------------------------------------------------------------------------
+// Spec §11.2 — Invariant fixtures
+// ---------------------------------------------------------------------------
+
+describe("invoiceCalculator — spec §11.2 fixtures", () => {
+  test("F1: empty database → all zero", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const r = await asAdmin(t).query(get, {});
+    expect(r.grand.totals).toEqual(ZERO_SPLIT);
+    expect(r.groups).toEqual([]);
+  });
+
+  test("F2: single Individual primary → gross=1499 with §2.2 splits", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const w = await seedWorld(t, { listBill: true });
+    await seedMember(t, w, { customerId: "u1", role: "primary" });
+    await seedBundle(t, { customerId: "u1", totalCents: 1499 });
+
+    const r = await asAdmin(t).query(get, {});
+    expect(r.grand.totals.grossCents).toBe(1499);
+    expect(r.grand.totals).toEqual(DISPERSAL.individual);
+    expect(r.grand.individualPrimaryCount).toBe(1);
+    expectInv01(r.grand.totals, "F2");
+  });
+
+  test("F3: Family primary + 2 deps → gross=2499, deps=$0, dependentCount=2", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const w = await seedWorld(t);
+    const primaryMemberId = await seedMember(t, w, {
+      customerId: "u2",
+      role: "primary",
+    });
+    await seedMember(t, w, { customerId: "u2", role: "dependent", primaryMemberId });
+    await seedMember(t, w, { customerId: "u2", role: "dependent", primaryMemberId });
+    await seedBundle(t, { customerId: "u2", totalCents: 2499 });
+
+    const r = await asAdmin(t).query(get, {});
+    expect(r.grand.totals.grossCents).toBe(2499);
+    expect(r.grand.totals).toEqual(DISPERSAL.family);
+    expect(r.grand.dependentCount).toBe(2);
+    expect(r.grand.familyPrimaryCount).toBe(1);
+    expectInv01(r.grand.totals, "F3");
+  });
+
+  test("F4: mixed employer-paid + self-pay → INV-04 holds", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const employerWorld = await seedWorld(t, {
+      listBill: true,
+      groupCode: "EMP1",
+    });
+    const selfWorld = await seedWorld(t, { groupCode: "SELF1" });
+    await seedMember(t, employerWorld, { customerId: "u3", role: "primary" });
+    await seedBundle(t, { customerId: "u3", totalCents: 1499 });
+    await seedMember(t, selfWorld, { customerId: "u4", role: "primary" });
+    await seedBundle(t, { customerId: "u4", totalCents: 2499 });
+
+    const r = await asAdmin(t).query(get, {});
+    // INV-04: employerPaid + selfPay = grand
+    const sum = addSplits(r.employerPaid.totals, r.selfPay.totals);
+    expect(sum).toEqual(r.grand.totals);
+    expect(r.employerPaid.totals).toEqual(DISPERSAL.individual);
+    expect(r.selfPay.totals).toEqual(DISPERSAL.family);
+  });
+
+  test("F5: active primary, no bundle → unbilledPrimaryCount=1", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const w = await seedWorld(t);
+    await seedMember(t, w, { customerId: "u5", role: "primary" });
+
+    const r = await asAdmin(t).query(get, {});
+    expect(r.grand.unbilledPrimaryCount).toBe(1);
+    expect(r.grand.totals).toEqual(ZERO_SPLIT);
+  });
+
+  test("F6: active primary, $0 bundle → unbilledPrimaryCount=1", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const w = await seedWorld(t);
+    await seedMember(t, w, { customerId: "u6", role: "primary" });
+    await seedBundle(t, { customerId: "u6", totalCents: 0 });
+
+    const r = await asAdmin(t).query(get, {});
+    expect(r.grand.unbilledPrimaryCount).toBe(1);
+    expect(r.grand.totals).toEqual(ZERO_SPLIT);
+  });
+
+  test("F7: terminated member → ignored", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const w = await seedWorld(t);
+    await seedMember(t, w, {
+      customerId: "u7",
+      role: "primary",
+      memberType: "terminated",
+    });
+    await seedBundle(t, { customerId: "u7", totalCents: 1499 });
+
+    const r = await asAdmin(t).query(get, {});
+    expect(r.grand.activeMemberCount).toBe(0);
+    expect(r.grand.totals).toEqual(ZERO_SPLIT);
+  });
+
+  test("F8: family primary + dependent in separate memberProfiles rows", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const w = await seedWorld(t);
+    const primaryMemberId = await seedMember(t, w, {
+      customerId: "u8",
+      role: "primary",
+    });
+    await seedMember(t, w, {
+      customerId: "u8",
+      role: "dependent",
+      primaryMemberId,
+    });
+    await seedBundle(t, { customerId: "u8", totalCents: 2499 });
+
+    const r = await asAdmin(t).query(get, {});
+    expect(r.grand.totals).toEqual(DISPERSAL.family);
+    expect(r.grand.familyPrimaryCount).toBe(1);
+    expect(r.grand.dependentCount).toBe(1);
+    expectInv01(r.grand.totals, "F8");
+  });
+
+  test("F9: customer with two active bundles → Family wins", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const w = await seedWorld(t);
+    await seedMember(t, w, { customerId: "u9", role: "primary" });
+    await seedBundle(t, { customerId: "u9", totalCents: 1499 });
+    await seedBundle(t, { customerId: "u9", totalCents: 2499 });
+
+    const r = await asAdmin(t).query(get, {});
+    expect(r.grand.totals).toEqual(DISPERSAL.family);
+    expect(r.grand.familyPrimaryCount).toBe(1);
+    expect(r.grand.individualPrimaryCount).toBe(0);
+  });
+
+  test("F10: penny invariant fuzz — random rosters always satisfy INV-01", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const w = await seedWorld(t);
+
+    // Pseudo-random but deterministic: 200 customers split between Ind/Fam/None
+    for (let i = 0; i < 200; i++) {
+      const cid = `fuzz_${i}`;
+      await seedMember(t, w, { customerId: cid, role: "primary" });
+      const r = i % 3;
+      if (r === 0) await seedBundle(t, { customerId: cid, totalCents: 1499 });
+      else if (r === 1) await seedBundle(t, { customerId: cid, totalCents: 2499 });
+      // r === 2 → no bundle (unbilled)
+    }
+    const result = await asAdmin(t).query(get, {});
+    expectInv01(result.grand.totals, "F10 grand");
+    for (const g of result.groups) {
+      expectInv01(g.totals, `F10 group ${g.groupCode}`);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// closePeriod idempotency + snapshot persistence (INV-07)
+// ---------------------------------------------------------------------------
+
+describe("invoiceCalculator — closePeriod", () => {
+  test("INV-07: closing the same period twice is a no-op", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const w = await seedWorld(t, { listBill: true });
+    await seedMember(t, w, { customerId: "uc1", role: "primary" });
+    await seedBundle(t, { customerId: "uc1", totalCents: 1499 });
+
+    // Close prior calendar month so it isn't the current period.
+    const now = new Date();
+    const prev = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+    const year = prev.getUTCFullYear();
+    const month = prev.getUTCMonth() + 1;
+
+    const first = await asAdmin(t).mutation(closeManual, { year, month });
+    expect(first.skipped).toBeFalsy();
+    expect(first.rowsWritten).toBe(1);
+
+    const second = await asAdmin(t).mutation(closeManual, { year, month });
+    expect(second.skipped).toBe(true);
+
+    // Snapshot is queryable
+    const closed = await asAdmin(t).query(listClosed, {});
+    expect(closed.length).toBe(1);
+    expect(closed[0].grossCents).toBe(1499);
+  });
+
+  test("getInvoiceBreakdownForPeriod returns the closed snapshot for past periods", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const w = await seedWorld(t);
+    await seedMember(t, w, { customerId: "uc2", role: "primary" });
+    await seedBundle(t, { customerId: "uc2", totalCents: 2499 });
+
+    const now = new Date();
+    const prev = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+    const year = prev.getUTCFullYear();
+    const month = prev.getUTCMonth() + 1;
+    const periodKey = `${year}-${String(month).padStart(2, "0")}`;
+
+    await asAdmin(t).mutation(closeManual, { year, month });
+
+    // Mutate the live world AFTER close.
+    await t.run(async (ctx) => {
+      const bundle = await ctx.db
+        .query("subscriptionBundles")
+        .first();
+      if (bundle) {
+        await ctx.db.patch(bundle._id, { status: "cancelled" });
+      }
+    });
+
+    const r = await asAdmin(t).query(getForPeriod, { period: periodKey });
+    expect(r.source).toBe("closed");
+    expect(r.grand.totals).toEqual(DISPERSAL.family);
+    expect(r.groups[0].periodId).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// recordAdjustment validation + audit
+// ---------------------------------------------------------------------------
+
+describe("invoiceCalculator — recordAdjustment", () => {
+  async function seedAndClose(t: ReturnType<typeof convexTest>) {
+    await seedAdmin(t);
+    const w = await seedWorld(t);
+    await seedMember(t, w, { customerId: "ua1", role: "primary" });
+    await seedBundle(t, { customerId: "ua1", totalCents: 1499 });
+    const now = new Date();
+    const prev = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+    await asAdmin(t).mutation(closeManual, {
+      year: prev.getUTCFullYear(),
+      month: prev.getUTCMonth() + 1,
+    });
+    const period = `${prev.getUTCFullYear()}-${String(prev.getUTCMonth() + 1).padStart(2, "0")}`;
+    const closed = await t.run(async (ctx) => {
+      const rows = await ctx.db.query("invoicePeriods").collect();
+      return rows.find((r) => r.period === period) ?? null;
+    });
+    return { period, periodId: closed!._id };
+  }
+
+  test("rejects non-integer cents", async () => {
+    const t = convexTest(schema);
+    const { periodId } = await seedAndClose(t);
+    await expect(
+      asAdmin(t).mutation(recordAdj, {
+        periodId,
+        reason: "refund",
+        bucket: "gross",
+        deltaCents: 14.5,
+        notes: "test note long enough",
+      }),
+    ).rejects.toThrow();
+  });
+
+  test("rejects empty notes", async () => {
+    const t = convexTest(schema);
+    const { periodId } = await seedAndClose(t);
+    await expect(
+      asAdmin(t).mutation(recordAdj, {
+        periodId,
+        reason: "refund",
+        bucket: "gross",
+        deltaCents: -1499,
+        notes: "",
+      }),
+    ).rejects.toThrow();
+  });
+
+  test("happy path — records signed cents and surfaces via getAdjustmentsForPeriod", async () => {
+    const t = convexTest(schema);
+    const { period, periodId } = await seedAndClose(t);
+    await asAdmin(t).mutation(recordAdj, {
+      periodId,
+      reason: "refund",
+      bucket: "gross",
+      deltaCents: -1499,
+      notes: "Stripe dispute refund — full month",
+    });
+    const adjustments = await asAdmin(t).query(getAdj, { period });
+    expect(adjustments.length).toBe(1);
+    expect(adjustments[0].deltaCents).toBe(-1499);
+    expect(adjustments[0].reason).toBe("refund");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Vendor payables export
+// ---------------------------------------------------------------------------
+
+describe("invoiceCalculator — getVendorPayables", () => {
+  test("partnerVendor payable matches DISPERSAL.individual.partnerVendorCents per primary", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const w = await seedWorld(t, { listBill: true });
+    for (let i = 0; i < 3; i++) {
+      const cid = `vp${i}`;
+      await seedMember(t, w, { customerId: cid, role: "primary" });
+      await seedBundle(t, { customerId: cid, totalCents: 1499 });
+    }
+    const r = await asAdmin(t).query(getVendor, {
+      period: "live",
+      vendor: "partnerVendor",
+    });
+    expect(r.totalCents).toBe(DISPERSAL.individual.partnerVendorCents * 3);
+    expect(r.rows.length).toBe(1);
+    expect(r.rows[0].individualPrimaryCount).toBe(3);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Drill-down — getGroupInvoice
+// ---------------------------------------------------------------------------
+
+describe("invoiceCalculator — getGroupInvoice", () => {
+  test("returns member-level lines for a live group", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const w = await seedWorld(t);
+    const primaryMemberId = await seedMember(t, w, {
+      customerId: "ud1",
+      role: "primary",
+    });
+    await seedMember(t, w, {
+      customerId: "ud1",
+      role: "dependent",
+      primaryMemberId,
+    });
+    await seedBundle(t, { customerId: "ud1", totalCents: 2499 });
+
+    const r = await asAdmin(t).query(getGroup, { groupId: w.groupId });
+    expect(r.source).toBe("live");
+    expect(r.members.length).toBe(2);
+    const primary = r.members.find((m) => m.role === "primary")!;
+    expect(primary.tier).toBe("family");
+    expect(primary.contribution.grossCents).toBe(2499);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cron entry point — closePreviousMonth wraps closePeriod for prev calendar month
+// ---------------------------------------------------------------------------
+
+describe("invoiceCalculator — closePreviousMonth", () => {
+  test("internal mutation closes the prior calendar month", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const w = await seedWorld(t);
+    await seedMember(t, w, { customerId: "uci1", role: "primary" });
+    await seedBundle(t, { customerId: "uci1", totalCents: 1499 });
+
+    const result = await t.mutation(
+      internal.admin.invoiceCalculator.closePreviousMonth,
+      {},
+    );
+    expect(result.skipped).toBeFalsy();
+    expect(result.rowsWritten).toBe(1);
+
+    const closed = await asAdmin(t).query(listClosed, {});
+    expect(closed.length).toBe(1);
+  });
+});

@@ -1734,6 +1734,125 @@ export default defineSchema({
     .index("by_status", ["paymentStatus"]),
 
   // ============================================
+  // INVOICE CALCULATOR — period snapshots & adjustments
+  // See docs/internal/INVOICE_CALCULATOR_SPEC.md
+  // ============================================
+
+  /**
+   * Immutable per-group snapshots of revenue + dispersal for a closed
+   * billing period. Written by the monthly `closePeriod` cron.
+   *
+   * Snapshots are the authoritative record for any historical period.
+   * They are NEVER updated after close — corrections flow through
+   * `invoiceAdjustments`.
+   */
+  invoicePeriods: defineTable({
+    // PERIOD IDENTITY (UTC calendar month)
+    period: v.string(),            // "YYYY-MM" — primary lookup key
+    year: v.number(),
+    month: v.number(),             // 1..12
+    periodStartMs: v.number(),     // UTC start (inclusive)
+    periodEndMs: v.number(),       // UTC end (exclusive)
+
+    // SCOPE
+    groupId: v.id("groups"),
+    accountId: v.id("accounts"),
+    isListBill: v.boolean(),       // employer-paid flag at close time
+
+    // DENORMALIZED METADATA (frozen at close time)
+    groupCode: v.string(),
+    organizationCode: v.optional(v.string()),
+    groupName: v.string(),
+    accountName: v.optional(v.string()),
+
+    // HEAD COUNTS
+    activeMemberCount: v.number(),
+    individualPrimaryCount: v.number(),
+    familyPrimaryCount: v.number(),
+    dependentCount: v.number(),
+    unbilledPrimaryCount: v.number(),
+
+    // DISPERSAL TOTALS (integer cents, INV-01 always holds)
+    grossCents: v.number(),
+    toothlensCents: v.number(),
+    careingtonCents: v.number(),
+    processingCents: v.number(),
+    partnerVendorCents: v.number(),
+    ryzeKeepCents: v.number(),
+
+    // SOURCE PROVENANCE — ids of records included in the snapshot.
+    // Lets auditors reproduce the math against historical data.
+    memberProfileIds: v.array(v.id("memberProfiles")),
+    bundleIds: v.array(v.id("subscriptionBundles")),
+
+    // PRICING TABLE used at close time (period-stamped per spec §10 #6).
+    // Ensures historical periods reproduce even if rates change later.
+    pricing: v.object({
+      individualGrossCents: v.number(),
+      familyGrossCents: v.number(),
+      individualSplits: v.object({
+        toothlensCents: v.number(),
+        careingtonCents: v.number(),
+        processingCents: v.number(),
+        partnerVendorCents: v.number(),
+        ryzeKeepCents: v.number(),
+      }),
+      familySplits: v.object({
+        toothlensCents: v.number(),
+        careingtonCents: v.number(),
+        processingCents: v.number(),
+        partnerVendorCents: v.number(),
+        ryzeKeepCents: v.number(),
+      }),
+    }),
+
+    // CLOSE METADATA
+    closedAt: v.number(),                  // UTC ms
+    closedBy: v.string(),                  // "cron" | clerkUserId
+    payloadHash: v.string(),               // SHA-256 hex of canonical JSON of this row's numeric fields
+    sourceGitSha: v.optional(v.string()),  // git SHA of calculator code at close time
+  })
+    .index("by_period", ["period"])
+    .index("by_period_group", ["period", "groupId"])
+    .index("by_group", ["groupId"])
+    .index("by_account", ["accountId"]),
+
+  /**
+   * Append-only corrections to a closed period. NEVER mutate or delete
+   * an existing row — record a new offsetting adjustment instead.
+   */
+  invoiceAdjustments: defineTable({
+    periodId: v.id("invoicePeriods"),
+    period: v.string(),                    // denormalized "YYYY-MM" for indexing
+    groupId: v.id("groups"),
+    reason: v.union(
+      v.literal("refund"),
+      v.literal("chargeback"),
+      v.literal("retroactive_term"),
+      v.literal("retroactive_enrollment"),
+      v.literal("misclassification"),
+      v.literal("other"),
+    ),
+    bucket: v.union(
+      v.literal("gross"),
+      v.literal("toothlens"),
+      v.literal("careington"),
+      v.literal("processing"),
+      v.literal("partnerVendor"),
+      v.literal("ryzeKeep"),
+    ),
+    deltaCents: v.number(),                // signed
+    appliedToPeriod: v.optional(v.string()), // "YYYY-MM" where the cash actually moved
+    notes: v.string(),
+    createdBy: v.string(),                 // Clerk user id
+    createdAt: v.number(),
+  })
+    .index("by_period", ["period"])
+    .index("by_period_group", ["period", "groupId"])
+    .index("by_periodId", ["periodId"])
+    .index("by_group", ["groupId"]),
+
+  // ============================================
   // SYSTEM COUNTERS (for atomic ID generation)
   // ============================================
   counters: defineTable({
