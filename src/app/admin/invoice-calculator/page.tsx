@@ -30,6 +30,7 @@ type SortKey =
   | 'individualPrimaryCount'
   | 'familyPrimaryCount'
   | 'dependentCount'
+  | 'unbilledPrimaryCount'
   | 'partnerVendorCents'
   | 'ryzeKeepCents'
   | 'grossCents';
@@ -50,14 +51,15 @@ function SortIcon({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
 }
 
 function StatCard({
-  icon, label, value, accent,
-}: { icon: React.ReactNode; label: string; value: string; accent: string }) {
+  icon, label, value, accent, sub,
+}: { icon: React.ReactNode; label: string; value: string; accent: string; sub?: string }) {
   return (
     <div className="bg-white rounded-lg shadow p-5 flex items-center gap-4">
       <div className={`p-3 rounded-lg ${accent}`}>{icon}</div>
       <div className="min-w-0">
         <p className="text-sm text-slate-500">{label}</p>
         <p className="text-2xl font-bold text-slate-900 truncate">{value}</p>
+        {sub && <p className="text-xs text-amber-700 mt-0.5">{sub}</p>}
       </div>
     </div>
   );
@@ -245,6 +247,7 @@ export default function InvoiceCalculatorPage() {
             accent="bg-amber-100"
             label="Billable Primaries"
             value={`${data!.grand.individualPrimaryCount + data!.grand.familyPrimaryCount} (${data!.grand.individualPrimaryCount} ind / ${data!.grand.familyPrimaryCount} fam)`}
+            sub={data!.grand.unbilledPrimaryCount > 0 ? `${data!.grand.unbilledPrimaryCount} unbilled (enrolled, no paying bundle)` : undefined}
           />
         </div>
       )}
@@ -357,7 +360,7 @@ export default function InvoiceCalculatorPage() {
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           {isLoading ? (
-            <SkeletonTable rows={6} cols={9} />
+            <SkeletonTable rows={6} cols={10} />
           ) : (
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
@@ -381,6 +384,9 @@ export default function InvoiceCalculatorPage() {
                   <th className="text-right px-4 py-3 font-medium cursor-pointer" onClick={() => toggleSort('dependentCount')}>
                     <span className="inline-flex items-center gap-1">Deps <SortIcon active={sortKey === 'dependentCount'} dir={sortDir} /></span>
                   </th>
+                  <th className="text-right px-4 py-3 font-medium cursor-pointer" onClick={() => toggleSort('unbilledPrimaryCount')} title="Primaries enrolled but not yet on a paying bundle">
+                    <span className="inline-flex items-center gap-1">Unbilled <SortIcon active={sortKey === 'unbilledPrimaryCount'} dir={sortDir} /></span>
+                  </th>
                   <th className="text-right px-4 py-3 font-medium cursor-pointer" onClick={() => toggleSort('partnerVendorCents')}>
                     <span className="inline-flex items-center gap-1">Partner Vendor <SortIcon active={sortKey === 'partnerVendorCents'} dir={sortDir} /></span>
                   </th>
@@ -394,7 +400,7 @@ export default function InvoiceCalculatorPage() {
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {filteredGroups.length === 0 ? (
-                  <tr><td colSpan={10} className="px-4 py-8 text-center text-slate-500">No groups match the current filter.</td></tr>
+                  <tr><td colSpan={11} className="px-4 py-8 text-center text-slate-500">No groups match the current filter.</td></tr>
                 ) : filteredGroups.map((row) => (
                   <tr
                     key={row.groupId}
@@ -416,6 +422,7 @@ export default function InvoiceCalculatorPage() {
                     <td className="px-4 py-3 text-right tabular-nums">{row.individualPrimaryCount}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{row.familyPrimaryCount}</td>
                     <td className="px-4 py-3 text-right tabular-nums text-slate-500">{row.dependentCount}</td>
+                    <td className={`px-4 py-3 text-right tabular-nums ${row.unbilledPrimaryCount > 0 ? 'text-amber-700 font-medium' : 'text-slate-400'}`}>{row.unbilledPrimaryCount}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(row.totals.partnerVendorCents, { fromCents: true })}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(row.totals.ryzeKeepCents, { fromCents: true })}</td>
                     <td className="px-4 py-3 text-right tabular-nums font-semibold text-slate-900">{formatCurrency(row.totals.grossCents, { fromCents: true })}</td>

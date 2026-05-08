@@ -99,12 +99,14 @@ export interface InvoiceBreakdown {
     groupCount: number;
     individualPrimaryCount: number;
     familyPrimaryCount: number;
+    unbilledPrimaryCount: number;
     totals: DispersalSplit;
   };
   selfPay: {
     groupCount: number;
     individualPrimaryCount: number;
     familyPrimaryCount: number;
+    unbilledPrimaryCount: number;
     totals: DispersalSplit;
   };
 }
@@ -240,12 +242,14 @@ function assembleBreakdown(
     groupCount: 0,
     individualPrimaryCount: 0,
     familyPrimaryCount: 0,
+    unbilledPrimaryCount: 0,
     totals: ZERO_SPLIT as DispersalSplit,
   };
   const selfPay = {
     groupCount: 0,
     individualPrimaryCount: 0,
     familyPrimaryCount: 0,
+    unbilledPrimaryCount: 0,
     totals: ZERO_SPLIT as DispersalSplit,
   };
   for (const row of groups) {
@@ -259,6 +263,7 @@ function assembleBreakdown(
     bucket.groupCount++;
     bucket.individualPrimaryCount += row.individualPrimaryCount;
     bucket.familyPrimaryCount += row.familyPrimaryCount;
+    bucket.unbilledPrimaryCount += row.unbilledPrimaryCount;
     bucket.totals = addSplits(bucket.totals, row.totals);
   }
   return { period, source, groups, grand, employerPaid, selfPay };
@@ -396,13 +401,15 @@ export const getGroupInvoice = query({
       const customerIds = members
         .map((m) => m.customerId)
         .filter((c): c is string => Boolean(c));
+      const customerIdSet = new Set(customerIds);
       const bundles =
-        customerIds.length === 0
+        customerIdSet.size === 0
           ? []
           : await ctx.db
               .query("subscriptionBundles")
               .filter((q) => q.eq(q.field("status"), "active"))
-              .collect();
+              .collect()
+              .then((all) => all.filter((b) => customerIdSet.has(b.customerId)));
 
       const tierByCustomer = new Map<string, PlanTier>();
       for (const b of bundles) {

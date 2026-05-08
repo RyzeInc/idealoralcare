@@ -19,6 +19,7 @@ import {
   Building2,
   Calendar,
   Users,
+  RefreshCw,
 } from 'lucide-react';
 import { Breadcrumbs, SkeletonCard, Modal, useToast } from '@/components/admin/ui';
 import { formatCurrency, formatDateTime } from '@/lib/admin-format';
@@ -439,6 +440,22 @@ export default function InvoiceDetailPage({
   const [showPayment, setShowPayment] = useState(false);
   const [showAdjust, setShowAdjust] = useState(false);
   const [showVoid, setShowVoid] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const refreshLines = useMutation(api.admin.listBillInvoices.refreshInvoiceLines);
+  const toast = useToast();
+
+  async function handleRefreshLines() {
+    setIsRefreshing(true);
+    try {
+      await refreshLines({ invoiceId: invId });
+      toast.success('Lines refreshed', 'Member list updated to current enrollment.');
+    } catch (err) {
+      toast.fromError(err, 'Failed to refresh lines');
+    } finally {
+      setIsRefreshing(false);
+    }
+  }
 
   if (inv === undefined) {
     return (
@@ -507,6 +524,16 @@ export default function InvoiceDetailPage({
 
         {/* Action toolbar */}
         <div className="flex flex-wrap gap-2">
+          {canIssue && (
+            <button
+              onClick={handleRefreshLines}
+              disabled={isRefreshing}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-50"
+            >
+              <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+              Refresh Lines
+            </button>
+          )}
           {canIssue && (
             <button
               onClick={() => setShowIssue(true)}

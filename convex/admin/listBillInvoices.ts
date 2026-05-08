@@ -195,6 +195,9 @@ async function buildInvoiceLines(
   const primaries = allMembers.filter(
     (m) =>
       (m.memberType === "active" || m.memberType === "enrolling") &&
+      // Exclude members who have converted to self-pay or were termed from payroll deduction.
+      // `undefined` means eligibility-loaded and still employer-covered.
+      (!m.listBillStatus || m.listBillStatus === "active") &&
       (m.memberRole === "primary" || m.memberRole === undefined || m.memberRole === null),
   );
 
@@ -826,7 +829,7 @@ export const generateMonthlyInvoices = internalMutation({
       const { invoiceNumber, invoiceNumberDisplay } = await allocateInvoiceNumber(ctx);
       const now = Date.now();
 
-      await ctx.db.insert("listBillInvoices", {
+      const invoiceId = await ctx.db.insert("listBillInvoices", {
         invoiceNumber,
         invoiceNumberDisplay,
         groupId: group._id,
@@ -862,6 +865,12 @@ export const generateMonthlyInvoices = internalMutation({
         createdAt: now,
         updatedAt: now,
       });
+
+      // Auto-issue if the group has autoIssue enabled.
+      if (group.listBill?.autoIssue === true) {
+        await ctx.db.patch(invoiceId, { status: "issued", issuedAt: now, updatedAt: now });
+      }
+
       generated++;
     }
     return { generated, skipped };
@@ -919,7 +928,7 @@ export const triggerMonthlyGeneration = mutation({
       const { invoiceNumber, invoiceNumberDisplay } = await allocateInvoiceNumber(ctx);
       const now = Date.now();
 
-      await ctx.db.insert("listBillInvoices", {
+      const invoiceId2 = await ctx.db.insert("listBillInvoices", {
         invoiceNumber,
         invoiceNumberDisplay,
         groupId: group._id,
@@ -955,8 +964,74 @@ export const triggerMonthlyGeneration = mutation({
         createdAt: now,
         updatedAt: now,
       });
+
+      // Auto-issue if the group has autoIssue enabled.
+      if (group.listBill?.autoIssue === true) {
+        await ctx.db.patch(invoiceId2, { status: "issued", issuedAt: now, updatedAt: now });
+      }
+
       generated++;
     }
     return { generated, skipped };
+  },
+});
+
+// ---------------------------------------------------------------------------
+// refreshInvoiceLines — rebuild lines on a draft invoice to reflect current
+//   membership (useful when new members join after the draft was created).
+//   Only allowed on `draft` status invoices.
+// ---------------------------------------------------------------------------
+export const refreshInvoiceLines = mutation({
+  args: { invoiceId: v.id("listBillInvoices") },
+  handler: async (ctx, { invoiceId }): Promise<void> => {
+    const actor = await requireAdmin(ctx);
+
+    const inv = await ctx.db.get(invoiceId);
+    if (!inv) throw new Error("Invoice not found.");
+    if (inv.status !== "draft") {
+      throw new Error(
+        `Cannot refresh lines on a ${inv.status} invoice. Only drafts can be refreshed.`,
+      );
+    }
+
+    const group = await ctx.db.get(inv.groupId);
+    if (!group) throw new Error("Group not found.");
+    const account = await ctx.db.get(group.accountId);
+    if (!account) throw new Error("Account not found.");
+
+    const { moCents, msCents, mfCents, rateLabel } = resolveRates(group, account);
+    const lines = await buildInvoiceLines(ctx, inv.groupId, group, account);
+    const { moCount, msCount, mfCount, subtotalCents } = computeCounts(lines);
+
+    await ctx.db.patch(invoiceId, {
+      lines,
+      memberCount: lines.length,
+      moCount,
+      msCount,
+      mfCount,
+      subtotalCents,
+      adjustmentCents: inv.adjustmentCents,
+      totalCents: subtotalCents + (inv.adjustmentCents ?? 0),
+      balanceCents: subtotalCents + (inv.adjustmentCents ?? 0) - inv.amountPaidCents,
+      moCents,
+      msCents,
+      mfCents,
+      rateLabel,
+      memberProfileIdsSnapshot: lines.map((l) => l.memberProfileId),
+      updatedAt: Date.now(),
+    });
+
+    await ctx.runMutation(internal.admin.adminAudit.record, {
+      actorClerkUserId: actor.clerkUserId,
+      action: "list_bill_invoice.refresh_lines",
+      targetType: "listBillInvoice",
+      targetId: invoiceId,
+      summary: `Refreshed lines on invoice #${inv.invoiceNumberDisplay}: ${inv.memberCount} → ${lines.length} members`,
+      metadata: {
+        invoiceNumber: inv.invoiceNumberDisplay,
+        previousMemberCount: inv.memberCount,
+        newMemberCount: lines.length,
+      },
+    });
   },
 });
