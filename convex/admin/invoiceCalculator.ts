@@ -436,18 +436,15 @@ export const getGroupInvoice = query({
       // Live drill-down — compute from current tables for this group only.
       // Include both active and enrolling members; enrolling members without
       // a paying bundle surface as Unbilled (counted in unbilledPrimaryCount).
-      const members = await ctx.db
+      // Use the by_group index and filter member type in JS to avoid full
+      // table scans (Convex `.filter()` without `.withIndex()` reads every doc).
+      const membersInGroup = await ctx.db
         .query("memberProfiles")
-        .filter((q) =>
-          q.and(
-            q.eq(q.field("groupId"), groupId),
-            q.or(
-              q.eq(q.field("memberType"), "active"),
-              q.eq(q.field("memberType"), "enrolling"),
-            ),
-          ),
-        )
+        .withIndex("by_group", (q) => q.eq("groupId", groupId))
         .collect();
+      const members = membersInGroup.filter(
+        (m) => m.memberType === "active" || m.memberType === "enrolling",
+      );
 
       const customerIds = members
         .map((m) => m.customerId)
@@ -458,7 +455,7 @@ export const getGroupInvoice = query({
           ? []
           : await ctx.db
               .query("subscriptionBundles")
-              .filter((q) => q.eq(q.field("status"), "active"))
+              .withIndex("by_status", (q) => q.eq("status", "active"))
               .collect()
               .then((all) => all.filter((b) => customerIdSet.has(b.customerId)));
 
