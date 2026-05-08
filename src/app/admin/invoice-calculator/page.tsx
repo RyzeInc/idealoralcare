@@ -110,8 +110,8 @@ export default function InvoiceCalculatorPage() {
     });
     return [...filtered].sort((a, b) => {
       const dir = sortDir === 'asc' ? 1 : -1;
-      const aTotals = a.totals as Record<string, number>;
-      const bTotals = b.totals as Record<string, number>;
+      const aTotals = a.totals as unknown as Record<string, number>;
+      const bTotals = b.totals as unknown as Record<string, number>;
       const av: any = sortKey in aTotals ? aTotals[sortKey] : (a as any)[sortKey];
       const bv: any = sortKey in bTotals ? bTotals[sortKey] : (b as any)[sortKey];
       const an = av ?? '';
@@ -693,7 +693,10 @@ function GroupDrillDown({
 function VendorPayableModal({
   vendor, period, onClose,
 }: { vendor: keyof typeof VENDOR_LABELS; period: string; onClose: () => void }) {
-  const data = useQuery(api.admin.invoiceCalculator.getVendorPayables, { vendor, period });
+  const data = useQuery(api.admin.invoiceCalculator.getVendorPayables, {
+    vendor: vendor as "toothlens" | "careington" | "processing" | "partnerVendor" | "ryzeKeep",
+    period,
+  });
 
   const handleExport = () => {
     if (!data) return;
