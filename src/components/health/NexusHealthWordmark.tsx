@@ -17,7 +17,7 @@ export default function IdealHealthWordmark() {
         alt="Ideal Oral Health"
         width={136}
         height={65}
-        style={{ objectFit: 'contain', height: 'auto' }}
+        style={{ objectFit: 'contain', height: 'auto', width: 'auto' }}
         priority
       />
     </a>

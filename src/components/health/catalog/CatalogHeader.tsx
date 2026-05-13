@@ -43,7 +43,7 @@ export function CatalogHeader() {
             alt="Ideal Oral Health"
             width={126}
             height={60}
-            style={{ objectFit: "contain", height: "auto" }}
+            style={{ objectFit: "contain", height: "auto", width: "auto" }}
             priority
           />
         </Link>
