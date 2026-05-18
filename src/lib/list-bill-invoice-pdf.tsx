@@ -363,7 +363,6 @@ function RemitToBlock({
 }
 
 function InvoiceSummary({ data }: { data: ListBillInvoicePdfData }) {
-  const productCount = new Set(data.lines.map((l) => l.productLabel)).size || data.memberCount;
   return (
     <View>
       <Text style={s.sectionH}>Invoice Summary</Text>
@@ -390,8 +389,6 @@ function InvoiceSummary({ data }: { data: ListBillInvoicePdfData }) {
         <Text style={s.kvLabel}>Invoice Amount:</Text>
         <Text style={s.kvValue}>{formatMoney(data.totalCents)}</Text>
       </View>
-      {/* productCount kept around for future use; reference to satisfy linter */}
-      <Text style={{ display: "none" }}>{productCount}</Text>
     </View>
   );
 }
@@ -541,7 +538,6 @@ export function ListBillInvoicePdf({ data }: { data: ListBillInvoicePdfData }) {
         {data.isDraft && <Text style={s.draftWatermark}>DRAFT</Text>}
 
         <PageHeader data={data} />
-        <Text style={s.groupNameLine}>{data.accountName || data.groupName}</Text>
 
         <View style={s.rule} />
 
