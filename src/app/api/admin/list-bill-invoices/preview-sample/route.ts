@@ -22,7 +22,7 @@ export const runtime = "nodejs";
 const SAMPLE: ListBillInvoicePdfData = {
   invoiceNumberDisplay: "INV-2026-0042",
   isDraft: true,
-  brandName: "Ideal Health",
+  brandName: "Ryze LLC",
   groupName: "Crunch Fitness – Denver Metro",
   groupCode: "CRUNCH-DEN",
   organizationCode: "ORG-1042",
@@ -64,13 +64,12 @@ const SAMPLE: ListBillInvoicePdfData = {
     totalDueCents: 209500,
   },
   remitTo: {
-    payeeName: "Ideal Health",
+    payeeName: "Ryze LLC",
     addressLines: [
-      "123 Wellness Way, Suite 400",
-      "Denver, CO 80203",
+      "1846 Fernando Ln",
+      "Tallahassee, FL 32303 US",
     ],
-    contactPhone: "(720) 555-0199",
-    contactEmail: "billing@idealhealth.com",
+    contactEmail: "billing@getidealoh.com",
   },
 };
 

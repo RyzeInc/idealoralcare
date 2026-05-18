@@ -106,7 +106,7 @@ export async function GET(
   const data: ListBillInvoicePdfData = {
     invoiceNumberDisplay: inv.invoiceNumberDisplay,
     isDraft: inv.status === "draft",
-    brandName: process.env.LIST_BILL_REMIT_PAYEE ?? "Ideal Health",
+    brandName: process.env.LIST_BILL_REMIT_PAYEE ?? "Ryze LLC",
     groupName: inv.groupName,
     groupCode: inv.groupCode,
     organizationCode: inv.organizationCode ?? null,
@@ -126,10 +126,10 @@ export async function GET(
     lines,
     aging,
     remitTo: {
-      payeeName: process.env.LIST_BILL_REMIT_PAYEE ?? "Ideal Health",
-      addressLines,
+      payeeName: process.env.LIST_BILL_REMIT_PAYEE ?? "Ryze LLC",
+      addressLines: addressLines.length > 0 ? addressLines : ["1846 Fernando Ln", "Tallahassee, FL 32303 US"],
       contactPhone: process.env.LIST_BILL_REMIT_PHONE ?? undefined,
-      contactEmail: process.env.LIST_BILL_REMIT_EMAIL ?? undefined,
+      contactEmail: process.env.LIST_BILL_REMIT_EMAIL ?? "billing@getidealoh.com",
     },
   };
 

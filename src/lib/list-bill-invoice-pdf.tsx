@@ -211,6 +211,49 @@ const s = StyleSheet.create({
     fontFamily: "Helvetica-Bold",
     transform: "rotate(-25deg)",
   },
+  // Banking / remittance instructions box
+  bankingBox: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: CELL_BORDER,
+    padding: 10,
+  },
+  bankingHeading: {
+    fontSize: 10,
+    fontFamily: "Helvetica-Bold",
+    color: DARK,
+    marginBottom: 5,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  bankingSubHeading: {
+    fontSize: 9,
+    fontFamily: "Helvetica-Bold",
+    color: TEXT,
+    marginTop: 6,
+    marginBottom: 3,
+    textDecoration: "underline",
+  },
+  bankingRow: {
+    flexDirection: "row",
+    marginBottom: 2,
+  },
+  bankingLabel: {
+    width: 100,
+    fontSize: 9,
+    color: MUTED,
+  },
+  bankingValue: {
+    flex: 1,
+    fontSize: 9,
+    color: TEXT,
+    fontFamily: "Helvetica-Bold",
+  },
+  bankingDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: CELL_BORDER,
+    marginVertical: 5,
+  },
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -256,7 +299,7 @@ export interface ListBillInvoicePdfData {
   invoiceNumberDisplay: string;
   isDraft?: boolean;
   // Brand / payee
-  brandName: string;            // e.g. "Ideal Health"
+  brandName: string;            // e.g. "Ryze LLC"
   // Group / account
   groupName: string;
   groupCode: string;
@@ -524,6 +567,54 @@ function ProductSummaryTable({ lines }: { lines: ListBillInvoiceLine[] }) {
 
 // ─── Document ─────────────────────────────────────────────────────────────────
 
+function BankingInstructions() {
+  return (
+    <View style={s.bankingBox}>
+      <Text style={s.bankingHeading}>Remit Payment To</Text>
+      <View style={s.bankingRow}>
+        <Text style={s.bankingLabel}>Payee:</Text>
+        <Text style={s.bankingValue}>Ryze LLC</Text>
+      </View>
+      <View style={s.bankingRow}>
+        <Text style={s.bankingLabel}>Address:</Text>
+        <Text style={s.bankingValue}>1846 Fernando Ln, Tallahassee, FL 32303 US</Text>
+      </View>
+      <View style={s.bankingDivider} />
+      <Text style={s.bankingSubHeading}>ACH / Domestic Wire</Text>
+      <View style={s.bankingRow}>
+        <Text style={s.bankingLabel}>Bank:</Text>
+        <Text style={s.bankingValue}>Column N.A. (via Mercury)</Text>
+      </View>
+      <View style={s.bankingRow}>
+        <Text style={s.bankingLabel}>ABA Routing #:</Text>
+        <Text style={s.bankingValue}>121145433</Text>
+      </View>
+      <View style={s.bankingRow}>
+        <Text style={s.bankingLabel}>Account #:</Text>
+        <Text style={s.bankingValue}>341187641208206</Text>
+      </View>
+      <View style={s.bankingRow}>
+        <Text style={s.bankingLabel}>Account Type:</Text>
+        <Text style={s.bankingValue}>Checking</Text>
+      </View>
+      <View style={s.bankingDivider} />
+      <Text style={s.bankingSubHeading}>International Wire</Text>
+      <View style={s.bankingRow}>
+        <Text style={s.bankingLabel}>SWIFT / BIC:</Text>
+        <Text style={s.bankingValue}>CLNOUS66MER</Text>
+      </View>
+      <View style={s.bankingRow}>
+        <Text style={s.bankingLabel}>Intermediary:</Text>
+        <Text style={s.bankingValue}>CHASUS33XXX (if required by sending bank)</Text>
+      </View>
+      <View style={s.bankingRow}>
+        <Text style={s.bankingLabel}>ABA Routing #:</Text>
+        <Text style={s.bankingValue}>121145433  (alt: 121145307)</Text>
+      </View>
+    </View>
+  );
+}
+
 export function ListBillInvoicePdf({ data }: { data: ListBillInvoicePdfData }) {
   const contact = data.remitTo.contactPhone
     ? `If you have any questions, please contact at ${data.remitTo.contactPhone}`
@@ -545,6 +636,7 @@ export function ListBillInvoicePdf({ data }: { data: ListBillInvoicePdfData }) {
         <AgingTable data={data} />
         <PaymentInformation data={data} />
         <RemitToBlock data={data} />
+        <BankingInstructions />
         {contact && <Text style={s.contactLine}>{contact}</Text>}
 
         <View style={s.rule} />
