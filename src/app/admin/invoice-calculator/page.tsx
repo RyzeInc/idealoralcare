@@ -581,16 +581,26 @@ function GroupDrillDown({
           </div>
         </div>
         {!isLoading && (
-          <button
-            type="button"
-            disabled={!isListBill}
-            onClick={() => setWizardOpen(true)}
-            title={isListBill ? 'Open the invoice wizard' : 'Only employer-paid (list-bill) groups can generate invoices.'}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 shadow-sm disabled:bg-slate-300 disabled:cursor-not-allowed"
-          >
-            <Download size={14} />
-            Generate Invoice
-          </button>
+          <div className="flex items-center gap-2">
+            <a
+              href={`/admin/list-bill-invoices/${groupId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 shadow-sm"
+            >
+              View Invoices
+            </a>
+            <button
+              type="button"
+              disabled={!isListBill}
+              onClick={() => setWizardOpen(true)}
+              title={isListBill ? 'Open the invoice wizard' : 'Only employer-paid (list-bill) groups can generate invoices.'}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 shadow-sm disabled:bg-slate-300 disabled:cursor-not-allowed"
+            >
+              <Download size={14} />
+              Generate Invoice
+            </button>
+          </div>
         )}
       </div>
 
@@ -1058,8 +1068,10 @@ function GenerateInvoiceWizard({
   const toast = useToast();
 
   const today = new Date().toISOString().slice(0, 10);
+  const defaultDueDate = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
   const [coveragePeriod, setCoveragePeriod] = useState(defaultCoveragePeriod);
   const [billingDateStr, setBillingDateStr] = useState(today);
+  const [dueDateStr, setDueDateStr] = useState(defaultDueDate);
   const [adjustmentDollars, setAdjustmentDollars] = useState('');
   const [adjustmentDirection, setAdjustmentDirection] = useState<'+' | '-'>('-');
   const [adjustmentNotes, setAdjustmentNotes] = useState('');
@@ -1087,6 +1099,11 @@ function GenerateInvoiceWizard({
       toast.error('Invalid billing date.');
       return;
     }
+    const dueDateMs = Date.parse(`${dueDateStr}T12:00:00Z`);
+    if (Number.isNaN(dueDateMs)) {
+      toast.error('Invalid due date.');
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -1094,6 +1111,7 @@ function GenerateInvoiceWizard({
         groupId,
         coveragePeriod,
         billingDate: billingDateMs,
+        paymentDueDate: dueDateMs,
       });
       if (adjustmentCents !== 0) {
         await applyAdjustment({
@@ -1147,7 +1165,24 @@ function GenerateInvoiceWizard({
               type="date"
               required
               value={billingDateStr}
-              onChange={(e) => setBillingDateStr(e.target.value)}
+              onChange={(e) => {
+                setBillingDateStr(e.target.value);
+                // Auto-advance due date to keep Net 30 gap when billing date changes
+                const ms = Date.parse(`${e.target.value}T12:00:00Z`);
+                if (!Number.isNaN(ms)) {
+                  setDueDateStr(new Date(ms + 30 * 86_400_000).toISOString().slice(0, 10));
+                }
+              }}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+            />
+          </label>
+          <label className="text-sm col-span-2">
+            <div className="font-medium text-slate-700 mb-1">Payment due date</div>
+            <input
+              type="date"
+              required
+              value={dueDateStr}
+              onChange={(e) => setDueDateStr(e.target.value)}
               className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
             />
           </label>

@@ -1961,6 +1961,9 @@ export default defineSchema({
     generatedBy: v.string(),           // "cron" | admin Clerk user ID
     memberProfileIdsSnapshot: v.array(v.id("memberProfiles")),
 
+    // ── INTERNAL MEMO ─────────────────────────────────────────────────────
+    internalMemo: v.optional(v.string()), // admin-only notes, not printed on PDF
+
     // ── AUDIT ─────────────────────────────────────────────────────────────
     createdAt: v.number(),
     updatedAt: v.number(),

@@ -20,6 +20,8 @@ import {
   Calendar,
   Users,
   RefreshCw,
+  Settings2,
+  History,
 } from 'lucide-react';
 import { Breadcrumbs, SkeletonCard, Modal, useToast } from '@/components/admin/ui';
 import { formatCurrency, formatDateTime } from '@/lib/admin-format';
@@ -440,6 +442,7 @@ export default function InvoiceDetailPage({
   const [showPayment, setShowPayment] = useState(false);
   const [showAdjust, setShowAdjust] = useState(false);
   const [showVoid, setShowVoid] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const refreshLines = useMutation(api.admin.listBillInvoices.refreshInvoiceLines);
@@ -550,6 +553,15 @@ export default function InvoiceDetailPage({
             >
               <CreditCard size={14} />
               Record Payment
+            </button>
+          )}
+          {!isVoided && (
+            <button
+              onClick={() => setShowEdit(true)}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
+            >
+              <Settings2 size={14} />
+              Edit Details
             </button>
           )}
           {canAdjust && (
@@ -809,6 +821,201 @@ export default function InvoiceDetailPage({
       {showVoid && inv && (
         <VoidModal inv={inv} onClose={() => setShowVoid(false)} />
       )}
+      {showEdit && inv && (
+        <EditDetailsModal inv={inv} onClose={() => setShowEdit(false)} />
+      )}
+
+      {/* Audit history */}
+      <InvoiceAuditLog invoiceId={invId} />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Edit Details Modal
+// ---------------------------------------------------------------------------
+
+function EditDetailsModal({
+  inv,
+  onClose,
+}: {
+  inv: NonNullable<ReturnType<typeof useInvoice>>;
+  onClose: () => void;
+}) {
+  const toast = useToast();
+  const patch = useMutation(api.admin.listBillInvoices.patchInvoiceMeta);
+
+  const toDateInput = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+
+  const [billingDate, setBillingDate] = useState(toDateInput(inv.billingDate));
+  const [dueDate, setDueDate] = useState(toDateInput(inv.paymentDueDate));
+  const [contactName, setContactName] = useState(inv.billingContactName ?? '');
+  const [contactEmail, setContactEmail] = useState(inv.billingContactEmail ?? '');
+  const [memo, setMemo] = useState((inv as any).internalMemo ?? '');
+  const [loading, setLoading] = useState(false);
+
+  async function handle(e: React.FormEvent) {
+    e.preventDefault();
+    const billingDateMs = Date.parse(`${billingDate}T12:00:00Z`);
+    const dueDateMs = Date.parse(`${dueDate}T12:00:00Z`);
+    if (Number.isNaN(billingDateMs) || Number.isNaN(dueDateMs)) {
+      toast.error('Invalid date');
+      return;
+    }
+    setLoading(true);
+    try {
+      await patch({
+        invoiceId: inv._id,
+        billingDate: billingDateMs,
+        paymentDueDate: dueDateMs,
+        billingContactName: contactName,
+        billingContactEmail: contactEmail,
+        internalMemo: memo,
+      });
+      toast.success('Invoice details updated');
+      onClose();
+    } catch (err: unknown) {
+      toast.error((err as Error).message);
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Modal
+      open
+      title={`Edit Invoice #${inv.invoiceNumberDisplay}`}
+      description="Changes are logged to the invoice audit trail."
+      onClose={() => { if (!loading) onClose(); }}
+      size="max-w-lg"
+    >
+      <form onSubmit={handle} className="space-y-5 p-1">
+        {/* Dates */}
+        <fieldset className="border border-slate-200 rounded-md p-3 space-y-3">
+          <legend className="text-xs font-semibold text-slate-500 px-1 uppercase tracking-wide">Dates</legend>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="text-sm">
+              <div className="font-medium text-slate-700 mb-1">Billing date</div>
+              <input
+                type="date"
+                required
+                value={billingDate}
+                onChange={(e) => setBillingDate(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+              />
+            </label>
+            <label className="text-sm">
+              <div className="font-medium text-slate-700 mb-1">Payment due date</div>
+              <input
+                type="date"
+                required
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+              />
+            </label>
+          </div>
+        </fieldset>
+
+        {/* Billing contact */}
+        <fieldset className="border border-slate-200 rounded-md p-3 space-y-3">
+          <legend className="text-xs font-semibold text-slate-500 px-1 uppercase tracking-wide">Billing contact</legend>
+          <label className="block text-sm">
+            <div className="font-medium text-slate-700 mb-1">Contact name</div>
+            <input
+              type="text"
+              value={contactName}
+              onChange={(e) => setContactName(e.target.value)}
+              placeholder="e.g. Jane Smith"
+              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+            />
+          </label>
+          <label className="block text-sm">
+            <div className="font-medium text-slate-700 mb-1">Contact email</div>
+            <input
+              type="email"
+              value={contactEmail}
+              onChange={(e) => setContactEmail(e.target.value)}
+              placeholder="e.g. billing@company.com"
+              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+            />
+          </label>
+        </fieldset>
+
+        {/* Internal memo */}
+        <label className="block text-sm">
+          <div className="font-medium text-slate-700 mb-1">Internal memo <span className="text-slate-400 font-normal">(admin only — not printed on PDF)</span></div>
+          <textarea
+            rows={3}
+            value={memo}
+            onChange={(e) => setMemo(e.target.value)}
+            placeholder="e.g. Employer confirmed check mailed 5/20"
+            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+          />
+        </label>
+
+        <div className="flex justify-end gap-2 pt-1">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="px-3 py-1.5 text-sm border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-3 py-1.5 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-medium disabled:opacity-50"
+          >
+            {loading ? 'Saving…' : 'Save Changes'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Audit log section
+// ---------------------------------------------------------------------------
+
+function InvoiceAuditLog({ invoiceId }: { invoiceId: Id<'listBillInvoices'> }) {
+  const entries = useQuery(api.admin.adminAudit.listRecent, {
+    targetType: 'listBillInvoices',
+    targetId: invoiceId,
+    limit: 50,
+  });
+
+  if (!entries || entries.length === 0) return null;
+
+  return (
+    <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="px-6 py-4 border-b border-slate-200 flex items-center gap-2">
+        <History size={16} className="text-slate-400" />
+        <h2 className="text-sm font-semibold text-slate-700">Invoice History</h2>
+        <span className="ml-auto text-xs text-slate-400">{entries.length} event{entries.length !== 1 ? 's' : ''}</span>
+      </div>
+      <ul className="divide-y divide-slate-100">
+        {entries.map((entry: any) => (
+          <li key={entry._id} className="px-6 py-3 flex items-start gap-3">
+            <div className="mt-1.5 w-2 h-2 rounded-full bg-slate-300 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-slate-800">{entry.summary}</p>
+              {entry.metadata?.changes && Array.isArray(entry.metadata.changes) && (
+                <ul className="mt-1 space-y-0.5">
+                  {entry.metadata.changes.map((c: string, i: number) => (
+                    <li key={i} className="text-xs text-slate-500 font-mono">{c}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="text-xs text-slate-400 shrink-0 text-right">
+              <div>{formatDateTime(entry.createdAt)}</div>
+              {entry.actorName && <div className="text-slate-400">{entry.actorName}</div>}
+            </div>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

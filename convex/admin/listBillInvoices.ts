@@ -443,8 +443,9 @@ export const generateInvoice = mutation({
     groupId: v.id("groups"),
     coveragePeriod: v.string(),
     billingDate: v.optional(v.number()),
+    paymentDueDate: v.optional(v.number()),
   },
-  handler: async (ctx, { groupId, coveragePeriod, billingDate }) => {
+  handler: async (ctx, { groupId, coveragePeriod, billingDate, paymentDueDate: paymentDueDateOverride }) => {
     const actor = await requireAdmin(ctx);
 
     // Idempotency: return existing draft if already created
@@ -477,15 +478,22 @@ export const generateInvoice = mutation({
     const now = Date.now();
     const billing = billingDate ?? now;
 
-    // Payment due date: use group's configured day-of-month, else same as billing
-    const dueDayOfMonth = group.listBill?.paymentDueDayOfMonth;
-    let paymentDueDate = billing;
-    if (dueDayOfMonth) {
-      const d = new Date(billing);
-      paymentDueDate = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), dueDayOfMonth);
-      if (paymentDueDate < billing) {
-        // Push to next month if the due day has already passed
-        paymentDueDate = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, dueDayOfMonth);
+    // Payment due date priority: (1) explicit override from wizard, (2) group's configured
+    // day-of-month, (3) Net 30 from billing date.
+    let paymentDueDate: number;
+    if (paymentDueDateOverride != null) {
+      paymentDueDate = paymentDueDateOverride;
+    } else {
+      const dueDayOfMonth = group.listBill?.paymentDueDayOfMonth;
+      if (dueDayOfMonth) {
+        const d = new Date(billing);
+        paymentDueDate = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), dueDayOfMonth);
+        if (paymentDueDate < billing) {
+          paymentDueDate = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, dueDayOfMonth);
+        }
+      } else {
+        // Default: Net 30
+        paymentDueDate = billing + 30 * 86_400_000;
       }
     }
 
@@ -606,6 +614,66 @@ export const recordPayment = mutation({
       targetId: invoiceId,
       summary: `Recorded ${newStatus === "paid" ? "full" : "partial"} payment of $${(amountCents / 100).toFixed(2)} on invoice #${inv.invoiceNumberDisplay}`,
       metadata: { amountCents, newBalance, paymentMethod },
+    });
+  },
+});
+
+/**
+ * Patch non-financial metadata on an invoice.
+ * Editable: billingDate, paymentDueDate, billingContactName,
+ *           billingContactEmail, internalMemo.
+ * Each change is recorded to the admin audit log.
+ */
+export const patchInvoiceMeta = mutation({
+  args: {
+    invoiceId: v.id("listBillInvoices"),
+    billingDate: v.optional(v.number()),
+    paymentDueDate: v.optional(v.number()),
+    billingContactName: v.optional(v.string()),
+    billingContactEmail: v.optional(v.string()),
+    internalMemo: v.optional(v.string()),
+  },
+  handler: async (ctx, { invoiceId, ...updates }) => {
+    const actor = await requireAdmin(ctx);
+    const inv = await ctx.db.get(invoiceId);
+    if (!inv) throw new Error("Invoice not found");
+    if (inv.status === "voided") throw new Error("Cannot edit a voided invoice");
+
+    const patch: Record<string, unknown> = { updatedAt: Date.now() };
+    const changes: string[] = [];
+
+    if (updates.billingDate != null && updates.billingDate !== inv.billingDate) {
+      patch.billingDate = updates.billingDate;
+      changes.push(`Billing date → ${new Date(updates.billingDate).toISOString().slice(0, 10)}`);
+    }
+    if (updates.paymentDueDate != null && updates.paymentDueDate !== inv.paymentDueDate) {
+      patch.paymentDueDate = updates.paymentDueDate;
+      changes.push(`Due date → ${new Date(updates.paymentDueDate).toISOString().slice(0, 10)}`);
+    }
+    if (updates.billingContactName !== undefined && updates.billingContactName !== inv.billingContactName) {
+      patch.billingContactName = updates.billingContactName || undefined;
+      changes.push(`Contact name → "${updates.billingContactName}"`);
+    }
+    if (updates.billingContactEmail !== undefined && updates.billingContactEmail !== inv.billingContactEmail) {
+      patch.billingContactEmail = updates.billingContactEmail || undefined;
+      changes.push(`Contact email → "${updates.billingContactEmail}"`);
+    }
+    if (updates.internalMemo !== undefined && updates.internalMemo !== (inv as any).internalMemo) {
+      patch.internalMemo = updates.internalMemo || undefined;
+      changes.push(`Internal memo updated`);
+    }
+
+    if (changes.length === 0) return; // no-op
+
+    await ctx.db.patch(invoiceId, patch as any);
+
+    await ctx.runMutation(internal.admin.adminAudit.record, {
+      actorClerkUserId: actor.clerkUserId,
+      action: "list_bill_invoice.edit",
+      targetType: "listBillInvoices",
+      targetId: invoiceId,
+      summary: `Edited invoice #${inv.invoiceNumberDisplay}: ${changes.join("; ")}`,
+      metadata: { changes, invoiceId },
     });
   },
 });
