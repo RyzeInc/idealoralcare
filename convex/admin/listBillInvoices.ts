@@ -47,7 +47,7 @@ import { DISPERSAL } from "../lib/dispersal";
 // Constants
 // ---------------------------------------------------------------------------
 
-const DEFAULT_RATE_LABEL = "Ideal Oral Health (List Bill)";
+const DEFAULT_RATE_LABEL = "Ideal Oral Health";
 
 // Tier display suffixes
 const TIER_SUFFIX: Record<"MO" | "MS" | "MF", string> = {

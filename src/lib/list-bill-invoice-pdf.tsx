@@ -152,11 +152,11 @@ const s = StyleSheet.create({
     color: DARK,
   },
   // Column widths for member products table
-  colLast: { width: "16%" },
-  colFirst: { width: "16%" },
-  colId: { width: "14%" },
+  colLast: { width: "15%" },
+  colFirst: { width: "14%" },
+  colId: { width: "19%" },
   colProduct: { flex: 1 },
-  colAmount: { width: "14%", textAlign: "right" },
+  colAmount: { width: "13%", textAlign: "right" },
   // Product summary table
   psTable: {
     marginTop: 4,
