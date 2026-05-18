@@ -23,12 +23,14 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ invoiceId: string }> },
 ) {
-  const { userId } = await auth();
+  const { userId, getToken } = await auth();
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || "");
+  const token = await getToken({ template: "convex" });
+  if (token) convex.setAuth(token);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const isAdmin = await convex.query(

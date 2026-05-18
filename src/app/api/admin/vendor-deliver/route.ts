@@ -25,12 +25,14 @@ export const runtime = "nodejs"; // ssh2 requires native Node bindings
  *   DIALCARE_SFTP_*  same shape
  */
 export async function POST(req: NextRequest) {
-  const { userId } = await auth();
+  const { userId, getToken } = await auth();
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || "");
+  const token = await getToken({ template: "convex" });
+  if (token) convex.setAuth(token);
 
   // Admin gate (mirrors the pattern used in the Stripe admin routes)
   const isAdmin = await convex.query(
