@@ -504,6 +504,61 @@ export const listAllToothlensUsers = internalQuery({
   },
 });
 
+/**
+ * Webhook handler invoked by the Toothlens-side service when a scan completes.
+ * Called from /api/toothlens/scan-completed after bearer-token auth.
+ *
+ * Idempotent: looking up by sessionId means re-deliveries patch the same row.
+ * Returns { matched: false } so the HTTP layer can answer 404 to a missing
+ * session without throwing (per the integration contract agreed in email).
+ *
+ * Public mutation so the Next.js webhook route can call it via
+ * ConvexHttpClient (internal.* mutations are not callable over HTTP). Bearer-
+ * token auth is enforced in the route — same pattern as
+ * `recordEmailDeliveryEvent` for Resend webhooks.
+ */
+export const recordScanCompletedWebhook = mutation({
+  args: {
+    sessionId: v.string(),
+    uid: v.optional(v.string()),
+    company: v.optional(v.string()),
+    status: v.optional(v.string()),
+    completedAtMs: v.optional(v.number()),
+    reportUrl: v.optional(v.string()),
+    findings: v.optional(v.any()),
+  },
+  handler: async (ctx, args): Promise<{ matched: boolean; scanId?: Id<"toothlensScans"> }> => {
+    const scan = await ctx.db
+      .query("toothlensScans")
+      .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
+      .first();
+    if (!scan) return { matched: false };
+
+    // Sanity check: the UID on the scan record must match the payload (if
+    // provided). Mismatches indicate a misrouted webhook and should not silently
+    // overwrite our record.
+    if (args.uid && scan.toothlensUid !== args.uid) {
+      throw new Error(
+        `UID mismatch for session ${args.sessionId}: scan=${scan.toothlensUid} payload=${args.uid}`,
+      );
+    }
+
+    const normalizedStatus =
+      args.status === "cancelled" || args.status === "abandoned"
+        ? args.status
+        : "completed";
+
+    const patch: Partial<Doc<"toothlensScans">> = {
+      status: normalizedStatus,
+      completedAt: args.completedAtMs ?? Date.now(),
+    };
+    if (args.reportUrl) patch.reportUrl = args.reportUrl;
+
+    await ctx.db.patch(scan._id, patch);
+    return { matched: true, scanId: scan._id };
+  },
+});
+
 // ─── Actions (external API calls) ────────────────────────────────────────
 
 /**
