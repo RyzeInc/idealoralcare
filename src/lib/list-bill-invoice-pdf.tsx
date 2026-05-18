@@ -46,7 +46,7 @@ const s = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 8,
+    marginBottom: 4,
   },
   brandName: {
     fontSize: 22,
@@ -65,7 +65,7 @@ const s = StyleSheet.create({
   rule: {
     borderBottomWidth: 1,
     borderBottomColor: RULE,
-    marginVertical: 12,
+    marginVertical: 8,
   },
   groupNameLine: { fontSize: 10, color: TEXT, marginTop: 6, marginBottom: 2 },
   // Section headings
@@ -73,8 +73,8 @@ const s = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Helvetica-Bold",
     color: DARK,
-    marginTop: 10,
-    marginBottom: 6,
+    marginTop: 5,
+    marginBottom: 5,
   },
   // Key / value rows in Invoice Summary + Payment Information
   kvRow: { flexDirection: "row", marginBottom: 3 },
@@ -183,7 +183,7 @@ const s = StyleSheet.create({
   psColCount: { width: "20%", textAlign: "right" },
   psColAmount: { width: "30%", textAlign: "right" },
   // Detail-page top header (smaller)
-  detailHeaderMeta: { marginTop: 8 },
+  detailHeaderMeta: { marginTop: 4 },
   detailMetaLine: { fontSize: 10, color: TEXT, marginBottom: 1 },
   detailReturnBlock: { marginTop: 4 },
   // Footer
