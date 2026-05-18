@@ -7,15 +7,19 @@ import type { DocumentProps } from "@react-pdf/renderer";
 import { Readable } from "stream";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { GroupInvoicePdf, type GroupInvoicePdfData } from "@/lib/list-bill-invoice-pdf";
+import {
+  ListBillInvoicePdf,
+  type ListBillInvoicePdfData,
+  type ListBillInvoiceLine,
+} from "@/lib/list-bill-invoice-pdf";
 
 export const runtime = "nodejs";
 
 /**
  * GET /api/admin/list-bill-invoices/[invoiceId]/group-pdf
  *
- * Streams a single-page, group-facing PDF invoice to the browser.
- * Shows total cost only — no per-member or dependent breakdown.
+ * Streams an itemized list-bill invoice PDF (summary page + member-products
+ * page) for the group billed by this invoice. Primaries only.
  *
  * Auth: Clerk-authenticated admin (verified via Convex isAdmin query).
  */
@@ -54,42 +58,83 @@ export async function GET(
     return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
   }
 
-  // Optional remitter info from env (so finance can configure without code changes).
+  // Aging summary across this group (best-effort; falls back to single-invoice view).
+  let aging = {
+    currentCents: inv.balanceCents,
+    upTo30Cents: 0,
+    days31To60Cents: 0,
+    days61To90Cents: 0,
+    days91PlusCents: 0,
+    totalDueCents: inv.balanceCents,
+  };
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const summary: any = await convex.query(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      api.admin.listBillInvoices.getGroupAgingSummary as any,
+      { groupId: inv.groupId },
+    );
+    if (summary) {
+      aging = {
+        currentCents: summary.current,
+        upTo30Cents: summary.upTo30Days,
+        days31To60Cents: summary.days31To60,
+        days61To90Cents: summary.days61To90,
+        days91PlusCents: summary.days91Plus,
+        totalDueCents: summary.totalDue,
+      };
+    }
+  } catch {
+    // fall back to single-invoice "current = balance" view
+  }
+
   const addressEnv = process.env.LIST_BILL_REMIT_ADDRESS ?? "";
   const addressLines = addressEnv
     .split("|")
     .map((l) => l.trim())
     .filter(Boolean);
 
-  const data: GroupInvoicePdfData = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const lines: ListBillInvoiceLine[] = (inv.lines ?? []).map((l: any) => ({
+    memberId: l.memberId,
+    lastName: l.lastName,
+    firstName: l.firstName,
+    productLabel: l.productLabel,
+    rateCents: l.rateCents,
+  }));
+
+  const data: ListBillInvoicePdfData = {
     invoiceNumberDisplay: inv.invoiceNumberDisplay,
+    isDraft: inv.status === "draft",
+    brandName: process.env.LIST_BILL_REMIT_PAYEE ?? "Ideal Health",
     groupName: inv.groupName,
     groupCode: inv.groupCode,
     organizationCode: inv.organizationCode ?? null,
     accountName: inv.accountName,
-    billingContactName: inv.billingContactName ?? null,
-    billingContactEmail: inv.billingContactEmail ?? null,
     coveragePeriod: inv.coveragePeriod,
+    coverageStart: inv.coverageStart,
+    coverageEnd: inv.coverageEnd,
     billingDate: inv.billingDate,
     paymentDueDate: inv.paymentDueDate,
-    rateLabel: inv.rateLabel,
-    memberCount: inv.memberCount,
     subtotalCents: inv.subtotalCents,
     adjustmentCents: inv.adjustmentCents,
     adjustmentNotes: inv.adjustmentNotes ?? null,
     totalCents: inv.totalCents,
     amountPaidCents: inv.amountPaidCents,
     balanceCents: inv.balanceCents,
-    paymentMethod: inv.paymentMethod ?? null,
+    memberCount: inv.memberCount,
+    lines,
+    aging,
     remitTo: {
-      payeeName: process.env.LIST_BILL_REMIT_PAYEE ?? "Ideal Oral Health",
+      payeeName: process.env.LIST_BILL_REMIT_PAYEE ?? "Ideal Health",
       addressLines,
-      achInstructions: process.env.LIST_BILL_REMIT_ACH ?? undefined,
+      contactPhone: process.env.LIST_BILL_REMIT_PHONE ?? undefined,
+      contactEmail: process.env.LIST_BILL_REMIT_EMAIL ?? undefined,
     },
   };
 
   try {
-    const doc = createElement(GroupInvoicePdf, { data }) as unknown as ReactElement<DocumentProps>;
+    const doc = createElement(ListBillInvoicePdf, { data }) as unknown as ReactElement<DocumentProps>;
     const instance = pdf(doc);
     const stream = await instance.toBuffer();
     const buffer = await new Promise<Buffer>((resolve, reject) => {
@@ -100,7 +145,8 @@ export async function GET(
       nodeStream.on("error", reject);
     });
 
-    const filename = `Invoice-${inv.invoiceNumberDisplay}-${inv.groupName.replace(/[^a-z0-9]+/gi, "_")}-${inv.coveragePeriod}.pdf`;
+    const safeName = inv.groupName.replace(/[^a-z0-9]+/gi, "_");
+    const filename = `Invoice-${inv.invoiceNumberDisplay}-${safeName}-${inv.coveragePeriod}.pdf`;
 
     return new NextResponse(buffer as unknown as BodyInit, {
       status: 200,
@@ -111,7 +157,7 @@ export async function GET(
       },
     });
   } catch (err) {
-    console.error("[group-pdf] PDF generation failed:", err);
+    console.error("[list-bill group-pdf] PDF generation failed:", err);
     return NextResponse.json({ error: "PDF generation failed" }, { status: 500 });
   }
 }

@@ -557,6 +557,12 @@ function GroupDrillDown({
     period !== 'live' ? { period } : 'skip',
   );
   const isLoading = data === undefined;
+  const [wizardOpen, setWizardOpen] = useState(false);
+
+  const isListBill = !isLoading && data!.group.isListBill === true;
+  const defaultPeriod = !isLoading
+    ? (data!.period && /^\d{4}-\d{2}$/.test(data!.period) ? data!.period : new Date().toISOString().slice(0, 7))
+    : new Date().toISOString().slice(0, 7);
 
   return (
     <div className="space-y-6">
@@ -575,17 +581,26 @@ function GroupDrillDown({
           </div>
         </div>
         {!isLoading && (
-          <a
-            href={`/api/admin/invoice-calculator/group-pdf?groupId=${groupId}&period=${encodeURIComponent(period)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 shadow-sm"
+          <button
+            type="button"
+            disabled={!isListBill}
+            onClick={() => setWizardOpen(true)}
+            title={isListBill ? 'Open the invoice wizard' : 'Only employer-paid (list-bill) groups can generate invoices.'}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 shadow-sm disabled:bg-slate-300 disabled:cursor-not-allowed"
           >
             <Download size={14} />
             Generate Invoice
-          </a>
+          </button>
         )}
       </div>
+
+      {wizardOpen && (
+        <GenerateInvoiceWizard
+          groupId={groupId}
+          defaultCoveragePeriod={defaultPeriod}
+          onClose={() => setWizardOpen(false)}
+        />
+      )}
 
       {!isLoading && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1021,5 +1036,187 @@ function ManualClosePanel({ period }: { period: string }) {
         <Lock size={14} /> {submitting ? 'Closing…' : 'Close period now'}
       </button>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Generate Invoice wizard (list-bill groups only)
+// ---------------------------------------------------------------------------
+
+function GenerateInvoiceWizard({
+  groupId,
+  defaultCoveragePeriod,
+  onClose,
+}: {
+  groupId: Id<'groups'>;
+  defaultCoveragePeriod: string;
+  onClose: () => void;
+}) {
+  const generateInvoice = useMutation(api.admin.listBillInvoices.generateInvoice);
+  const applyAdjustment = useMutation(api.admin.listBillInvoices.applyAdjustment);
+  const issueInvoice = useMutation(api.admin.listBillInvoices.issueInvoice);
+  const toast = useToast();
+
+  const today = new Date().toISOString().slice(0, 10);
+  const [coveragePeriod, setCoveragePeriod] = useState(defaultCoveragePeriod);
+  const [billingDateStr, setBillingDateStr] = useState(today);
+  const [adjustmentDollars, setAdjustmentDollars] = useState('');
+  const [adjustmentDirection, setAdjustmentDirection] = useState<'+' | '-'>('-');
+  const [adjustmentNotes, setAdjustmentNotes] = useState('');
+  const [issueImmediately, setIssueImmediately] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!/^\d{4}-\d{2}$/.test(coveragePeriod)) {
+      toast.error('Coverage period must be YYYY-MM.');
+      return;
+    }
+    const adjDollarsNum = adjustmentDollars.trim() === '' ? 0 : Number(adjustmentDollars);
+    if (Number.isNaN(adjDollarsNum) || adjDollarsNum < 0) {
+      toast.error('Adjustment must be a non-negative number.');
+      return;
+    }
+    const adjustmentCents = Math.round(adjDollarsNum * 100) * (adjustmentDirection === '-' ? -1 : 1);
+    if (adjustmentCents !== 0 && !adjustmentNotes.trim()) {
+      toast.error('Notes are required when applying an adjustment.');
+      return;
+    }
+    const billingDateMs = Date.parse(`${billingDateStr}T12:00:00Z`);
+    if (Number.isNaN(billingDateMs)) {
+      toast.error('Invalid billing date.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const { invoiceId, created } = await generateInvoice({
+        groupId,
+        coveragePeriod,
+        billingDate: billingDateMs,
+      });
+      if (adjustmentCents !== 0) {
+        await applyAdjustment({
+          invoiceId,
+          adjustmentCents,
+          notes: adjustmentNotes.trim(),
+        });
+      }
+      if (issueImmediately) {
+        try {
+          await issueInvoice({ invoiceId });
+        } catch (err) {
+          // ignore if already issued
+          console.warn('[wizard] issueInvoice:', err);
+        }
+      }
+      toast.success(created ? 'Invoice created.' : 'Existing draft reused.');
+      window.open(`/api/admin/list-bill-invoices/${invoiceId}/group-pdf`, '_blank');
+      onClose();
+    } catch (err) {
+      console.error('[wizard] failed:', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to generate invoice.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal
+      open
+      onClose={() => { if (!submitting) onClose(); }}
+      title="Generate list-bill invoice"
+      description="Confirm coverage period, billing date, and optional adjustment. Itemized PDF will open in a new tab."
+      size="max-w-lg"
+    >
+      <form onSubmit={submit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <label className="text-sm">
+            <div className="font-medium text-slate-700 mb-1">Coverage period</div>
+            <input
+              type="month"
+              required
+              value={coveragePeriod}
+              onChange={(e) => setCoveragePeriod(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+            />
+          </label>
+          <label className="text-sm">
+            <div className="font-medium text-slate-700 mb-1">Billing date</div>
+            <input
+              type="date"
+              required
+              value={billingDateStr}
+              onChange={(e) => setBillingDateStr(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+            />
+          </label>
+        </div>
+
+        <fieldset className="border border-slate-200 rounded-md p-3 space-y-3">
+          <legend className="text-xs font-semibold text-slate-600 px-1">Adjustment (optional)</legend>
+          <div className="flex items-center gap-2">
+            <select
+              value={adjustmentDirection}
+              onChange={(e) => setAdjustmentDirection(e.target.value as '+' | '-')}
+              className="px-2 py-2 border border-slate-300 rounded-md text-sm"
+            >
+              <option value="-">Credit (−)</option>
+              <option value="+">Charge (+)</option>
+            </select>
+            <div className="relative flex-1">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">$</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                value={adjustmentDollars}
+                onChange={(e) => setAdjustmentDollars(e.target.value)}
+                className="w-full pl-7 pr-3 py-2 border border-slate-300 rounded-md text-sm"
+              />
+            </div>
+          </div>
+          <label className="block text-sm">
+            <div className="text-xs font-medium text-slate-600 mb-1">Adjustment notes (required if amount is nonzero)</div>
+            <textarea
+              rows={2}
+              value={adjustmentNotes}
+              onChange={(e) => setAdjustmentNotes(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+              placeholder="e.g. Retro term credit for member 100-12345"
+            />
+          </label>
+        </fieldset>
+
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={issueImmediately}
+            onChange={(e) => setIssueImmediately(e.target.checked)}
+            className="rounded border-slate-300"
+          />
+          <span>Issue immediately (otherwise saved as draft)</span>
+        </label>
+
+        <div className="flex items-center justify-end gap-2 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+            className="px-3 py-1.5 text-sm border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="px-3 py-1.5 text-sm bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white rounded-md font-medium"
+          >
+            {submitting ? 'Generating…' : 'Generate Invoice'}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
