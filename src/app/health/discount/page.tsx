@@ -1,5 +1,6 @@
 import HealthHeader from "@/components/health/HealthHeader";
 import Link from "next/link";
+import FindDentistEmbed from "@/components/health/FindDentistEmbed";
 
 export const metadata = {
   title: "Dental Discount Network | Ideal Health",
@@ -475,13 +476,7 @@ export default function DentalDiscountNetworkPage() {
                   </li>
                 ))}
               </ul>
-              <Link
-                className="button button--primary"
-                href="/health/plans"
-                style={{ padding: "13px 32px", fontSize: "0.9375rem" }}
-              >
-                Find a Dentist Near You
-              </Link>
+              <FindDentistEmbed />
             </div>
           </div>
         </div>
