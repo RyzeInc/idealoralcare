@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     const userEmail = user.emailAddresses[0].emailAddress;
 
     const body = await req.json();
-    const { planId, cadence, paymentMethod, enrollmentSessionId, brokerCode, groupId, brokerClerkUserId, dependents, referralCode } = body;
+    const { planId, cadence, paymentMethod, enrollmentSessionId, brokerCode, groupId, brokerClerkUserId, dependents, referralCode, siteSlug, successUrl, cancelUrl, additionalPlanIds } = body;
 
     // Validate required fields
     if (!planId || !cadence || !paymentMethod) {
@@ -142,6 +142,35 @@ export async function POST(req: NextRequest) {
       },
     ];
 
+    // Optional additional plans (multi-plan cart, e.g. /newideal flow)
+    const additionalIds: string[] = Array.isArray(additionalPlanIds) ? additionalPlanIds : [];
+    for (const extraPlanId of additionalIds) {
+      try {
+        // @ts-ignore - deep type instantiation
+        const extra = await convex.query(api.catalog.queries.getById, { id: extraPlanId });
+        if (!extra) continue;
+        const exPricing = extra.pricing;
+        const exAmount = cadence === "monthly"
+          ? (paymentMethod === "ach" ? exPricing.monthlyACHCents : exPricing.monthlyCardCents)
+          : (paymentMethod === "ach" ? exPricing.annualACHCents : exPricing.annualCardCents);
+        const exSp = extra.stripeProducts;
+        const exKey = `${cadence === "monthly" ? "monthly" : "annual"}${paymentMethod === "ach" ? "ACH" : "Card"}Id` as keyof typeof exSp;
+        const exProductId = exSp?.[exKey];
+        if (!exAmount || !exProductId) continue;
+        lineItems.push({
+          price_data: {
+            currency: "usd",
+            product: exProductId,
+            unit_amount: exAmount,
+            recurring: { interval: cadence === "monthly" ? "month" : "year", interval_count: 1 },
+          },
+          quantity: 1,
+        });
+      } catch (err) {
+        console.warn("[checkout] Failed to add additional plan", extraPlanId, err);
+      }
+    }
+
     // Family plan is flat-rate — no per-dependent add-on line items.
     // Dependents are collected post-enrollment via the dashboard.
     if (false && dependentList.length > 0) {
@@ -181,12 +210,13 @@ export async function POST(req: NextRequest) {
         brokerClerkUserId: brokerClerkUserId || "",
         groupId: groupId || "",
         referralCode: referralCode || "",
+        siteSlug: siteSlug || "",
         dependentCount: String(dependentList.length),
         // Truncate to 500 chars if needed (Stripe metadata limit per value)
         dependents: dependentsMeta.slice(0, 500),
       },
-      success_url: `${getBaseUrl()}/health/dashboard?session_id={CHECKOUT_SESSION_ID}&status=success`,
-      cancel_url: `${getBaseUrl()}/health/plans`,
+      success_url: successUrl || `${getBaseUrl()}/health/dashboard?session_id={CHECKOUT_SESSION_ID}&status=success`,
+      cancel_url: cancelUrl || `${getBaseUrl()}/health/plans`,
       automatic_tax: { enabled: false },
     });
 

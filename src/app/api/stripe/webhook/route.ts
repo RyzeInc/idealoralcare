@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ received: true });
         }
 
-        const { clerkUserId, enrollmentSessionId, brokerCode, brokerClerkUserId, referralCode } = metadata;
+        const { clerkUserId, enrollmentSessionId, brokerCode, brokerClerkUserId, referralCode, siteSlug } = metadata;
 
         try {
           // Fetch enrollment session to get site/account/group context
@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
               enrollmentSessionDocId = enrollmentSession._id;
             } catch {
               console.warn(`[webhook] Enrollment session not found: ${enrollmentSessionId}. Falling back to DTC hierarchy.`);
-              const hierarchy = await convex.query(api.enrollment.sessions.getDTCHierarchy);
+              const hierarchy = await convex.query(api.enrollment.sessions.getDTCHierarchy, siteSlug ? { siteSlug } : {});
               if (!hierarchy) {
                 throw new Error("No DTC hierarchy found and enrollment session missing — cannot create member");
               }
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
               groupId = hierarchy.groupId;
             }
           } else {
-            const hierarchy = await convex.query(api.enrollment.sessions.getDTCHierarchy);
+            const hierarchy = await convex.query(api.enrollment.sessions.getDTCHierarchy, siteSlug ? { siteSlug } : {});
             if (!hierarchy) {
               throw new Error("No DTC hierarchy found and no enrollmentSessionId — cannot create member");
             }

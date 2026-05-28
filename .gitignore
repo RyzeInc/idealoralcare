@@ -27,3 +27,6 @@ pnpm-debug.log*
 
 # macOS
 .DS_Store
+# Large media that exceeds GitHub size limits
+Notes/GIH Notes/idealassets/Videos/
+*.mp4

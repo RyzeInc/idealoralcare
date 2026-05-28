@@ -388,13 +388,16 @@ export const getEnrollmentSession = query({
 /**
  * Get the default DTC (direct-to-consumer) site/account/group hierarchy.
  * Used by the Stripe sync reconciliation to assign orphaned subscriptions.
+ * Accepts an optional siteSlug to support multi-site DTC flows (e.g. "newideal").
  */
 export const getDTCHierarchy = query({
-  handler: async (ctx: QueryCtx) => {
-    // Find the default DTC site by slug
+  args: { siteSlug: v.optional(v.string()) },
+  handler: async (ctx: QueryCtx, args: { siteSlug?: string }) => {
+    const slug = args.siteSlug || "ideal-health";
+    // Find the DTC site by slug
     const site = await ctx.db
       .query("sites")
-      .filter((q) => q.eq(q.field("slug"), "ideal-health"))
+      .filter((q) => q.eq(q.field("slug"), slug))
       .first();
 
     if (!site) return null;
