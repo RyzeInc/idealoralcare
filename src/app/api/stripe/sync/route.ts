@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
     };
 
     // Get the default DTC site/account/group for orphaned subscriptions
-    const hierarchy = await convex.query(api.enrollment.sessions.getDTCHierarchy);
+    const hierarchy = await convex.query(api.enrollment.sessions.getDTCHierarchy, {});
 
     for (const sub of subscriptions) {
       try {
