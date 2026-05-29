@@ -1,7 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import { CheckCircle2 } from "lucide-react";
-import "@/app/health/health.css";
 
 export const metadata = {
   title: "Welcome | New Ideal Health",

@@ -19,7 +19,7 @@ import {
 } from "@/components/newideal/NewIdealChrome";
 
 export const metadata: Metadata = {
-  title: "Essentials Plan — New Ideal Health",
+  title: "Essentials Plan — Ideal Health",
   description:
     "The Essentials Plan bundles Lyric Telehealth, QuestSelect labs, RxValet pharmacy savings, and Balance for Life mental wellness into one affordable monthly membership.",
 };
@@ -28,7 +28,9 @@ const PROGRAMS = [
   {
     name: "Lyric Telehealth",
     icon: <Stethoscope size={24} />,
+    image: "/newideal/site-files/virtual-medicine.png",
     color: "#0f766e",
+    gradient: "linear-gradient(135deg, #0f766e 0%, #14b8a6 100%)",
     desc:
       "Three ways to see a doctor online — Virtual Urgent Care, Virtual Primary Care, and Virtual Dermatology. 24/7/365 access from your phone, tablet, or computer.",
     bullets: [
@@ -42,7 +44,9 @@ const PROGRAMS = [
   {
     name: "QuestSelect Labs",
     icon: <FlaskConical size={24} />,
+    image: "/newideal/site-files/lab-services.png",
     color: "#0066CC",
+    gradient: "linear-gradient(135deg, #0066CC 0%, #3b82f6 100%)",
     desc:
       "Transparent, pre-negotiated lab pricing through Quest Diagnostics — the country's largest network of patient service centers.",
     bullets: [
@@ -56,7 +60,9 @@ const PROGRAMS = [
   {
     name: "RxValet Pharmacy",
     icon: <Pill size={24} />,
+    image: "/newideal/site-files/pharmacy-pic.png",
     color: "#7c3aed",
+    gradient: "linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)",
     desc:
       "A discount prescription program that often beats your insurance copay. Show your RxValet info at the pharmacy counter — no claims to file.",
     bullets: [
@@ -73,7 +79,9 @@ const PROGRAMS = [
   {
     name: "Balance for Life",
     icon: <Brain size={24} />,
-    color: "#14b8a6",
+    image: "/newideal/site-files/mental-health-pic.png",
+    color: "#db2777",
+    gradient: "linear-gradient(135deg, #db2777 0%, #f43f5e 100%)",
     desc:
       "A comprehensive behavioral health and mental wellness ecosystem — short-term counseling, 24/7 live support, an AI wellness companion, and inpatient/outpatient referrals.",
     bullets: [
@@ -93,131 +101,321 @@ const PROGRAMS = [
 
 export default function EssentialsPage() {
   return (
-    <div className="health-landing">
+    <div className="health-landing" style={{ background: "#f1f5f9" }}>
       <NewIdealHeader />
 
-      {/* Hero */}
+      {/* ── HERO ── */}
       <section
-        className="section bg--blue"
-        style={{ paddingTop: "4rem", paddingBottom: "3rem" }}
+        style={{
+          position: "relative",
+          background: "linear-gradient(150deg, #0c4a6e 0%, #0369a1 55%, #0e7490 100%)",
+          padding: "80px 0 60px",
+          overflow: "hidden",
+        }}
       >
-        <div className="container" style={{ maxWidth: 820 }}>
+        {/* Background image overlay */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage: "url('/newideal/site-files/happy-family.png')",
+            backgroundSize: "cover",
+            backgroundPosition: "center 30%",
+            opacity: 0.18,
+          }}
+        />
+        {/* Decorative glow */}
+        <div
+          style={{
+            position: "absolute",
+            top: "-15%",
+            right: "-5%",
+            width: 500,
+            height: 500,
+            background: "radial-gradient(circle, rgba(20,184,166,0.2) 0%, transparent 70%)",
+            pointerEvents: "none",
+          }}
+        />
+
+        <div className="container" style={{ position: "relative", maxWidth: 820 }}>
           <Link
             href="/newideal"
             style={{
-              color: "var(--primary-blue)",
+              color: "rgba(255,255,255,0.8)",
               fontSize: "0.875rem",
               textDecoration: "none",
+              display: "inline-block",
+              marginBottom: 24,
             }}
           >
             ← Back to Overview
           </Link>
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "6px 14px",
-              background: "rgba(0,102,204,0.1)",
-              color: "var(--primary-blue)",
-              borderRadius: 999,
-              fontSize: "0.8125rem",
-              fontWeight: 600,
-              marginTop: 20,
-              marginBottom: 18,
-            }}
-          >
-            <Heart size={14} /> ESSENTIALS PLAN
-          </div>
+
           <h1
             style={{
-              fontSize: "clamp(1.875rem, 4vw, 2.75rem)",
-              fontWeight: 700,
-              color: "#0f172a",
-              lineHeight: 1.15,
-              marginBottom: 16,
+              fontSize: "clamp(2.25rem, 5vw, 3.5rem)",
+              fontWeight: 800,
+              color: "#ffffff",
+              lineHeight: 1.1,
+              marginBottom: 20,
+              letterSpacing: "-0.02em",
             }}
           >
-            Everyday care for everyday life
+            Essentials Plan
           </h1>
+
           <p
             style={{
-              fontSize: "1.125rem",
-              color: "var(--text-secondary)",
-              lineHeight: 1.6,
-              marginBottom: 28,
+              fontSize: "1.1875rem",
+              color: "rgba(255,255,255,0.85)",
+              lineHeight: 1.65,
+              marginBottom: 0,
+              maxWidth: 600,
             }}
           >
-            One membership bundles four essential healthcare programs: 24/7
-            telehealth, deeply discounted prescriptions, transparent lab
-            pricing, and a complete mental wellness suite. Built for
-            individuals and families who want real access without insurance
-            complexity.
+            Four powerful programs in one membership: telehealth, labs, pharmacy
+            savings, and mental wellness support — all at your fingertips.
           </p>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <Link
-              href="/newideal/plans"
-              className="button button--primary"
+        </div>
+      </section>
+
+      {/* ── PROGRAMS GRID ── */}
+      <section style={{ padding: "80px 0" }}>
+        <div className="container">
+          <div style={{ marginBottom: 60 }}>
+            <h2
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "12px 24px",
+                fontSize: "clamp(1.75rem, 3vw, 2.5rem)",
+                fontWeight: 800,
+                color: "#0f172a",
+                marginBottom: 12,
+                letterSpacing: "-0.02em",
               }}
             >
-              See Pricing & Enroll <ArrowRight size={16} />
-            </Link>
-            <Link
-              href="/newideal/oralcare"
-              style={{
-                background: "white",
-                color: "var(--primary-blue)",
-                border: "1.5px solid var(--primary-blue)",
-                padding: "12px 22px",
-                borderRadius: "var(--radius-md)",
-                fontWeight: 600,
-                textDecoration: "none",
-              }}
-            >
-              Explore Oral Care
-            </Link>
+              What's included
+            </h2>
+            <p style={{ color: "#475569", fontSize: "1.0625rem", margin: 0, lineHeight: 1.65 }}>
+              Each program is designed to cover a critical pillar of your healthcare.
+            </p>
           </div>
 
-          {/* Quick stats */}
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-              gap: 16,
-              marginTop: 36,
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+              gap: 28,
+            }}
+          >
+            {PROGRAMS.map((prog) => (
+              <div
+                key={prog.name}
+                style={{
+                  background: "white",
+                  borderRadius: 20,
+                  overflow: "hidden",
+                  boxShadow: "0 4px 24px rgba(0,0,0,0.09)",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                {/* Photo header with gradient overlay */}
+                <div
+                  style={{
+                    position: "relative",
+                    height: 160,
+                    backgroundImage: `url('${prog.image}')`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      background: prog.gradient,
+                      opacity: 0.78,
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "relative",
+                      padding: "24px 28px",
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "flex-end",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 12,
+                        background: "rgba(255,255,255,0.18)",
+                        backdropFilter: "blur(6px)",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "white",
+                        marginBottom: 12,
+                      }}
+                    >
+                      {prog.icon}
+                    </div>
+                    <h3
+                      style={{
+                        color: "white",
+                        fontSize: "1.3125rem",
+                        fontWeight: 700,
+                        margin: 0,
+                        letterSpacing: "-0.01em",
+                        textShadow: "0 2px 8px rgba(0,0,0,0.25)",
+                      }}
+                    >
+                      {prog.name}
+                    </h3>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div style={{ padding: "24px 28px 28px", flex: 1, display: "flex", flexDirection: "column" }}>
+                  <p
+                    style={{
+                      color: "#475569",
+                      fontSize: "0.9375rem",
+                      lineHeight: 1.6,
+                      marginBottom: 20,
+                    }}
+                  >
+                    {prog.desc}
+                  </p>
+
+                  <ul
+                    style={{
+                      listStyle: "none",
+                      padding: 0,
+                      margin: "0 0 24px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 10,
+                    }}
+                  >
+                    {prog.bullets.map((bullet) => (
+                      <li
+                        key={bullet}
+                        style={{
+                          display: "flex",
+                          gap: 10,
+                          alignItems: "flex-start",
+                          fontSize: "0.875rem",
+                          color: "#334155",
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        <Check size={16} style={{ color: prog.color, marginTop: 2, flexShrink: 0 }} />
+                        {bullet}
+                      </li>
+                    ))}
+                  </ul>
+
+                  {/* Contact info */}
+                  <div
+                    style={{
+                      marginTop: "auto",
+                      paddingTop: 20,
+                      borderTop: "1px solid #e2e8f0",
+                      fontSize: "0.8125rem",
+                      color: "#64748b",
+                    }}
+                  >
+                    {prog.contact.phone && (
+                      <div style={{ marginBottom: 6, display: "flex", gap: 6, alignItems: "center" }}>
+                        <Phone size={13} />
+                        <span>
+                          <strong>{prog.contact.phone}</strong>
+                        </span>
+                      </div>
+                    )}
+                    {prog.contact.website && (
+                      <div style={{ marginBottom: 6, display: "flex", gap: 6, alignItems: "center" }}>
+                        <Globe size={13} />
+                        <span>{prog.contact.website}</span>
+                      </div>
+                    )}
+                    {prog.contact.detail && (
+                      <div style={{ color: "#94a3b8", marginTop: 8 }}>{prog.contact.detail}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── LIFESTYLE BAND ── */}
+      <section
+        style={{
+          position: "relative",
+          padding: "0",
+          background: "#0c4a6e",
+        }}
+      >
+        <div
+          style={{
+            position: "relative",
+            minHeight: 320,
+            backgroundImage: "url('/newideal/site-files/multi-demographic.png')",
+            backgroundSize: "cover",
+            backgroundPosition: "center 35%",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background:
+                "linear-gradient(135deg, rgba(12,74,110,0.92) 0%, rgba(13,148,136,0.78) 100%)",
+            }}
+          />
+          <div
+            className="container"
+            style={{
+              position: "relative",
+              padding: "72px 0",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              gap: 28,
+              maxWidth: 1100,
             }}
           >
             {[
-              { stat: "24/7", label: "Telehealth access" },
-              { stat: "70%", label: "Of illnesses treated virtually" },
-              { stat: "72hr", label: "Dermatology response" },
-              { stat: "10", label: "No-cost counseling visits" },
+              { stat: "24/7", label: "Telehealth access for the whole family" },
+              { stat: "100K+", label: "Pharmacies accepting RxValet savings" },
+              { stat: "$0", label: "Claim forms — show your card and save" },
+              { stat: "10", label: "Free counseling sessions per year" },
             ].map((s) => (
-              <div
-                key={s.label}
-                style={{
-                  background: "white",
-                  borderRadius: 12,
-                  padding: 16,
-                  textAlign: "center",
-                  border: "1px solid rgba(0,0,0,0.05)",
-                }}
-              >
+              <div key={s.label} style={{ textAlign: "center" }}>
                 <div
                   style={{
-                    fontSize: "1.75rem",
-                    fontWeight: 700,
-                    color: "var(--primary-blue)",
+                    fontSize: "clamp(2rem, 4vw, 2.875rem)",
+                    fontWeight: 800,
+                    color: "white",
+                    lineHeight: 1,
+                    marginBottom: 10,
+                    letterSpacing: "-0.02em",
                   }}
                 >
                   {s.stat}
                 </div>
-                <div style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>
+                <div
+                  style={{
+                    color: "rgba(255,255,255,0.88)",
+                    fontSize: "0.9375rem",
+                    lineHeight: 1.5,
+                  }}
+                >
                   {s.label}
                 </div>
               </div>
@@ -226,212 +424,47 @@ export default function EssentialsPage() {
         </div>
       </section>
 
-      {/* Programs detail */}
-      <section
-        className="section bg--white"
-        style={{ paddingTop: "4rem", paddingBottom: "4rem" }}
-      >
-        <div className="container">
-          <div style={{ textAlign: "center", marginBottom: 40 }}>
-            <h2 style={{ fontSize: "1.75rem", fontWeight: 700, color: "#0f172a", margin: "0 0 8px" }}>
-              What&apos;s in the Essentials Plan
-            </h2>
-            <p style={{ color: "var(--text-secondary)", margin: 0 }}>
-              Four integrated programs, one monthly membership.
-            </p>
-          </div>
-
-          <div style={{ display: "grid", gap: 20 }}>
-            {PROGRAMS.map((p) => (
-              <div
-                key={p.name}
-                className="glass-card"
-                style={{ padding: 28 }}
-              >
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "auto 1fr",
-                    gap: 20,
-                    alignItems: "start",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 60,
-                      height: 60,
-                      borderRadius: 14,
-                      background: `${p.color}15`,
-                      color: p.color,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {p.icon}
-                  </div>
-                  <div>
-                    <h3 style={{ margin: "0 0 8px 0", color: "#0f172a" }}>{p.name}</h3>
-                    <p
-                      style={{
-                        color: "var(--text-secondary)",
-                        margin: "0 0 16px 0",
-                        lineHeight: 1.6,
-                      }}
-                    >
-                      {p.desc}
-                    </p>
-                    <ul
-                      style={{
-                        listStyle: "none",
-                        padding: 0,
-                        margin: 0,
-                        display: "grid",
-                        gap: 8,
-                      }}
-                    >
-                      {p.bullets.map((b) => (
-                        <li
-                          key={b}
-                          style={{
-                            display: "flex",
-                            alignItems: "flex-start",
-                            gap: 10,
-                            fontSize: "0.9375rem",
-                            color: "#334155",
-                          }}
-                        >
-                          <Check size={16} style={{ color: p.color, marginTop: 3, flexShrink: 0 }} />
-                          <span>{b}</span>
-                        </li>
-                      ))}
-                    </ul>
-
-                    <div
-                      style={{
-                        marginTop: 18,
-                        padding: 14,
-                        background: "rgba(0,0,0,0.02)",
-                        borderRadius: 8,
-                        display: "flex",
-                        gap: 18,
-                        flexWrap: "wrap",
-                        fontSize: "0.875rem",
-                        color: "var(--text-secondary)",
-                      }}
-                    >
-                      {p.contact.phone && (
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                          <Phone size={14} /> {p.contact.phone}
-                        </span>
-                      )}
-                      {p.contact.website && (
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                          <Globe size={14} /> {p.contact.website}
-                        </span>
-                      )}
-                      {p.contact.detail && (
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                          <Smartphone size={14} /> {p.contact.detail}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* How it works */}
-      <section
-        className="section bg--blue"
-        style={{ paddingTop: "3.5rem", paddingBottom: "3.5rem" }}
-      >
-        <div className="container" style={{ maxWidth: 880 }}>
+      {/* ── CTA ── */}
+      <section style={{ background: "linear-gradient(135deg, #0c4a6e 0%, #134e4a 100%)", padding: "72px 0" }}>
+        <div className="container" style={{ textAlign: "center", maxWidth: 640 }}>
           <h2
             style={{
-              fontSize: "1.75rem",
-              fontWeight: 700,
-              color: "#0f172a",
-              textAlign: "center",
-              marginBottom: 32,
+              fontSize: "clamp(1.875rem, 3.5vw, 2.625rem)",
+              fontWeight: 800,
+              color: "white",
+              marginBottom: 14,
+              letterSpacing: "-0.02em",
             }}
           >
-            How it works
+            Ready to get started?
           </h2>
-          <div
+          <p
             style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: 18,
+              color: "rgba(255,255,255,0.8)",
+              fontSize: "1.0625rem",
+              marginBottom: 32,
+              lineHeight: 1.7,
             }}
           >
-            {[
-              { n: 1, t: "Enroll online", d: "Pick your tier (Employee, +Spouse, +Child, or Family) and check out in under 5 minutes." },
-              { n: 2, t: "Receive your member info", d: "We assign your Member ID and email your card so you can use all four programs immediately." },
-              { n: 3, t: "Use anytime, anywhere", d: "Call, tap, or click — Lyric, QuestSelect, RxValet, and Balance for Life are available 24/7." },
-            ].map((s) => (
-              <div
-                key={s.n}
-                style={{
-                  background: "white",
-                  borderRadius: 12,
-                  padding: 22,
-                  border: "1px solid rgba(0,0,0,0.05)",
-                }}
-              >
-                <div
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: "50%",
-                    background: "linear-gradient(135deg, var(--primary-blue), var(--accent-teal))",
-                    color: "white",
-                    fontWeight: 700,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginBottom: 12,
-                  }}
-                >
-                  {s.n}
-                </div>
-                <h3 style={{ fontSize: "1rem", margin: "0 0 6px", color: "#0f172a" }}>{s.t}</h3>
-                <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)", margin: 0, lineHeight: 1.5 }}>
-                  {s.d}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="section bg--white" style={{ paddingTop: "3.5rem", paddingBottom: "5rem" }}>
-        <div className="container" style={{ textAlign: "center", maxWidth: 640 }}>
-          <Clock size={36} style={{ color: "var(--accent-teal)", marginBottom: 12 }} />
-          <h2 style={{ fontSize: "1.75rem", fontWeight: 700, color: "#0f172a", marginBottom: 10 }}>
-            Coverage starts the day after you enroll
-          </h2>
-          <p style={{ color: "var(--text-secondary)", marginBottom: 24, fontSize: "1.0625rem" }}>
-            From <strong>$57.95/mo</strong> for an individual. Spouse, child,
-            and family tiers available.
+            The Essentials Plan is your all-in-one healthcare foundation.
           </p>
           <Link
             href="/newideal/plans"
-            className="button button--primary"
             style={{
               display: "inline-flex",
               alignItems: "center",
               gap: 8,
-              padding: "14px 28px",
-              fontSize: "1rem",
+              background: "#f97316",
+              color: "white",
+              padding: "16px 34px",
+              borderRadius: 12,
+              fontWeight: 700,
+              fontSize: "1.0625rem",
+              textDecoration: "none",
+              boxShadow: "0 4px 18px rgba(249,115,22,0.42)",
             }}
           >
-            See Plans & Enroll <ArrowRight size={18} />
+            Choose Your Tier <ArrowRight size={18} />
           </Link>
         </div>
       </section>

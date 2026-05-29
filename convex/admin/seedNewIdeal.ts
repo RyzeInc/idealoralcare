@@ -22,10 +22,21 @@ const ESSENTIALS_TIERS = [
 ];
 
 const ESSENTIALS_INCLUSIONS = [
-  "Telehealth (Lyric) — 24/7 virtual care",
-  "Pharmacy savings (RxValet)",
-  "Laboratory services (QuestSelect)",
-  "Mental wellness coaching (Balance for Life)",
+  "Lyric Telehealth — Virtual Urgent Care (24/7), Virtual Primary Care & Virtual Dermatology",
+  "RxValet Prescription Savings — Use Rx Group GIH1000 at any major pharmacy",
+  "QuestSelect Lab Services — Discounted lab testing at Quest locations nationwide",
+  "Balance for Life — Behavioral health, mindfulness & substance disorder support",
+];
+
+const ORALCARE_TIERS = [
+  { suffix: "employee", label: "Employee", cents: 1499 },
+  { suffix: "employee-family", label: "Employee + Family", cents: 2499 },
+];
+
+const ORALCARE_INCLUSIONS = [
+  "Dental Savings — 20\u201360% off dental procedures at 100,000+ participating dentists nationwide",
+  "Vision Discounts — Savings on eye exams, glasses frames, lenses, and contacts at major optical providers",
+  "Hearing Care — Discounts on hearing exams and hearing aid devices",
 ];
 
 export const seedNewIdeal = mutation({
@@ -43,6 +54,15 @@ export const seedNewIdeal = mutation({
         .first();
       if (existing) {
         productIds[doc.slug] = existing._id;
+        // Keep pricing, inclusions, description and visibility in sync on every seed run
+        await ctx.db.patch(existing._id, {
+          inclusions: doc.inclusions,
+          description: doc.description,
+          pricing: doc.pricing,
+          isVisible: doc.isVisible,
+          name: doc.name,
+          updatedAt: doc.updatedAt,
+        });
         return;
       }
       productIds[doc.slug] = await ctx.db.insert("catalogProducts", doc);
@@ -76,6 +96,46 @@ export const seedNewIdeal = mutation({
         createdAt: now,
         updatedAt: now,
       });
+    }
+
+    for (const tier of ORALCARE_TIERS) {
+      await insertProductIfMissing({
+        slug: `oralcare-${tier.suffix}`,
+        name: `Oral Care — ${tier.label}`,
+        category: "newideal",
+        description: `Ideal Health Oral Care add-on for ${tier.label}. Dental, vision & hearing discounts.`,
+        inclusions: ORALCARE_INCLUSIONS,
+        exclusions: ["Not insurance", "Not a substitute for dental insurance"],
+        eligibilityRules: {
+          requiresVerification: false,
+          disclosureText:
+            "This is a discount membership and is NOT insurance. Savings vary by provider and location.",
+        },
+        activationBehavior: "immediate" as const,
+        pricing: {
+          monthlyCardCents: tier.cents,
+          monthlyACHCents: tier.cents,
+          annualCardCents: tier.cents * 12,
+          annualACHCents: tier.cents * 12,
+        },
+        metadata: { icon: "Smile", bestFor: [tier.label], color: "teal" },
+        isVisible: true,
+        isFeatured: false,
+        order: order++,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    // ── Cleanup: delete any oralcare products not in the current tier list ──
+    const validOralCareSlugs = new Set(ORALCARE_TIERS.map((t) => `oralcare-${t.suffix}`));
+    const allNewidealProducts = await ctx.db
+      .query("catalogProducts")
+      .collect();
+    for (const p of allNewidealProducts) {
+      if (p.slug?.startsWith("oralcare-") && !validOralCareSlugs.has(p.slug)) {
+        await ctx.db.delete(p._id);
+      }
     }
 
     // ── 2. Site ──
@@ -119,6 +179,12 @@ export const seedNewIdeal = mutation({
     }
 
     if (!site) throw new Error("Failed to create newideal site");
+
+    // Ensure allowedPlanIds includes all current products (essentials + oral care)
+    await ctx.db.patch(site._id, {
+      allowedPlanIds: Object.values(productIds),
+      updatedAt: now,
+    });
 
     // ── 3. Account ──
     let account = await ctx.db

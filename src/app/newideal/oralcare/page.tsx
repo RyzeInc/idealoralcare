@@ -17,99 +17,108 @@ import {
 } from "@/components/newideal/NewIdealChrome";
 
 export const metadata: Metadata = {
-  title: "Oral Care — New Ideal Health",
+  title: "Oral Care — Ideal Health",
   description:
     "The Ideal Oral Care discount network gives members access to savings on dental cleanings, fillings, vision exams, eyewear, and hearing aids — at thousands of providers nationwide.",
 };
 
 export default function OralCarePage() {
   return (
-    <div className="health-landing">
+    <div className="health-landing" style={{ background: "#f1f5f9" }}>
       <NewIdealHeader />
 
-      {/* Hero */}
+      {/* ── HERO ── */}
       <section
-        className="section bg--blue"
-        style={{ paddingTop: "4rem", paddingBottom: "3rem" }}
+        style={{
+          position: "relative",
+          background: "linear-gradient(150deg, #0c4a6e 0%, #0369a1 55%, #0e7490 100%)",
+          padding: "80px 0 60px",
+          overflow: "hidden",
+        }}
       >
-        <div className="container" style={{ maxWidth: 820 }}>
+        {/* Background image overlay */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage: "url('/newideal/site-files/lady-glasses.png')",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            opacity: 0.18,
+          }}
+        />
+        {/* Decorative glow */}
+        <div
+          style={{
+            position: "absolute",
+            top: "-10%",
+            left: "-10%",
+            width: 500,
+            height: 500,
+            background: "radial-gradient(circle, rgba(20,184,166,0.22) 0%, transparent 70%)",
+            pointerEvents: "none",
+          }}
+        />
+
+        <div className="container" style={{ position: "relative", maxWidth: 820 }}>
           <Link
             href="/newideal"
             style={{
-              color: "var(--primary-blue)",
+              color: "rgba(255,255,255,0.8)",
               fontSize: "0.875rem",
               textDecoration: "none",
+              display: "inline-block",
+              marginBottom: 24,
             }}
           >
             ← Back to Overview
           </Link>
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "6px 14px",
-              background: "rgba(14,165,233,0.1)",
-              color: "#0ea5e9",
-              borderRadius: 999,
-              fontSize: "0.8125rem",
-              fontWeight: 600,
-              marginTop: 20,
-              marginBottom: 18,
-            }}
-          >
-            <Smile size={14} /> ORAL CARE
-          </div>
+
           <h1
             style={{
-              fontSize: "clamp(1.875rem, 4vw, 2.75rem)",
-              fontWeight: 700,
-              color: "#0f172a",
-              lineHeight: 1.15,
-              marginBottom: 16,
+              fontSize: "clamp(2.25rem, 5vw, 3.5rem)",
+              fontWeight: 800,
+              color: "#ffffff",
+              lineHeight: 1.1,
+              marginBottom: 20,
+              letterSpacing: "-0.02em",
             }}
           >
-            Save on dental, vision, and hearing — for the whole family
+            Oral Care
           </h1>
+
           <p
             style={{
-              fontSize: "1.125rem",
-              color: "var(--text-secondary)",
-              lineHeight: 1.6,
-              marginBottom: 28,
+              fontSize: "1.1875rem",
+              color: "rgba(255,255,255,0.85)",
+              lineHeight: 1.65,
+              marginBottom: 0,
+              maxWidth: 600,
             }}
           >
-            The Ideal Oral Care discount network connects you with thousands
-            of dentists, optometrists, and hearing specialists nationwide —
-            with negotiated savings on routine care, eyewear, and more.
-            No claim forms, no waiting periods, no annual caps.
+            Save on dental, vision, and hearing — with access to thousands of
+            providers nationwide. No claim forms, no waiting periods.
           </p>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <Link
-              href="/newideal/plans"
-              className="button button--primary"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "12px 24px",
-              }}
-            >
-              See Pricing & Enroll <ArrowRight size={16} />
-            </Link>
-          </div>
         </div>
       </section>
 
-      {/* What's covered */}
-      <section className="section bg--white" style={{ paddingTop: "4rem", paddingBottom: "3rem" }}>
+      {/* ── WHAT'S COVERED ── */}
+      <section style={{ padding: "80px 0" }}>
         <div className="container">
-          <div style={{ textAlign: "center", marginBottom: 36, maxWidth: 700, margin: "0 auto 36px" }}>
-            <h2 style={{ fontSize: "1.75rem", fontWeight: 700, color: "#0f172a", margin: "0 0 8px" }}>
-              What&apos;s included
+          <div style={{ marginBottom: 60, textAlign: "center", maxWidth: 700, margin: "0 auto 60px" }}>
+            <h2
+              style={{
+                fontSize: "clamp(1.75rem, 3vw, 2.5rem)",
+                fontWeight: 800,
+                color: "#0f172a",
+                marginBottom: 12,
+                letterSpacing: "-0.02em",
+              }}
+            >
+              Three benefit categories
             </h2>
-            <p style={{ color: "var(--text-secondary)", margin: 0, fontSize: "1.0625rem" }}>
-              Three benefit categories, one membership.
+            <p style={{ color: "#475569", fontSize: "1.0625rem", margin: 0, lineHeight: 1.65 }}>
+              One membership. Complete coverage.
             </p>
           </div>
 
@@ -117,13 +126,15 @@ export default function OralCarePage() {
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-              gap: 22,
+              gap: 28,
             }}
           >
             {[
               {
                 icon: <Smile size={28} />,
-                color: "#0ea5e9",
+                color: "#0284c7",
+                gradient: "linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%)",
+                image: "/newideal/site-files/pinky-swear.png",
                 title: "Dental Savings",
                 desc: "Access negotiated rates at 100,000+ dental providers nationwide.",
                 items: [
@@ -135,7 +146,9 @@ export default function OralCarePage() {
               },
               {
                 icon: <Eye size={28} />,
-                color: "#14b8a6",
+                color: "#0d9488",
+                gradient: "linear-gradient(135deg, #0d9488 0%, #14b8a6 100%)",
+                image: "/newideal/site-files/lady-glasses.png",
                 title: "Vision Savings",
                 desc: "Eye exams, prescription eyewear, and contacts at network providers.",
                 items: [
@@ -148,6 +161,8 @@ export default function OralCarePage() {
               {
                 icon: <Ear size={28} />,
                 color: "#7c3aed",
+                gradient: "linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)",
+                image: "/newideal/site-files/care-workers.png",
                 title: "Hearing Savings",
                 desc: "Hearing exams, devices, and ongoing care discounts.",
                 items: [
@@ -160,70 +175,144 @@ export default function OralCarePage() {
             ].map((c) => (
               <div
                 key={c.title}
-                className="glass-card"
-                style={{ padding: 26, display: "flex", flexDirection: "column", gap: 14 }}
+                style={{
+                  background: "white",
+                  borderRadius: 20,
+                  overflow: "hidden",
+                  boxShadow: "0 4px 24px rgba(0,0,0,0.09)",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
               >
+                {/* Photo header with gradient overlay */}
                 <div
                   style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: 14,
-                    background: `linear-gradient(135deg, ${c.color}, ${c.color}cc)`,
-                    color: "white",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
+                    position: "relative",
+                    height: 180,
+                    backgroundImage: `url('${c.image}')`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    overflow: "hidden",
                   }}
                 >
-                  {c.icon}
-                </div>
-                <h3 style={{ margin: 0, color: "#0f172a" }}>{c.title}</h3>
-                <p style={{ color: "var(--text-secondary)", margin: 0, fontSize: "0.9375rem", lineHeight: 1.55 }}>
-                  {c.desc}
-                </p>
-                <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 7 }}>
-                  {c.items.map((it) => (
-                    <li
-                      key={it}
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      background: c.gradient,
+                      opacity: 0.78,
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "relative",
+                      padding: "24px 28px",
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "flex-end",
+                    }}
+                  >
+                    <div
                       style={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        gap: 8,
-                        fontSize: "0.875rem",
-                        color: "#334155",
+                        width: 48,
+                        height: 48,
+                        borderRadius: 12,
+                        background: "rgba(255,255,255,0.18)",
+                        backdropFilter: "blur(6px)",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "white",
+                        marginBottom: 12,
                       }}
                     >
-                      <Check size={14} style={{ color: c.color, marginTop: 3, flexShrink: 0 }} />
-                      <span>{it}</span>
-                    </li>
-                  ))}
-                </ul>
+                      {c.icon}
+                    </div>
+                    <h3
+                      style={{
+                        color: "white",
+                        fontSize: "1.3125rem",
+                        fontWeight: 700,
+                        margin: "0 0 6px",
+                        letterSpacing: "-0.01em",
+                        textShadow: "0 2px 8px rgba(0,0,0,0.25)",
+                      }}
+                    >
+                      {c.title}
+                    </h3>
+                    <p
+                      style={{
+                        color: "rgba(255,255,255,0.92)",
+                        fontSize: "0.9rem",
+                        margin: 0,
+                        lineHeight: 1.4,
+                        textShadow: "0 1px 4px rgba(0,0,0,0.25)",
+                      }}
+                    >
+                      {c.desc}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div style={{ padding: "24px 28px" }}>
+                  <ul
+                    style={{
+                      listStyle: "none",
+                      padding: 0,
+                      margin: 0,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 10,
+                    }}
+                  >
+                    {c.items.map((it) => (
+                      <li
+                        key={it}
+                        style={{
+                          display: "flex",
+                          gap: 10,
+                          alignItems: "flex-start",
+                          fontSize: "0.875rem",
+                          color: "#334155",
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        <Check size={16} style={{ color: c.color, marginTop: 2, flexShrink: 0 }} />
+                        {it}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Why members love it */}
-      <section className="section bg--blue" style={{ paddingTop: "3.5rem", paddingBottom: "3.5rem" }}>
-        <div className="container" style={{ maxWidth: 880 }}>
-          <h2
-            style={{
-              fontSize: "1.75rem",
-              fontWeight: 700,
-              color: "#0f172a",
-              textAlign: "center",
-              marginBottom: 32,
-            }}
-          >
-            Why members choose Oral Care
-          </h2>
+      {/* ── WHY MEMBERS LOVE IT ── */}
+      <section style={{ background: "#f1f5f9", padding: "72px 0" }}>
+        <div className="container">
+          <div style={{ textAlign: "center", marginBottom: 52 }}>
+            <h2
+              style={{
+                fontSize: "clamp(1.75rem, 3vw, 2.5rem)",
+                fontWeight: 800,
+                color: "#0f172a",
+                marginBottom: 12,
+                letterSpacing: "-0.02em",
+              }}
+            >
+              Why members choose Oral Care
+            </h2>
+          </div>
 
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: 18,
+              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+              gap: 20,
             }}
           >
             {[
@@ -235,7 +324,7 @@ export default function OralCarePage() {
               {
                 icon: <ShieldCheck size={22} />,
                 title: "No annual caps",
-                desc: "Save on every visit — there&apos;s no max benefit to hit.",
+                desc: "Save on every visit — there's no max benefit to hit.",
               },
               {
                 icon: <Sparkles size={22} />,
@@ -252,28 +341,44 @@ export default function OralCarePage() {
                 key={b.title}
                 style={{
                   background: "white",
-                  borderRadius: 12,
-                  padding: 22,
-                  border: "1px solid rgba(0,0,0,0.05)",
+                  borderRadius: 16,
+                  padding: 24,
+                  boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
                 }}
               >
                 <div
                   style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 10,
-                    background: "rgba(14,165,233,0.12)",
-                    color: "#0ea5e9",
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    background: "rgba(20,184,166,0.15)",
+                    color: "#0d9488",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    marginBottom: 12,
+                    marginBottom: 14,
                   }}
                 >
                   {b.icon}
                 </div>
-                <h3 style={{ fontSize: "1rem", margin: "0 0 6px", color: "#0f172a" }}>{b.title}</h3>
-                <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)", margin: 0, lineHeight: 1.55 }}>
+                <h3
+                  style={{
+                    fontSize: "1rem",
+                    fontWeight: 700,
+                    margin: "0 0 8px",
+                    color: "#0f172a",
+                  }}
+                >
+                  {b.title}
+                </h3>
+                <p
+                  style={{
+                    fontSize: "0.875rem",
+                    color: "#475569",
+                    margin: 0,
+                    lineHeight: 1.55,
+                  }}
+                >
                   {b.desc}
                 </p>
               </div>
@@ -282,27 +387,114 @@ export default function OralCarePage() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="section bg--white" style={{ paddingTop: "3.5rem", paddingBottom: "5rem" }}>
+      {/* ── LIFESTYLE SPLIT BAND ── */}
+      <section style={{ padding: "0", background: "white" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+            minHeight: 360,
+          }}
+        >
+          <div
+            style={{
+              backgroundImage: "url('/newideal/site-files/happy-family.png')",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              minHeight: 320,
+            }}
+          />
+          <div
+            style={{
+              padding: "60px 48px",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              background:
+                "linear-gradient(135deg, #f0fdfa 0%, #ecfeff 100%)",
+            }}
+          >
+            <div
+              style={{
+                color: "#0d9488",
+                fontSize: "0.8125rem",
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                marginBottom: 12,
+              }}
+            >
+              Coverage that fits real life
+            </div>
+            <h2
+              style={{
+                fontSize: "clamp(1.625rem, 2.6vw, 2.125rem)",
+                fontWeight: 800,
+                color: "#0f172a",
+                margin: "0 0 14px",
+                letterSpacing: "-0.02em",
+                lineHeight: 1.15,
+              }}
+            >
+              From routine cleanings to your kid&apos;s first glasses — we&apos;ve got it covered.
+            </h2>
+            <p
+              style={{
+                color: "#475569",
+                fontSize: "1.0625rem",
+                lineHeight: 1.65,
+                margin: 0,
+              }}
+            >
+              Oral Care is built for households. Bring your spouse, your kids, your
+              parents on Medicare — savings apply at every visit, every time, with
+              no caps and no claim forms.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA ── */}
+      <section style={{ background: "linear-gradient(135deg, #0c4a6e 0%, #134e4a 100%)", padding: "72px 0" }}>
         <div className="container" style={{ textAlign: "center", maxWidth: 640 }}>
-          <h2 style={{ fontSize: "1.75rem", fontWeight: 700, color: "#0f172a", marginBottom: 10 }}>
-            Take care of every smile in the family
+          <h2
+            style={{
+              fontSize: "clamp(1.875rem, 3.5vw, 2.625rem)",
+              fontWeight: 800,
+              color: "white",
+              marginBottom: 14,
+              letterSpacing: "-0.02em",
+            }}
+          >
+            Take care of every smile
           </h2>
-          <p style={{ color: "var(--text-secondary)", marginBottom: 24, fontSize: "1.0625rem" }}>
+          <p
+            style={{
+              color: "rgba(255,255,255,0.8)",
+              marginBottom: 32,
+              fontSize: "1.0625rem",
+              lineHeight: 1.7,
+            }}
+          >
             Bundle Oral Care with the Essentials Plan, or enroll on its own.
           </p>
           <Link
             href="/newideal/plans"
-            className="button button--primary"
             style={{
               display: "inline-flex",
               alignItems: "center",
               gap: 8,
-              padding: "14px 28px",
-              fontSize: "1rem",
+              background: "#f97316",
+              color: "white",
+              padding: "16px 34px",
+              borderRadius: 12,
+              fontWeight: 700,
+              fontSize: "1.0625rem",
+              textDecoration: "none",
+              boxShadow: "0 4px 18px rgba(249,115,22,0.42)",
             }}
           >
-            See Plans & Enroll <ArrowRight size={18} />
+            See Plans & Pricing <ArrowRight size={18} />
           </Link>
         </div>
       </section>

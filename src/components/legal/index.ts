@@ -6,6 +6,8 @@
 // React Components
 export { MembershipAgreementModal } from "./MembershipAgreementModal";
 export { TermsAndConditionsModal } from "./TermsAndConditionsModal";
+export { EssentialsMembershipModal } from "./EssentialsMembershipModal";
+export { OralCareTermsModal } from "./OralCareTermsModal";
 export { FooterDisclosure } from "./FooterDisclosure";
 export { CheckoutFlow } from "./CheckoutFlow";
 

@@ -42,13 +42,13 @@ export function NewIdealHeader() {
         >
           <Image
             src="/newideal/logo.png"
-            alt="New Ideal Health"
+            alt="Ideal Health"
             width={40}
             height={40}
             priority
           />
           <span style={{ fontWeight: 700, fontSize: "1.125rem", color: "#0f172a" }}>
-            New Ideal Health
+            Ideal Health
           </span>
         </Link>
 
@@ -122,14 +122,14 @@ export function NewIdealFooter() {
           >
             <Image
               src="/newideal/logo.png"
-              alt="New Ideal Health"
+              alt="Ideal Health"
               width={36}
               height={36}
             />
             <span
               style={{ color: "white", fontWeight: 700, fontSize: "1.05rem" }}
             >
-              New Ideal Health
+              Ideal Health
             </span>
           </div>
           <p style={{ fontSize: "0.875rem", lineHeight: 1.6, margin: 0 }}>
@@ -193,7 +193,7 @@ export function NewIdealFooter() {
           gap: 12,
         }}
       >
-        <span>© {new Date().getFullYear()} New Ideal Health. All rights reserved.</span>
+        <span>© {new Date().getFullYear()} Ideal Health. All rights reserved.</span>
         <span>Powered by Ideal Health</span>
       </div>
     </footer>

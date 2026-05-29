@@ -50,11 +50,10 @@ import { useCart } from "@/lib/health-plans/cart-context";
 import { formatPrice } from "@/lib/health-plans/types";
 import { AgentRepCodeSelector } from "@/components/health/AgentRepCodeSelector";
 import {
-  MembershipAgreementModal,
   TermsAndConditionsModal,
+  EssentialsMembershipModal,
+  OralCareTermsModal,
 } from "@/components/legal";
-import { PROVIDER_GROUP_CODE } from "@/lib/constants";
-
 /* ─── Inline auth helpers (identical to /health/checkout) ───────────────────── */
 function AppleIcon() {
   return (
@@ -75,7 +74,7 @@ function GoogleIcon() {
 }
 function FacebookIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="#1877F2">
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
       <path d="M24 12.073c0-6.627-5.373-12-12-12S0 5.446 0 12.073c0 5.989 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
     </svg>
   );
@@ -651,7 +650,7 @@ function CheckoutHeader() {
         background: "rgba(255,255,255,0.85)",
         backdropFilter: "blur(12px)",
         borderBottom: "1px solid rgba(0,0,0,0.06)",
-        padding: "16px 0",
+        padding: "14px 0",
       }}
     >
       <div
@@ -660,22 +659,34 @@ function CheckoutHeader() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          gap: 24,
         }}
       >
         <Link
-          href="/newideal/plans"
-          style={{ display: "flex", alignItems: "center", gap: 12 }}
+          href="/newideal"
+          style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none" }}
         >
           <Image
             src="/newideal/logo.png"
-            alt="New Ideal Health"
+            alt="Ideal Health"
             width={36}
             height={36}
           />
           <span style={{ fontWeight: 700, fontSize: "1rem", color: "#0f172a" }}>
-            New Ideal Health
+            Ideal Health
           </span>
         </Link>
+        <nav style={{ display: "flex", alignItems: "center", gap: 20 }}>
+          <Link href="/newideal" style={{ fontSize: "0.875rem", color: "#64748b", textDecoration: "none", fontWeight: 500 }}>
+            Overview
+          </Link>
+          <Link href="/newideal/essentials" style={{ fontSize: "0.875rem", color: "#64748b", textDecoration: "none", fontWeight: 500 }}>
+            Essentials
+          </Link>
+          <Link href="/newideal/oralcare" style={{ fontSize: "0.875rem", color: "#64748b", textDecoration: "none", fontWeight: 500 }}>
+            Oral Care
+          </Link>
+        </nav>
         <Link
           href="/newideal/plans"
           style={{
@@ -745,12 +756,13 @@ export default function NewIdealCheckoutClient() {
     removeItem,
   } = useCart();
 
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [agreedToNotInsurance, setAgreedToNotInsurance] = useState(false);
-  const [membershipAgreed, setMembershipAgreed] = useState(false);
-  const [, setMembershipSignature] = useState<string>("");
-  const [membershipModalOpen, setMembershipModalOpen] = useState(false);
   const [termsModalOpen, setTermsModalOpen] = useState(false);
+  // Per-plan agreement state
+  const [essentialsAgreed, setEssentialsAgreed] = useState(false);
+  const [essentialsModalOpen, setEssentialsModalOpen] = useState(false);
+  const [oralCareAgreed, setOralCareAgreed] = useState(false);
+  const [oralCareModalOpen, setOralCareModalOpen] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -763,11 +775,18 @@ export default function NewIdealCheckoutClient() {
     year: "numeric",
   });
 
+  const hasEssentials = cart.items.some((i) =>
+    i.product.slug?.startsWith("essentials-")
+  );
+  const hasOralCare = cart.items.some((i) =>
+    i.product.slug?.startsWith("oralcare-")
+  );
+
   const canSubmit =
     isSignedIn &&
-    membershipAgreed &&
-    agreedToTerms &&
     agreedToNotInsurance &&
+    (!hasEssentials || essentialsAgreed) &&
+    (!hasOralCare || oralCareAgreed) &&
     itemCount > 0 &&
     !loading;
 
@@ -815,11 +834,63 @@ export default function NewIdealCheckoutClient() {
 
   if (itemCount === 0) {
     return (
-      <div className="health-landing">
+      <div className="health-landing" style={{ background: "#f1f5f9" }}>
         <CheckoutHeader />
         <section
-          className="section bg--white"
-          style={{ paddingTop: "5rem", minHeight: "70vh" }}
+          style={{
+            position: "relative",
+            background: "linear-gradient(150deg, #0c4a6e 0%, #0369a1 55%, #0e7490 100%)",
+            padding: "80px 0 60px",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              backgroundImage: "url('/health-assets/members-discussing_1024x1024.png')",
+              backgroundSize: "cover",
+              backgroundPosition: "center 40%",
+              opacity: 0.1,
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              top: "-10%",
+              right: "-5%",
+              width: 500,
+              height: 500,
+              background: "radial-gradient(circle, rgba(20,184,166,0.22) 0%, transparent 70%)",
+              pointerEvents: "none",
+            }}
+          />
+          <div className="container" style={{ position: "relative", textAlign: "center" }}>
+            <h1
+              style={{
+                fontSize: "clamp(2.25rem, 5vw, 3rem)",
+                fontWeight: 800,
+                color: "#ffffff",
+                margin: "0 0 1rem 0",
+                lineHeight: 1.1,
+              }}
+            >
+              Your Cart is Empty
+            </h1>
+            <p
+              style={{
+                fontSize: "1.0625rem",
+                color: "rgba(255,255,255,0.85)",
+                margin: 0,
+                lineHeight: 1.65,
+              }}
+            >
+              Add an Ideal Health membership to get started
+            </p>
+          </div>
+        </section>
+        <section
+          style={{ paddingTop: "3rem", paddingBottom: "4rem" }}
         >
           <div
             className="container"
@@ -840,23 +911,13 @@ export default function NewIdealCheckoutClient() {
             >
               <ShoppingCart size={36} color="#0066CC" />
             </div>
-            <h2
-              style={{
-                fontSize: "1.75rem",
-                fontWeight: 700,
-                marginBottom: "1rem",
-                color: "#0f172a",
-              }}
-            >
-              Your cart is empty
-            </h2>
             <p
               style={{
                 color: "var(--text-secondary)",
                 marginBottom: "2rem",
               }}
             >
-              Add a New Ideal Health membership to get started.
+              Browse our membership plans and select a tier that works best for you.
             </p>
             <Link href="/newideal/plans" className="button button--primary">
               Browse plans
@@ -868,11 +929,71 @@ export default function NewIdealCheckoutClient() {
   }
 
   return (
-    <div className="health-landing">
+    <div className="health-landing" style={{ background: "#f1f5f9" }}>
       <CheckoutHeader />
 
       <section
-        className="section bg--blue"
+        style={{
+          position: "relative",
+          background: "linear-gradient(150deg, #0c4a6e 0%, #0369a1 55%, #0e7490 100%)",
+          padding: "80px 0 60px",
+          overflow: "hidden",
+        }}
+      >
+        {/* Background image overlay */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage: "url('/newideal/site-files/nurse-clipboard.png')",
+            backgroundSize: "cover",
+            backgroundPosition: "center 25%",
+            opacity: 0.16,
+          }}
+        />
+        {/* Decorative glow */}
+        <div
+          style={{
+            position: "absolute",
+            top: "-10%",
+            right: "-5%",
+            width: 500,
+            height: 500,
+            background: "radial-gradient(circle, rgba(20,184,166,0.22) 0%, transparent 70%)",
+            pointerEvents: "none",
+          }}
+        />
+
+        <div className="container" style={{ position: "relative" }}>
+          <div>
+            <h1
+              style={{
+                fontSize: "clamp(2.25rem, 5vw, 3.5rem)",
+                fontWeight: 800,
+                color: "#ffffff",
+                margin: "0 0 1rem 0",
+                lineHeight: 1.1,
+                letterSpacing: "-0.02em",
+              }}
+            >
+              Complete Your Enrollment
+            </h1>
+            <p
+              style={{
+                fontSize: "1.0625rem",
+                color: "rgba(255,255,255,0.85)",
+                margin: 0,
+                lineHeight: 1.65,
+                maxWidth: 680,
+              }}
+            >
+              Secure payment and instant access to your Ideal Health membership
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section
         style={{ paddingTop: "3rem", paddingBottom: "4rem" }}
       >
         <div className="container">
@@ -1102,65 +1223,125 @@ export default function NewIdealCheckoutClient() {
                     gap: 12,
                   }}
                 >
-                  <div
-                    onClick={() => {
-                      if (!membershipAgreed) setMembershipModalOpen(true);
-                    }}
-                    style={{
-                      display: "flex",
-                      gap: 12,
-                      alignItems: "flex-start",
-                      cursor: membershipAgreed ? "default" : "pointer",
-                      padding: 14,
-                      borderRadius: 10,
-                      background: membershipAgreed
-                        ? "rgba(16,185,129,0.06)"
-                        : "transparent",
-                      border: membershipAgreed
-                        ? "1px solid rgba(16,185,129,0.25)"
-                        : "1px solid rgba(0,0,0,0.08)",
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={membershipAgreed}
-                      readOnly
-                      style={{
-                        width: 20,
-                        height: 20,
-                        accentColor: "var(--primary-blue)",
-                        marginTop: 2,
-                        pointerEvents: "none",
+                  {/* Essentials Plan agreement — only shown if Essentials is in cart */}
+                  {hasEssentials && (
+                    <div
+                      onClick={() => {
+                        if (!essentialsAgreed) setEssentialsModalOpen(true);
                       }}
-                    />
-                    <span
                       style={{
-                        fontSize: "0.9375rem",
-                        color: "#475569",
-                        lineHeight: 1.6,
+                        display: "flex",
+                        gap: 12,
+                        alignItems: "flex-start",
+                        cursor: essentialsAgreed ? "default" : "pointer",
+                        padding: 14,
+                        borderRadius: 10,
+                        background: essentialsAgreed
+                          ? "rgba(16,185,129,0.06)"
+                          : "transparent",
+                        border: essentialsAgreed
+                          ? "1px solid rgba(16,185,129,0.25)"
+                          : "1px solid rgba(0,0,0,0.08)",
                       }}
                     >
-                      I understand that I will be billed{" "}
-                      <strong>{formatPrice(subtotalCents)}</strong> today and{" "}
-                      <strong>{formatPrice(subtotalCents)}/mo</strong>{" "}
-                      thereafter. I can cancel anytime and keep access until
-                      the end of my billing period.
-                      {!membershipAgreed && (
-                        <span
-                          style={{
-                            display: "block",
-                            fontSize: "0.8125rem",
-                            color: "var(--accent-teal)",
-                            marginTop: 6,
-                            fontWeight: 500,
-                          }}
-                        >
-                          Click to review and sign the membership agreement
-                        </span>
-                      )}
-                    </span>
-                  </div>
+                      <input
+                        type="checkbox"
+                        checked={essentialsAgreed}
+                        readOnly
+                        style={{
+                          width: 20,
+                          height: 20,
+                          accentColor: "var(--primary-blue)",
+                          marginTop: 2,
+                          pointerEvents: "none",
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontSize: "0.9375rem",
+                          color: "#475569",
+                          lineHeight: 1.6,
+                        }}
+                      >
+                        <strong>Essentials Plan Membership Agreement</strong> —{" "}
+                        {cart.items.find((i) => i.product.slug?.startsWith("essentials-"))?.product.name}
+                        {!essentialsAgreed && (
+                          <span
+                            style={{
+                              display: "block",
+                              fontSize: "0.8125rem",
+                              color: "var(--accent-teal)",
+                              marginTop: 6,
+                              fontWeight: 500,
+                            }}
+                          >
+                            Click to review and sign the Essentials membership agreement
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  )}
 
+                  {/* Oral Care agreement — only shown if Oral Care is in cart */}
+                  {hasOralCare && (
+                    <div
+                      onClick={() => {
+                        if (!oralCareAgreed) setOralCareModalOpen(true);
+                      }}
+                      style={{
+                        display: "flex",
+                        gap: 12,
+                        alignItems: "flex-start",
+                        cursor: oralCareAgreed ? "default" : "pointer",
+                        padding: 14,
+                        borderRadius: 10,
+                        background: oralCareAgreed
+                          ? "rgba(13,148,136,0.06)"
+                          : "transparent",
+                        border: oralCareAgreed
+                          ? "1px solid rgba(13,148,136,0.25)"
+                          : "1px solid rgba(0,0,0,0.08)",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={oralCareAgreed}
+                        readOnly
+                        style={{
+                          width: 20,
+                          height: 20,
+                          accentColor: "#0d9488",
+                          marginTop: 2,
+                          pointerEvents: "none",
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontSize: "0.9375rem",
+                          color: "#475569",
+                          lineHeight: 1.6,
+                        }}
+                      >
+                        <strong>Oral Care Discount Membership Terms</strong> —{" "}
+                        {cart.items.find((i) => i.product.slug?.startsWith("oralcare-"))?.product.name}
+                        {!oralCareAgreed && (
+                          <span
+                            style={{
+                              display: "block",
+                              fontSize: "0.8125rem",
+                              color: "var(--accent-teal)",
+                              marginTop: 6,
+                              fontWeight: 500,
+                            }}
+                          >
+                            Click to review and accept the Oral Care discount terms
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* NOT insurance — always shown */}
                   <div
                     onClick={() => {
                       if (!agreedToNotInsurance) setTermsModalOpen(true);
@@ -1170,14 +1351,14 @@ export default function NewIdealCheckoutClient() {
                       gap: 12,
                       alignItems: "flex-start",
                       cursor: agreedToNotInsurance ? "default" : "pointer",
-                      padding: 14,
-                      borderRadius: 10,
+                      padding: 16,
+                      borderRadius: 12,
                       background: agreedToNotInsurance
-                        ? "rgba(16,185,129,0.06)"
-                        : "transparent",
+                        ? "linear-gradient(135deg, rgba(249,115,22,0.08) 0%, rgba(251,146,60,0.06) 100%)"
+                        : "rgba(249,115,22,0.04)",
                       border: agreedToNotInsurance
-                        ? "1px solid rgba(16,185,129,0.25)"
-                        : "1px solid rgba(0,0,0,0.08)",
+                        ? "1.5px solid #f97316"
+                        : "1.5px solid rgba(249,115,22,0.2)",
                     }}
                   >
                     <input
@@ -1187,7 +1368,7 @@ export default function NewIdealCheckoutClient() {
                       style={{
                         width: 20,
                         height: 20,
-                        accentColor: "var(--primary-blue)",
+                        accentColor: "#f97316",
                         marginTop: 2,
                         pointerEvents: "none",
                       }}
@@ -1200,10 +1381,10 @@ export default function NewIdealCheckoutClient() {
                       }}
                     >
                       <strong>I understand this is NOT insurance.</strong>{" "}
-                      New Ideal Health is a membership program providing
-                      access to telehealth, pharmacy savings, lab services,
-                      mental wellness support, and discounted dental, vision,
-                      and hearing care.
+                      Ideal Health is a membership program providing access to
+                      telehealth, pharmacy savings, lab services, mental
+                      wellness support, and discounted dental, vision, and
+                      hearing care.
                       {!agreedToNotInsurance && (
                         <span
                           style={{
@@ -1214,7 +1395,7 @@ export default function NewIdealCheckoutClient() {
                             fontWeight: 500,
                           }}
                         >
-                          Click to review and accept the terms & conditions
+                          Click to review and accept the terms &amp; conditions
                         </span>
                       )}
                     </span>
@@ -1340,7 +1521,7 @@ export default function NewIdealCheckoutClient() {
                     marginTop: 20,
                     padding: "14px 20px",
                     background: canSubmit
-                      ? "linear-gradient(135deg, var(--primary-blue), var(--primary-light))"
+                      ? "linear-gradient(135deg, #f97316 0%, #fb923c 100%)"
                       : "rgba(0,0,0,0.08)",
                     color: canSubmit ? "white" : "var(--text-muted)",
                     border: "none",
@@ -1405,30 +1586,39 @@ export default function NewIdealCheckoutClient() {
       </section>
 
       {/* Legal modals */}
-      <MembershipAgreementModal
-        isOpen={membershipModalOpen}
-        onClose={() => setMembershipModalOpen(false)}
-        onAccept={(signature: string) => {
-          setMembershipSignature(signature);
-          setMembershipAgreed(true);
-          setAgreedToTerms(true);
-          setMembershipModalOpen(false);
+      <EssentialsMembershipModal
+        isOpen={essentialsModalOpen}
+        onClose={() => setEssentialsModalOpen(false)}
+        onAccept={() => {
+          setEssentialsAgreed(true);
+          setEssentialsModalOpen(false);
         }}
         memberData={{
-          memberId: user?.id || "TBD",
           memberName:
             user?.fullName ||
             user?.primaryEmailAddress?.emailAddress ||
             "Member",
-          memberAddress: "Address TBD",
           email:
             user?.primaryEmailAddress?.emailAddress || "email@example.com",
-          planName: cart.items[0]?.product?.name || "New Ideal Health Plan",
-          groupCode: PROVIDER_GROUP_CODE,
-          effectiveDate: new Date().toISOString().split("T")[0],
-          billingInterval: "monthly",
-          periodicChargeCents: subtotalCents,
+          planName:
+            cart.items.find((i) => i.product.slug?.startsWith("essentials-"))?.product.name ||
+            "Essentials Plan",
+          periodicChargeCents:
+            cart.items.find((i) => i.product.slug?.startsWith("essentials-"))?.product.pricing
+              .monthlyCardCents ?? 0,
         }}
+      />
+
+      <OralCareTermsModal
+        isOpen={oralCareModalOpen}
+        onClose={() => setOralCareModalOpen(false)}
+        onAccept={() => {
+          setOralCareAgreed(true);
+          setOralCareModalOpen(false);
+        }}
+        planName={
+          cart.items.find((i) => i.product.slug?.startsWith("oralcare-"))?.product.name
+        }
       />
 
       <TermsAndConditionsModal

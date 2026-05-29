@@ -33,103 +33,149 @@ export const TermsAndConditionsModal: React.FC<TermsAndConditionsModalProps> = (
         </DialogHeader>
 
         {/* Scrollable Terms Content */}
-        <div
-          className="flex-1 overflow-y-auto border rounded p-4 bg-gray-50 text-sm"
-        >
-          <div className="space-y-4 prose prose-sm max-w-none">
-            <h3 className="font-semibold text-lg">Agreement Terms</h3>
-            <p>
-              The Terms and Conditions you have accepted or will accept upon registering at www.dialcare.com, 
-              are part of this membership agreement (Agreement) between you and DialCare, LLC (“DialCare”). 
-              DialCare provides administrative services to DialCare clinicians and does not provide professional medical services.  
-              The Terms and Conditions define the obligations of DialCare, its authorized agents and yourself, 
-              and they establish the basic rules of safe and fair use of DialCare’s public website, member website, and services (Services). 
-              DialCare and its authorized agents reserve the right to immediately and without advance notice terminate the Services 
-              and deny access to individuals who do not abide by the Terms and Conditions. 
-            </p>
+        <div className="flex-1 overflow-y-auto border rounded p-4 bg-gray-50 text-sm">
+          <div className="space-y-6 prose prose-sm max-w-none">
 
-            <h3 className="font-semibold">Purchase and Renewal Conditions</h3>
-            <p>
-              By joining a plan, for yourself or on behalf of a minor child for whom you are a parent or legal guardian, 
-              you confirm that you are at least 18 years old and you authorize Ryze LLC to charge your credit card or checking account for the plan you have selected. 
-              By joining, you indicate you have read and agree to the terms and conditions of the plan. 
-            </p>
-            <p>
-              This charge will automatically renew at the end of your membership term, and your credit card or checking account will be automatically charged for the appropriate amount, until you notify Ideal Health that you wish to cancel the plan.
-            </p>
+            {/* ── Essentials Plan Section ─────────────────────────────── */}
+            <div>
+              <h2 className="font-bold text-base text-blue-900 border-b border-blue-200 pb-1 mb-3">
+                Essentials Plan — Terms &amp; Conditions
+              </h2>
 
-            <h3 className="font-semibold">Termination Conditions</h3>
-            <p>
-              Ryze LLC and DialCare reserve the right to terminate plan members from its plan for any reason, including non-payment. 
-              If Ryze LLC terminates the plan or your membership for a reason other than non-payment, you will receive a pro-rata refund of your membership fees.
-            </p>
-
-            <h3 className="font-semibold">Cancellation Conditions</h3>
-            <p>
-              You have the right to cancel within the first 30 days after effective date or receipt of membership materials (whichever is later) 
-              and receive a full refund. 
-              If for any reason you wish to cancel, submit a cancellation request with your name and member ID by mail to Ryze LLC, 
-              1200 E Ridge Rd STE 1, McAllen TX 78503, or email support@getidealoh.com. 
-              Ryze LLC will stop collecting membership fees in a reasonable amount of time, but no later than 30 days after receiving a cancellation request. 
-              
-            </p>
-            <p>
-              When you cancel, you will continue to have access to the plan for the remainder of the period for which you have paid; 
-              your membership will terminate at the end of that period. 
-              The preceding sentence does not apply to quarterly, semi-annual or annual memberships in FL and OK, 
-              where you will receive a pro-rata refund whenever you cancel.
-            </p>
-
-            <h3 className="font-semibold">Description of Services</h3>
-            <p>
-              Please see the enclosed materials for a specific description of the programs included in your plan. 
-            </p>
-
-            <h3 className="font-semibold">Limitations, Exclusions and Exceptions</h3>
-            <p>
-              This is a discount plan offered by Careington International Corporation. 
-              Careington is not a licensed insurer, health maintenance organization or other underwriter of health care services. 
-              This plan is not insurance. No portion of any provider’s fees will be reimbursed or otherwise paid by Careington. 
-              Careington is not licensed to provide and does not provide health care services or items to individuals. 
-              You will receive discounts for services at certain health care providers who have contracted with the plan. 
-              You are obligated to pay for all health care services at the time of service. Savings are based upon the provider’s normal fees. 
-              Actual savings will vary depending upon location and specific services or products purchased. 
-              Please verify such services with each individual provider. 
-              The plan’s discounts may not be used in conjunction with any other discount plan or program. 
-              All listed or quoted prices are current prices by participating providers and subject to change without notice. 
-            </p>
-            <p>
-              Any procedures performed by a non-participating provider are not discounted. 
-              From time to time, certain providers may offer products or services to the general public at prices lower than the discounted prices available through this plan. 
-              In such event, members will be charged the lowest price. Discounts on professional services are not available when prohibited by law. 
-              This plan does not discount all procedures. Providers are subject to change without notice and services may vary in some states. 
-              It is your responsibility to verify that the provider participates in the plan. 
-              At any time Careington may substitute a provider network at its sole discretion. 
-              Careington cannot guarantee the continued participation of any provider. 
-              If the provider leaves the plan, you will need to select another provider. 
-              Providers contracted by Careington are solely responsible for the professional advice and treatment rendered to members and 
-              Careington disclaims any liability with respect to such matters
-            </p>
-
-            <h3 className="font-semibold">Complaint Procedure</h3>
-            <p>
-              If you would like to file a complaint, you must submit your complaint in writing to:  
-            </p>
-            <div className="bg-gray-100 p-2 rounded text-xs">
+              <h3 className="font-semibold">Description of the Essentials Plan</h3>
               <p>
-                <strong>DialCare</strong>
-                <br />
-                P.O. Box 2568
-                <br />
-                Frisco, TX 75034
+                The Ideal Health Essentials Plan is a membership program —{" "}
+                <strong>NOT insurance</strong> — that provides members access to telehealth
+                consultations, prescription savings, lab services, mental wellness support, and
+                discounted dental, vision, and hearing care through our network of participating
+                providers. Benefits are available immediately upon your effective date.
+              </p>
+
+              <h3 className="font-semibold">Essentials Plan Pricing</h3>
+              <ul>
+                <li>Employee: $49.95/mo</li>
+                <li>Employee + Spouse: $69.95/mo</li>
+                <li>Employee + Child(ren): $59.95/mo</li>
+                <li>Employee + Family: $82.95/mo</li>
+              </ul>
+
+              <h3 className="font-semibold">Eligibility</h3>
+              <p>
+                Membership is open to individuals ages 2–65. Dependent children must be listed at
+                enrollment.
+              </p>
+
+              <h3 className="font-semibold">Purchase &amp; Renewal</h3>
+              <p>
+                By enrolling, you authorize Ryze LLC to charge your selected payment method for the
+                plan you have chosen. Your membership will automatically renew each billing period and
+                your payment method will be charged until you cancel. Your billing cycle begins on the
+                16th of the month; membership becomes effective on the 1st of the following month.
+              </p>
+
+              <h3 className="font-semibold">Cancellation</h3>
+              <p>
+                You may cancel at any time by providing 30 days&apos; written notice to{" "}
+                <strong>info@getidealhealth.com</strong>. You retain access through the end of the
+                paid billing period. To cancel within the first 30 days and receive a full refund,
+                contact us with your name and member ID.
+              </p>
+
+              <h3 className="font-semibold">Termination</h3>
+              <p>
+                Ryze LLC reserves the right to terminate membership for any reason, including
+                non-payment. If terminated for a reason other than non-payment, you will receive a
+                pro-rata refund of prepaid fees.
+              </p>
+
+              <h3 className="font-semibold">Limitations &amp; Exclusions</h3>
+              <p>
+                The Essentials Plan is a discount membership — not a licensed insurer or HMO. No
+                provider fees will be reimbursed. You are responsible for paying fees at the time of
+                service. Actual savings vary by provider and location. Providers are subject to change
+                without notice.
               </p>
             </div>
-            <p>
-              You have the right to request an appeal if you are dissatisfied with the complaint resolution. 
-              After completing the complaint resolution process, if you remain dissatisfied you may contact your state insurance department. 
-              Contact information for your state insurance department is available upon request.
-            </p>
 
+            {/* ── Oral Care Plan Section ──────────────────────────────── */}
+            <div>
+              <h2 className="font-bold text-base text-teal-800 border-b border-teal-200 pb-1 mb-3">
+                Oral Care Plan — Terms &amp; Conditions
+              </h2>
+
+              <h3 className="font-semibold">Description of the Oral Care Plan</h3>
+              <p>
+                The Ideal Health Oral Care Plan is a savings membership —{" "}
+                <strong>NOT insurance</strong> — that provides savings on dental procedures, vision
+                care, and hearing services through participating providers. Savings range from
+                20–60% off at 100,000+ participating dentists nationwide, plus savings on eyewear
+                and hearing devices.
+              </p>
+
+              <h3 className="font-semibold">Oral Care Plan Pricing</h3>
+              <ul>
+                <li>Employee: $14.99/mo</li>
+                <li>Employee + Family: $24.99/mo</li>
+              </ul>
+
+              <h3 className="font-semibold">Included Savings</h3>
+              <ul>
+                <li>
+                  <strong>Dental Savings</strong> — 20–60% off dental procedures at 100,000+
+                  participating dentists nationwide.
+                </li>
+                <li>
+                  <strong>Vision Savings</strong> — Savings on eye exams, glasses frames, lenses,
+                  and contacts at major optical providers.
+                </li>
+                <li>
+                  <strong>Hearing Care Savings</strong> — Savings on hearing exams and hearing aid
+                  devices.
+                </li>
+              </ul>
+
+              <h3 className="font-semibold">Important Limitations</h3>
+              <p>
+                This plan is <strong>not insurance</strong>. No portion of any provider&apos;s fees
+                will be reimbursed. Members pay reduced fees directly to providers at the time of
+                service. Savings vary by provider and location. Savings may not be combined with
+                any other savings plan. Verify provider participation before receiving services.
+              </p>
+
+              <h3 className="font-semibold">Cancellation</h3>
+              <p>
+                Cancel at any time with 30 days&apos; notice to{" "}
+                <strong>info@getidealhealth.com</strong>. You retain access through the end of your
+                paid billing period.
+              </p>
+            </div>
+
+            {/* ── General Terms ───────────────────────────────────────── */}
+            <div>
+              <h2 className="font-bold text-base text-gray-700 border-b border-gray-200 pb-1 mb-3">
+                General Terms
+              </h2>
+
+              <h3 className="font-semibold">Complaint Procedure</h3>
+              <p>Submit complaints in writing to:</p>
+              <div className="bg-gray-100 p-2 rounded text-xs">
+                <p>
+                  <strong>Ideal Health / Ryze LLC</strong><br />
+                  1200 E Ridge Rd STE 1, McAllen, TX 78503<br />
+                  Email: info@getidealhealth.com
+                </p>
+              </div>
+              <p>
+                You have the right to appeal if dissatisfied with the complaint resolution. You may
+                also contact your state insurance department.
+              </p>
+
+              <h3 className="font-semibold">Governing Law</h3>
+              <p>
+                This agreement is governed by the laws of the State of Texas, without regard to
+                conflict of law provisions.
+              </p>
+            </div>
 
           </div>
         </div>
