@@ -56,6 +56,7 @@ export interface CartState {
   paymentMethod: PaymentMethod;
   compareItems: string[]; // Product IDs for comparison
   referralCode?: string; // Captured from ?ref= URL param or manual entry
+  referralCodeSource?: "url" | "manual"; // How the code was set
 }
 
 // Calculate price based on cadence and payment method

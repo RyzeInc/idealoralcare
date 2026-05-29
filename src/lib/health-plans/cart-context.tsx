@@ -47,7 +47,7 @@ interface CartContextType {
   setPaymentMethod: (method: PaymentMethod) => void;
   
   // Referral
-  setReferralCode: (code: string) => void;
+  setReferralCode: (code: string, source?: "url" | "manual") => void;
   
   // Compare actions
   addToCompare: (productId: string) => void;
@@ -95,7 +95,26 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       
       if (stored) {
         const parsed = JSON.parse(stored);
+        // Cookie fallback: if localStorage has no referralCode, check the
+        // ideal_ref cookie (set server-side from /[agentSlug] redirect)
+        if (!parsed?.referralCode) {
+          const m = document.cookie.match(/(?:^|; )ideal_ref=([^;]+)/);
+          if (m) {
+            parsed.referralCode = decodeURIComponent(m[1]);
+            parsed.referralCodeSource = "url";
+          }
+        }
         setCart(parsed);
+      } else {
+        // No localStorage at all — still check cookie
+        const m = document.cookie.match(/(?:^|; )ideal_ref=([^;]+)/);
+        if (m) {
+          setCart((prev) => ({
+            ...prev,
+            referralCode: decodeURIComponent(m[1]),
+            referralCodeSource: "url",
+          }));
+        }
       }
       
       if (cadenceSelected) {
@@ -244,8 +263,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Set referral code
-  const setReferralCode = useCallback((code: string) => {
-    setCart((prev) => ({ ...prev, referralCode: code || undefined }));
+  const setReferralCode = useCallback((code: string, source?: "url" | "manual") => {
+    setCart((prev) => ({
+      ...prev,
+      referralCode: code || undefined,
+      referralCodeSource: code ? (source ?? "manual") : undefined,
+    }));
   }, []);
   
   // Refresh cart item pricing from fresh Convex product data (fixes stale localStorage)

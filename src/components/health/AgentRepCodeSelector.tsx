@@ -37,6 +37,8 @@ interface PublicGroup {
 interface AgentRepCodeSelectorProps {
   referralCode: string | undefined;
   onReferralCodeChange: (code: string) => void;
+  /** When true, the code was pre-set via URL — show a subtle Change link instead of the X */
+  lockedFromUrl?: boolean;
 }
 
 type Mode = "repCode" | "agent";
@@ -44,6 +46,7 @@ type Mode = "repCode" | "agent";
 export function AgentRepCodeSelector({
   referralCode,
   onReferralCodeChange,
+  lockedFromUrl = false,
 }: AgentRepCodeSelectorProps) {
   const [mode, setMode] = useState<Mode>("repCode");
   const [repCodeInput, setRepCodeInput] = useState(referralCode || "");
@@ -307,11 +310,19 @@ export function AgentRepCodeSelector({
             )}
           </div>
           <button
-            onClick={handleClear}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: "4px" }}
-            aria-label="Remove referral code"
+            onClick={() => {
+              if (lockedFromUrl) {
+                // Clear the server-set cookie before allowing manual override
+                document.cookie = "ideal_ref=;path=/;max-age=0";
+              }
+              handleClear();
+            }}
+            style={lockedFromUrl
+              ? { background: "none", border: "none", cursor: "pointer", color: "#64748b", padding: "4px 6px", fontSize: "0.75rem", textDecoration: "underline" }
+              : { background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: "4px" }}
+            aria-label={lockedFromUrl ? "Change referral code" : "Remove referral code"}
           >
-            <X size={16} />
+            {lockedFromUrl ? "Change" : <X size={16} />}
           </button>
         </div>
       </div>

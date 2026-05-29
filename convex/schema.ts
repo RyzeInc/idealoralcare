@@ -1412,6 +1412,14 @@ export default defineSchema({
       v.literal("revoked")
     ),
 
+    // URL ROUTING
+    slug: v.optional(v.string()),         // canonical URL slug: lowercase [a-z0-9-]
+    productHint: v.optional(v.union(      // preferred landing page for this code's URL
+      v.literal("essentials"),
+      v.literal("oralcare"),
+      v.literal("plans"),
+    )),
+
     // AUDIT
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -1420,6 +1428,7 @@ export default defineSchema({
   })
     .index("by_broker", ["brokerId"])
     .index("by_code", ["code"]) // Primary lookup — must be unique
+    .index("by_slug", ["slug"]) // Secondary lookup — canonical URL slug
     .index("by_group", ["groupId"])
     .index("by_status", ["status"]),
 

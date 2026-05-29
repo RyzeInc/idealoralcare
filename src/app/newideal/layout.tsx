@@ -1,6 +1,8 @@
 import '@/app/health/health.css';
+import { Suspense } from 'react';
 import { SiteThemeProvider } from '@/components/providers/SiteThemeProvider';
 import { CartProvider } from '@/lib/health-plans/cart-context';
+import { ReferralCapture } from '@/components/health/ReferralCapture';
 
 export const metadata = {
   title: 'New Ideal Health | Membership Programs',
@@ -12,6 +14,9 @@ export default function NewIdealLayout({ children }: { children: React.ReactNode
   return (
     <SiteThemeProvider defaultSlug="newideal">
       <CartProvider>
+        <Suspense fallback={null}>
+          <ReferralCapture />
+        </Suspense>
         <div className="flex flex-col min-h-screen">
           <div className="flex-grow">{children}</div>
         </div>

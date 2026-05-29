@@ -1,49 +1,35 @@
 /**
  * Agent Slug Route
- * 
- * Handles URLs like /jamesgregory to auto-select an agent
- * Redirects to /health/plans with the agent's rep code pre-filled
+ *
+ * Handles vanity URLs like:
+ *   /230001          → rep code lookup
+ *   /allenjackson    → slug lookup (stored or computed from name)
+ *   /230001?to=essentials → hint override
+ *
+ * Sets a 90-day server cookie (ideal_ref) and redirects with ?ref= so the
+ * cart context can hydrate the referral code on the landing page.
  */
 
 import { redirect, notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../convex/_generated/api";
-
-// Reserved paths that should not be treated as agent slugs
-const RESERVED_PATHS = [
-  "admin",
-  "api",
-  "health",
-  "bootstrap",
-  "debug",
-  "login",
-  "signup",
-  "sign-in",
-  "sign-up",
-  "about",
-  "contact",
-  "privacy",
-  "terms",
-  "legal",
-  "_next",
-  "favicon.ico",
-  "robots.txt",
-  "sitemap.xml",
-];
+import { isReservedPath } from "@/lib/rep-routing/reserved";
+import type { RepUrlResolution } from "../.././../convex/enrollment/agents";
 
 interface PageProps {
   params: Promise<{ agentSlug: string }>;
+  searchParams: Promise<{ to?: string }>;
 }
 
-export default async function AgentSlugPage({ params }: PageProps) {
-  const { agentSlug } = await params;
-  
-  // Check if this is a reserved path
-  if (RESERVED_PATHS.includes(agentSlug.toLowerCase())) {
-    notFound();
-  }
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 90; // 90 days
 
-  // Create Convex HTTP client for server-side query
+export default async function AgentSlugPage({ params, searchParams }: PageProps) {
+  const { agentSlug } = await params;
+  const { to } = await searchParams;
+
+  if (isReservedPath(agentSlug)) notFound();
+
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
   if (!convexUrl) {
     console.error("NEXT_PUBLIC_CONVEX_URL not configured");
@@ -51,38 +37,40 @@ export default async function AgentSlugPage({ params }: PageProps) {
   }
 
   const client = new ConvexHttpClient(convexUrl);
-  // Use bracket notation for nested module paths
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const agentsApi = (api as any)["enrollment/agents"];
 
+  let result: RepUrlResolution | null = null;
   try {
-    // Look up agent by slug
-    const agent = await client.query(agentsApi.getAgentBySlug, {
-      slug: agentSlug,
-    });
-
-    if (agent && agent.repCode) {
-      // Redirect to plans page with rep code
-      redirect(`/health/plans?ref=${encodeURIComponent(agent.repCode)}`);
-    }
+    result = await client.query(agentsApi.resolveRepUrl, { segment: agentSlug });
   } catch (error) {
-    console.error("Error looking up agent:", error);
+    console.error("Error resolving rep URL:", error);
   }
 
-  // Agent not found - show 404
-  notFound();
+  if (!result) notFound();
+
+  // Set server-side cookie — httpOnly=false so client JS can also read it for
+  // the cookie-fallback in CartProvider
+  const cookieStore = await cookies();
+  cookieStore.set("ideal_ref", result.repCode, {
+    maxAge: COOKIE_MAX_AGE,
+    path: "/",
+    sameSite: "lax",
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+  });
+
+  // Determine destination — explicit ?to= param overrides productHint
+  const hint = result.productHint;
+  const dest =
+    to === "essentials"   ? "/newideal/essentials" :
+    to === "oralcare"     ? "/newideal/oralcare"   :
+    to === "health"       ? "/health/plans"        :
+    hint === "essentials" ? "/newideal/essentials" :
+    hint === "oralcare"   ? "/newideal/oralcare"   :
+    hint === "plans"      ? "/newideal/plans"      :
+    "/newideal/plans";
+
+  redirect(`${dest}?ref=${encodeURIComponent(result.repCode)}`);
 }
 
-// Generate static params for known agents (optional optimization)
-// Can be enabled later if there are many agents
-// export async function generateStaticParams() {
-//   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-//   if (!convexUrl) return [];
-//   
-//   const client = new ConvexHttpClient(convexUrl);
-//   const agents = await client.query(api["enrollment/agents"].listPublicAgents);
-//   
-//   return agents.map((agent) => ({
-//     agentSlug: agent.slug,
-//   }));
-// }

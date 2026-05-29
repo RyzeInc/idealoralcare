@@ -4,7 +4,7 @@ import { useState, Fragment } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Doc } from '@/convex/_generated/dataModel';
-import { Plus, Loader2, Check, XCircle, RefreshCw, Tag, Trash2, ChevronDown, ChevronRight, Users } from 'lucide-react';
+import { Plus, Loader2, Check, XCircle, RefreshCw, Tag, Trash2, ChevronDown, ChevronRight, Users, Pencil } from 'lucide-react';
 import { UserSelector } from './UserSelector';
 import { useToast } from './ui';
 import styles from './RepCodesAdmin.module.css';
@@ -17,7 +17,12 @@ interface ClerkUser {
   name: string;
 }
 
-type RepCodeWithRate = Doc<'brokerTrackingCodes'> & { commissionRate: number | null };
+type RepCodeWithRate = Doc<'brokerTrackingCodes'> & {
+  commissionRate: number | null;
+  // Available after `npx convex dev` regenerates types from updated schema
+  slug?: string;
+  productHint?: 'essentials' | 'oralcare' | 'plans';
+};
 
 // Local interface for distributionPartners (not yet in generated types until npx convex dev runs)
 interface DistributionPartner {
@@ -99,6 +104,8 @@ export function RepCodesAdmin() {
     brokerId: '',
     agencyId: '',
     code: '',
+    slug: '',
+    productHint: '',
     notes: '',
   });
 
@@ -110,9 +117,14 @@ export function RepCodesAdmin() {
   const revokeCode = useMutation(api.admin.repCodes.revoke);
   const reactivateCode = useMutation(api.admin.repCodes.reactivate);
   const removeCode = useMutation(api.admin.repCodes.remove);
+  const updateCode = useMutation(api.admin.repCodes.update);
+  const backfillSlugsAction = useMutation(api.admin.repCodes.backfillSlugs);
+
+  const [editingCodeId, setEditingCodeId] = useState<string | null>(null);
+  const [editFields, setEditFields] = useState({ slug: '', productHint: '' });
 
   const resetForm = () => {
-    setFormData({ brokerId: '', agencyId: '', code: '', notes: '' });
+    setFormData({ brokerId: '', agencyId: '', code: '', slug: '', productHint: '', notes: '' });
     setShowForm(false);
     setUseExistingUser(true);
   };
@@ -136,6 +148,8 @@ export function RepCodesAdmin() {
         brokerId: formData.brokerId,
         agencyId: formData.agencyId || undefined,
         code: formData.code.toUpperCase(),
+        slug: formData.slug || undefined,
+        productHint: (formData.productHint || undefined) as 'essentials' | 'oralcare' | 'plans' | undefined,
         notes: formData.notes || undefined,
       });
       resetForm();
@@ -174,6 +188,30 @@ export function RepCodesAdmin() {
     }
   };
 
+  const handleSaveEdit = async (code: RepCodeWithRate) => {
+    try {
+      await updateCode({
+        id: code._id,
+        slug: editFields.slug || undefined,
+        productHint: (editFields.productHint || undefined) as 'essentials' | 'oralcare' | 'plans' | undefined,
+      });
+      setEditingCodeId(null);
+      toast.success('Updated', 'URL slug saved.');
+    } catch (error) {
+      toast.fromError(error, 'Could not update slug');
+    }
+  };
+
+  const handleBackfill = async () => {
+    if (!confirm("Auto-generate URL slugs for all codes that don't have one yet? Derives slug from the agent's name.")) return;
+    try {
+      const result = await backfillSlugsAction({}) as { updated: number };
+      toast.success('Slugs backfilled', `${result.updated} code(s) updated.`);
+    } catch (error) {
+      toast.fromError(error, 'Could not backfill slugs');
+    }
+  };
+
   const getAgencyName = (agencyId?: string): string | null => {
     if (!agencyId) return null;
     return allPartners?.find((p) => p._id === agencyId)?.name ?? null;
@@ -198,13 +236,24 @@ export function RepCodesAdmin() {
             Each code links a sale to a specific agent and their agency for commission attribution.
           </p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className={styles.addButton}
-        >
-          <Plus size={18} />
-          {showForm ? 'Cancel' : 'Add Rep Code'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={handleBackfill}
+            className={styles.addButton}
+            style={{ background: '#475569' }}
+            title="Auto-generate URL slugs for codes that don't have one"
+          >
+            <RefreshCw size={18} />
+            Backfill Slugs
+          </button>
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className={styles.addButton}
+          >
+            <Plus size={18} />
+            {showForm ? 'Cancel' : 'Add Rep Code'}
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -338,6 +387,37 @@ export function RepCodesAdmin() {
               />
             </div>
 
+            <div className={styles.formGroup}>
+              <label>URL Slug (Optional)</label>
+              <input
+                type="text"
+                value={formData.slug}
+                onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
+                placeholder="e.g. allenjackson (leave blank to use rep code)"
+                style={{ fontFamily: 'monospace' }}
+              />
+              <p className={styles.hint}>
+                Vanity URL: getidealoh.com/&lt;slug&gt;. The rep code itself always works too (getidealoh.com/230001).
+              </p>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>Default Landing Page (Optional)</label>
+              <select
+                value={formData.productHint}
+                onChange={(e) => setFormData({ ...formData, productHint: e.target.value })}
+                className={styles.select}
+              >
+                <option value="">— Default (Plans page) —</option>
+                <option value="essentials">Essentials</option>
+                <option value="oralcare">Oral Care</option>
+                <option value="plans">Plans</option>
+              </select>
+              <p className={styles.hint}>
+                Where the vanity URL redirects. Can always be overridden with ?to= in the URL.
+              </p>
+            </div>
+
             <div className={styles.formActions}>
               <button type="submit" className={styles.submitButton}>
                 Create Rep Code
@@ -367,6 +447,7 @@ export function RepCodesAdmin() {
               <tr>
                 <th style={{ width: 32 }}></th>
                 <th>Code</th>
+                <th>URL Slug</th>
                 <th>Agent (Clerk ID)</th>
                 <th>Agency / FMO</th>
                 <th>Uses</th>
@@ -390,6 +471,15 @@ export function RepCodesAdmin() {
                     </td>
                     <td>
                       <span className={styles.codeTag}>{code.code}</span>
+                    </td>
+                    <td>
+                      {code.slug ? (
+                        <span style={{ fontFamily: 'monospace', fontSize: 12, background: '#f0f9ff', padding: '2px 6px', borderRadius: 4, color: '#0369a1' }}>
+                          /{code.slug}
+                        </span>
+                      ) : (
+                        <span style={{ color: '#94a3b8', fontSize: 12 }}>—</span>
+                      )}
                     </td>
                     <td className={styles.clerkIdCell} title={code.brokerId}>
                       {code.brokerId.length > 22
@@ -418,6 +508,16 @@ export function RepCodesAdmin() {
                     </td>
                     <td>
                       <div className={styles.rowActions}>
+                        <button
+                          onClick={() => {
+                            setEditingCodeId(editingCodeId === code._id ? null : code._id);
+                            setEditFields({ slug: code.slug ?? '', productHint: code.productHint ?? '' });
+                          }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: 4 }}
+                          title="Edit URL slug / landing page"
+                        >
+                          <Pencil size={15} />
+                        </button>
                         {code.status === 'active' ? (
                           <button
                             onClick={() => handleRevoke(code)}
@@ -447,8 +547,60 @@ export function RepCodesAdmin() {
                   </tr>
                   {expandedCode === code.code && (
                     <tr>
-                      <td colSpan={8} style={{ background: '#f8fafc', padding: 0, borderBottom: '2px solid #e2e8f0' }}>
+                      <td colSpan={9} style={{ background: '#f8fafc', padding: 0, borderBottom: '2px solid #e2e8f0' }}>
                         <EnrollmentDrillDown code={code.code} />
+                      </td>
+                    </tr>
+                  )}
+                  {editingCodeId === code._id && (
+                    <tr>
+                      <td colSpan={9} style={{ background: '#fffbeb', borderBottom: '1px solid #fde68a' }}>
+                        <div style={{ padding: '12px 16px', display: 'flex', gap: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                          <div>
+                            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>
+                              URL Slug
+                            </label>
+                            <input
+                              type="text"
+                              value={editFields.slug}
+                              onChange={(e) => setEditFields((prev) => ({ ...prev, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))}
+                              placeholder="e.g. allenjackson"
+                              style={{ padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, width: 200, fontFamily: 'monospace' }}
+                            />
+                            <p style={{ fontSize: 11, color: '#94a3b8', margin: '2px 0 0' }}>
+                              getidealoh.com/{editFields.slug || code.code.toLowerCase()}
+                            </p>
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>
+                              Default Landing
+                            </label>
+                            <select
+                              value={editFields.productHint}
+                              onChange={(e) => setEditFields((prev) => ({ ...prev, productHint: e.target.value }))}
+                              style={{ padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13 }}
+                            >
+                              <option value="">— Default (Plans) —</option>
+                              <option value="essentials">Essentials</option>
+                              <option value="oralcare">Oral Care</option>
+                              <option value="plans">Plans</option>
+                            </select>
+                          </div>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button
+                              onClick={() => handleSaveEdit(code)}
+                              style={{ padding: '6px 14px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 500 }}
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => setEditingCodeId(null)}
+                              style={{ padding: '6px 14px', background: '#f1f5f9', color: '#374151', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
                       </td>
                     </tr>
                   )}

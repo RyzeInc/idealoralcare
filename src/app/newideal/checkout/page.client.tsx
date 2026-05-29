@@ -1210,6 +1210,7 @@ export default function NewIdealCheckoutClient() {
               <AgentRepCodeSelector
                 referralCode={cart.referralCode}
                 onReferralCodeChange={setReferralCode}
+                lockedFromUrl={cart.referralCodeSource === "url"}
               />
 
               {/* Step 5: Confirm & Pay */}

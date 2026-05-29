@@ -425,3 +425,143 @@ export const listAgentsByGroup = query({
     return results.sort((a, b) => a.name.localeCompare(b.name));
   },
 });
+
+// ── Rep URL Resolution ─────────────────────────────────────────────────────
+
+export interface RepUrlResolution {
+  repCode: string;
+  canonicalSlug: string | null;
+  agentName: string | null;
+  groupId: string | null;
+  productHint: "essentials" | "oralcare" | "plans" | null;
+}
+
+/**
+ * Shared helper: given an active brokerTrackingCodes row, enrich it with
+ * agent name, group info, and productHint.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function enrichCodeRow(code: any, ctx: any): Promise<RepUrlResolution> {
+  const brokerId = code.brokerId;
+
+  // Fetch admin user
+  const admin = await ctx.db
+    .query("adminUsers")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .withIndex("by_clerk_id", (q: any) => q.eq("clerkUserId", brokerId))
+    .first();
+
+  let name: string = admin?.name || "";
+  let groupId: string | null = null;
+  let groupName: string | null = null;
+
+  // Determine group via distribution partner or leader
+  const partners = await ctx.db.query("distributionPartners").collect();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const partner = partners.find((p: any) => p.clerkUserId === brokerId);
+
+  if (partner) {
+    groupId = partner._id;
+    groupName = partner.name;
+  } else {
+    const leader = await ctx.db
+      .query("partnerLeaders")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .filter((q: any) => q.eq(q.field("clerkUserId"), brokerId))
+      .first();
+    if (leader) {
+      if (!admin) name = leader.name;
+      const leaderPartner = await ctx.db.get(leader.partnerId);
+      if (leaderPartner) {
+        groupId = (leaderPartner as any)._id;
+        groupName = (leaderPartner as any).name;
+      }
+    }
+  }
+
+  // Fallback: agency recorded on the rep code row
+  if (!groupId && code.agencyId) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const agency = partners.find((p: any) => p.clerkUserId === code.agencyId);
+    if (agency) {
+      groupId = agency._id;
+      groupName = agency.name;
+    }
+  }
+
+  const derivedSlug = name ? name.toLowerCase().replace(/[^a-z0-9]/g, "") : null;
+
+  return {
+    repCode: code.code,
+    canonicalSlug: code.slug ?? derivedSlug,
+    agentName: name || null,
+    groupId,
+    productHint: code.productHint ?? null,
+  };
+}
+
+/**
+ * Resolve a URL segment to a rep code.
+ *
+ * Resolution order:
+ *  1. Exact rep-code match (case-insensitive: tries UPPER then raw)
+ *  2. Stored slug match (by_slug index)
+ *  3. Legacy computed name-slug scan (backward compat for pre-slug links)
+ *
+ * Used by /[agentSlug]/page.tsx for the URL routing layer.
+ */
+export const resolveRepUrl = query({
+  args: { segment: v.string() },
+  handler: async (ctx, { segment }): Promise<RepUrlResolution | null> => {
+    const raw = segment.trim();
+    const upper = raw.toUpperCase();
+    const normalized = raw.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+    // 1. Exact code match — try uppercase first (canonical form), then raw
+    const byUpper = await ctx.db
+      .query("brokerTrackingCodes")
+      .withIndex("by_code", (q) => q.eq("code", upper))
+      .first();
+    if (byUpper?.status === "active") return enrichCodeRow(byUpper, ctx);
+
+    if (raw !== upper) {
+      const byRaw = await ctx.db
+        .query("brokerTrackingCodes")
+        .withIndex("by_code", (q) => q.eq("code", raw))
+        .first();
+      if (byRaw?.status === "active") return enrichCodeRow(byRaw, ctx);
+    }
+
+    // 2. Stored slug
+    const bySlug = await ctx.db
+      .query("brokerTrackingCodes")
+      .withIndex("by_slug", (q) => q.eq("slug", normalized))
+      .first();
+    if (bySlug?.status === "active") return enrichCodeRow(bySlug, ctx);
+
+    // 3. Legacy: scan active codes and match computed name slug
+    const codes = await ctx.db
+      .query("brokerTrackingCodes")
+      .withIndex("by_status", (q) => q.eq("status", "active"))
+      .collect();
+    if (codes.length === 0) return null;
+
+    const adminUsers = await ctx.db.query("adminUsers").collect();
+    const leaders = await ctx.db.query("partnerLeaders").collect();
+
+    for (const code of codes) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const admin = adminUsers.find((u: any) => u.clerkUserId === code.brokerId);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const leader = admin ? null : leaders.find((l: any) => l.clerkUserId === code.brokerId);
+      const name = admin?.name || leader?.name || "";
+      if (!name) continue;
+      const nameSlug = name.toLowerCase().replace(/[^a-z0-9]/g, "");
+      if (nameSlug && nameSlug === normalized) {
+        return enrichCodeRow(code, ctx);
+      }
+    }
+
+    return null;
+  },
+});

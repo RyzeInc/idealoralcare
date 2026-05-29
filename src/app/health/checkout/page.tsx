@@ -10,7 +10,7 @@
  * 4. Confirm and complete purchase
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useUser, useSignIn, useSignUp } from "@clerk/nextjs";
 import { PROVIDER_GROUP_CODE } from '@/lib/constants';
@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import HealthHeader from "@/components/health/HealthHeader";
 import { AgentRepCodeSelector } from "@/components/health/AgentRepCodeSelector";
+import { ReferralCapture } from "@/components/health/ReferralCapture";
 import { CartProvider, useCart } from "@/lib/health-plans";
 import { formatPrice, getPrice } from "@/lib/health-plans/types";
 import { CadenceModal } from "@/components/health/catalog";
@@ -813,6 +814,7 @@ function CheckoutContent() {
   
   return (
     <div className="health-landing">
+      <Suspense fallback={null}><ReferralCapture /></Suspense>
       <HealthHeader />
       
       {/* Cadence Modal */}
@@ -1205,6 +1207,7 @@ function CheckoutContent() {
               <AgentRepCodeSelector
                 referralCode={cart.referralCode}
                 onReferralCodeChange={setReferralCode}
+                lockedFromUrl={cart.referralCodeSource === "url"}
               />
               
               {/* Step 4: Confirm */}
