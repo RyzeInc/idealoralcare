@@ -15,7 +15,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useQuery } from "convex/react";
-import { ArrowRight, Check, Loader, Heart, Smile, ShoppingCart } from "lucide-react";
+import { ArrowRight, Check, Loader, Heart, Smile, ShoppingCart, ChevronDown, ScanLine, Stethoscope, Phone, Video, Pill, FlaskConical, Brain } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { useCart } from "@/lib/health-plans/cart-context";
 import { formatPrice } from "@/lib/health-plans/types";
@@ -32,6 +32,100 @@ const TIERS: Tier[] = [
   { suffix: "employee-child", label: "Employee + Child", short: "EE+CH" },
   { suffix: "employee-family", label: "Employee + Family", short: "EE+FAM" },
 ];
+
+const PLAN_DETAILS: Record<
+  string,
+  { icon: React.ReactNode; label: string; bullets: string[]; meta?: string }[]
+> = {
+  "essentials-": [
+    {
+      icon: <Video size={15} />,
+      label: "Lyric Telehealth",
+      bullets: [
+        "Virtual Urgent Care — cold/flu, sinus, UTI, rashes, pink eye & more",
+        "Virtual Primary Care — chronic-condition management, refills & screenings",
+        "Virtual Dermatology — photo review, treatment plan within 72 hours",
+        "Prescriptions sent electronically to your pharmacy",
+      ],
+      meta: "1-866-223-8831 · getlyric.com",
+    },
+    {
+      icon: <FlaskConical size={15} />,
+      label: "QuestSelect Lab Services",
+      bullets: [
+        "Significant discounts on blood work, panels & screenings",
+        "Thousands of Quest patient service centers nationwide",
+        "No surprise billing — you see the price before you go",
+        "Pairs with a Lyric visit for complete workups",
+      ],
+      meta: "800-646-7788",
+    },
+    {
+      icon: <Pill size={15} />,
+      label: "RxValet Prescription Savings",
+      bullets: [
+        "Often beats your insurance copay on generics & brand-names",
+        "Accepted at major pharmacies nationwide — no claims to file",
+        "Use for the whole household — no per-script limits",
+        "Mail-order available for maintenance medications",
+      ],
+      meta: "BIN 006053 · PCN MSC · Group GIH1000",
+    },
+    {
+      icon: <Brain size={15} />,
+      label: "Balance for Life",
+      bullets: [
+        "Up to 10 no-cost counseling sessions (phone, video, or in-person)",
+        "24/7 live counselor for crisis & support calls",
+        "Zenn — AI mental-health companion via text, any time",
+        "Tracks: Anxiety, Depression, Chronic Pain, Substance Use, Trauma & PTSD",
+      ],
+      meta: "833-354-2691 · balanceforlifebh.com · Member Code: Ideal",
+    },
+  ],
+  "oralcare-": [
+    {
+      icon: <ScanLine size={15} />,
+      label: "AI Oral Scanning",
+      bullets: [
+        "Take photos with your smartphone — no appointment needed",
+        "AI analyzes for signs of cavities, gum issues & wear",
+        "Instant report with recommended next steps",
+        "Results are informational and do not replace a clinical exam",
+      ],
+    },
+    {
+      icon: <Stethoscope size={15} />,
+      label: "24/7 Teledentistry",
+      bullets: [
+        "Video consult with a licensed dentist any time, day or night",
+        "Great for toothaches, sensitivity, broken teeth & prescriptions",
+        "No waiting room — connect in minutes from your phone",
+        "Dentist can send a prescription to your local pharmacy",
+      ],
+    },
+    {
+      icon: <Smile size={15} />,
+      label: "Dental Discount Network",
+      bullets: [
+        "20\u201360% off at 100,000+ participating dentists nationwide",
+        "Cleanings, X-rays, fillings, crowns, root canals & more",
+        "No claim forms, no deductibles, no waiting periods",
+        "Show your member card at any participating provider",
+      ],
+    },
+    {
+      icon: <Phone size={15} />,
+      label: "Emergency Support",
+      bullets: [
+        "Same-day access to dental specialists for urgent pain",
+        "Covers after-hours and weekend emergencies",
+        "Team triages your situation and connects you to the right care",
+        "Works alongside teledentistry for remote triage first",
+      ],
+    },
+  ],
+};
 
 const PLAN_GROUPS = [
   {
@@ -108,6 +202,7 @@ function TierPlanCard({
   icon,
   color,
   products,
+  slugPrefix,
   autoInclude = false,
 }: {
   family: string;
@@ -115,11 +210,13 @@ function TierPlanCard({
   icon: React.ReactNode;
   color: string;
   products: any[];
+  slugPrefix: string;
   autoInclude?: boolean;
 }) {
   const { cart, addItem, removeItem, isInCart } = useCart();
   const [selectedSuffix, setSelectedSuffix] = useState<string>("employee");
   const [userRemoved, setUserRemoved] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   // Track whether oral care was ever auto-added so we can detect X-button removal
   const hasBeenInCartRef = useRef(false);
 
@@ -347,25 +444,127 @@ function TierPlanCard({
         </div>
       </div>
 
-      {/* Inclusions */}
+      {/* Inclusions — feature names only; detail panel has the how-to */}
       {inclusions.length > 0 && (
-        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 8 }}>
-          {inclusions.slice(0, 6).map((item: string, i: number) => (
-            <li
-              key={i}
+        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 7 }}>
+          {inclusions.slice(0, 6).map((item: string, i: number) => {
+            // Show only the feature name (before " — ") to avoid duplicating detail panel
+            const label = item.includes(" — ") ? item.split(" — ")[0] : item;
+            return (
+              <li
+                key={i}
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  fontSize: "0.9375rem",
+                  color: "var(--text-secondary)",
+                  lineHeight: 1.4,
+                }}
+              >
+                <Check size={16} style={{ color: activeColor, flexShrink: 0, marginTop: 2 }} />
+                <span>{label}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {/* Expandable detail panel */}
+      {PLAN_DETAILS[slugPrefix] && (
+        <div>
+          <button
+            onClick={() => setDetailsOpen((v) => !v)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              color: activeColor,
+              fontSize: "0.875rem",
+              fontWeight: 600,
+            }}
+          >
+            {detailsOpen ? "Hide how-to" : "How to use each benefit →"}
+            <ChevronDown
+              size={14}
               style={{
-                display: "flex",
-                gap: 10,
-                fontSize: "0.9375rem",
-                color: "var(--text-secondary)",
-                lineHeight: 1.5,
+                transition: "transform 0.2s",
+                transform: detailsOpen ? "rotate(180deg)" : "rotate(0deg)",
+              }}
+            />
+          </button>
+
+          {detailsOpen && (
+            <div
+              style={{
+                marginTop: 12,
+                borderRadius: 12,
+                border: `1px solid ${autoInclude ? "rgba(13,148,136,0.18)" : "rgba(0,102,204,0.14)"}`,
+                overflow: "hidden",
               }}
             >
-              <Check size={16} style={{ color: activeColor, flexShrink: 0, marginTop: 2 }} />
-              <span>{item}</span>
-            </li>
-          ))}
-        </ul>
+              {PLAN_DETAILS[slugPrefix].map((d, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    padding: "14px 16px",
+                    background: idx % 2 === 0 ? "rgba(0,0,0,0.015)" : "white",
+                    borderTop: idx === 0 ? "none" : "1px solid rgba(0,0,0,0.05)",
+                  }}
+                >
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 8 }}>
+                    <div
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 7,
+                        background: autoInclude ? "rgba(13,148,136,0.1)" : "rgba(0,102,204,0.08)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: activeColor,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {d.icon}
+                    </div>
+                    <span style={{ fontWeight: 700, fontSize: "0.875rem", color: "#0f172a" }}>
+                      {d.label}
+                    </span>
+                  </div>
+                  <ul style={{ listStyle: "none", margin: 0, padding: "0 0 0 38px", display: "grid", gap: 4 }}>
+                    {d.bullets.map((b, bi) => (
+                      <li key={bi} style={{ fontSize: "0.8125rem", color: "#475569", lineHeight: 1.5, display: "flex", gap: 7, alignItems: "flex-start" }}>
+                        <span style={{ color: activeColor, marginTop: 2, flexShrink: 0 }}>·</span>
+                        {b}
+                      </li>
+                    ))}
+                  </ul>
+                  {d.meta && (
+                    <div
+                      style={{
+                        marginTop: 8,
+                        marginLeft: 38,
+                        fontSize: "0.75rem",
+                        fontWeight: 600,
+                        color: activeColor,
+                        background: autoInclude ? "rgba(13,148,136,0.07)" : "rgba(0,102,204,0.07)",
+                        borderRadius: 6,
+                        padding: "4px 8px",
+                        display: "inline-block",
+                      }}
+                    >
+                      {d.meta}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {/* CTA */}
@@ -697,6 +896,7 @@ export default function NewIdealPlansPage() {
                       blurb={group.blurb}
                       icon={group.icon}
                       color={group.color}
+                      slugPrefix={group.slugPrefix}
                       products={groupProducts}
                       autoInclude={group.autoInclude}
                     />
