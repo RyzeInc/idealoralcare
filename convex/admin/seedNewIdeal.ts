@@ -34,9 +34,10 @@ const ORALCARE_TIERS = [
 ];
 
 const ORALCARE_INCLUSIONS = [
-  "Dental Savings — 20\u201360% off dental procedures at 100,000+ participating dentists nationwide",
-  "Vision Discounts — Savings on eye exams, glasses frames, lenses, and contacts at major optical providers",
-  "Hearing Care — Discounts on hearing exams and hearing aid devices",
+  "AI Oral Scanning — photo-based oral health detection and reports",
+  "24/7 Teledentistry — video consultations with experienced dentists",
+  "Dental Discount Network — 20–60% off at 100,000+ participating dentists nationwide",
+  "Emergency Support — same-day access to specialists for urgent dental concerns",
 ];
 
 export const seedNewIdeal = mutation({

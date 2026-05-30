@@ -106,10 +106,9 @@ export const TermsAndConditionsModal: React.FC<TermsAndConditionsModalProps> = (
               <h3 className="font-semibold">Description of the Oral Care Plan</h3>
               <p>
                 The Ideal Health Oral Care Plan is a savings membership —{" "}
-                <strong>NOT insurance</strong> — that provides savings on dental procedures, vision
-                care, and hearing services through participating providers. Savings range from
-                20–60% off at 100,000+ participating dentists nationwide, plus savings on eyewear
-                and hearing devices.
+                <strong>NOT insurance</strong> — that combines AI Oral Scanning, 24/7 teledentistry,
+                emergency dental support, and the Dental Discount Network. Network savings range
+                from 20–60% off at 100,000+ participating dentists nationwide.
               </p>
 
               <h3 className="font-semibold">Oral Care Plan Pricing</h3>
@@ -118,28 +117,29 @@ export const TermsAndConditionsModal: React.FC<TermsAndConditionsModalProps> = (
                 <li>Employee + Family: $24.99/mo</li>
               </ul>
 
-              <h3 className="font-semibold">Included Savings</h3>
+              <h3 className="font-semibold">Included Benefits</h3>
               <ul>
                 <li>
-                  <strong>Dental Savings</strong> — 20–60% off dental procedures at 100,000+
-                  participating dentists nationwide.
+                  <strong>AI Oral Scanning</strong> — Photo-based oral health detection with personalized reports.
                 </li>
                 <li>
-                  <strong>Vision Savings</strong> — Savings on eye exams, glasses frames, lenses,
-                  and contacts at major optical providers.
+                  <strong>24/7 Teledentistry</strong> — Video consultations with experienced dentists.
                 </li>
                 <li>
-                  <strong>Hearing Care Savings</strong> — Savings on hearing exams and hearing aid
-                  devices.
+                  <strong>Dental Discount Network</strong> — 20–60% off at 100,000+ participating dentists.
+                </li>
+                <li>
+                  <strong>Emergency Support</strong> — Same-day specialist access for urgent dental concerns.
                 </li>
               </ul>
 
               <h3 className="font-semibold">Important Limitations</h3>
               <p>
-                This plan is <strong>not insurance</strong>. No portion of any provider&apos;s fees
-                will be reimbursed. Members pay reduced fees directly to providers at the time of
-                service. Savings vary by provider and location. Savings may not be combined with
-                any other savings plan. Verify provider participation before receiving services.
+                This plan is <strong>not insurance</strong>. AI scans are informational and do not
+                replace clinical diagnosis. No portion of any provider&apos;s fees will be reimbursed.
+                Members pay reduced fees directly to providers at the time of service. Savings vary
+                by provider and location and may not be combined with any other savings plan. Verify
+                provider participation before receiving services.
               </p>
 
               <h3 className="font-semibold">Cancellation</h3>

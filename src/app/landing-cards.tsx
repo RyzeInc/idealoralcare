@@ -233,11 +233,11 @@ export function LandingCards() {
         headerGradient="linear-gradient(150deg, rgba(13,148,136,0.82) 0%, rgba(6,182,212,0.7) 100%)"
         icon={<Smile size={22} color="white" />}
         title="Oral Savings Plans"
-        description="20–60% off dental, vision, and hearing services at 100,000+ providers nationwide. No waiting periods. No insurance hassles."
+        description="AI Oral Scanning, 24/7 teledentistry, and 20–60% off at 100,000+ dentists nationwide. No waiting periods. No claim forms."
         bullets={[
-          "Dental savings — cleanings, fillings, crowns",
-          "Vision — exams, glasses, contacts",
-          "Hearing — exams & hearing aids",
+          "AI Oral Scanning — instant photo reports",
+          "24/7 teledentistry consultations",
+          "100,000+ dental providers",
         ]}
         bulletColor="#0d9488"
         startingPrice="$14.99"
@@ -253,7 +253,7 @@ export function LandingCards() {
         headerGradient="linear-gradient(150deg, rgba(12,74,110,0.82) 0%, rgba(3,105,161,0.7) 100%)"
         icon={<Heart size={22} color="white" />}
         title="Essentials Bundle"
-        description="Telehealth, pharmacy savings, lab work, mental wellness, and oral care — all in one simple monthly membership."
+        description="Telehealth, pharmacy savings, lab work, mental wellness, and AI-powered oral care — all in one simple monthly membership."
         bullets={[
           "Lyric Telehealth — 24/7 doctor access",
           "RxValet — prescription savings",

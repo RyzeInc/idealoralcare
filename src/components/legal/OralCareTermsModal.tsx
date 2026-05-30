@@ -153,27 +153,32 @@ export const OralCareTermsModal: React.FC<OralCareTermsModalProps> = ({
               <h4 className="font-semibold mb-1">Nature of the Plan — NOT Insurance</h4>
               <p>
                 <strong>This is a savings membership program, NOT insurance.</strong> The Oral Care Plan
-                provides access to a network of participating dental, vision, and hearing providers who have
-                agreed to offer reduced rates to members. It is not a substitute for dental, vision, or
-                hearing insurance and does not satisfy any insurance coverage requirements.
+                provides AI-powered oral health tools, 24/7 teledentistry, and access to a network of
+                participating dentists who have agreed to offer reduced rates to members. It is not a
+                substitute for dental insurance and does not satisfy any insurance coverage requirements.
               </p>
             </div>
 
             <div>
-              <h4 className="font-semibold mb-1">Included Savings</h4>
+              <h4 className="font-semibold mb-1">Included Benefits</h4>
               <ul className="list-disc pl-5 space-y-1">
                 <li>
-                  <strong>Dental Savings:</strong> 20–60% off dental procedures at 100,000+ participating
-                  dentists nationwide through the Dental Savings Network. Savings vary by provider and
-                  procedure. Not all procedures qualify for savings.
+                  <strong>AI Oral Scanning:</strong> Photo-based oral health detection and personalized
+                  health reports. AI scans are informational and do not replace clinical diagnosis by a
+                  licensed dentist.
                 </li>
                 <li>
-                  <strong>Vision Savings:</strong> Savings on eye exams, glasses frames, lenses, and
-                  contacts at participating optical providers. Savings amounts vary by provider.
+                  <strong>24/7 Teledentistry:</strong> Video consultations with experienced dentists.
+                  Availability and response times may vary.
                 </li>
                 <li>
-                  <strong>Hearing Care Savings:</strong> Savings on hearing exams and hearing aid
-                  devices at participating hearing care providers.
+                  <strong>Dental Discount Network:</strong> 20–60% off dental procedures at 100,000+
+                  participating dentists nationwide. Savings vary by provider and procedure. Not all
+                  procedures qualify for savings.
+                </li>
+                <li>
+                  <strong>Emergency Support:</strong> Same-day access to specialists for urgent dental
+                  concerns through the teledentistry platform.
                 </li>
               </ul>
             </div>
@@ -181,7 +186,7 @@ export const OralCareTermsModal: React.FC<OralCareTermsModalProps> = ({
             <div>
               <h4 className="font-semibold mb-1">Provider Network</h4>
               <p>
-                Savings are only available at participating providers within the network. Provider
+                Dental network savings are only available at participating providers. Provider
                 availability varies by location. Members are responsible for verifying provider
                 participation and savings amounts prior to receiving services. Ideal Health does not
                 guarantee the availability of any specific provider.

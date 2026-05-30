@@ -43,13 +43,10 @@ export function NewIdealHeader() {
           <Image
             src="/newideal/logo.png"
             alt="Ideal Health"
-            width={40}
-            height={40}
+            width={56}
+            height={56}
             priority
           />
-          <span style={{ fontWeight: 700, fontSize: "1.125rem", color: "#0f172a" }}>
-            Ideal Health
-          </span>
         </Link>
 
         <nav

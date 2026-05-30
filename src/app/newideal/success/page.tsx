@@ -21,10 +21,7 @@ export default function NewIdealSuccessPage() {
         }}
       >
         <div className="container" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Image src="/newideal/logo.png" alt="New Ideal Health" width={36} height={36} />
-          <span style={{ fontWeight: 700, fontSize: "1rem", color: "#0f172a" }}>
-            New Ideal Health
-          </span>
+          <Image src="/newideal/logo.png" alt="New Ideal Health" width={52} height={52} />
         </div>
       </header>
 

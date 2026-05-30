@@ -35,6 +35,7 @@ import {
   Calendar,
   ShoppingCart,
   ChevronRight,
+  ChevronDown,
   Shield,
   X,
   Loader,
@@ -45,6 +46,12 @@ import {
   Phone,
   MapPin,
   User,
+  ScanLine,
+  Stethoscope,
+  Smile,
+  Heart,
+  Activity,
+  Zap,
 } from "lucide-react";
 import { useCart } from "@/lib/health-plans/cart-context";
 import { formatPrice } from "@/lib/health-plans/types";
@@ -671,12 +678,9 @@ function CheckoutHeader() {
           <Image
             src="/newideal/logo.png"
             alt="Ideal Health"
-            width={36}
-            height={36}
+            width={52}
+            height={52}
           />
-          <span style={{ fontWeight: 700, fontSize: "1rem", color: "#0f172a" }}>
-            Ideal Health
-          </span>
         </Link>
         <nav style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <Link href="/newideal" style={{ fontSize: "0.875rem", color: "#64748b", textDecoration: "none", fontWeight: 500 }}>
@@ -760,6 +764,9 @@ export default function NewIdealCheckoutClient() {
 
   const [agreedToNotInsurance, setAgreedToNotInsurance] = useState(false);
   const [termsModalOpen, setTermsModalOpen] = useState(false);
+  // Plan detail accordion state
+  const [essentialsOpen, setEssentialsOpen] = useState(false);
+  const [oralCareOpen, setOralCareOpen] = useState(false);
   // Per-plan agreement state
   const [essentialsAgreed, setEssentialsAgreed] = useState(false);
   const [essentialsModalOpen, setEssentialsModalOpen] = useState(false);
@@ -1431,37 +1438,138 @@ export default function NewIdealCheckoutClient() {
               <div className="glass-card" style={{ padding: 24 }}>
                 <h3 style={{ margin: "0 0 16px 0" }}>Order Summary</h3>
 
-                {cart.items.map((item) => (
-                  <div
-                    key={item.productId}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: "10px 0",
-                      borderBottom: "1px solid rgba(0,0,0,0.06)",
-                    }}
-                  >
-                    <div>
-                      <div
-                        style={{ fontWeight: 500, fontSize: "0.9375rem" }}
-                      >
-                        {item.product.name}
-                      </div>
+                {cart.items.map((item) => {
+                  const isEss = item.product.slug?.startsWith("essentials-");
+                  const isOral = item.product.slug?.startsWith("oralcare-");
+                  const isOpen = isEss ? essentialsOpen : isOral ? oralCareOpen : false;
+                  const toggle = isEss
+                    ? () => setEssentialsOpen((v) => !v)
+                    : isOral
+                    ? () => setOralCareOpen((v) => !v)
+                    : undefined;
+
+                  const essentialsDetails = [
+                    { icon: <Heart size={13} />, label: "Telehealth", desc: "24/7 virtual doctor visits" },
+                    { icon: <Activity size={13} />, label: "Mental Health", desc: "Licensed counselors on-demand" },
+                    { icon: <Zap size={13} />, label: "Preventive Care", desc: "Screenings & wellness checks" },
+                    { icon: <Shield size={13} />, label: "Rx Discounts", desc: "Savings at 60,000+ pharmacies" },
+                  ];
+                  const oralCareDetails = [
+                    { icon: <ScanLine size={13} />, label: "AI Oral Scanning", desc: "Photo-based health detection" },
+                    { icon: <Stethoscope size={13} />, label: "24/7 Teledentistry", desc: "Video consults with dentists" },
+                    { icon: <Smile size={13} />, label: "Dental Discount Network", desc: "20–60% off at 100,000+ providers" },
+                    { icon: <Phone size={13} />, label: "Emergency Support", desc: "Same-day specialist access" },
+                  ];
+                  const details = isEss ? essentialsDetails : isOral ? oralCareDetails : [];
+
+                  return (
+                    <div key={item.productId} style={{ borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
                       <div
                         style={{
-                          fontSize: "0.75rem",
-                          color: "var(--text-muted)",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "10px 0",
                         }}
                       >
-                        Monthly membership
+                        <div>
+                          <div style={{ fontWeight: 500, fontSize: "0.9375rem" }}>
+                            {item.product.name}
+                          </div>
+                          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                            Monthly membership
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontWeight: 600 }}>
+                            {formatPrice(item.product.pricing.monthlyCardCents)}
+                          </span>
+                          {toggle && (
+                            <button
+                              onClick={toggle}
+                              style={{
+                                background: "rgba(0,102,204,0.07)",
+                                border: "none",
+                                borderRadius: 6,
+                                padding: "3px 6px",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 3,
+                                fontSize: "0.7rem",
+                                color: "var(--primary-blue)",
+                                fontWeight: 500,
+                              }}
+                            >
+                              Details
+                              <ChevronDown
+                                size={12}
+                                style={{
+                                  transition: "transform 0.2s",
+                                  transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+                                }}
+                              />
+                            </button>
+                          )}
+                        </div>
                       </div>
+
+                      {toggle && isOpen && (
+                        <div
+                          style={{
+                            background: "rgba(0,102,204,0.04)",
+                            borderRadius: 8,
+                            padding: "10px 12px",
+                            marginBottom: 10,
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: "0.6875rem",
+                              fontWeight: 600,
+                              textTransform: "uppercase",
+                              letterSpacing: "0.06em",
+                              color: "var(--text-muted)",
+                              marginBottom: 8,
+                            }}
+                          >
+                            What&apos;s included
+                          </div>
+                          {details.map((d, idx) => (
+                            <div
+                              key={idx}
+                              style={{
+                                display: "flex",
+                                alignItems: "flex-start",
+                                gap: 8,
+                                padding: "5px 0",
+                                borderTop: idx === 0 ? "none" : "1px solid rgba(0,0,0,0.05)",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  color: "var(--primary-blue)",
+                                  marginTop: 1,
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {d.icon}
+                              </span>
+                              <div>
+                                <div style={{ fontWeight: 600, fontSize: "0.8125rem" }}>
+                                  {d.label}
+                                </div>
+                                <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
+                                  {d.desc}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <span style={{ fontWeight: 600 }}>
-                      {formatPrice(item.product.pricing.monthlyCardCents)}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
 
                 <div
                   style={{

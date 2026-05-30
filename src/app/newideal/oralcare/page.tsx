@@ -2,14 +2,15 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import {
   Smile,
-  Eye,
-  Ear,
+  Stethoscope,
   Sparkles,
   Check,
   ArrowRight,
   MapPin,
   CalendarClock,
   ShieldCheck,
+  ScanLine,
+  Phone,
 } from "lucide-react";
 import {
   NewIdealHeader,
@@ -19,7 +20,7 @@ import {
 export const metadata: Metadata = {
   title: "Oral Care — Ideal Health",
   description:
-    "The Ideal Oral Care discount network gives members access to savings on dental cleanings, fillings, vision exams, eyewear, and hearing aids — at thousands of providers nationwide.",
+    "The Ideal Oral Savings Plan: AI Oral Scanning, 24/7 teledentistry, and a nationwide Dental Discount Network with savings of 20–60% at 100,000+ providers.",
 };
 
 export default function OralCarePage() {
@@ -96,8 +97,9 @@ export default function OralCarePage() {
               maxWidth: 600,
             }}
           >
-            Save on dental, vision, and hearing — with access to thousands of
-            providers nationwide. No claim forms, no waiting periods.
+            AI Oral Scanning, 24/7 teledentistry, and savings of 20–60% at
+            100,000+ dentists nationwide — with no waiting periods and no claim
+            forms.
           </p>
         </div>
       </section>
@@ -115,10 +117,11 @@ export default function OralCarePage() {
                 letterSpacing: "-0.02em",
               }}
             >
-              Three benefit categories
+              What’s included
             </h2>
             <p style={{ color: "#475569", fontSize: "1.0625rem", margin: 0, lineHeight: 1.65 }}>
-              One membership. Complete coverage.
+              A modern oral health plan built around prevention, access, and
+              transparent pricing.
             </p>
           </div>
 
@@ -131,45 +134,59 @@ export default function OralCarePage() {
           >
             {[
               {
-                icon: <Smile size={28} />,
+                icon: <ScanLine size={28} />,
                 color: "#0284c7",
                 gradient: "linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%)",
-                image: "/newideal/site-files/pinky-swear.png",
-                title: "Dental Savings",
-                desc: "Access negotiated rates at 100,000+ dental providers nationwide.",
+                image: "/newideal/site-files/virtual-medicine.png",
+                title: "AI Oral Scanning",
+                desc: "Snap photos of your teeth and gums and get an AI-powered oral health report.",
                 items: [
-                  "Cleanings, exams, and X-rays",
-                  "Fillings, crowns, and root canals",
+                  "Detects potential issues early",
+                  "Personalized oral health score",
+                  "Detailed report and recommendations",
+                  "Track changes between visits",
+                ],
+              },
+              {
+                icon: <Stethoscope size={28} />,
+                color: "#0d9488",
+                gradient: "linear-gradient(135deg, #0d9488 0%, #14b8a6 100%)",
+                image: "/newideal/site-files/care-workers.png",
+                title: "24/7 Teledentistry",
+                desc: "Connect with experienced dentists by video call — anytime, anywhere.",
+                items: [
+                  "Professional advice and triage",
+                  "Treatment recommendations",
+                  "Prescription guidance when appropriate",
+                  "No appointment, no commute",
+                ],
+              },
+              {
+                icon: <Smile size={28} />,
+                color: "#0066CC",
+                gradient: "linear-gradient(135deg, #0066CC 0%, #3b82f6 100%)",
+                image: "/newideal/site-files/pinky-swear.png",
+                title: "Dental Discount Network",
+                desc: "Negotiated rates at 100,000+ participating dentists nationwide.",
+                items: [
+                  "20–60% off cleanings, exams, and X-rays",
+                  "Savings on fillings, crowns, and root canals",
                   "Orthodontics and cosmetic dentistry",
                   "Periodontal and oral surgery services",
                 ],
               },
               {
-                icon: <Eye size={28} />,
-                color: "#0d9488",
-                gradient: "linear-gradient(135deg, #0d9488 0%, #14b8a6 100%)",
-                image: "/newideal/site-files/lady-glasses.png",
-                title: "Vision Savings",
-                desc: "Eye exams, prescription eyewear, and contacts at network providers.",
+                icon: <Phone size={28} />,
+                color: "#f97316",
+                gradient: "linear-gradient(135deg, #ea580c 0%, #f97316 100%)",
+                image: "/newideal/site-files/nurse-clipboard.png",
+                title: "Emergency Support",
+                desc: "Pain or urgent concern? Talk to a specialist immediately for guidance and relief.",
                 items: [
-                  "Annual eye exam discounts",
-                  "Frames and prescription lenses",
-                  "Contact lens savings",
-                  "LASIK surgery discounts",
-                ],
-              },
-              {
-                icon: <Ear size={28} />,
-                color: "#7c3aed",
-                gradient: "linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)",
-                image: "/newideal/site-files/care-workers.png",
-                title: "Hearing Savings",
-                desc: "Hearing exams, devices, and ongoing care discounts.",
-                items: [
-                  "Hearing exams and screenings",
-                  "Discounted hearing aids",
-                  "Fitting and follow-up appointments",
-                  "Battery and accessory savings",
+                  "24/7 access to dental specialists",
+                  "Same-day video consults",
+                  "Help finding in-person care",
+                  "After-hours and weekend coverage",
                 ],
               },
             ].map((c) => (
@@ -333,8 +350,8 @@ export default function OralCarePage() {
               },
               {
                 icon: <MapPin size={22} />,
-                title: "Massive network",
-                desc: "100,000+ dental providers, plus thousands of vision and hearing partners.",
+                title: "100,000+ providers",
+                desc: "Find a participating dentist nearly anywhere in the country.",
               },
             ].map((b) => (
               <div
@@ -436,7 +453,7 @@ export default function OralCarePage() {
                 lineHeight: 1.15,
               }}
             >
-              From routine cleanings to your kid&apos;s first glasses — we&apos;ve got it covered.
+              From routine cleanings to root canals — everyone gets a healthier smile.
             </h2>
             <p
               style={{
@@ -446,9 +463,9 @@ export default function OralCarePage() {
                 margin: 0,
               }}
             >
-              Oral Care is built for households. Bring your spouse, your kids, your
-              parents on Medicare — savings apply at every visit, every time, with
-              no caps and no claim forms.
+              The Oral Savings Plan is built for households. Bring your spouse,
+              your kids, your parents — savings apply at every visit, every time,
+              with no caps and no claim forms.
             </p>
           </div>
         </div>

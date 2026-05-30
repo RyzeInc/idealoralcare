@@ -51,14 +51,14 @@ const PROGRAM_CARDS = [
     overlay: "linear-gradient(150deg, rgba(13,148,136,0.82) 0%, rgba(6,182,212,0.72) 100%)",
     image: "/newideal/site-files/lady-glasses.png",
     name: "Oral Care",
-    tagline: "Savings on dental, vision, and hearing",
+    tagline: "AI-powered oral health, savings on dental",
     blurb:
-      "Access the Ideal Oral Care savings network — reduced rates on dental cleanings, fillings, vision exams, eyewear, and hearing aids at thousands of providers nationwide.",
+      "AI Oral Scanning, 24/7 teledentistry, emergency support, and the Dental Discount Network — 20–60% off at 100,000+ dentists nationwide.",
     includes: [
-      "Dental savings at 100,000+ providers",
-      "Vision exam & eyewear savings",
-      "Hearing aid savings",
-      "Family coverage available",
+      "AI Oral Scanning — instant photo-based health reports",
+      "24/7 teledentistry consultations",
+      "Dental Discount Network — 100,000+ providers",
+      "Emergency support, day or night",
     ],
   },
 ];
@@ -69,7 +69,7 @@ const COVERAGE_ITEMS = [
   { icon: <FlaskConical size={22} />, label: "Lab Discounts", sub: "QuestSelect transparent pricing" },
   { icon: <Brain size={22} />, label: "Mental Wellness", sub: "Counseling, coaching, 24/7 chat" },
   { icon: <Smile size={22} />, label: "Dental Savings", sub: "100,000+ providers nationwide" },
-  { icon: <Shield size={22} />, label: "Vision & Hearing", sub: "Exams, eyewear, hearing aids" },
+  { icon: <Shield size={22} />, label: "AI Oral Scanning", sub: "Instant photo-based health reports" },
 ];
 
 export default function NewIdealLandingPage() {

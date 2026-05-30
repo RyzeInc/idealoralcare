@@ -77,10 +77,7 @@ function NewIdealHeader({ cartCount }: { cartCount: number }) {
         }}
       >
         <Link href="/newideal" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none" }}>
-          <Image src="/newideal/logo.png" alt="Ideal Health" width={40} height={40} priority />
-          <span style={{ fontWeight: 700, fontSize: "1.125rem", color: "#0f172a" }}>
-            Ideal Health
-          </span>
+          <Image src="/newideal/logo.png" alt="Ideal Health" width={56} height={56} priority />
         </Link>
         <nav style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <Link href="/newideal" style={{ fontSize: "0.875rem", color: "#64748b", textDecoration: "none", fontWeight: 500 }}>
