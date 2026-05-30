@@ -6,8 +6,6 @@ import {
   Pill,
   FlaskConical,
   Brain,
-  Phone,
-  Globe,
   Check,
   ArrowRight,
   Smartphone,
@@ -39,7 +37,6 @@ const PROGRAMS = [
       "Virtual Dermatology — board-certified review of 3+ photos, treatment plan within 72 hours",
       "Prescriptions sent electronically to your local pharmacy",
     ],
-    contact: { phone: "1-866-223-8831", website: "getlyric.com" },
   },
   {
     name: "QuestSelect Labs",
@@ -55,7 +52,6 @@ const PROGRAMS = [
       "No surprise billing — you know the price before you go",
       "Use alongside a Lyric telehealth visit for full workups",
     ],
-    contact: { phone: "800-646-7788" },
   },
   {
     name: "RxValet Pharmacy",
@@ -71,10 +67,6 @@ const PROGRAMS = [
       "Use for the whole family — no per-script limits",
       "Mail-order option available for maintenance medications",
     ],
-    contact: {
-      phone: "855-798-2538",
-      detail: "BIN 006053 · PCN MSC · Group GIH1000",
-    },
   },
   {
     name: "Balance for Life",
@@ -91,11 +83,6 @@ const PROGRAMS = [
       "Specialized tracks: Anxiety, Depression, Chronic Pain, Substance Use, Trauma, PTSD, and more",
       "Long-term virtual & in-person care network with PHQ-2, PHQ-9, GAD-7 monitoring",
     ],
-    contact: {
-      phone: "833-354-2691",
-      website: "balanceforlifebh.com",
-      detail: "Member Code: Ideal",
-    },
   },
 ];
 
@@ -319,34 +306,7 @@ export default function EssentialsPage() {
                     ))}
                   </ul>
 
-                  {/* Contact info */}
-                  <div
-                    style={{
-                      marginTop: "auto",
-                      paddingTop: 20,
-                      borderTop: "1px solid #e2e8f0",
-                      fontSize: "0.8125rem",
-                      color: "#64748b",
-                    }}
-                  >
-                    {prog.contact.phone && (
-                      <div style={{ marginBottom: 6, display: "flex", gap: 6, alignItems: "center" }}>
-                        <Phone size={13} />
-                        <span>
-                          <strong>{prog.contact.phone}</strong>
-                        </span>
-                      </div>
-                    )}
-                    {prog.contact.website && (
-                      <div style={{ marginBottom: 6, display: "flex", gap: 6, alignItems: "center" }}>
-                        <Globe size={13} />
-                        <span>{prog.contact.website}</span>
-                      </div>
-                    )}
-                    {prog.contact.detail && (
-                      <div style={{ color: "#94a3b8", marginTop: 8 }}>{prog.contact.detail}</div>
-                    )}
-                  </div>
+                </div>
                 </div>
               </div>
             ))}
