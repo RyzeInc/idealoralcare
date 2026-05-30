@@ -48,6 +48,8 @@ import {
 } from "lucide-react";
 import { useCart } from "@/lib/health-plans/cart-context";
 import { formatPrice } from "@/lib/health-plans/types";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { AgentRepCodeSelector } from "@/components/health/AgentRepCodeSelector";
 import {
   TermsAndConditionsModal,
@@ -763,6 +765,10 @@ export default function NewIdealCheckoutClient() {
   const [essentialsModalOpen, setEssentialsModalOpen] = useState(false);
   const [oralCareAgreed, setOralCareAgreed] = useState(false);
   const [oralCareModalOpen, setOralCareModalOpen] = useState(false);
+
+  // Convex mutation — persists the signed oral care agreement
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const saveOralCareAgreement = useMutation((api as any)["legal/membershipAgreements"].createOralCareAgreement);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1613,13 +1619,33 @@ export default function NewIdealCheckoutClient() {
       <OralCareTermsModal
         isOpen={oralCareModalOpen}
         onClose={() => setOralCareModalOpen(false)}
-        onAccept={() => {
+        onAccept={async (signature: string) => {
+          try {
+            await saveOralCareAgreement({
+              userId: user!.id,
+              memberName: user!.fullName ?? user!.id,
+              email: user!.emailAddresses[0]?.emailAddress ?? "",
+              planName:
+                cart.items.find((i) => i.product.slug?.startsWith("oralcare-"))?.product.name ??
+                "Oral Care Savings",
+              periodicCharge: (() => {
+                const item = cart.items.find((i) => i.product.slug?.startsWith("oralcare-"));
+                return item ? formatPrice(item.product.pricing.monthlyCardCents) + "/mo" : undefined;
+              })(),
+              memberSignature: signature,
+              signatureTimestamp: Date.now(),
+            });
+          } catch (err) {
+            console.error("Failed to save oral care agreement:", err);
+            // Non-blocking — agreement UI gate still set below
+          }
           setOralCareAgreed(true);
           setOralCareModalOpen(false);
         }}
         planName={
           cart.items.find((i) => i.product.slug?.startsWith("oralcare-"))?.product.name
         }
+        memberData={user ? { memberName: user.fullName ?? undefined, email: user.emailAddresses[0]?.emailAddress } : undefined}
       />
 
       <TermsAndConditionsModal

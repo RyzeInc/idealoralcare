@@ -61,6 +61,51 @@ export const createMembershipAgreement = mutation({
   },
 });
 
+/**
+ * Lightweight agreement record captured when a member accepts Oral Care Savings
+ * terms at checkout. Uses the same membershipAgreements table; fields that are
+ * unavailable at checkout (Careington memberId, physical address) get safe
+ * placeholder values that can be backfilled post-enrollment.
+ */
+export const createOralCareAgreement = mutation({
+  args: {
+    userId: v.string(),
+    memberName: v.string(),
+    email: v.string(),
+    planName: v.string(),
+    periodicCharge: v.optional(v.string()),
+    memberSignature: v.string(), // canvas PNG dataURL
+    signatureTimestamp: v.number(),
+  },
+  handler: async (ctx: any, args: any) => {
+    const effectiveDate = new Date().toISOString().split("T")[0];
+
+    const agreementId = await ctx.db.insert("membershipAgreements", {
+      userId: args.userId,
+      memberId: args.userId, // Clerk ID — Careington member ID backfilled after enrollment
+      memberName: args.memberName,
+      memberAddress: "",       // Not collected at checkout; can be updated later
+      email: args.email,
+      planName: args.planName,
+      groupCode: "ORALCARE",
+      term: "Monthly",
+      classification: "Oral Care Savings",
+      paymentMode: "Card",
+      periodicCharge: args.periodicCharge ?? "",
+      processingFee: "",
+      effectiveDate,
+      membershipTermsAgreed: true,
+      termsAndConditionsAgreed: true,
+      memberSignature: args.memberSignature,
+      signatureTimestamp: args.signatureTimestamp,
+      createdAt: Date.now(),
+      status: "active",
+    });
+
+    return { success: true, agreementId };
+  },
+});
+
 export const getMembershipAgreement = query({
   args: {
     agreementId: v.id("membershipAgreements"),

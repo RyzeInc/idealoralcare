@@ -1,14 +1,18 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
 interface OralCareTermsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAccept: () => void;
+  onAccept: (signature: string) => void;
   planName?: string;
+  memberData?: {
+    memberName?: string;
+    email?: string;
+  };
 }
 
 export const OralCareTermsModal: React.FC<OralCareTermsModalProps> = ({
@@ -16,17 +20,93 @@ export const OralCareTermsModal: React.FC<OralCareTermsModalProps> = ({
   onClose,
   onAccept,
   planName,
+  memberData,
 }) => {
   const [agreed, setAgreed] = useState(false);
+  const [hasStroke, setHasStroke] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!canvasRef.current) return;
+    setIsDrawing(true);
+    setHasStroke(true);
+    const rect = canvasRef.current.getBoundingClientRect();
+    const ctx = canvasRef.current.getContext("2d");
+    if (ctx) {
+      ctx.beginPath();
+      ctx.moveTo(
+        (e.clientX - rect.left) * (canvasRef.current.width / rect.width),
+        (e.clientY - rect.top) * (canvasRef.current.height / rect.height)
+      );
+    }
+  };
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || !canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const ctx = canvasRef.current.getContext("2d");
+    if (ctx) {
+      ctx.lineTo(
+        (e.clientX - rect.left) * (canvasRef.current.width / rect.width),
+        (e.clientY - rect.top) * (canvasRef.current.height / rect.height)
+      );
+      ctx.stroke();
+    }
+  };
+
+  const stopDrawing = () => setIsDrawing(false);
+
+  const startTouch = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    if (!canvasRef.current) return;
+    setIsDrawing(true);
+    setHasStroke(true);
+    const rect = canvasRef.current.getBoundingClientRect();
+    const touch = e.touches[0];
+    const ctx = canvasRef.current.getContext("2d");
+    if (ctx) {
+      ctx.beginPath();
+      ctx.moveTo(
+        (touch.clientX - rect.left) * (canvasRef.current.width / rect.width),
+        (touch.clientY - rect.top) * (canvasRef.current.height / rect.height)
+      );
+    }
+  };
+
+  const drawTouch = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    if (!isDrawing || !canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const touch = e.touches[0];
+    const ctx = canvasRef.current.getContext("2d");
+    if (ctx) {
+      ctx.lineTo(
+        (touch.clientX - rect.left) * (canvasRef.current.width / rect.width),
+        (touch.clientY - rect.top) * (canvasRef.current.height / rect.height)
+      );
+      ctx.stroke();
+    }
+  };
+
+  const clearSignature = () => {
+    if (canvasRef.current) {
+      const ctx = canvasRef.current.getContext("2d");
+      if (ctx) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    }
+    setHasStroke(false);
+  };
 
   const handleAccept = () => {
-    if (agreed) {
-      onAccept();
+    if (agreed && hasStroke && canvasRef.current) {
+      onAccept(canvasRef.current.toDataURL());
+      clearSignature();
       setAgreed(false);
     }
   };
 
   const handleClose = () => {
+    clearSignature();
     setAgreed(false);
     onClose();
   };
@@ -40,9 +120,17 @@ export const OralCareTermsModal: React.FC<OralCareTermsModalProps> = ({
 
         <div className="flex-1 overflow-y-auto border rounded p-4 bg-gray-50 text-sm">
           <div className="space-y-4">
-            {planName && (
-              <div className="bg-white border rounded p-3 text-xs">
-                <span className="font-medium">Plan:</span> {planName}
+            {(planName || memberData) && (
+              <div className="bg-white border rounded p-3 space-y-1 text-xs">
+                {memberData?.memberName && (
+                  <div><span className="font-medium">Member:</span> {memberData.memberName}</div>
+                )}
+                {memberData?.email && (
+                  <div><span className="font-medium">Email:</span> {memberData.email}</div>
+                )}
+                {planName && (
+                  <div><span className="font-medium">Plan:</span> {planName}</div>
+                )}
               </div>
             )}
 
@@ -138,7 +226,7 @@ export const OralCareTermsModal: React.FC<OralCareTermsModalProps> = ({
           </div>
         </div>
 
-        {/* Agreement */}
+        {/* Checkbox + Signature */}
         <div className="pt-3 space-y-3">
           <label className="flex items-start gap-2 cursor-pointer">
             <input
@@ -153,16 +241,49 @@ export const OralCareTermsModal: React.FC<OralCareTermsModalProps> = ({
             </span>
           </label>
 
+          {/* Signature */}
+          <div>
+            <p className="text-sm font-medium mb-1">
+              Sign below to confirm your acceptance:
+            </p>
+            <div className="border rounded bg-white" style={{ cursor: "crosshair" }}>
+              <canvas
+                ref={canvasRef}
+                width={580}
+                height={120}
+                className="w-full"
+                style={{ touchAction: "none" }}
+                onMouseDown={startDrawing}
+                onMouseMove={draw}
+                onMouseUp={stopDrawing}
+                onMouseLeave={stopDrawing}
+                onTouchStart={startTouch}
+                onTouchMove={drawTouch}
+                onTouchEnd={stopDrawing}
+              />
+            </div>
+            <div className="flex justify-between items-center mt-1">
+              <p className="text-xs text-gray-500">Draw your signature above</p>
+              <button
+                type="button"
+                onClick={clearSignature}
+                className="text-xs text-blue-600 underline"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+
           <div className="flex gap-2 pt-1">
             <Button variant="outline" onClick={handleClose} className="flex-1">
               Cancel
             </Button>
             <Button
               onClick={handleAccept}
-              disabled={!agreed}
+              disabled={!agreed || !hasStroke}
               className="flex-1"
             >
-              Accept Oral Care Terms
+              Sign &amp; Accept Oral Care Terms
             </Button>
           </div>
         </div>
