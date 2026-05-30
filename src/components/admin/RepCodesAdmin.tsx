@@ -29,6 +29,7 @@ interface DistributionPartner {
   _id: string;
   name: string;
   type: 'program_manager' | 'fmo' | 'agency';
+  agencyCode?: string;
 }
 
 function generateCode(): string {
@@ -107,11 +108,22 @@ export function RepCodesAdmin() {
     slug: '',
     productHint: '',
     notes: '',
+    repFirstName: '',
+    repLastName: '',
   });
 
   const allCodes = useQuery(api.admin.repCodes.getAllWithRates) as RepCodeWithRate[] | undefined;
   const allPartners = useQuery(api.admin.distributionPartners.getAll) as DistributionPartner[] | undefined;
   const agencies = (allPartners ?? []).filter((p) => p.type === 'fmo' || p.type === 'agency');
+
+  // Live preview of auto-generated code/slug when an agency with a 4-digit code is selected
+  const preview = useQuery(
+    api.admin.repCodes.previewAgencyRepCode,
+    formData.agencyId
+      ? { agencyId: formData.agencyId, firstName: formData.repFirstName || undefined, lastName: formData.repLastName || undefined }
+      : 'skip'
+  ) as { agencyCode: string; nextSeq: number; seqStr: string; previewCode: string; previewSlug: string | null } | null | undefined;
+  const selectedAgency = agencies.find((a) => a._id === formData.agencyId);
 
   const createCode = useMutation(api.admin.repCodes.create);
   const revokeCode = useMutation(api.admin.repCodes.revoke);
@@ -119,12 +131,14 @@ export function RepCodesAdmin() {
   const removeCode = useMutation(api.admin.repCodes.remove);
   const updateCode = useMutation(api.admin.repCodes.update);
   const backfillSlugsAction = useMutation(api.admin.repCodes.backfillSlugs);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const assignAgencyCodeAction = useMutation((api as any).admin.repCodes.assignAgencyCode);
 
   const [editingCodeId, setEditingCodeId] = useState<string | null>(null);
   const [editFields, setEditFields] = useState({ slug: '', productHint: '' });
 
   const resetForm = () => {
-    setFormData({ brokerId: '', agencyId: '', code: '', slug: '', productHint: '', notes: '' });
+    setFormData({ brokerId: '', agencyId: '', code: '', slug: '', productHint: '', notes: '', repFirstName: '', repLastName: '' });
     setShowForm(false);
     setUseExistingUser(true);
   };
@@ -139,21 +153,26 @@ export function RepCodesAdmin() {
       toast.warning('Agent required', 'Select a user or paste a Clerk User ID for the agent.');
       return;
     }
-    if (!formData.code) {
+    // Agency rep code mode: code is auto-generated server-side
+    const isAgencyMode = !!(selectedAgency?.agencyCode);
+    if (!isAgencyMode && !formData.code) {
       toast.warning('Rep code required', 'Enter or generate a rep code before saving.');
       return;
     }
     try {
+      const submittedCode = isAgencyMode ? '__auto__' : formData.code; // server ignores when agencyCode present
       await createCode({
         brokerId: formData.brokerId,
         agencyId: formData.agencyId || undefined,
-        code: formData.code.toUpperCase(),
+        code: submittedCode.toUpperCase(),
         slug: formData.slug || undefined,
         productHint: (formData.productHint || undefined) as 'essentials' | 'oralcare' | 'plans' | undefined,
         notes: formData.notes || undefined,
+        repFirstName: formData.repFirstName || undefined,
+        repLastName: formData.repLastName || undefined,
       });
       resetForm();
-      toast.success('Rep code created', formData.code.toUpperCase());
+      toast.success('Rep code created', isAgencyMode ? preview?.previewCode ?? '' : submittedCode.toUpperCase());
     } catch (error: unknown) {
       toast.fromError(error, 'Could not create rep code');
     }
@@ -209,6 +228,16 @@ export function RepCodesAdmin() {
       toast.success('Slugs backfilled', `${result.updated} code(s) updated.`);
     } catch (error) {
       toast.fromError(error, 'Could not backfill slugs');
+    }
+  };
+
+  const handleAssignAgencyCode = async (partnerId: string, partnerName: string) => {
+    if (!confirm(`Assign a 4-digit agency code to "${partnerName}"? This enables automatic XXXX01, XXXX02 numbering for all reps under this agency.`)) return;
+    try {
+      const result = await assignAgencyCodeAction({ partnerId }) as { agencyCode: string };
+      toast.success('Agency code assigned', `${partnerName} → ${result.agencyCode}`);
+    } catch (error) {
+      toast.fromError(error, 'Could not assign agency code');
     }
   };
 
@@ -346,12 +375,86 @@ export function RepCodesAdmin() {
                 <option value="">— Unaffiliated —</option>
                 {agencies.map((a) => (
                   <option key={a._id} value={a._id}>
-                    {a.name} ({a.type === 'fmo' ? 'FMO' : 'Agency'})
+                    {a.name} ({a.type === 'fmo' ? 'FMO' : 'Agency'}){a.agencyCode ? ` · ${a.agencyCode}` : ''}
                   </option>
                 ))}
               </select>
+              {/* Agency code status + assign action */}
+              {selectedAgency && (
+                <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {selectedAgency.agencyCode ? (
+                    <span style={{ fontSize: 12, color: '#059669', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 4, padding: '2px 8px', fontFamily: 'monospace' }}>
+                      Agency code: {selectedAgency.agencyCode}
+                    </span>
+                  ) : (
+                    <>
+                      <span style={{ fontSize: 12, color: '#b45309' }}>No agency code yet</span>
+                      <button
+                        type="button"
+                        onClick={() => handleAssignAgencyCode(selectedAgency._id, selectedAgency.name)}
+                        style={{ fontSize: 12, padding: '2px 10px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}
+                      >
+                        Assign 4-Digit Code
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
+            {/* Rep name fields — shown when agency has a code (drives auto-slug) */}
+            {selectedAgency?.agencyCode && (
+              <div style={{ display: 'flex', gap: 12 }}>
+                <div className={styles.formGroup} style={{ flex: 1 }}>
+                  <label>Rep First Name</label>
+                  <input
+                    type="text"
+                    value={formData.repFirstName}
+                    onChange={(e) => setFormData({ ...formData, repFirstName: e.target.value })}
+                    placeholder="John"
+                  />
+                </div>
+                <div className={styles.formGroup} style={{ flex: 1 }}>
+                  <label>Rep Last Name</label>
+                  <input
+                    type="text"
+                    value={formData.repLastName}
+                    onChange={(e) => setFormData({ ...formData, repLastName: e.target.value })}
+                    placeholder="Doe"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Auto-generation preview */}
+            {selectedAgency?.agencyCode && preview !== undefined && (
+              <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: '10px 14px', marginBottom: 8 }}>
+                <p style={{ fontSize: 12, fontWeight: 600, color: '#0369a1', marginBottom: 4 }}>Auto-generated identity</p>
+                {preview ? (
+                  <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+                    <div>
+                      <p style={{ fontSize: 11, color: '#64748b', margin: 0 }}>Rep Code (numeric)</p>
+                      <p style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 15, color: '#0f172a', margin: 0 }}>{preview.previewCode}</p>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 11, color: '#64748b', margin: 0 }}>URL (numeric)</p>
+                      <p style={{ fontFamily: 'monospace', fontSize: 13, color: '#0369a1', margin: 0 }}>getidealoh.com/{preview.previewCode}</p>
+                    </div>
+                    {preview.previewSlug && (
+                      <div>
+                        <p style={{ fontSize: 11, color: '#64748b', margin: 0 }}>URL (name)</p>
+                        <p style={{ fontFamily: 'monospace', fontSize: 13, color: '#0369a1', margin: 0 }}>getidealoh.com/{preview.previewSlug}</p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>Loading preview…</p>
+                )}
+              </div>
+            )}
+
+            {/* Manual code entry — only shown when no agency code governs this rep */}
+            {!selectedAgency?.agencyCode && (
             <div className={styles.formGroup}>
               <label>Rep Code *</label>
               <div className={styles.codeInputRow}>
@@ -361,7 +464,7 @@ export function RepCodesAdmin() {
                   onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
                   placeholder="e.g. REP-ABC123"
                   style={{ textTransform: 'uppercase', fontFamily: 'monospace', letterSpacing: '0.5px' }}
-                  required
+                  required={!selectedAgency?.agencyCode}
                 />
                 <button
                   type="button"
@@ -376,6 +479,7 @@ export function RepCodesAdmin() {
                 Must be unique. This is what the agent gives to customers to enter at checkout.
               </p>
             </div>
+            )}
 
             <div className={styles.formGroup}>
               <label>Notes (Optional)</label>
@@ -387,6 +491,8 @@ export function RepCodesAdmin() {
               />
             </div>
 
+            {/* Manual slug — only shown when NOT in agency-code mode (slug auto-computed otherwise) */}
+            {!selectedAgency?.agencyCode && (
             <div className={styles.formGroup}>
               <label>URL Slug (Optional)</label>
               <input
@@ -400,7 +506,9 @@ export function RepCodesAdmin() {
                 Vanity URL: getidealoh.com/&lt;slug&gt;. The rep code itself always works too (getidealoh.com/230001).
               </p>
             </div>
+            )}
 
+            {!selectedAgency?.agencyCode && (
             <div className={styles.formGroup}>
               <label>Default Landing Page (Optional)</label>
               <select
@@ -417,6 +525,7 @@ export function RepCodesAdmin() {
                 Where the vanity URL redirects. Can always be overridden with ?to= in the URL.
               </p>
             </div>
+            )}
 
             <div className={styles.formActions}>
               <button type="submit" className={styles.submitButton}>
@@ -487,7 +596,12 @@ export function RepCodesAdmin() {
                         : code.brokerId}
                     </td>
                     <td>
-                      {getAgencyName(code.agencyId) ?? (
+                      {getAgencyName(code.agencyId) ? (
+                        <span>
+                          {getAgencyName(code.agencyId)}
+                          {(() => { const ag = allPartners?.find((p) => p._id === code.agencyId); return ag?.agencyCode ? <span style={{ marginLeft: 4, fontFamily: 'monospace', fontSize: 11, background: '#f0f9ff', color: '#0369a1', padding: '1px 5px', borderRadius: 3 }}>{ag.agencyCode}</span> : null; })()}
+                        </span>
+                      ) : (
                         <span style={{ color: '#94a3b8' }}>—</span>
                       )}
                     </td>

@@ -1,5 +1,6 @@
 import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
+import { Id } from "../_generated/dataModel";
 import { requireAdmin } from "../lib/authGuards";
 
 /** All broker/agent rep tracking codes */
@@ -78,31 +79,65 @@ export const create = mutation({
     slug: v.optional(v.string()),
     productHint: productHintValidator,
     notes: v.optional(v.string()),
+    // Used to auto-generate code/slug when agency has a 4-digit code
+    repFirstName: v.optional(v.string()),
+    repLastName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
     const identity = await ctx.auth.getUserIdentity();
 
+    let finalCode = args.code.toUpperCase();
+    let finalSlug = args.slug;
+    let agencySeqNo: number | undefined;
+
+    // --- Auto-generate code/slug when agency has a 4-digit code ---
+    if (args.agencyId) {
+      const partner = await ctx.db.get(args.agencyId as Id<"distributionPartners">);
+      const agencyCode: string | undefined = (partner as any)?.agencyCode;
+      if (agencyCode) {
+        // Find current max sequence number for this agency
+        const existingCodes = await ctx.db
+          .query("brokerTrackingCodes")
+          .filter((q: any) => q.eq(q.field("agencyId"), args.agencyId))
+          .collect();
+        const maxSeq = existingCodes.reduce(
+          (max: number, c: any) => Math.max(max, c.agencySeqNo ?? 0),
+          0
+        );
+        agencySeqNo = maxSeq + 1;
+        const seqStr = String(agencySeqNo).padStart(2, "0");
+        finalCode = `${agencyCode}${seqStr}`;
+        // Build name slug: firstnamelastname + seqStr
+        const first = (args.repFirstName ?? "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+        const last = (args.repLastName ?? "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (first || last) {
+          finalSlug = `${first}${last}${seqStr}`;
+        }
+      }
+    }
+
     const existing = await ctx.db
       .query("brokerTrackingCodes")
-      .withIndex("by_code", (q) => q.eq("code", args.code))
+      .withIndex("by_code", (q) => q.eq("code", finalCode))
       .first();
 
     if (existing) {
-      throw new Error(`Rep code "${args.code}" is already in use`);
+      throw new Error(`Rep code "${finalCode}" is already in use`);
     }
 
     let slug: string | undefined;
-    if (args.slug) {
-      slug = await validateSlug(ctx, args.slug);
+    if (finalSlug) {
+      slug = await validateSlug(ctx, finalSlug);
     }
 
     return await ctx.db.insert("brokerTrackingCodes", {
       brokerId: args.brokerId,
       agencyId: args.agencyId,
-      code: args.code,
+      code: finalCode,
       slug,
       productHint: args.productHint,
+      agencySeqNo,
       usageCount: 0,
       status: "active",
       notes: args.notes,
@@ -266,5 +301,70 @@ export const getAllWithRates = query({
         commissionRate: rate?.ratePercentage ?? null,
       };
     });
+  },
+});
+
+/**
+ * Preview the auto-generated code and slug that would be assigned to a new rep
+ * for the given agency. Returns null if the agency has no 4-digit code yet.
+ */
+export const previewAgencyRepCode = query({
+  args: {
+    agencyId: v.string(),
+    firstName: v.optional(v.string()),
+    lastName: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const partner = await ctx.db.get(args.agencyId as Id<"distributionPartners">);
+    const agencyCode: string | undefined = (partner as any)?.agencyCode;
+    if (!agencyCode) return null;
+
+    const existingCodes = await ctx.db
+      .query("brokerTrackingCodes")
+      .filter((q: any) => q.eq(q.field("agencyId"), args.agencyId))
+      .collect();
+    const maxSeq = existingCodes.reduce(
+      (max: number, c: any) => Math.max(max, c.agencySeqNo ?? 0),
+      0
+    );
+    const nextSeq = maxSeq + 1;
+    const seqStr = String(nextSeq).padStart(2, "0");
+    const previewCode = `${agencyCode}${seqStr}`;
+
+    const first = (args.firstName ?? "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+    const last = (args.lastName ?? "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+    const previewSlug = (first || last) ? `${first}${last}${seqStr}` : null;
+
+    return { agencyCode, nextSeq, seqStr, previewCode, previewSlug };
+  },
+});
+
+/**
+ * Assign the next available 4-digit agency code (starting at 1000) to a
+ * distributionPartner. Idempotent — returns existing code if already assigned.
+ */
+export const assignAgencyCode = mutation({
+  args: { partnerId: v.id("distributionPartners") },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const partner = await ctx.db.get(args.partnerId);
+    if (!partner) throw new Error("Partner not found");
+    if ((partner as any).agencyCode) {
+      return { agencyCode: (partner as any).agencyCode as string };
+    }
+
+    // Collect all existing 4-digit codes
+    const allPartners = await ctx.db.query("distributionPartners").collect();
+    const usedCodes = new Set<string>(
+      allPartners.map((p: any) => p.agencyCode).filter(Boolean)
+    );
+
+    let next = 1000;
+    while (usedCodes.has(String(next))) next++;
+    if (next > 9999) throw new Error("All 4-digit agency codes (1000–9999) are in use");
+
+    const agencyCode = String(next);
+    await ctx.db.patch(args.partnerId, { agencyCode } as any);
+    return { agencyCode };
   },
 });

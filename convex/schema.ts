@@ -212,6 +212,8 @@ export default defineSchema({
       v.literal("suspended"),
     ),
     notes: v.optional(v.string()),
+    // 4-digit numeric agency code, e.g. "1000". First rep = XXXX01, next = XXXX02, etc.
+    agencyCode: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
     createdBy: v.optional(v.string()),
@@ -220,7 +222,8 @@ export default defineSchema({
     .index("by_parent", ["parentId"])
     .index("by_clerk_id", ["clerkUserId"])
     .index("by_invite_token", ["inviteToken"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .index("by_agency_code", ["agencyCode"]),
 
   // Leaders / representatives for each distribution partner
   // A Program Manager, FMO, or Agency can have multiple people representing them.
@@ -1413,12 +1416,15 @@ export default defineSchema({
     ),
 
     // URL ROUTING
-    slug: v.optional(v.string()),         // canonical URL slug: lowercase [a-z0-9-]
+    slug: v.optional(v.string()),         // canonical URL slug: lowercase [a-z0-9-] e.g. "johndoe01"
     productHint: v.optional(v.union(      // preferred landing page for this code's URL
       v.literal("essentials"),
       v.literal("oralcare"),
       v.literal("plans"),
     )),
+    // Agency sequence number (1 = first rep "01", 2 = second rep "02", …)
+    // Full code = agencyCode + seqNo.padStart(2,"0"), e.g. agency 1000 + seq 1 = "100001"
+    agencySeqNo: v.optional(v.number()),
 
     // AUDIT
     createdAt: v.number(),
