@@ -35,7 +35,7 @@ const TIERS: Tier[] = [
 
 const PLAN_DETAILS: Record<
   string,
-  { icon: React.ReactNode; label: string; bullets: string[]; meta?: string }[]
+  { icon: React.ReactNode; label: string; bullets: string[] }[]
 > = {
   "essentials-": [
     {
@@ -47,7 +47,6 @@ const PLAN_DETAILS: Record<
         "Virtual Dermatology — photo review, treatment plan within 72 hours",
         "Prescriptions sent electronically to your pharmacy",
       ],
-      meta: "1-866-223-8831 · getlyric.com",
     },
     {
       icon: <FlaskConical size={15} />,
@@ -58,7 +57,6 @@ const PLAN_DETAILS: Record<
         "No surprise billing — you see the price before you go",
         "Pairs with a Lyric visit for complete workups",
       ],
-      meta: "800-646-7788",
     },
     {
       icon: <Pill size={15} />,
@@ -69,7 +67,6 @@ const PLAN_DETAILS: Record<
         "Use for the whole household — no per-script limits",
         "Mail-order available for maintenance medications",
       ],
-      meta: "BIN 006053 · PCN MSC · Group GIH1000",
     },
     {
       icon: <Brain size={15} />,
@@ -80,7 +77,6 @@ const PLAN_DETAILS: Record<
         "Zenn — AI mental-health companion via text, any time",
         "Tracks: Anxiety, Depression, Chronic Pain, Substance Use, Trauma & PTSD",
       ],
-      meta: "833-354-2691 · balanceforlifebh.com · Member Code: Ideal",
     },
   ],
   "oralcare-": [
@@ -171,7 +167,7 @@ function NewIdealHeader({ cartCount }: { cartCount: number }) {
         }}
       >
         <Link href="/newideal" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none" }}>
-          <Image src="/newideal/logo.png" alt="Ideal Health" width={56} height={56} priority />
+          <Image src="/newideal/logo.png" alt="Ideal Health" width={168} height={168} priority />
         </Link>
         <nav style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <Link href="/newideal" style={{ fontSize: "0.875rem", color: "#64748b", textDecoration: "none", fontWeight: 500 }}>
@@ -543,23 +539,7 @@ function TierPlanCard({
                       </li>
                     ))}
                   </ul>
-                  {d.meta && (
-                    <div
-                      style={{
-                        marginTop: 8,
-                        marginLeft: 38,
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                        color: activeColor,
-                        background: autoInclude ? "rgba(13,148,136,0.07)" : "rgba(0,102,204,0.07)",
-                        borderRadius: 6,
-                        padding: "4px 8px",
-                        display: "inline-block",
-                      }}
-                    >
-                      {d.meta}
-                    </div>
-                  )}
+
                 </div>
               ))}
             </div>

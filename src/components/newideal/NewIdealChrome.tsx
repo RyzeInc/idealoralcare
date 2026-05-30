@@ -43,8 +43,8 @@ export function NewIdealHeader() {
           <Image
             src="/newideal/logo.png"
             alt="Ideal Health"
-            width={56}
-            height={56}
+            width={168}
+            height={168}
             priority
           />
         </Link>

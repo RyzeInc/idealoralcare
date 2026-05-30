@@ -678,8 +678,8 @@ function CheckoutHeader() {
           <Image
             src="/newideal/logo.png"
             alt="Ideal Health"
-            width={52}
-            height={52}
+            width={156}
+            height={156}
           />
         </Link>
         <nav style={{ display: "flex", alignItems: "center", gap: 20 }}>
