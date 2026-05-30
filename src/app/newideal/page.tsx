@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { Metadata } from "next";
 import {
   Heart,
@@ -20,17 +21,18 @@ import {
 } from "@/components/newideal/NewIdealChrome";
 
 export const metadata: Metadata = {
-  title: "New Ideal Health — Affordable Healthcare Membership",
+  title: "Ideal Health — Affordable Healthcare Membership",
   description:
-    "New Ideal Health offers the Essentials Plan and Oral Care membership programs. Telehealth, pharmacy savings, lab services, mental wellness, and dental, vision, and hearing discounts.",
+    "Ideal Health offers the Essentials Plan and Oral Care membership programs. Telehealth, pharmacy savings, lab services, mental wellness, and dental, vision, and hearing savings.",
 };
 
 const PROGRAM_CARDS = [
   {
     href: "/newideal/essentials",
-    icon: <Heart size={28} />,
+    icon: <Heart size={26} />,
     color: "#0066CC",
-    gradient: "linear-gradient(135deg, #0066CC 0%, #3b82f6 100%)",
+    overlay: "linear-gradient(150deg, rgba(0,102,204,0.82) 0%, rgba(59,130,246,0.72) 100%)",
+    image: "/newideal/site-files/nurse-clipboard.png",
     name: "Essentials Plan",
     tagline: "Everyday care for everyday life",
     blurb:
@@ -44,16 +46,17 @@ const PROGRAM_CARDS = [
   },
   {
     href: "/newideal/oralcare",
-    icon: <Smile size={28} />,
+    icon: <Smile size={26} />,
     color: "#0284c7",
-    gradient: "linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%)",
+    overlay: "linear-gradient(150deg, rgba(13,148,136,0.82) 0%, rgba(6,182,212,0.72) 100%)",
+    image: "/newideal/site-files/lady-glasses.png",
     name: "Oral Care",
-    tagline: "Save on dental, vision, and hearing",
+    tagline: "Savings on dental, vision, and hearing",
     blurb:
-      "Access the Ideal Oral Care discount network — savings on dental cleanings, fillings, vision exams, eyewear, and hearing aids at thousands of providers nationwide.",
+      "Access the Ideal Oral Care savings network — reduced rates on dental cleanings, fillings, vision exams, eyewear, and hearing aids at thousands of providers nationwide.",
     includes: [
       "Dental savings at 100,000+ providers",
-      "Vision exam & eyewear discounts",
+      "Vision exam & eyewear savings",
       "Hearing aid savings",
       "Family coverage available",
     ],
@@ -88,10 +91,10 @@ export default function NewIdealLandingPage() {
           style={{
             position: "absolute",
             inset: 0,
-            backgroundImage: "url('/health-assets/main_2320x900-1.jpg')",
+            backgroundImage: "url('/newideal/site-files/multi-demographic.png')",
             backgroundSize: "cover",
-            backgroundPosition: "center 35%",
-            opacity: 0.12,
+            backgroundPosition: "center 40%",
+            opacity: 0.15,
           }}
         />
         {/* Decorative radial glow */}
@@ -294,32 +297,69 @@ export default function NewIdealLandingPage() {
                   flexDirection: "column",
                 }}
               >
-                {/* Colored header */}
-                <div style={{ background: prog.gradient, padding: "28px 28px 24px" }}>
-                  <div style={{ color: "white", marginBottom: 12, opacity: 0.95 }}>
-                    {prog.icon}
+                {/* Photo header */}
+                <div style={{ height: 185, position: "relative", overflow: "hidden" }}>
+                  <Image
+                    src={prog.image}
+                    alt={prog.name}
+                    fill
+                    style={{ objectFit: "cover", objectPosition: "center" }}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      background: prog.overlay,
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: 18,
+                      left: 22,
+                      right: 22,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 44,
+                        height: 44,
+                        borderRadius: 12,
+                        background: "rgba(255,255,255,0.18)",
+                        backdropFilter: "blur(8px)",
+                        color: "white",
+                        marginBottom: 10,
+                      }}
+                    >
+                      {prog.icon}
+                    </div>
+                    <h3
+                      style={{
+                        color: "white",
+                        fontSize: "1.3125rem",
+                        fontWeight: 700,
+                        margin: "0 0 4px",
+                        letterSpacing: "-0.01em",
+                        textShadow: "0 2px 8px rgba(0,0,0,0.25)",
+                      }}
+                    >
+                      {prog.name}
+                    </h3>
+                    <p
+                      style={{
+                        color: "rgba(255,255,255,0.88)",
+                        fontSize: "0.875rem",
+                        margin: 0,
+                        lineHeight: 1.4,
+                        textShadow: "0 1px 4px rgba(0,0,0,0.2)",
+                      }}
+                    >
+                      {prog.tagline}
+                    </p>
                   </div>
-                  <h3
-                    style={{
-                      color: "white",
-                      fontSize: "1.3125rem",
-                      fontWeight: 700,
-                      margin: "0 0 6px",
-                      letterSpacing: "-0.01em",
-                    }}
-                  >
-                    {prog.name}
-                  </h3>
-                  <p
-                    style={{
-                      color: "rgba(255,255,255,0.82)",
-                      fontSize: "0.9rem",
-                      margin: 0,
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    {prog.tagline}
-                  </p>
                 </div>
 
                 {/* Card body */}
@@ -477,6 +517,124 @@ export default function NewIdealLandingPage() {
                   >
                     {b.sub}
                   </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── LIFESTYLE BAND ── */}
+      <section
+        style={{
+          position: "relative",
+          overflow: "hidden",
+          padding: "80px 0",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage: "url('/newideal/site-files/doctor-with-patients.png')",
+            backgroundSize: "cover",
+            backgroundPosition: "center 30%",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "linear-gradient(135deg, rgba(12,74,110,0.93) 0%, rgba(13,148,136,0.82) 100%)",
+          }}
+        />
+        <div
+          className="container"
+          style={{ position: "relative", textAlign: "center", maxWidth: 720 }}
+        >
+          <p
+            style={{
+              color: "rgba(186,230,253,0.9)",
+              fontSize: "0.8125rem",
+              fontWeight: 600,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              marginBottom: 16,
+            }}
+          >
+            Real people. Real savings.
+          </p>
+          <h2
+            style={{
+              color: "#fff",
+              fontSize: "clamp(1.75rem, 3.5vw, 2.625rem)",
+              fontWeight: 800,
+              lineHeight: 1.2,
+              marginBottom: 18,
+              letterSpacing: "-0.02em",
+            }}
+          >
+            Healthcare you can actually afford to use
+          </h2>
+          <p
+            style={{
+              color: "rgba(255,255,255,0.78)",
+              fontSize: "1.0625rem",
+              lineHeight: 1.7,
+              marginBottom: 40,
+              maxWidth: 560,
+              margin: "0 auto 40px",
+            }}
+          >
+            From telehealth visits to dental cleanings to mental health support —
+            your Ideal Health membership gives your whole household access to the
+            care they need, at rates that make sense.
+          </p>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+              gap: 16,
+              maxWidth: 640,
+              margin: "0 auto",
+            }}
+          >
+            {[
+              { val: "24/7", label: "Doctor Access" },
+              { val: "$0", label: "Consultation Fees" },
+              { val: "100K+", label: "Dental Providers" },
+              { val: "1,000+", label: "Rx Discounts" },
+            ].map((stat) => (
+              <div
+                key={stat.label}
+                style={{
+                  background: "rgba(255,255,255,0.1)",
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  borderRadius: 14,
+                  padding: "18px 12px",
+                  backdropFilter: "blur(6px)",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "1.75rem",
+                    fontWeight: 800,
+                    color: "#fb923c",
+                    lineHeight: 1,
+                    marginBottom: 6,
+                  }}
+                >
+                  {stat.val}
+                </div>
+                <div
+                  style={{
+                    fontSize: "0.8125rem",
+                    color: "rgba(255,255,255,0.75)",
+                    fontWeight: 500,
+                  }}
+                >
+                  {stat.label}
                 </div>
               </div>
             ))}

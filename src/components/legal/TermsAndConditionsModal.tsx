@@ -53,9 +53,9 @@ export const TermsAndConditionsModal: React.FC<TermsAndConditionsModalProps> = (
 
               <h3 className="font-semibold">Essentials Plan Pricing</h3>
               <ul>
-                <li>Employee: $49.95/mo</li>
-                <li>Employee + Spouse: $69.95/mo</li>
-                <li>Employee + Child(ren): $59.95/mo</li>
+                <li>Employee: $57.95/mo</li>
+                <li>Employee + Spouse: $65.95/mo</li>
+                <li>Employee + Child(ren): $77.95/mo</li>
                 <li>Employee + Family: $82.95/mo</li>
               </ul>
 
