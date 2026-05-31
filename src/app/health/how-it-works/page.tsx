@@ -48,7 +48,7 @@ const BENEFITS = [
 ];
 
 const WHAT_IS = [
-  { title: "Discount Programs", desc: "Save 20-60% on oral health, vision, and other health services at participating providers." },
+  { title: "Discount Programs", desc: "Save 20-60% on oral health and other health services at participating providers." },
   { title: "Wellness Services", desc: "Access to telehealth, coaching, and clinical support for your health goals." },
   { title: "Access Within 24 Hours", desc: "Benefits are activated within 24 hours of enrollment with no waiting periods." },
   { title: "Flexible Plans", desc: "Mix and match plans based on your needs. Cancel individual plans anytime." },

@@ -222,7 +222,7 @@ export const blogContent: Record<string, string> = {
 <p>Artificial intelligence is transforming dentistry — and one of the most exciting developments is AI-powered oral health scanning. With nothing more than a smartphone camera, anyone can now get preliminary insights about their dental health from the comfort of their home.</p>
 
 <h2>How AI Oral Scanning Works</h2>
-<p>AI oral health scanning uses computer vision models trained on thousands (sometimes millions) of dental images. When you take a photo of your teeth and gums, the AI analyzes the image to detect visual indicators of potential issues, including:</p>
+<p>AI oral health scanning uses computer image analysis models trained on thousands (sometimes millions) of dental images. When you take a photo of your teeth and gums, the AI analyzes the image to detect visual indicators of potential issues, including:</p>
 <ul>
 <li>Tartar and calculus buildup</li>
 <li>Potential cavities (visible surface discoloration or damage)</li>

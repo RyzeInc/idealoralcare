@@ -96,43 +96,6 @@ export const seedInitialData = mutation({
         order: 1,
       },
       {
-        slug: "vision-care",
-        name: "Vision Care Plus",
-        category: "vision",
-        description:
-          "Discounts on eye exams, glasses, contacts, and LASIK procedures at participating providers nationwide.",
-        longDescription:
-          "Access significant discounts on vision care services including eye exams, eyewear, contact lenses, and LASIK procedures through our network of participating providers across the country.",
-        inclusions: [
-          "40-50% Off Eye Exams",
-          "20-60% Off Frames & Lenses",
-          "Contact Lens Discounts",
-          "LASIK Savings",
-          "Online Retailer Discounts",
-        ],
-        exclusions: ["Not vision insurance", "Discounts vary by provider"],
-        eligibilityRules: {
-          minAge: undefined,
-          maxAge: undefined,
-          requiresVerification: false,
-          disclosureText: "Not insurance.",
-        },
-        activationBehavior: "immediate",
-        pricing: {
-          monthlyCardCents: 1499,
-          monthlyACHCents: 1299,
-          annualCardCents: 14999,
-          annualACHCents: 12999,
-        },
-        metadata: {
-          icon: "👁️",
-          bestFor: ["Individuals", "Families"],
-        },
-        isVisible: true,
-        isFeatured: false,
-        order: 2,
-      },
-      {
         slug: "telehealth-unlimited",
         name: "Telehealth Unlimited",
         category: "telehealth",
@@ -277,43 +240,6 @@ export const reseedData = mutation({
         isVisible: true,
         isFeatured: true,
         order: 1,
-      },
-      {
-        slug: "vision-care",
-        name: "Vision Care Plus",
-        category: "vision",
-        description:
-          "Discounts on eye exams, glasses, contacts, and LASIK procedures at participating providers nationwide.",
-        longDescription:
-          "Access significant discounts on vision care services including eye exams, eyewear, contact lenses, and LASIK procedures through our network of participating providers across the country.",
-        inclusions: [
-          "40-50% Off Eye Exams",
-          "20-60% Off Frames & Lenses",
-          "Contact Lens Discounts",
-          "LASIK Savings",
-          "Online Retailer Discounts",
-        ],
-        exclusions: ["Not vision insurance", "Discounts vary by provider"],
-        eligibilityRules: {
-          minAge: undefined,
-          maxAge: undefined,
-          requiresVerification: false,
-          disclosureText: "Not insurance.",
-        },
-        activationBehavior: "immediate",
-        pricing: {
-          monthlyCardCents: 1499,
-          monthlyACHCents: 1299,
-          annualCardCents: 14999,
-          annualACHCents: 12999,
-        },
-        metadata: {
-          icon: "👁️",
-          bestFor: ["Individuals", "Families"],
-        },
-        isVisible: true,
-        isFeatured: false,
-        order: 2,
       },
       {
         slug: "telehealth-unlimited",

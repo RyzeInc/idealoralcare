@@ -45,7 +45,6 @@ export const seedData = mutation({
 
       // Health
       { category: "health", name: "Dental", provider: "Dental Discount Network POS", slug: "dental-careington", shortDescription: "Discount Network", icon: "Tooth", order: 0 },
-      { category: "health", name: "Vision", provider: "", slug: "vision", shortDescription: "Discount Network", icon: "Eye", order: 1 },
       { category: "health", name: "Teledentistry", provider: "", slug: "teledentistry", shortDescription: "On-Demand Care", icon: "Video", order: 2 },
       { category: "health", name: "Hearing", provider: "", slug: "hearing", shortDescription: "Discount Network", icon: "Ear", order: 3 },
       { category: "health", name: "Diabetic Supplies", provider: "Better Living Now", slug: "diabetic-supplies", shortDescription: "Discount Network", icon: "Droplet", order: 4 },
@@ -195,7 +194,6 @@ export const reseedData = mutation({
 
       // Health
       { category: "health", name: "Dental", provider: "Dental Discount Network POS", slug: "dental-careington", shortDescription: "Discount Network", icon: "Tooth", order: 0 },
-      { category: "health", name: "Vision", provider: "", slug: "vision", shortDescription: "Discount Network", icon: "Eye", order: 1 },
       { category: "health", name: "Teledentistry", provider: "", slug: "teledentistry", shortDescription: "On-Demand Care", icon: "Video", order: 2 },
       { category: "health", name: "Hearing", provider: "", slug: "hearing", shortDescription: "Discount Network", icon: "Ear", order: 3 },
       { category: "health", name: "Diabetic Supplies", provider: "Better Living Now", slug: "diabetic-supplies", shortDescription: "Discount Network", icon: "Droplet", order: 4 },

@@ -113,7 +113,6 @@ export function getACHSavings(
 export const CATEGORY_INFO: Record<string, { icon: string; color: string; label: string }> = {
   dental: { icon: "Tooth", color: "blue", label: "Oral Health" },
   wellness: { icon: "Leaf", color: "green", label: "Wellness" },
-  vision: { icon: "Eye", color: "purple", label: "Vision" },
   telehealth: { icon: "Video", color: "cyan", label: "Telehealth" },
   chronic: { icon: "Activity", color: "red", label: "Chronic Care" },
   rx: { icon: "Pill", color: "amber", label: "Rx Savings" },

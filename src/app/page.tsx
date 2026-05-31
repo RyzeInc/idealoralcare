@@ -119,7 +119,7 @@ export default function RootPage() {
             marginBottom: "3rem",
           }}
         >
-          Choose the plan family that fits your needs — dental &amp; vision savings, or a full
+          Choose the plan family that fits your needs — dental savings, or a full
           wellness bundle starting at $14.99/mo.
         </p>
 
@@ -140,4 +140,3 @@ export default function RootPage() {
     </main>
   );
 }
-

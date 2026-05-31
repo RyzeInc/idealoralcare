@@ -388,7 +388,7 @@ export default defineSchema({
     // IDENTITY
     slug: v.string(), // Unique, URL-safe identifier
     name: v.string(), // Display name
-    category: v.string(), // "dental", "wellness", "vision", etc.
+    category: v.string(), // "dental", "wellness", "telehealth", etc.
     
     // VALUE DEFINITION
     description: v.string(), // Short marketing description
