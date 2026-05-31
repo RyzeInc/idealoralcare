@@ -30,7 +30,7 @@ const PROGRAMS = [
     color: "#0f766e",
     gradient: "linear-gradient(135deg, #0f766e 0%, #14b8a6 100%)",
     desc:
-      "Three ways to see a doctor online — Virtual Urgent Care, Virtual Primary Care, and Virtual Dermatology. 24/7/365 access from your phone, tablet, or computer.",
+      "No-Cost telehealth visits, unlimited for Virtual Primary and Urgent Care. 24/7/365 access from your phone, tablet, or computer.",
     bullets: [
       "Virtual Urgent Care — talk to a doctor in minutes (cold/flu, sinus, allergies, UTI, rashes, pink eye, and more)",
       "Virtual Primary Care — establish an ongoing relationship with a PCP for chronic-condition management, refills, and screenings",
@@ -45,11 +45,11 @@ const PROGRAMS = [
     color: "#0066CC",
     gradient: "linear-gradient(135deg, #0066CC 0%, #3b82f6 100%)",
     desc:
-      "Transparent, pre-negotiated lab pricing through Quest Diagnostics — the country's largest network of patient service centers.",
+      "No-cost lab services through Quest Diagnostics \u2014 the country's largest network of patient service centers.",
     bullets: [
-      "Significant discounts on common blood work, panels, and screenings",
+      "No cost labs \u2014 complete blood work, panels & screenings at no cost",
       "Access to thousands of Quest patient service centers nationwide",
-      "No surprise billing — you know the price before you go",
+      "All at no cost \u2014 no pricing, no surprise bills",
       "Use alongside a Lyric telehealth visit for full workups",
     ],
   },
@@ -60,12 +60,12 @@ const PROGRAMS = [
     color: "#7c3aed",
     gradient: "linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)",
     desc:
-      "A discount prescription program that often beats your insurance copay. Show your RxValet info at the pharmacy counter — no claims to file.",
+      "Over 1,000 no-cost Acute and Chronic Generic Medications \u2014 plus discounts on thousands more at major pharmacies nationwide.",
     bullets: [
-      "Big savings on generic and brand-name prescriptions",
-      "Accepted at major pharmacies nationwide",
-      "Use for the whole family — no per-script limits",
-      "Mail-order option available for maintenance medications",
+      "Over 1,000 no cost Acute and Chronic Generic Medications",
+      "Discounts on meds that are not included on this no-cost list",
+      "GLP-1 meds starting at $249.95, lots of interest in this",
+      "Discounts on Pet Medications",
     ],
   },
   {
@@ -306,7 +306,6 @@ export default function EssentialsPage() {
                     ))}
                   </ul>
 
-                </div>
                 </div>
               </div>
             ))}

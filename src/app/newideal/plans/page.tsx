@@ -42,7 +42,7 @@ const PLAN_DETAILS: Record<
       icon: <Video size={15} />,
       label: "Lyric Telehealth",
       bullets: [
-        "Virtual Urgent Care — cold/flu, sinus, UTI, rashes, pink eye & more",
+        "No-Cost telehealth visits, unlimited for Virtual Primary and Urgent Care",
         "Virtual Primary Care — chronic-condition management, refills & screenings",
         "Virtual Dermatology — photo review, treatment plan within 72 hours",
         "Prescriptions sent electronically to your pharmacy",
@@ -52,9 +52,9 @@ const PLAN_DETAILS: Record<
       icon: <FlaskConical size={15} />,
       label: "QuestSelect Lab Services",
       bullets: [
-        "Significant discounts on blood work, panels & screenings",
+        "No cost labs \u2014 complete blood work, panels & screenings at no cost",
         "Thousands of Quest patient service centers nationwide",
-        "No surprise billing — you see the price before you go",
+        "All at no cost \u2014 no pricing, no surprise bills",
         "Pairs with a Lyric visit for complete workups",
       ],
     },
@@ -62,10 +62,10 @@ const PLAN_DETAILS: Record<
       icon: <Pill size={15} />,
       label: "RxValet Prescription Savings",
       bullets: [
-        "Often beats your insurance copay on generics & brand-names",
-        "Accepted at major pharmacies nationwide — no claims to file",
-        "Use for the whole household — no per-script limits",
-        "Mail-order available for maintenance medications",
+        "Over 1,000 no cost Acute and Chronic Generic Medications",
+        "Discounts on meds that are not included on this no-cost list",
+        "GLP-1 meds starting at $249.95, lots of interest in this",
+        "Discounts on Pet Medications",
       ],
     },
     {
@@ -139,7 +139,7 @@ const PLAN_GROUPS = [
     icon: <Smile size={18} />,
     color: "#0d9488",
     blurb:
-      "Dental savings at 20\u201360% off at 100,000+ participating dentists, plus vision and hearing discounts \u2014 included with every Essentials membership.",
+      "Dental savings at 20\u201360% off at 100,000+ participating dentists, plus hearing discounts \u2014 included with every Essentials membership.",
     autoInclude: true,
   },
 ];

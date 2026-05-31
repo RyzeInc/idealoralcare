@@ -1245,17 +1245,18 @@ export default function NewIdealCheckoutClient() {
                       }}
                       style={{
                         display: "flex",
-                        gap: 12,
+                        gap: 14,
                         alignItems: "flex-start",
                         cursor: essentialsAgreed ? "default" : "pointer",
-                        padding: 14,
-                        borderRadius: 10,
+                        padding: "18px 20px",
+                        borderRadius: 12,
                         background: essentialsAgreed
                           ? "rgba(16,185,129,0.06)"
-                          : "transparent",
+                          : "rgba(0,102,204,0.04)",
                         border: essentialsAgreed
-                          ? "1px solid rgba(16,185,129,0.25)"
-                          : "1px solid rgba(0,0,0,0.08)",
+                          ? "1.5px solid rgba(16,185,129,0.35)"
+                          : "1.5px solid rgba(0,102,204,0.22)",
+                        transition: "border-color 0.2s, background 0.2s",
                       }}
                     >
                       <input
@@ -1266,33 +1267,36 @@ export default function NewIdealCheckoutClient() {
                           width: 20,
                           height: 20,
                           accentColor: "var(--primary-blue)",
-                          marginTop: 2,
+                          marginTop: 3,
+                          flexShrink: 0,
                           pointerEvents: "none",
                         }}
                       />
-                      <span
-                        style={{
-                          fontSize: "0.9375rem",
-                          color: "#475569",
-                          lineHeight: 1.6,
-                        }}
-                      >
-                        <strong>Essentials Plan Membership Agreement</strong> —{" "}
-                        {cart.items.find((i) => i.product.slug?.startsWith("essentials-"))?.product.name}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, fontSize: "1rem", color: "#0f172a", marginBottom: 4 }}>
+                          Essentials Plan Membership Agreement
+                        </div>
+                        <div style={{ fontSize: "0.875rem", color: "#64748b", marginBottom: essentialsAgreed ? 0 : 8 }}>
+                          {cart.items.find((i) => i.product.slug?.startsWith("essentials-"))?.product.name}
+                        </div>
                         {!essentialsAgreed && (
-                          <span
+                          <div
                             style={{
-                              display: "block",
-                              fontSize: "0.8125rem",
-                              color: "var(--accent-teal)",
-                              marginTop: 6,
-                              fontWeight: 500,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 6,
+                              fontSize: "0.875rem",
+                              color: "var(--primary-blue)",
+                              fontWeight: 600,
+                              background: "rgba(0,102,204,0.08)",
+                              padding: "6px 14px",
+                              borderRadius: 8,
                             }}
                           >
-                            Click to review and sign the Essentials membership agreement
-                          </span>
+                            Click to review &amp; sign the membership agreement →
+                          </div>
                         )}
-                      </span>
+                      </div>
                     </div>
                   )}
 
@@ -1304,17 +1308,18 @@ export default function NewIdealCheckoutClient() {
                       }}
                       style={{
                         display: "flex",
-                        gap: 12,
+                        gap: 14,
                         alignItems: "flex-start",
                         cursor: oralCareAgreed ? "default" : "pointer",
-                        padding: 14,
-                        borderRadius: 10,
+                        padding: "18px 20px",
+                        borderRadius: 12,
                         background: oralCareAgreed
                           ? "rgba(13,148,136,0.06)"
-                          : "transparent",
+                          : "rgba(13,148,136,0.04)",
                         border: oralCareAgreed
-                          ? "1px solid rgba(13,148,136,0.25)"
-                          : "1px solid rgba(0,0,0,0.08)",
+                          ? "1.5px solid rgba(13,148,136,0.35)"
+                          : "1.5px solid rgba(13,148,136,0.22)",
+                        transition: "border-color 0.2s, background 0.2s",
                       }}
                     >
                       <input
@@ -1325,33 +1330,36 @@ export default function NewIdealCheckoutClient() {
                           width: 20,
                           height: 20,
                           accentColor: "#0d9488",
-                          marginTop: 2,
+                          marginTop: 3,
+                          flexShrink: 0,
                           pointerEvents: "none",
                         }}
                       />
-                      <span
-                        style={{
-                          fontSize: "0.9375rem",
-                          color: "#475569",
-                          lineHeight: 1.6,
-                        }}
-                      >
-                        <strong>Oral Care Discount Membership Terms</strong> —{" "}
-                        {cart.items.find((i) => i.product.slug?.startsWith("oralcare-"))?.product.name}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, fontSize: "1rem", color: "#0f172a", marginBottom: 4 }}>
+                          Oral Care Discount Membership Terms
+                        </div>
+                        <div style={{ fontSize: "0.875rem", color: "#64748b", marginBottom: oralCareAgreed ? 0 : 8 }}>
+                          {cart.items.find((i) => i.product.slug?.startsWith("oralcare-"))?.product.name}
+                        </div>
                         {!oralCareAgreed && (
-                          <span
+                          <div
                             style={{
-                              display: "block",
-                              fontSize: "0.8125rem",
-                              color: "var(--accent-teal)",
-                              marginTop: 6,
-                              fontWeight: 500,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 6,
+                              fontSize: "0.875rem",
+                              color: "#0d9488",
+                              fontWeight: 600,
+                              background: "rgba(13,148,136,0.08)",
+                              padding: "6px 14px",
+                              borderRadius: 8,
                             }}
                           >
-                            Click to review and accept the Oral Care discount terms
-                          </span>
+                            Click to review &amp; accept the Oral Care discount terms →
+                          </div>
                         )}
-                      </span>
+                      </div>
                     </div>
                   )}
 
@@ -1397,8 +1405,7 @@ export default function NewIdealCheckoutClient() {
                       <strong>I understand this is NOT insurance.</strong>{" "}
                       Ideal Health is a membership program providing access to
                       telehealth, pharmacy savings, lab services, mental
-                      wellness support, and discounted dental, vision, and
-                      hearing care.
+                      wellness support, and discounted dental and hearing care.
                       {!agreedToNotInsurance && (
                         <span
                           style={{

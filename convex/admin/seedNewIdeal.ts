@@ -23,8 +23,8 @@ const ESSENTIALS_TIERS = [
 
 const ESSENTIALS_INCLUSIONS = [
   "Lyric Telehealth — Virtual Urgent Care (24/7), Virtual Primary Care & Virtual Dermatology",
-  "RxValet Prescription Savings — Use Rx Group GIH1000 at any major pharmacy",
-  "QuestSelect Lab Services — Discounted lab testing at Quest locations nationwide",
+  "RxValet Prescription Savings \u2014 Savings on prescriptions at major pharmacies nationwide",
+  "QuestSelect Lab Services \u2014 No cost lab testing at Quest locations nationwide",
   "Balance for Life — Behavioral health, mindfulness & substance disorder support",
 ];
 
@@ -104,7 +104,7 @@ export const seedNewIdeal = mutation({
         slug: `oralcare-${tier.suffix}`,
         name: `Oral Care — ${tier.label}`,
         category: "newideal",
-        description: `Ideal Health Oral Care add-on for ${tier.label}. Dental, vision & hearing discounts.`,
+        description: `Ideal Health Oral Care add-on for ${tier.label}. Dental and hearing discounts.`,
         inclusions: ORALCARE_INCLUSIONS,
         exclusions: ["Not insurance", "Not a substitute for dental insurance"],
         eligibilityRules: {

@@ -24,7 +24,17 @@ import type { CartState, CartItem, CatalogProduct, Cadence, PaymentMethod } from
 const STORAGE_KEY = "ideal-health-cart";
 const CADENCE_SELECTED_KEY = "ideal-cadence-selected";
 const SESSION_ID_KEY = "ideal-cart-session-id";
+const CART_NAMESPACE_KEY = "ideal-cart-namespace";
 const MAX_COMPARE_ITEMS = 4;
+
+type CartNamespace = "health" | "newideal" | "other";
+
+function getCartNamespace(pathname: string | null): CartNamespace {
+  if (!pathname) return "other";
+  if (pathname.startsWith("/health")) return "health";
+  if (pathname.startsWith("/newideal")) return "newideal";
+  return "other";
+}
 
 interface CartContextType {
   // State
@@ -89,6 +99,23 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   // Load from localStorage on mount
   useEffect(() => {
     try {
+      const pathname = window.location.pathname;
+      const currentNamespace = getCartNamespace(pathname);
+      const previousNamespace = localStorage.getItem(CART_NAMESPACE_KEY);
+      const switchedBetweenHealthSites =
+        previousNamespace &&
+        previousNamespace !== currentNamespace &&
+        ["health", "newideal"].includes(previousNamespace) &&
+        ["health", "newideal"].includes(currentNamespace);
+
+      if (switchedBetweenHealthSites) {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(CADENCE_SELECTED_KEY);
+        localStorage.removeItem(SESSION_ID_KEY);
+      }
+
+      localStorage.setItem(CART_NAMESPACE_KEY, currentNamespace);
+
       const stored = localStorage.getItem(STORAGE_KEY);
       const cadenceSelected = localStorage.getItem(CADENCE_SELECTED_KEY) === "true";
       const savedSessionId = localStorage.getItem(SESSION_ID_KEY);
@@ -129,6 +156,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(CADENCE_SELECTED_KEY);
       localStorage.removeItem(SESSION_ID_KEY);
+      localStorage.removeItem(CART_NAMESPACE_KEY);
     }
     setIsLoaded(true);
   }, []);

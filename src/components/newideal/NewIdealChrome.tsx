@@ -131,7 +131,7 @@ export function NewIdealFooter() {
           </div>
           <p style={{ fontSize: "0.875rem", lineHeight: 1.6, margin: 0 }}>
             Affordable healthcare access — telehealth, pharmacy savings,
-            labs, mental wellness, and dental/vision/hearing discounts.
+            labs, mental wellness, and dental and hearing discounts.
           </p>
         </div>
 
