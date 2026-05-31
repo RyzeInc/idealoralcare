@@ -47,7 +47,7 @@ export const TermsAndConditionsModal: React.FC<TermsAndConditionsModalProps> = (
                 The Ideal Health Essentials Plan is a membership program —{" "}
                 <strong>NOT insurance</strong> — that provides members access to telehealth
                 consultations, prescription savings, lab services, mental wellness support, and
-                discounted dental, vision, and hearing care through our network of participating
+                discounted dental and hearing care through our network of participating
                 providers. Benefits are available immediately upon your effective date.
               </p>
 

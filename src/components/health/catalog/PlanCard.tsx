@@ -56,7 +56,6 @@ export function PlanCard({ product }: PlanCardProps) {
     const colors: Record<string, string> = {
       dental: "rgba(59, 130, 246, 0.12)",
       wellness: "rgba(16, 185, 129, 0.12)",
-      vision: "rgba(139, 92, 246, 0.12)",
       telehealth: "rgba(6, 182, 212, 0.12)",
       chronic: "rgba(239, 68, 68, 0.12)",
       rx: "rgba(245, 158, 11, 0.12)",
