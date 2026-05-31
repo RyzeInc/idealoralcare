@@ -65,9 +65,9 @@ Contract terms and setup fees
 Julian stated he is delaying decisions on setup or administrative fees pending the final contract because the current offering is lean and omits typical fulfillment kit revenue, so margins and fee responsibilities must be clarified.
 * Julian is awaiting the final contract and is monitoring potential setup/administrative fees because the offering is lean.
 
-Vision discount add-on (VSP)
-The team discussed vision discount options and Julian reported being connected to VSP. He relayed a quoted per-transaction cost of approximately six to eight cents, and recommended offering vision as a low-cost add-on for additional revenue.
-* Vision coverage can be added via VSP at a very low per-transaction cost, making it a profitable add-on.
+Health discount add-on (VSP)
+The team discussed health discount options and Julian reported being connected to VSP. He relayed a quoted per-transaction cost of approximately six to eight cents, and recommended offering health as a low-cost add-on for additional revenue.
+* Health coverage can be added via VSP at a very low per-transaction cost, making it a profitable add-on.
 
 Follow-up, pilot, and next steps
 Mike expressed enthusiasm to move forward and asked to be kept informed. He offered his pastor and family as an initial pilot enrollee when the product is ready. The team agreed to reconnect next week to continue implementation planning.

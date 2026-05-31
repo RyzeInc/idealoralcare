@@ -640,7 +640,7 @@ Vitest tests at `convex/admin/listBillInvoices.test.ts`:
 
 4. **MS tier pricing**: Currently MS and MF share the same rate (`msCents` and `mfCents` are both specified but could be the same value). If future negotiations differentiate spouse vs. full-family, the spec already supports it.
 
-5. **Multi-product groups**: The current model assumes one `rateLabel` per group. Groups with multiple products (e.g., dental + vision combo) need a `lines[i].productId` reference and a multi-product product summary. Deferred.
+5. **Multi-product groups**: The current model assumes one `rateLabel` per group. Groups with multiple products (e.g., dental + health combo) need a `lines[i].productId` reference and a multi-product product summary. Deferred.
 
 6. **Employer portal**: A read-only employer-facing view of their own invoices (no Clerk admin account required) via a signed magic link. Deferred.
 

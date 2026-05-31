@@ -338,14 +338,14 @@ I re-checked the screenshots you posted. If your goal was “capture every visib
   3. Bloodwork and Labs
   4. Behavioral Health
   5. Hospital Bill Eraser
-  6. Vision
+  6. Health
   7. GLP-1 Program
   8. HealthShare
   9. Additional Benefits
      *(Each has a “Learn More” button + an image.)*
 * **Plans comparison section:** “Our Plans At A Glance” banner + table comparing **Primary Care Plus** vs **Primary Care Secure**
 
-  * Rows shown: Direct Primary Care, Virtual Care, Urgent Care, Pharmacy, Bloodwork and Labs, Behavioral Health, Hospital Bill Eraser, Vision, HealthShare, Maternity, Catastrophic Illness, Surgery, Emergency Room
+  * Rows shown: Direct Primary Care, Virtual Care, Urgent Care, Pharmacy, Bloodwork and Labs, Behavioral Health, Hospital Bill Eraser, Health, HealthShare, Maternity, Catastrophic Illness, Surgery, Emergency Room
 * **Pricing section:** “Pick Your Ideal Plan!”
 
   * **Primary Care Plus** pricing table (Member Only/Spouse/Child(ren)/Family) + **Enroll Now**

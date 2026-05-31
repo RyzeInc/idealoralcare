@@ -35,7 +35,7 @@ CTA → **Browse Plans**
 
 * Search + filters:
 
-  * Category (Dental / Wellness / Chronic / Vision / Rx / Telehealth)
+  * Category (Dental / Wellness / Chronic / Health / Rx / Telehealth)
   * “Best for” (Families / Individuals / Seniors / Fitness / Chronic)
   * Price range
 * Toggle: **Monthly / Annual (save X%)**
@@ -72,7 +72,7 @@ CTA → **Browse Plans**
   * FAQ + disclosures
 * Add-ons shown as “Recommended with this plan”
 
-  * Dental → add Vision / Rx savings / Wellness coaching
+  * Dental → add Health / Rx savings / Wellness coaching
   * Chronic support → add Telehealth / Labs discounts
 
 ---
@@ -193,7 +193,7 @@ Below is a complete **page-by-page user flow** for a self-serve non-insurance pl
    * Secondary CTA: **How it works**
 2. Category tiles (4–6)
 
-   * Dental / Wellness / Chronic Support / Vision / Rx Savings / Telehealth
+   * Dental / Wellness / Chronic Support / Health / Rx Savings / Telehealth
 3. “How it works” strip (3 steps)
 
    * Choose plans → Checkout → Immediate access + monthly/annual renewal
@@ -690,7 +690,7 @@ You're building a **digital marketplace for non-insurance health and wellness pl
 ## **What You're Selling**
 
 ### **Core Product**
-- **Non-insurance health/wellness plans** (8+ categories like dental, vision, telehealth, chronic support, wellness coaching, Rx savings)
+- **Non-insurance health/wellness plans** (8+ categories like dental, health, telehealth, chronic support, wellness coaching, Rx savings)
 - **Subscription access** to services, discounts, or digital tools
 - **Immediate activation** upon payment (no waiting periods)
 

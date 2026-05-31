@@ -10,7 +10,7 @@ Steps:
 
 Fix compilation blockers — Create the missing @/lib/enrollment/types module that EnrollmentProvider.tsx imports (EnrollmentWizardState, EnrollmentAction, DEFAULT_ENROLLMENT_CONFIG, SiteContext, etc.). Add nanoid to package.json dependencies (imported in enrollment.ts but not installed). Install stripe and @stripe/stripe-js packages.
 
-Consolidate to single product — Update products.ts seed data: one Oral Health Plan at $15/month ($13/month ACH). Remove or archive the Vision Care ($14.99), Telehealth ($19.99), and Wellness GLP ($99.99) products. Update pricing-calculator.ts to reflect $15/$13 pricing with ACH discount logic.
+Consolidate to single product — Update products.ts seed data: one Oral Health Plan at $15/month ($13/month ACH). Remove or archive the Health Care ($14.99), Telehealth ($19.99), and Wellness GLP ($99.99) products. Update pricing-calculator.ts to reflect $15/$13 pricing with ACH discount logic.
 
 Build dynamic white-label branding system — The sites table in schema.ts already has branding fields (logo, colors, fonts). Create a SiteThemeProvider component that resolves the current site via site-resolver.ts (by slug or custom domain), extracts branding config, and injects CSS custom properties at runtime. Wire this into layout.tsx. Replace every hardcoded "Ideal Health" / "Ideal Health" reference across the codebase with dynamic site name from context.
 

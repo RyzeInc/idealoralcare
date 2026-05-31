@@ -8,4 +8,4 @@ Key Questions:
 * Can we upload the scan result and how does the provider receive scans?
 * How is the tele‑dentist visit scheduled and where does scheduling occur?
 * Is the individual-user implementation already completed?
-* Are you still evaluating vision discount solutions?
+* Are you still evaluating health discount solutions?
