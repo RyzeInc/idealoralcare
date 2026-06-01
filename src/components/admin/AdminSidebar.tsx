@@ -24,6 +24,7 @@ import {
   Calculator,
   ClipboardList,
   HelpCircle,
+  Inbox,
 } from "lucide-react";
 
 type NavItem = {
@@ -47,6 +48,7 @@ const ADMIN_NAVIGATION: NavSection[] = [
     items: [
       { label: "Members", href: "/admin/members", icon: Users, tooltip: "All people in your plans (leads, eligible, active, etc.)." },
       { label: "Brokers", href: "/admin/brokers", icon: Network, tooltip: "Program Managers, FMOs, and agencies that resell your plans." },
+      { label: "Applications", href: "/admin/partner-applications", icon: Inbox, tooltip: "Review broker, agency, and rep onboarding submissions." },
       { label: "Rep Codes", href: "/admin/rep-codes", icon: Tag, tooltip: "Tracking codes that attribute enrollments to agents." },
     ],
   },
