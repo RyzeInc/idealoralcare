@@ -115,6 +115,28 @@ export async function POST(req: NextRequest) {
           const totalCents = (items[0]?.plan as any)?.amount || 1500;
 
           // 1. Create member profile (linked to enrollment session and Clerk user)
+
+          // Normalize gender: checkout stores "M"/"F"; schema expects "male"/"female"
+          const rawGender = metadata.memberGender || "";
+          const normalizedGender: "male" | "female" | undefined =
+            rawGender === "M" || rawGender === "male" ? "male" :
+            rawGender === "F" || rawGender === "female" ? "female" :
+            undefined;
+
+          // Normalize DOB: checkout stores "MM/DD/YYYY"; schema expects "YYYY-MM-DD"
+          let normalizedDOB: string | undefined;
+          const rawDOB = metadata.memberDOB || "";
+          if (rawDOB) {
+            const parts = rawDOB.split("/");
+            if (parts.length === 3) {
+              // MM/DD/YYYY → YYYY-MM-DD
+              normalizedDOB = `${parts[2]}-${parts[0].padStart(2, "0")}-${parts[1].padStart(2, "0")}`;
+            } else {
+              // Already ISO or unknown — store as-is
+              normalizedDOB = rawDOB;
+            }
+          }
+
           const memberProfileId = await convex.mutation(
             api.enrollment.members.webhookCreateMemberProfile,
             {
@@ -132,8 +154,8 @@ export async function POST(req: NextRequest) {
               enrollmentSessionId: enrollmentSessionDocId as any,
               // Profile fields collected during account creation
               phone: metadata.memberPhone || undefined,
-              dateOfBirth: metadata.memberDOB || undefined,
-              gender: metadata.memberGender || undefined,
+              dateOfBirth: normalizedDOB,
+              gender: normalizedGender,
               address: metadata.memberAddress1 ? {
                 line1: metadata.memberAddress1,
                 line2: metadata.memberAddress2 || undefined,

@@ -247,7 +247,13 @@ export const webhookCreateMemberProfile = mutation({
     // Profile fields collected during account creation
     phone: v.optional(v.string()),
     dateOfBirth: v.optional(v.string()),
-    gender: v.optional(v.string()),
+    gender: v.optional(v.union(
+      v.literal("male"),
+      v.literal("female"),
+      v.literal("non_binary"),
+      v.literal("prefer_not_to_say"),
+      v.literal("other"),
+    )),
     address: v.optional(v.object({
       line1: v.string(),
       line2: v.optional(v.string()),
@@ -273,7 +279,7 @@ export const webhookCreateMemberProfile = mutation({
       enrollmentSessionId: args.enrollmentSessionId,
       phone: args.phone,
       dateOfBirth: args.dateOfBirth,
-      gender: args.gender as any,
+      gender: args.gender,
       address: args.address,
     });
 
