@@ -2001,4 +2001,64 @@ export default defineSchema({
     name: v.string(),   // e.g. "memberIdSeq"
     value: v.number(),  // current counter value
   }).index("by_name", ["name"]),
+
+  // ============================================
+  // BROKER / AGENCY / REP ONBOARDING SUBMISSIONS
+  // ============================================
+  // Public submissions captured at /register/rep. Admins review these and then
+  // promote into distributionPartners + partnerLeaders.
+  repOnboardingSubmissions: defineTable({
+    submissionType: v.union(
+      v.literal("agency"),
+      v.literal("rep"),
+      v.literal("both"),
+    ),
+    // Broker / Agency fields
+    agencyName: v.optional(v.string()),
+    dba: v.optional(v.string()),
+    ein: v.optional(v.string()),
+    agencyNpn: v.optional(v.string()),
+    primaryContactName: v.optional(v.string()),
+    primaryContactEmail: v.optional(v.string()),
+    primaryContactPhone: v.optional(v.string()),
+    programManager: v.optional(v.string()),
+    physicalAddress: v.optional(v.string()),
+    mailingAddress: v.optional(v.string()),
+    agencyLicenses: v.optional(v.string()),
+    eoCarrier: v.optional(v.string()),
+    eoExpiration: v.optional(v.string()),
+    commissionTier: v.optional(v.string()),
+    agencyEffectiveDate: v.optional(v.string()),
+    agencyStatus: v.optional(v.string()),
+    w9Status: v.optional(v.string()),
+    w9ReceivedDate: v.optional(v.string()),
+    paymentMethod: v.optional(v.string()),
+    achAuthorizationStatus: v.optional(v.string()),
+    // Front-line rep fields
+    repFirstName: v.optional(v.string()),
+    repLastName: v.optional(v.string()),
+    repEmail: v.optional(v.string()),
+    repPhone: v.optional(v.string()),
+    repNpn: v.optional(v.string()),
+    assignedAgency: v.optional(v.string()),
+    repLicenses: v.optional(v.string()),
+    repEffectiveDate: v.optional(v.string()),
+    repStatus: v.optional(v.string()),
+    writingNumber: v.optional(v.string()),
+    // Workflow
+    status: v.union(
+      v.literal("new"),
+      v.literal("reviewing"),
+      v.literal("approved"),
+      v.literal("rejected"),
+    ),
+    notes: v.optional(v.string()),
+    submittedFromIp: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status", ["status"])
+    .index("by_type", ["submissionType"])
+    .index("by_email", ["primaryContactEmail"])
+    .index("by_rep_email", ["repEmail"]),
 });

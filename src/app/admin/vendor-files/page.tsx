@@ -30,6 +30,29 @@ export default function VendorFilesPage() {
   const generateDDN = useAction(api.admin.vendorFiles.generateDentalDiscountNetworkFile);
   const generateDialCare = useAction(api.admin.vendorFiles.generateDialCareFile);
   const generateAggregated = useAction(api.admin.vendorFiles.generateAggregatedDentalDiscountNetworkFile);
+  const generateEssentials = useAction(api.admin.essentialsEligibility.generateEssentialsEligibilityFile);
+
+  const handleGenerateEssentials = async (format: 'ark' | 'rxvalet' | 'combined') => {
+    const key = `ESS-${format}`;
+    setGeneratingVendor(key);
+    try {
+      const result: any = await generateEssentials({
+        format,
+        ...(selectedOrganizationId ? { groupId: selectedOrganizationId as Id<'groups'> } : {}),
+      });
+      if (result?.content) {
+        downloadFile(result.filename, result.content);
+        toast.success(
+          `${format.toUpperCase()} test file ready`,
+          `${result.memberCount} members · ${result.totalRecords} records · ${result.filename}`
+        );
+      }
+    } catch (err) {
+      toast.fromError(err, `${format.toUpperCase()} file generation failed`);
+    } finally {
+      setGeneratingVendor(null);
+    }
+  };
 
   const downloadFile = (filename: string, content: string) => {
     const blob = new Blob([content], { type: 'text/plain' });
@@ -304,6 +327,45 @@ export default function VendorFilesPage() {
             className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded hover:bg-slate-800 disabled:opacity-50 text-sm"
           >
             {generatingVendor === 'AGG-dialcare' ? 'Generating…' : (<><Download size={14} /> Generate Aggregated DialCare File ({fileType})</>)}
+          </button>
+        </div>
+      </div>
+
+      {/* Essentials Eligibility Test Files */}
+      <div className="bg-white rounded-lg shadow p-6 border-l-4 border-emerald-600">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">Essentials Eligibility Test Files</h2>
+          <p className="text-sm text-slate-600 mt-1">
+            Download CSV eligibility files in ARK, RxValet, and Combined formats so vendors can verify our schema.
+            Includes the selected organization, or all active organizations if none is selected.
+          </p>
+          <p className="text-xs text-slate-500 mt-2">
+            {selectedOrganizationId
+              ? 'Scope: selected organization above'
+              : 'Scope: all active organizations'}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3 mt-4">
+          <button
+            onClick={() => handleGenerateEssentials('ark')}
+            disabled={generatingVendor === 'ESS-ark'}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-50 text-sm"
+          >
+            {generatingVendor === 'ESS-ark' ? 'Generating…' : (<><Download size={14} /> ARK Test CSV</>)}
+          </button>
+          <button
+            onClick={() => handleGenerateEssentials('rxvalet')}
+            disabled={generatingVendor === 'ESS-rxvalet'}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-50 text-sm"
+          >
+            {generatingVendor === 'ESS-rxvalet' ? 'Generating…' : (<><Download size={14} /> RxValet Test CSV</>)}
+          </button>
+          <button
+            onClick={() => handleGenerateEssentials('combined')}
+            disabled={generatingVendor === 'ESS-combined'}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-700 text-white rounded hover:bg-emerald-800 disabled:opacity-50 text-sm"
+          >
+            {generatingVendor === 'ESS-combined' ? 'Generating…' : (<><Download size={14} /> Combined Test CSV</>)}
           </button>
         </div>
       </div>
