@@ -1,7 +1,8 @@
-import { mutation, query } from "../_generated/server";
+import { mutation, query, internalMutation, action } from "../_generated/server";
 import { v } from "convex/values";
 import { Id } from "../_generated/dataModel";
-import { requireAdmin } from "../lib/authGuards";
+import { requireAdmin, requireAdminAction } from "../lib/authGuards";
+import { internal, api } from "../_generated/api";
 
 /** All broker/agent rep tracking codes */
 export const getAll = query({
@@ -366,5 +367,149 @@ export const assignAgencyCode = mutation({
     const agencyCode = String(next);
     await ctx.db.patch(args.partnerId, { agencyCode } as any);
     return { agencyCode };
+  },
+});
+
+// ─── internal variants (no auth check — called from other actions) ────
+
+/**
+ * Assign a 4-digit agency code without requiring admin auth.
+ * Idempotent — returns existing code if already set.
+ */
+export const _assignAgencyCodeInternal = internalMutation({
+  args: { partnerId: v.id("distributionPartners") },
+  handler: async (ctx, args) => {
+    const partner = await ctx.db.get(args.partnerId);
+    if (!partner) throw new Error("Partner not found");
+    if ((partner as any).agencyCode) {
+      return { agencyCode: (partner as any).agencyCode as string };
+    }
+    const allPartners = await ctx.db.query("distributionPartners").collect();
+    const usedCodes = new Set<string>(
+      allPartners.map((p: any) => p.agencyCode).filter(Boolean)
+    );
+    let next = 1000;
+    while (usedCodes.has(String(next))) next++;
+    if (next > 9999) throw new Error("All 4-digit agency codes are in use");
+    const agencyCode = String(next);
+    await ctx.db.patch(args.partnerId, { agencyCode } as any);
+    return { agencyCode };
+  },
+});
+
+/**
+ * Create a brokerTrackingCode row without requiring admin auth.
+ * Skips creation if a code already exists for this brokerId + agencyId combination.
+ */
+export const _createRepCodeInternal = internalMutation({
+  args: {
+    brokerId: v.string(),        // partnerLeader._id (placeholder until invite claimed)
+    agencyId: v.string(),        // distributionPartners._id
+    agencyCode: v.string(),      // 4-digit, e.g. "1000"
+    repFirstName: v.optional(v.string()),
+    repLastName: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Idempotent: skip if a code already exists for this broker
+    const existing = await ctx.db
+      .query("brokerTrackingCodes")
+      .withIndex("by_broker", (q: any) => q.eq("brokerId", args.brokerId))
+      .first();
+    if (existing) return { id: existing._id, code: existing.code, slug: existing.slug, created: false };
+
+    // Determine next sequence number for this agency
+    const existingForAgency = await ctx.db
+      .query("brokerTrackingCodes")
+      .filter((q: any) => q.eq(q.field("agencyId"), args.agencyId))
+      .collect();
+    const maxSeq = existingForAgency.reduce(
+      (max: number, c: any) => Math.max(max, c.agencySeqNo ?? 0),
+      0
+    );
+    const agencySeqNo = maxSeq + 1;
+    const seqStr = String(agencySeqNo).padStart(2, "0");
+    const code = `${args.agencyCode}${seqStr}`;
+
+    // Build slug from name
+    const first = (args.repFirstName ?? "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+    const last  = (args.repLastName  ?? "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+    let slug: string | undefined;
+    if (first || last) {
+      const base = `${first}${last}${seqStr}`;
+      // Ensure slug uniqueness
+      const taken = new Set<string>(
+        (await ctx.db.query("brokerTrackingCodes").collect())
+          .map((c: any) => c.slug)
+          .filter(Boolean)
+      );
+      let candidate = base;
+      let suffix = 2;
+      while (taken.has(candidate)) { candidate = `${base}-${suffix}`; suffix++; }
+      slug = candidate;
+    }
+
+    const id = await ctx.db.insert("brokerTrackingCodes", {
+      brokerId: args.brokerId,
+      agencyId: args.agencyId,
+      code,
+      slug,
+      agencySeqNo,
+      usageCount: 0,
+      status: "active",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    return { id, code, slug, created: true };
+  },
+});
+
+// ─── provisionCodesForPartner ─────────────────────────────────────────
+// Can be called from the approve action OR from the admin UI for retroactive
+// fixes. Creates the agency code + one tracking code per leader if missing.
+
+export const provisionCodesForPartner = action({
+  args: { partnerId: v.id("distributionPartners") },
+  handler: async (ctx, args): Promise<{
+    agencyCode: string;
+    codesCreated: number;
+    codeRows: Array<{ leaderId: string; code: string; slug?: string }>;
+  }> => {
+    // @ts-ignore
+    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+
+    // 1. Assign (or get) the 4-digit agency code
+    const { agencyCode } = await ctx.runMutation(
+      internal.admin.repCodes._assignAgencyCodeInternal,
+      { partnerId: args.partnerId }
+    );
+
+    // 2. Get all leaders under this partner
+    const leaders: any[] = await ctx.runQuery(
+      // @ts-ignore
+      api.admin.distributionPartners.getLeadersByPartner,
+      { partnerId: args.partnerId }
+    );
+
+    const codeRows: Array<{ leaderId: string; code: string; slug?: string }> = [];
+    let codesCreated = 0;
+    for (const leader of leaders) {
+      const nameParts = (leader.name ?? "").trim().split(/\s+/);
+      const firstName = nameParts[0] ?? "";
+      const lastName  = nameParts.slice(1).join(" ");
+      const result = await ctx.runMutation(
+        internal.admin.repCodes._createRepCodeInternal,
+        {
+          brokerId: leader._id,
+          agencyId: args.partnerId,
+          agencyCode,
+          repFirstName: firstName,
+          repLastName: lastName,
+        }
+      );
+      if (result.created) codesCreated++;
+      codeRows.push({ leaderId: leader._id, code: result.code, slug: result.slug });
+    }
+
+    return { agencyCode, codesCreated, codeRows };
   },
 });

@@ -158,8 +158,22 @@ export const listForAdmin = query({
 
 // ─── internal: patch status + write audit ─────────────────────────────
 
-export const _patchStatus = internalMutation({
+export const _setApprovedPartner = internalMutation({
   args: {
+    id: v.id("repOnboardingSubmissions"),
+    approvedPartnerId: v.string(),
+    approvedRepLeaderId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.id, {
+      approvedPartnerId: args.approvedPartnerId,
+      approvedRepLeaderId: args.approvedRepLeaderId,
+      updatedAt: Date.now(),
+    } as any);
+  },
+});
+
+export const _patchStatus = internalMutation({  args: {
     id: v.id("repOnboardingSubmissions"),
     status: v.union(
       v.literal("new"),
@@ -363,6 +377,30 @@ export const approve = action({
         metadata: { agencyPartnerId, agencyLeaderId, repLeaderId },
       },
     );
+
+    // Store the created partnerId on the submission for easy retroactive access
+    const resolvedPartnerId = agencyPartnerId ?? args.agencyPartnerId;
+    if (resolvedPartnerId) {
+      await ctx.runMutation(
+        // @ts-ignore
+        internal.repOnboarding._setApprovedPartner,
+        { id: args.id, approvedPartnerId: resolvedPartnerId, approvedRepLeaderId: repLeaderId },
+      );
+    }
+
+    // Auto-provision agency code + tracking codes for the new partner
+    if (resolvedPartnerId) {
+      try {
+        await ctx.runAction(
+          // @ts-ignore
+          api.admin.repCodes.provisionCodesForPartner,
+          { partnerId: resolvedPartnerId as any },
+        );
+      } catch (e) {
+        // Non-fatal — admin can provision manually via the drawer button
+        console.warn("[approve] provisionCodesForPartner failed:", e);
+      }
+    }
 
     return { ok: true, agencyPartnerId, agencyLeaderId, repLeaderId, inviteSent };
   },

@@ -2054,6 +2054,9 @@ export default defineSchema({
     ),
     notes: v.optional(v.string()),
     submittedFromIp: v.optional(v.string()),
+    // Set during approval — links back to the created distributionPartners row
+    approvedPartnerId: v.optional(v.string()),
+    approvedRepLeaderId: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

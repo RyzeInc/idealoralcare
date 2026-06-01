@@ -6,7 +6,7 @@ import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import {
   Search, CheckCircle2, XCircle, Clock, Eye, X,
-  ChevronDown, ChevronUp, Loader2, RefreshCw,
+  Loader2, Code2,
 } from 'lucide-react';
 import { Breadcrumbs, useToast } from '@/components/admin/ui';
 import { formatDateTime, formatPhone } from '@/lib/admin-format';
@@ -70,12 +70,14 @@ function Drawer({
   const markReviewing = useMutation(api.repOnboarding.markReviewing);
   const reject = useMutation(api.repOnboarding.reject);
   const approve = useAction(api.repOnboarding.approve);
+  const provisionCodes = useAction(api.admin.repCodes.provisionCodesForPartner);
 
   const [acting, setActing] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [parentPartnerId, setParentPartnerId] = useState('');
   const [agencyPartnerId, setAgencyPartnerId] = useState('');
+  const [codeResult, setCodeResult] = useState<{agencyCode: string; codesCreated: number; codeRows: any[]} | null>(null);
 
   const wantsAgency = sub.submissionType === 'agency' || sub.submissionType === 'both';
   const wantsRep    = sub.submissionType === 'rep'    || sub.submissionType === 'both';
@@ -124,6 +126,20 @@ function Drawer({
       onClose();
     } catch (e: any) {
       toast.fromError(e, 'Approval failed');
+    } finally { setActing(null); }
+  }
+
+  async function handleProvisionCodes(partnerId: string) {
+    setActing('provision');
+    try {
+      const result: any = await provisionCodes({ partnerId: partnerId as Id<'distributionPartners'> });
+      setCodeResult(result);
+      toast.success(
+        `Agency code: ${result.agencyCode}`,
+        `${result.codesCreated} new tracking code(s) created.`
+      );
+    } catch (e: any) {
+      toast.fromError(e, 'Code provisioning failed');
     } finally { setActing(null); }
   }
 
@@ -198,7 +214,7 @@ function Drawer({
           </div>
         </div>
 
-        {/* Action footer */}
+        {/* Action footer — pending records */}
         {sub.status !== 'approved' && sub.status !== 'rejected' && (
           <div className="border-t border-slate-200 px-6 py-4 bg-slate-50 space-y-3">
             {/* PM selector for agency */}
@@ -279,6 +295,53 @@ function Drawer({
                 Approve
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Approved-record code management */}
+        {sub.status === 'approved' && (
+          <div className="border-t border-slate-200 px-6 py-4 bg-slate-50 space-y-3">
+            {codeResult ? (
+              <div className="text-sm space-y-1">
+                <p className="font-semibold text-emerald-700">Agency Code: <span className="font-mono">{codeResult.agencyCode}</span></p>
+                {codeResult.codeRows.map((r: any) => (
+                  <p key={r.leaderId} className="text-slate-600 text-xs">
+                    Code: <span className="font-mono font-semibold">{r.code}</span>
+                    {r.slug ? <> · Slug: <span className="font-mono">{r.slug}</span></> : null}
+                  </p>
+                ))}
+              </div>
+            ) : !sub.approvedPartnerId ? (
+              <div className="space-y-2">
+                <p className="text-xs text-amber-700 bg-amber-50 rounded p-2">
+                  No partner ID linked — approved before tracking was added. Select the matching partner record:
+                </p>
+                <select
+                  value={agencyPartnerId}
+                  onChange={(e) => setAgencyPartnerId(e.target.value)}
+                  className="w-full text-sm border border-slate-300 rounded px-2 py-1.5"
+                >
+                  <option value="">Select partner record…</option>
+                  {partners.filter((p: any) => p.type === 'agency').map((p: any) => (
+                    <option key={p._id} value={p._id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500">Partner: <span className="font-mono">{sub.approvedPartnerId}</span></p>
+            )}
+            <button
+              onClick={() => {
+                const pid = sub.approvedPartnerId || agencyPartnerId;
+                if (!pid) { toast.warning('Select partner', 'Choose the partner record to provision codes for.'); return; }
+                handleProvisionCodes(pid);
+              }}
+              disabled={!!acting}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+            >
+              {acting === 'provision' ? <Loader2 size={14} className="animate-spin" /> : <Code2 size={14} />}
+              {acting === 'provision' ? 'Provisioning…' : 'Provision Agency Code + Rep Codes'}
+            </button>
           </div>
         )}
       </div>
