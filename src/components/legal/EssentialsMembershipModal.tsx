@@ -84,15 +84,15 @@ export const EssentialsMembershipModal: React.FC<EssentialsMembershipModalProps>
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-2xl max-h-[92vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Essentials Membership Agreement</DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto border rounded p-4 bg-gray-50 text-sm">
-          <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto border rounded p-3 bg-gray-50 text-sm min-h-0">
+          <div className="space-y-3">
             {/* Member + Plan Summary */}
-            <div className="bg-white border rounded p-3 space-y-1 text-xs">
+            <div className="bg-white border rounded p-2 space-y-0.5 text-xs">
               <div><span className="font-medium">Member:</span> {memberData.memberName}</div>
               <div><span className="font-medium">Email:</span> {memberData.email}</div>
               <div><span className="font-medium">Plan:</span> {memberData.planName}</div>
@@ -110,26 +110,26 @@ export const EssentialsMembershipModal: React.FC<EssentialsMembershipModalProps>
 
             <div>
               <h4 className="font-semibold mb-1">Plan Details</h4>
-              <p className="mb-2">
+              <p className="mb-1">
                 The Ideal Health Essentials Plan Membership offers several options:
               </p>
-              <ul className="list-disc pl-5 space-y-1">
+              <ul className="list-disc pl-5 space-y-0.5">
                 <li>Individual Plan: $57.95 per month</li>
                 <li>Member and Spouse: $65.95 per month</li>
                 <li>Member and Child: $77.95 per month</li>
                 <li>Family Plan: $82.95 per month</li>
               </ul>
-              <p className="mt-2">
+              <p className="mt-1">
                 <strong>This Membership Plan is NOT insurance</strong> and does not satisfy ACA minimum essential
                 coverage. The Membership Plan does not cover any additional medical services or treatments beyond
                 what is explicitly stated in the plan documents.
               </p>
-              <p className="mt-2">
+              <p className="mt-1">
                 Individuals ages 2 to 65 are eligible for Ideal Health membership. Dependents under the age of
                 two are not eligible. Dependent children are eligible until the last day of their 25th year.
                 Individuals are eligible until the last day of their 64th year.
               </p>
-              <p className="mt-2">
+              <p className="mt-1">
                 Telehealth and discount programs are provided through third-party organizations and are not
                 connected to our Essentials provider.
               </p>
@@ -137,7 +137,7 @@ export const EssentialsMembershipModal: React.FC<EssentialsMembershipModalProps>
 
             <div>
               <h4 className="font-semibold mb-1">Payment and Billing</h4>
-              <ul className="list-disc pl-5 space-y-1">
+              <ul className="list-disc pl-5 space-y-0.5">
                 <li>By enrolling, you authorize Provider to charge your credit card automatically each month.</li>
                 <li>All charges will be processed in the currency specified at the time of enrollment.</li>
                 <li>It is your responsibility to ensure your credit card information remains up to date.</li>
@@ -162,7 +162,7 @@ export const EssentialsMembershipModal: React.FC<EssentialsMembershipModalProps>
 
             <div>
               <h4 className="font-semibold mb-1">Cancellation Policy</h4>
-              <ul className="list-disc pl-5 space-y-1">
+              <ul className="list-disc pl-5 space-y-0.5">
                 <li>
                   To cancel, notify Provider via email at{" "}
                   <strong>info@getidealhealth.com</strong>.
@@ -180,7 +180,7 @@ export const EssentialsMembershipModal: React.FC<EssentialsMembershipModalProps>
 
             <div>
               <h4 className="font-semibold mb-1">Termination or Modification by Provider</h4>
-              <ul className="list-disc pl-5 space-y-1">
+              <ul className="list-disc pl-5 space-y-0.5">
                 <li>Provider reserves the right to terminate or modify the Membership Plan with 30 days prior notice.</li>
                 <li>Non-payment shall result in cancellation of the plan on the last day of the month.</li>
                 <li>
@@ -211,7 +211,7 @@ export const EssentialsMembershipModal: React.FC<EssentialsMembershipModalProps>
         </div>
 
         {/* Agreement checkbox */}
-        <div className="pt-3 space-y-3">
+        <div className="pt-2 space-y-2">
           <label className="flex items-start gap-2 cursor-pointer">
             <input
               type="checkbox"
@@ -233,7 +233,7 @@ export const EssentialsMembershipModal: React.FC<EssentialsMembershipModalProps>
               <canvas
                 ref={canvasRef}
                 width={580}
-                height={120}
+                height={80}
                 className="w-full"
                 style={{ touchAction: "none" }}
                 onMouseDown={startDrawing}
@@ -242,7 +242,7 @@ export const EssentialsMembershipModal: React.FC<EssentialsMembershipModalProps>
                 onMouseLeave={stopDrawing}
               />
             </div>
-            <div className="flex justify-between items-center mt-1">
+            <div className="flex justify-between items-center mt-0.5">
               <p className="text-xs text-gray-500">Draw your signature above</p>
               <button
                 type="button"
@@ -254,7 +254,7 @@ export const EssentialsMembershipModal: React.FC<EssentialsMembershipModalProps>
             </div>
           </div>
 
-          <div className="flex gap-2 pt-1">
+          <div className="flex gap-2 pt-0.5">
             <Button variant="outline" onClick={handleClose} className="flex-1">
               Cancel
             </Button>
