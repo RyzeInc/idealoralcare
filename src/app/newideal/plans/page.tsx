@@ -139,7 +139,7 @@ const PLAN_GROUPS = [
     icon: <Smile size={18} />,
     color: "#0d9488",
     blurb:
-      "Dental savings at 20\u201360% off at 100,000+ participating dentists, plus hearing discounts \u2014 included with every Essentials membership.",
+      "Dental savings at 20\u201360% off at 100,000+ participating dentists \u2014 included with every Essentials membership.",
     autoInclude: true,
   },
 ];

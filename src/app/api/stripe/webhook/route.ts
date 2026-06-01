@@ -130,6 +130,18 @@ export async function POST(req: NextRequest) {
                 ? `referral:${referralCode}`
                 : `stripe:${enrollmentSessionId || session.id}`,
               enrollmentSessionId: enrollmentSessionDocId as any,
+              // Profile fields collected during account creation
+              phone: metadata.memberPhone || undefined,
+              dateOfBirth: metadata.memberDOB || undefined,
+              gender: metadata.memberGender || undefined,
+              address: metadata.memberAddress1 ? {
+                line1: metadata.memberAddress1,
+                line2: metadata.memberAddress2 || undefined,
+                city: metadata.memberCity,
+                state: metadata.memberState,
+                postalCode: metadata.memberZip,
+                country: "US",
+              } : undefined,
             }
           );
 

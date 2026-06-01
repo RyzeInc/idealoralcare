@@ -244,6 +244,18 @@ export const webhookCreateMemberProfile = mutation({
     groupMemberId: v.optional(v.string()),
     externalMemberId: v.optional(v.string()),
     enrollmentSessionId: v.optional(v.id("enrollmentSessions")),
+    // Profile fields collected during account creation
+    phone: v.optional(v.string()),
+    dateOfBirth: v.optional(v.string()),
+    gender: v.optional(v.string()),
+    address: v.optional(v.object({
+      line1: v.string(),
+      line2: v.optional(v.string()),
+      city: v.string(),
+      state: v.string(),
+      postalCode: v.string(),
+      country: v.string(),
+    })),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -259,6 +271,10 @@ export const webhookCreateMemberProfile = mutation({
       groupMemberId: args.groupMemberId,
       externalMemberId: args.externalMemberId,
       enrollmentSessionId: args.enrollmentSessionId,
+      phone: args.phone,
+      dateOfBirth: args.dateOfBirth,
+      gender: args.gender as any,
+      address: args.address,
     });
 
     // Log activity

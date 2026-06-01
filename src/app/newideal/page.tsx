@@ -23,7 +23,7 @@ import {
 export const metadata: Metadata = {
   title: "Ideal Health — Affordable Healthcare Membership",
   description:
-    "Ideal Health offers the Essentials Plan and Oral Care membership programs. Telehealth, pharmacy savings, lab services, mental wellness, and dental and hearing savings.",
+    "Ideal Health offers the Essentials Plan and Oral Care membership programs. Telehealth, pharmacy savings, lab services, mental wellness, and dental savings.",
 };
 
 const PROGRAM_CARDS = [
@@ -157,7 +157,7 @@ export default function NewIdealLandingPage() {
             }}
           >
             Telehealth, pharmacy discounts, lab testing, mental wellness, and
-            dental and hearing savings — all in one affordable
+            dental savings — all in one affordable
             membership.
           </p>
 

@@ -827,6 +827,12 @@ export default function NewIdealCheckoutClient() {
           successUrl: `${origin}/newideal/success?session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: `${origin}/newideal/checkout`,
           referralCode: cart.referralCode || undefined,
+          memberProfile: (() => {
+            try {
+              const raw = sessionStorage.getItem("careington_profile");
+              return raw ? JSON.parse(raw) : undefined;
+            } catch { return undefined; }
+          })(),
         }),
       });
 
@@ -1405,7 +1411,7 @@ export default function NewIdealCheckoutClient() {
                       <strong>I understand this is NOT insurance.</strong>{" "}
                       Ideal Health is a membership program providing access to
                       telehealth, pharmacy savings, lab services, mental
-                      wellness support, and discounted dental and hearing care.
+                      wellness support, and discounted dental care.
                       {!agreedToNotInsurance && (
                         <span
                           style={{

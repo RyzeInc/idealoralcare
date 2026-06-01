@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     const userEmail = user.emailAddresses[0].emailAddress;
 
     const body = await req.json();
-    const { planId, cadence, paymentMethod, enrollmentSessionId, brokerCode, groupId, brokerClerkUserId, dependents, referralCode, siteSlug, successUrl, cancelUrl, additionalPlanIds } = body;
+    const { planId, cadence, paymentMethod, enrollmentSessionId, brokerCode, groupId, brokerClerkUserId, dependents, referralCode, siteSlug, successUrl, cancelUrl, additionalPlanIds, memberProfile } = body;
 
     // Validate required fields
     if (!planId || !cadence || !paymentMethod) {
@@ -214,6 +214,15 @@ export async function POST(req: NextRequest) {
         dependentCount: String(dependentList.length),
         // Truncate to 500 chars if needed (Stripe metadata limit per value)
         dependents: dependentsMeta.slice(0, 500),
+        // Member profile fields collected during account creation — passed through for member record creation
+        memberDOB: memberProfile?.dateOfBirth || "",
+        memberGender: memberProfile?.gender || "",
+        memberPhone: memberProfile?.phone || "",
+        memberAddress1: memberProfile?.address?.line1 || "",
+        memberAddress2: memberProfile?.address?.line2 || "",
+        memberCity: memberProfile?.address?.city || "",
+        memberState: memberProfile?.address?.state || "",
+        memberZip: memberProfile?.address?.postalCode || "",
       },
       success_url: successUrl || `${getBaseUrl()}/health/dashboard?session_id={CHECKOUT_SESSION_ID}&status=success`,
       cancel_url: cancelUrl || `${getBaseUrl()}/health/plans`,
