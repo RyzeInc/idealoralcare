@@ -210,7 +210,7 @@ export const update = mutation({
 
 /**
  * Back-fill slugs for all active rep codes that don't yet have one.
- * Derives slug from agent name (adminUsers or partnerLeaders).
+ * Derives slug from agent name (partnerLeaders).
  * Auto-suffixes (-2, -3 …) on collisions. Idempotent.
  */
 export const backfillSlugs = mutation({
@@ -218,15 +218,10 @@ export const backfillSlugs = mutation({
   handler: async (ctx) => {
     await requireAdmin(ctx);
     const codes = await ctx.db.query("brokerTrackingCodes").collect();
-    const adminUsers = await ctx.db.query("adminUsers").collect();
     const leaders = await ctx.db.query("partnerLeaders").collect();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const adminMap = new Map(adminUsers.map((u: any) => [u.clerkUserId, u]));
-    const leaderMap = new Map(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      leaders.filter((l: any) => l.clerkUserId).map((l: any) => [l.clerkUserId, l])
-    );
+    // brokerId is always a partnerLeaders._id
+    const leaderById = new Map(leaders.map((l: any) => [l._id as string, l]));
 
     // Pre-seed taken slugs from rows that already have one
     const takenSlugs = new Set<string>(
@@ -239,9 +234,8 @@ export const backfillSlugs = mutation({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if ((code as any).slug) continue;
 
-      const admin = adminMap.get(code.brokerId);
-      const leader = leaderMap.get(code.brokerId);
-      const name: string = (admin as any)?.name || (leader as any)?.name || "";
+      const leader = leaderById.get(code.brokerId);
+      const name: string = (leader as any)?.name || "";
       if (!name) continue;
 
       const base = name.toLowerCase().replace(/[^a-z0-9]/g, "");

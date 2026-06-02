@@ -1,20 +1,27 @@
 /**
  * Public Agent Queries
- * Used by checkout page for agent/rep code selection
+ * Used by checkout page for agent/rep code selection.
+ *
+ * Design contract (no Clerk dependencies):
+ *   brokerTrackingCodes.brokerId  → partnerLeaders._id
+ *   brokerTrackingCodes.agencyId  → distributionPartners._id
+ *
+ * All resolution is done via direct Convex _id lookups.
  */
 
 import { query } from "../_generated/server";
 import { v } from "convex/values";
+import { Id } from "../_generated/dataModel";
 
 /**
  * Public-facing agent record structure
  * Used for the Agent dropdown selector on checkout
  */
 export interface PublicAgent {
-  id: string; // brokerId (clerkUserId)
+  id: string; // partnerLeader._id
   name: string;
   repCode: string;
-  groupId: string | null; // distributionPartner ID if linked
+  groupId: string | null; // distributionPartner._id if linked
   groupName: string | null;
   slug: string; // URL-friendly: firstnamelastname (lowercase, no spaces)
 }
@@ -24,14 +31,79 @@ export interface PublicAgent {
  * Used for the Group dropdown selector on checkout
  */
 export interface PublicGroup {
-  id: string; // distributionPartner _id
+  id: string; // distributionPartner._id
   name: string;
   type: "program_manager" | "fmo" | "agency";
 }
 
+// ── Shared resolution helpers ──────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function resolveCodeToAgent(code: any, ctx: any): Promise<PublicAgent> {
+  const brokerId: string = code.brokerId;
+
+  // brokerId is always a partnerLeaders._id
+  const leader = await ctx.db.get(brokerId as Id<"partnerLeaders">);
+  const name: string = leader?.name ?? "Unknown Agent";
+
+  let groupId: string | null = null;
+  let groupName: string | null = null;
+
+  // Prefer agencyId on the code row (direct distributionPartners._id)
+  const agencyIdStr: string | undefined = code.agencyId;
+  if (agencyIdStr) {
+    const agency = await ctx.db.get(agencyIdStr as Id<"distributionPartners">);
+    if (agency) { groupId = agency._id; groupName = agency.name; }
+  }
+
+  // Fallback: leader.partnerId
+  if (!groupId && leader?.partnerId) {
+    const partner = await ctx.db.get(leader.partnerId as Id<"distributionPartners">);
+    if (partner) { groupId = partner._id; groupName = partner.name; }
+  }
+
+  const slug = (code.slug as string | undefined) ||
+    name.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+
+  return { id: brokerId, name, repCode: code.code, groupId, groupName, slug };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function enrichCodeRow(code: any, ctx: any): Promise<RepUrlResolution> {
+  const brokerId: string = code.brokerId;
+
+  // brokerId is always a partnerLeaders._id
+  const leader = await ctx.db.get(brokerId as Id<"partnerLeaders">);
+  const agentName: string | null = leader?.name ?? null;
+
+  let groupId: string | null = null;
+
+  const agencyIdStr: string | undefined = code.agencyId;
+  if (agencyIdStr) {
+    const agency = await ctx.db.get(agencyIdStr as Id<"distributionPartners">);
+    if (agency) groupId = agency._id;
+  }
+
+  if (!groupId && leader?.partnerId) {
+    const partner = await ctx.db.get(leader.partnerId as Id<"distributionPartners">);
+    if (partner) groupId = partner._id;
+  }
+
+  const derivedSlug = agentName ? agentName.toLowerCase().replace(/[^a-z0-9]/g, "") : null;
+
+  return {
+    repCode: code.code,
+    canonicalSlug: (code.slug as string | undefined) ?? derivedSlug,
+    agentName,
+    groupId,
+    productHint: code.productHint ?? null,
+  };
+}
+
+// ── Public queries ─────────────────────────────────────────────────────────
+
 /**
  * List all active groups (distribution partners)
- * Returns groups that customers can select from
  */
 export const listPublicGroups = query({
   args: {},
@@ -51,12 +123,10 @@ export const listPublicGroups = query({
 
 /**
  * List all active agents with rep codes
- * Returns agents that customers can select from, with their group associations
  */
 export const listPublicAgents = query({
   args: {},
   handler: async (ctx): Promise<PublicAgent[]> => {
-    // Get all active rep codes
     const codes = await ctx.db
       .query("brokerTrackingCodes")
       .withIndex("by_status", (q) => q.eq("status", "active"))
@@ -64,151 +134,75 @@ export const listPublicAgents = query({
 
     if (codes.length === 0) return [];
 
-    // Get unique broker IDs
-    const brokerIds = [...new Set(codes.map((c) => c.brokerId))];
-
-    // Fetch admin users for these brokers
-    const adminUsers = await ctx.db.query("adminUsers").collect();
-    const adminMap = new Map(
-      adminUsers
-        .filter((u) => brokerIds.includes(u.clerkUserId))
-        .map((u) => [u.clerkUserId, u])
-    );
-
-    // Fetch distribution partners for group names
-    const partners = await ctx.db.query("distributionPartners").collect();
-    const partnerByClerkId = new Map(
-      partners
-        .filter((p) => p.clerkUserId)
-        .map((p) => [p.clerkUserId!, p])
-    );
-
-    // Also check partnerLeaders for group associations
+    // Cache all leaders and partners for batch resolution
     const leaders = await ctx.db.query("partnerLeaders").collect();
-    const leaderByClerkId = new Map(
-      leaders
-        .filter((l) => l.clerkUserId)
-        .map((l) => [l.clerkUserId!, l])
-    );
-    // Index for unclaimed-invite reps whose brokerId == partnerLeader._id
     const leaderById = new Map(leaders.map((l) => [l._id as string, l]));
+
+    const partners = await ctx.db.query("distributionPartners").collect();
     const partnerById = new Map(partners.map((p) => [p._id as string, p]));
 
-    // Build agent list - one entry per unique broker
     const agentMap = new Map<string, PublicAgent>();
 
     for (const code of codes) {
       const brokerId = code.brokerId;
-      if (agentMap.has(brokerId)) continue; // Already added
+      if (agentMap.has(brokerId)) continue;
 
-      const admin = adminMap.get(brokerId);
-      let name = admin?.name || "";
+      const leader = leaderById.get(brokerId);
+      const name = leader?.name ?? "Unknown Agent";
+
       let groupId: string | null = null;
       let groupName: string | null = null;
 
-      // Check if broker is a distribution partner
-      const partner = partnerByClerkId.get(brokerId);
-      if (partner) {
-        groupId = partner._id;
-        groupName = partner.name;
-      } else {
-        // Check if broker is a partner leader (by clerkUserId first, then by _id)
-        const leader = leaderByClerkId.get(brokerId) || leaderById.get(brokerId);
-        if (leader) {
-          const leaderPartner = partnerById.get(leader.partnerId as string);
-          if (leaderPartner) {
-            groupId = leaderPartner._id;
-            groupName = leaderPartner.name;
-          }
-          if (!admin) {
-            name = leader.name;
-          }
-        }
+      if (code.agencyId) {
+        const agency = partnerById.get(code.agencyId as string);
+        if (agency) { groupId = agency._id; groupName = agency.name; }
+      }
+      if (!groupId && leader?.partnerId) {
+        const partner = partnerById.get(leader.partnerId as string);
+        if (partner) { groupId = partner._id; groupName = partner.name; }
       }
 
-      // Check agencyId from the rep code
-      // agencyId stores the distributionPartners _id directly
-      if (!groupId && code.agencyId) {
-        const agency =
-          partnerById.get(code.agencyId as string) ||
-          partners.find((p) => p.clerkUserId === code.agencyId);
-        if (agency) {
-          groupId = agency._id;
-          groupName = agency.name;
-        }
-      }
-
-      if (!name) name = "Unknown Agent";
-
-      // Generate URL slug from name (use stored slug if available)
       const slug = (code.slug as string | undefined) ||
         name.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
 
-      agentMap.set(brokerId, {
-        id: brokerId,
-        name,
-        repCode: code.code, // Use first code found for this broker
-        groupId,
-        groupName,
-        slug,
-      });
+      agentMap.set(brokerId, { id: brokerId, name, repCode: code.code, groupId, groupName, slug });
     }
 
-    return Array.from(agentMap.values()).sort((a, b) =>
-      a.name.localeCompare(b.name)
-    );
+    return Array.from(agentMap.values()).sort((a, b) => a.name.localeCompare(b.name));
   },
 });
 
 /**
- * Get agent by URL slug (firstnamelastname)
- * Used for /[agentSlug] URL routing
+ * Get agent by URL slug
+ * Resolution: stored slug index → legacy name-slug scan
  */
 export const getAgentBySlug = query({
   args: { slug: v.string() },
   handler: async (ctx, args): Promise<PublicAgent | null> => {
     const normalizedSlug = args.slug.toLowerCase().replace(/[^a-z0-9]/g, "");
 
-    // 1. Direct stored-slug lookup (fastest path)
+    // 1. Stored slug index (fastest path)
     const bySlug = await ctx.db
       .query("brokerTrackingCodes")
       .withIndex("by_slug", (q) => q.eq("slug", normalizedSlug))
       .first();
-    if (bySlug?.status === "active") {
-      return resolveCodeToAgent(bySlug, ctx);
-    }
+    if (bySlug?.status === "active") return resolveCodeToAgent(bySlug, ctx);
 
-    // 2. Legacy: scan by computed name slug
+    // 2. Legacy: scan and match computed name slug
     const codes = await ctx.db
       .query("brokerTrackingCodes")
       .withIndex("by_status", (q) => q.eq("status", "active"))
       .collect();
-
     if (codes.length === 0) return null;
 
-    const adminUsers = await ctx.db.query("adminUsers").collect();
-    const partners = await ctx.db.query("distributionPartners").collect();
     const leaders = await ctx.db.query("partnerLeaders").collect();
-
-    const leaderByClerkId = new Map(
-      leaders.filter((l) => l.clerkUserId).map((l) => [l.clerkUserId!, l])
-    );
     const leaderById = new Map(leaders.map((l) => [l._id as string, l]));
 
     for (const code of codes) {
-      const brokerId = code.brokerId;
-      const admin = adminUsers.find((u) => u.clerkUserId === brokerId);
-      let name = admin?.name || "";
-
-      if (!admin) {
-        const leader = leaderByClerkId.get(brokerId) || leaderById.get(brokerId);
-        if (leader) name = leader.name;
-      }
-
-      const agentSlug = name.toLowerCase().replace(/[^a-z0-9]/g, "");
-      if (agentSlug === normalizedSlug) {
-        return resolveCodeToAgent(code, ctx);
-      }
+      const leader = leaderById.get(code.brokerId);
+      if (!leader?.name) continue;
+      const computedSlug = leader.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+      if (computedSlug === normalizedSlug) return resolveCodeToAgent(code, ctx);
     }
 
     return null;
@@ -217,18 +211,19 @@ export const getAgentBySlug = query({
 
 /**
  * Get agent by rep code
- * Used for cross-population when switching from Rep Code to Agent mode
  */
 export const getAgentByRepCode = query({
   args: { code: v.string() },
   handler: async (ctx, args): Promise<PublicAgent | null> => {
-    const codeRow = await ctx.db
-      .query("brokerTrackingCodes")
-      .withIndex("by_code", (q) => q.eq("code", args.code.trim().toUpperCase()))
-      .first() ?? await ctx.db
-      .query("brokerTrackingCodes")
-      .withIndex("by_code", (q) => q.eq("code", args.code.trim()))
-      .first();
+    const codeRow =
+      await ctx.db
+        .query("brokerTrackingCodes")
+        .withIndex("by_code", (q) => q.eq("code", args.code.trim().toUpperCase()))
+        .first() ??
+      await ctx.db
+        .query("brokerTrackingCodes")
+        .withIndex("by_code", (q) => q.eq("code", args.code.trim()))
+        .first();
 
     if (!codeRow || codeRow.status !== "active") return null;
     return resolveCodeToAgent(codeRow, ctx);
@@ -237,12 +232,10 @@ export const getAgentByRepCode = query({
 
 /**
  * List agents filtered by group
- * Used when user selects a group first
  */
 export const listAgentsByGroup = query({
   args: { groupId: v.string() },
   handler: async (ctx, args): Promise<PublicAgent[]> => {
-    // Get all active rep codes
     const codes = await ctx.db
       .query("brokerTrackingCodes")
       .withIndex("by_status", (q) => q.eq("status", "active"))
@@ -250,78 +243,41 @@ export const listAgentsByGroup = query({
 
     if (codes.length === 0) return [];
 
-    const brokerIds = [...new Set(codes.map((c) => c.brokerId))];
-
-    const adminUsers = await ctx.db.query("adminUsers").collect();
-    const adminMap = new Map(
-      adminUsers
-        .filter((u) => brokerIds.includes(u.clerkUserId))
-        .map((u) => [u.clerkUserId, u])
-    );
-
-    const partners = await ctx.db.query("distributionPartners").collect();
-    const partnerByClerkId = new Map(
-      partners.filter((p) => p.clerkUserId).map((p) => [p.clerkUserId!, p])
-    );
-    const partnerById = new Map(partners.map((p) => [p._id as string, p]));
-
     const leaders = await ctx.db.query("partnerLeaders").collect();
-    const leaderByClerkId = new Map(
-      leaders.filter((l) => l.clerkUserId).map((l) => [l.clerkUserId!, l])
-    );
     const leaderById = new Map(leaders.map((l) => [l._id as string, l]));
 
+    const partners = await ctx.db.query("distributionPartners").collect();
+    const partnerById = new Map(partners.map((p) => [p._id as string, p]));
+
     const results: PublicAgent[] = [];
+    const seen = new Set<string>();
 
     for (const code of codes) {
       const brokerId = code.brokerId;
-      if (results.some((r) => r.id === brokerId)) continue;
+      if (seen.has(brokerId)) continue;
 
-      const admin = adminMap.get(brokerId);
-      let name = admin?.name || "";
+      const leader = leaderById.get(brokerId);
+      const name = leader?.name ?? "Unknown Agent";
+
       let groupId: string | null = null;
       let groupName: string | null = null;
 
-      const partner = partnerByClerkId.get(brokerId);
-      if (partner) {
-        groupId = partner._id;
-        groupName = partner.name;
-      } else {
-        const leader = leaderByClerkId.get(brokerId) || leaderById.get(brokerId);
-        if (leader) {
-          const leaderPartner = partnerById.get(leader.partnerId as string);
-          if (leaderPartner) {
-            groupId = leaderPartner._id;
-            groupName = leaderPartner.name;
-          }
-          if (!admin) name = leader.name;
-        }
+      if (code.agencyId) {
+        const agency = partnerById.get(code.agencyId as string);
+        if (agency) { groupId = agency._id; groupName = agency.name; }
       }
-
-      if (!groupId && code.agencyId) {
-        const agency =
-          partnerById.get(code.agencyId as string) ||
-          partners.find((p) => p.clerkUserId === code.agencyId);
-        if (agency) {
-          groupId = agency._id;
-          groupName = agency.name;
-        }
+      if (!groupId && leader?.partnerId) {
+        const partner = partnerById.get(leader.partnerId as string);
+        if (partner) { groupId = partner._id; groupName = partner.name; }
       }
 
       if (groupId !== args.groupId) continue;
 
-      if (!name) name = "Unknown Agent";
+      seen.add(brokerId);
       const slug = (code.slug as string | undefined) ||
         name.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
 
-      results.push({
-        id: brokerId,
-        name,
-        repCode: code.code,
-        groupId,
-        groupName,
-        slug,
-      });
+      results.push({ id: brokerId, name, repCode: code.code, groupId, groupName, slug });
     }
 
     return results.sort((a, b) => a.name.localeCompare(b.name));
@@ -339,178 +295,14 @@ export interface RepUrlResolution {
 }
 
 /**
- * Shared helper: given an active brokerTrackingCodes row, enrich it with
- * agent name, group info, and productHint.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function enrichCodeRow(code: any, ctx: any): Promise<RepUrlResolution> {
-  const brokerId = code.brokerId;
-
-  // Fetch admin user (brokerId is normally a Clerk userId)
-  const admin = await ctx.db
-    .query("adminUsers")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .withIndex("by_clerk_id", (q: any) => q.eq("clerkUserId", brokerId))
-    .first();
-
-  let name: string = admin?.name || "";
-  let groupId: string | null = null;
-  let groupName: string | null = null;
-
-  // Determine group via distribution partner or leader
-  const partners = await ctx.db.query("distributionPartners").collect();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const partner = partners.find((p: any) => p.clerkUserId === brokerId);
-
-  if (partner) {
-    groupId = partner._id;
-    groupName = partner.name;
-  } else {
-    // Try by Clerk userId first
-    let leader = await ctx.db
-      .query("partnerLeaders")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .filter((q: any) => q.eq(q.field("clerkUserId"), brokerId))
-      .first();
-
-    // Fallback: brokerId might be a partnerLeader _id (unclaimed-invite rep)
-    if (!leader) {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        leader = await ctx.db.get(brokerId as any);
-        // Make sure it's actually a partnerLeaders doc (has partnerId field)
-        if (leader && !(leader as any).partnerId) leader = null;
-      } catch {
-        leader = null;
-      }
-    }
-
-    if (leader) {
-      if (!admin) name = (leader as any).name || name;
-      const leaderPartner = await ctx.db.get((leader as any).partnerId);
-      if (leaderPartner) {
-        groupId = (leaderPartner as any)._id;
-        groupName = (leaderPartner as any).name;
-      }
-    }
-  }
-
-  // Fallback: agency recorded on the rep code row
-  // agencyId stores the distributionPartners _id directly (not clerkUserId)
-  if (!groupId && code.agencyId) {
-    const agency =
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (partners as any[]).find((p: any) => p._id === code.agencyId) ||
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (partners as any[]).find((p: any) => p.clerkUserId === code.agencyId);
-    if (agency) {
-      groupId = agency._id;
-      groupName = agency.name;
-    }
-  }
-
-  const derivedSlug = name ? name.toLowerCase().replace(/[^a-z0-9]/g, "") : null;
-
-  return {
-    repCode: code.code,
-    canonicalSlug: code.slug ?? derivedSlug,
-    agentName: name || null,
-    groupId,
-    productHint: code.productHint ?? null,
-  };
-}
-
-/**
- * Shared helper: resolve a brokerTrackingCodes row to a PublicAgent record.
- * Handles both Clerk-userId brokers AND unclaimed-invite reps (brokerId == partnerLeader._id).
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function resolveCodeToAgent(code: any, ctx: any): Promise<PublicAgent> {
-  const brokerId = code.brokerId;
-
-  const admin = await ctx.db
-    .query("adminUsers")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .withIndex("by_clerk_id", (q: any) => q.eq("clerkUserId", brokerId))
-    .first();
-
-  let name: string = admin?.name || "";
-  let groupId: string | null = null;
-  let groupName: string | null = null;
-
-  const partners = await ctx.db.query("distributionPartners").collect();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const partnerByClerkId = new Map(partners.filter((p: any) => p.clerkUserId).map((p: any) => [p.clerkUserId!, p]));
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const partnerById = new Map(partners.map((p: any) => [p._id as string, p]));
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const partner = partnerByClerkId.get(brokerId) as any;
-  if (partner) {
-    groupId = partner._id;
-    groupName = partner.name;
-  } else {
-    // Try leader by clerkUserId first
-    let leader: any = await ctx.db
-      .query("partnerLeaders")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .filter((q: any) => q.eq(q.field("clerkUserId"), brokerId))
-      .first();
-    // Fallback: brokerId may be a partnerLeader _id (unclaimed-invite rep)
-    if (!leader) {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const candidate = await ctx.db.get(brokerId as any);
-        if (candidate && (candidate as any).partnerId) leader = candidate;
-      } catch { /* ignore */ }
-    }
-    if (leader) {
-      if (!admin) name = leader.name || name;
-      const leaderPartner = partnerById.get(String(leader.partnerId));
-      if (leaderPartner) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        groupId = (leaderPartner as any)._id;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        groupName = (leaderPartner as any).name;
-      }
-    }
-  }
-
-  if (!groupId && code.agencyId) {
-    const agency =
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      partnerById.get(code.agencyId as string) as any ||
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (partners as any[]).find((p: any) => p.clerkUserId === code.agencyId);
-    if (agency) {
-      groupId = agency._id;
-      groupName = agency.name;
-    }
-  }
-
-  if (!name) name = "Unknown Agent";
-  const slug = (code.slug as string | undefined) ||
-    name.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
-
-  return {
-    id: brokerId,
-    name,
-    repCode: code.code,
-    groupId,
-    groupName,
-    slug,
-  };
-}
-
-/**
  * Resolve a URL segment to a rep code.
  *
  * Resolution order:
- *  1. Exact rep-code match (case-insensitive: tries UPPER then raw)
+ *  1. Exact rep-code match (tries UPPER then raw)
  *  2. Stored slug match (by_slug index)
  *  3. Legacy computed name-slug scan (backward compat for pre-slug links)
  *
- * Used by /[agentSlug]/page.tsx for the URL routing layer.
+ * Used by /[agentSlug]/route.ts for URL routing.
  */
 export const resolveRepUrl = query({
   args: { segment: v.string() },
@@ -519,7 +311,7 @@ export const resolveRepUrl = query({
     const upper = raw.toUpperCase();
     const normalized = raw.toLowerCase().replace(/[^a-z0-9]/g, "");
 
-    // 1. Exact code match — try uppercase first (canonical form), then raw
+    // 1. Exact code match
     const byUpper = await ctx.db
       .query("brokerTrackingCodes")
       .withIndex("by_code", (q) => q.eq("code", upper))
@@ -541,27 +333,21 @@ export const resolveRepUrl = query({
       .first();
     if (bySlug?.status === "active") return enrichCodeRow(bySlug, ctx);
 
-    // 3. Legacy: scan active codes and match computed name slug
+    // 3. Legacy: scan and match computed name slug
     const codes = await ctx.db
       .query("brokerTrackingCodes")
       .withIndex("by_status", (q) => q.eq("status", "active"))
       .collect();
     if (codes.length === 0) return null;
 
-    const adminUsers = await ctx.db.query("adminUsers").collect();
     const leaders = await ctx.db.query("partnerLeaders").collect();
+    const leaderById = new Map(leaders.map((l) => [l._id as string, l]));
 
     for (const code of codes) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const admin = adminUsers.find((u: any) => u.clerkUserId === code.brokerId);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const leader = admin ? null : leaders.find((l: any) => l.clerkUserId === code.brokerId);
-      const name = admin?.name || leader?.name || "";
-      if (!name) continue;
-      const nameSlug = name.toLowerCase().replace(/[^a-z0-9]/g, "");
-      if (nameSlug && nameSlug === normalized) {
-        return enrichCodeRow(code, ctx);
-      }
+      const leader = leaderById.get(code.brokerId);
+      if (!leader?.name) continue;
+      const nameSlug = leader.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+      if (nameSlug === normalized) return enrichCodeRow(code, ctx);
     }
 
     return null;
