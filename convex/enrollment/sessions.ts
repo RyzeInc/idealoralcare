@@ -345,6 +345,10 @@ export const completeEnrollmentSession = mutation({
     sessionId: v.string(),
     bundleId: v.id("subscriptionBundles"),
     customerId: v.string(), // Clerk user ID
+    // Clerk-free rep attribution (resolved from the rep tracking code at checkout)
+    brokerId: v.optional(v.string()), // partnerLeaders._id of attributed rep
+    agencyId: v.optional(v.string()), // distributionPartners._id of attributed agency
+    brokerTrackingCode: v.optional(v.string()), // rep tracking code string used at signup
   },
   handler: async (ctx: MutationCtx, args: any) => {
     const session = await ctx.db
@@ -358,14 +362,20 @@ export const completeEnrollmentSession = mutation({
 
     const now = Date.now();
 
-    await ctx.db.patch(session._id, {
+    const patch: any = {
       status: "completed",
       finalBundleId: args.bundleId,
       completedAt: now,
       updatedAt: now,
-    });
+    };
+    // Persist rep attribution on the sale record (canonical source of truth).
+    if (args.brokerId) patch.brokerId = args.brokerId;
+    if (args.agencyId) patch.agencyId = args.agencyId;
+    if (args.brokerTrackingCode) patch.brokerTrackingCode = args.brokerTrackingCode;
 
-    return { ...session, status: "completed", finalBundleId: args.bundleId };
+    await ctx.db.patch(session._id, patch);
+
+    return { ...session, ...patch };
   },
 });
 

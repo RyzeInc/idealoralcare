@@ -45,9 +45,37 @@ export const getAllMembers = query({
     const groupById = new Map<string, any>();
     for (const g of allGroups) groupById.set(g._id, g);
 
+    // Clerk-free rep attribution: derive each member's rep from their enrollment
+    // session (the canonical sale record). Build memberId → attribution once.
+    const allSessions = await ctx.db.query("enrollmentSessions").collect();
+    const leaders = await ctx.db.query("partnerLeaders").collect();
+    const leaderById = new Map<string, any>(leaders.map((l) => [l._id as string, l]));
+    const partners = await ctx.db.query("distributionPartners").collect();
+    const partnerById = new Map<string, any>(partners.map((p) => [p._id as string, p]));
+
+    const attributionByMember = new Map<string, any>();
+    for (const s of allSessions) {
+      if (!s.memberId) continue;
+      if (!s.brokerId && !s.brokerTrackingCode) continue;
+      const existing = attributionByMember.get(s.memberId as string);
+      // Prefer a completed session, otherwise the most recent.
+      const better =
+        !existing ||
+        (s.status === "completed" && existing.status !== "completed") ||
+        (s.status === existing.status && (s.createdAt ?? 0) > (existing.createdAt ?? 0));
+      if (better) attributionByMember.set(s.memberId as string, s);
+    }
+
     return members.map((m) => {
       const bundle = m.customerId ? bundleByCustomer.get(m.customerId) : null;
       const group = m.groupId ? groupById.get(m.groupId) : null;
+      const session = attributionByMember.get(m._id as string);
+      const leader = session?.brokerId ? leaderById.get(session.brokerId) : null;
+      const agency = session?.agencyId
+        ? partnerById.get(session.agencyId)
+        : leader?.partnerId
+        ? partnerById.get(leader.partnerId)
+        : null;
       return {
         ...m,
         subscriptionStatus: bundle?.status ?? null,
@@ -55,6 +83,12 @@ export const getAllMembers = query({
         pendingDowngrade: bundle?.pendingDowngrade ?? null,
         organizationCode: group?.organizationCode ?? null,
         organizationName: group?.name ?? group?.slug ?? null,
+        // Rep attribution (Clerk-free; null when there is no rep)
+        attributedRepCode: session?.brokerTrackingCode ?? null,
+        attributedRepId: session?.brokerId ?? null,
+        attributedRepName: leader?.name ?? null,
+        attributedAgencyId: agency?._id ?? null,
+        attributedAgencyName: agency?.name ?? null,
       };
     });
   },
@@ -154,12 +188,45 @@ export const getMemberDetail = query({
         null;
     }
 
+    // Rep attribution (Clerk-free): derive from the member's enrollment session.
+    const memberSessions = await ctx.db
+      .query("enrollmentSessions")
+      .withIndex("by_member", (q) => q.eq("memberId", args.memberId))
+      .collect();
+    const attributedSession =
+      memberSessions
+        .filter((s) => s.brokerId || s.brokerTrackingCode)
+        .sort((a, b) => {
+          if ((a.status === "completed") !== (b.status === "completed")) {
+            return a.status === "completed" ? -1 : 1;
+          }
+          return (b.createdAt ?? 0) - (a.createdAt ?? 0);
+        })[0] ?? null;
+
+    let repAttribution: any = null;
+    if (attributedSession) {
+      const leader = attributedSession.brokerId
+        ? await ctx.db.get(attributedSession.brokerId as any)
+        : null;
+      const agencyId =
+        attributedSession.agencyId ?? (leader as any)?.partnerId ?? null;
+      const agency = agencyId ? await ctx.db.get(agencyId as any) : null;
+      repAttribution = {
+        repCode: attributedSession.brokerTrackingCode ?? null,
+        repId: attributedSession.brokerId ?? null,
+        repName: (leader as any)?.name ?? null,
+        agencyId: (agency as any)?._id ?? null,
+        agencyName: (agency as any)?.name ?? null,
+      };
+    }
+
     return {
       member,
       activities,
       notes,
       entitlements,
       subscriptionBundle,
+      repAttribution,
     };
   },
 });

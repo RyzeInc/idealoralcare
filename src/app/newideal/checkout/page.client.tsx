@@ -268,6 +268,7 @@ function InlineAuth() {
   const saveCareingtonProfile = () => {
     sessionStorage.setItem("careington_profile", JSON.stringify({
       dateOfBirth, gender,
+      ...(phoneNumber.replace(/\D/g, "").length === 10 && { phone: `+1${phoneNumber.replace(/\D/g, "")}` }),
       address: { line1: addressLine1, ...(addressLine2 && { line2: addressLine2 }), city, state, postalCode, country: "US" },
     }));
   };
@@ -329,10 +330,14 @@ function InlineAuth() {
     if (!suLoaded) return;
     setIsLoading(true);
     try {
+      // NOTE: phone is intentionally NOT sent to Clerk here. The Clerk instance
+      // has phone set to "Verify at sign-up", and this flow only collects an
+      // email code — so attaching a phone would leave the sign-up permanently
+      // incomplete ("email verified, but account setup couldn't complete").
+      // The phone is preserved via careington_profile -> member profile instead.
       const result = await signUp!.create({
         emailAddress: email, password,
         firstName: firstName || undefined, lastName,
-        ...(phoneNumber.replace(/\D/g, "").length === 10 && { phoneNumber: `+1${phoneNumber.replace(/\D/g, "")}` }),
       } as Parameters<typeof signUp.create>[0]);
       if (result.status === "complete") {
         saveCareingtonProfile();

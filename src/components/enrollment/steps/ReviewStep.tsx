@@ -56,7 +56,6 @@ export function ReviewStep() {
           paymentMethod,
           enrollmentSessionId: state?.sessionId,
           brokerCode: state?.brokerCode,
-          brokerClerkUserId: state?.selectedBroker?.clerkUserId,
           groupId: state?.group?._id,
         }),
       });

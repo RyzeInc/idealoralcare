@@ -29,6 +29,7 @@ import type * as admin_memberCards from "../admin/memberCards.js";
 import type * as admin_members from "../admin/members.js";
 import type * as admin_navigation from "../admin/navigation.js";
 import type * as admin_notifications from "../admin/notifications.js";
+import type * as admin_repAttributionBackfill from "../admin/repAttributionBackfill.js";
 import type * as admin_repCodes from "../admin/repCodes.js";
 import type * as admin_seedNewIdeal from "../admin/seedNewIdeal.js";
 import type * as admin_sftpDelivery from "../admin/sftpDelivery.js";
@@ -114,6 +115,7 @@ declare const fullApi: ApiFromModules<{
   "admin/members": typeof admin_members;
   "admin/navigation": typeof admin_navigation;
   "admin/notifications": typeof admin_notifications;
+  "admin/repAttributionBackfill": typeof admin_repAttributionBackfill;
   "admin/repCodes": typeof admin_repCodes;
   "admin/seedNewIdeal": typeof admin_seedNewIdeal;
   "admin/sftpDelivery": typeof admin_sftpDelivery;

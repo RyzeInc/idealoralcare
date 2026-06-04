@@ -890,8 +890,8 @@ export default defineSchema({
     effectiveDate: v.optional(v.number()),
     terminationDate: v.optional(v.number()),
 
-    // BROKER ATTRIBUTION (Scenario B: broker sells to company/group)
-    brokerId: v.optional(v.string()), // Clerk user ID of broker who owns this group account
+    // BROKER ATTRIBUTION (Scenario B: broker sells to company/group) — Clerk-free
+    brokerId: v.optional(v.string()), // partnerLeaders._id of rep who owns this group deal
     brokerTrackingCode: v.optional(v.string()), // Broker's tracking code tied to this group deal
 
     // LIST-BILL CONFIGURATION (for FT/payroll-deducted groups)
@@ -1272,9 +1272,11 @@ export default defineSchema({
     referredByMemberId: v.optional(v.id("memberProfiles")),
     assistedBy: v.optional(v.string()), // Staff user ID
 
-    // BROKER ATTRIBUTION (Scenario A: broker sells directly to individual)
-    brokerId: v.optional(v.string()), // Clerk user ID of attributed broker
-    brokerTrackingCode: v.optional(v.string()), // Broker's unique tracking code used at signup
+    // BROKER ATTRIBUTION (Scenario A: broker sells directly to individual) — Clerk-free.
+    // Canonical "who is the rep for this sale" record.
+    brokerId: v.optional(v.string()), // partnerLeaders._id of attributed rep
+    agencyId: v.optional(v.string()), // distributionPartners._id of attributed agency
+    brokerTrackingCode: v.optional(v.string()), // Rep's tracking code string used at signup
     
     // AUDIT
     createdAt: v.number(),
@@ -1393,9 +1395,9 @@ export default defineSchema({
 
   // BROKER TRACKING CODES (Unique codes for URL-based attribution)
   brokerTrackingCodes: defineTable({
-    // BROKER IDENTITY
-    brokerId: v.string(), // Clerk user ID of the broker
-    agencyId: v.optional(v.string()),
+    // BROKER IDENTITY (Clerk-free — see convex/enrollment/agents.ts)
+    brokerId: v.string(), // partnerLeaders._id of the rep (placeholder until invite claimed)
+    agencyId: v.optional(v.string()), // distributionPartners._id of the owning agency
 
     // CODE
     code: v.string(), // Unique short code, e.g. "BRK-SMITH-01" — used in ?ref= URLs
@@ -1438,11 +1440,11 @@ export default defineSchema({
     .index("by_group", ["groupId"])
     .index("by_status", ["status"]),
 
-  // COMMISSION RATES (Broker rates and overrides)
+  // COMMISSION RATES (Broker rates and overrides) — Clerk-free identity
   commissionRates: defineTable({
     // BROKER IDENTITY
-    brokerId: v.string(), // Clerk user ID
-    agencyId: v.optional(v.string()), // Agency this broker belongs to
+    brokerId: v.string(), // partnerLeaders._id of the rep
+    agencyId: v.optional(v.string()), // distributionPartners._id of the agency
     
     // RATE CONFIG
     siteId: v.optional(v.id("sites")), // Optional: site-specific rate
@@ -1472,11 +1474,11 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_date_range", ["effectiveFrom", "effectiveTo"]),
 
-  // COMMISSION PAYABLES (Detailed commission records owed to brokers)
+  // COMMISSION PAYABLES (Detailed commission records owed to brokers) — Clerk-free identity
   commissionPayables: defineTable({
     // BROKER IDENTITY
-    brokerId: v.string(), // Clerk user ID
-    agencyId: v.optional(v.string()), // For rollup/reporting
+    brokerId: v.string(), // partnerLeaders._id of the rep
+    agencyId: v.optional(v.string()), // distributionPartners._id of the agency
     
     // ENROLLMENT REFERENCE
     enrollmentSessionId: v.optional(v.id("enrollmentSessions")),

@@ -287,9 +287,22 @@ export const getAllWithRates = query({
   handler: async (ctx) => {
     const codes = await ctx.db.query("brokerTrackingCodes").collect();
     const rates = await ctx.db.query("commissionRates").collect();
+    const leaders = await ctx.db.query("partnerLeaders").collect();
+    const leaderById = new Map(leaders.map((l: any) => [l._id as string, l]));
+
+    const activeRates = rates.filter((r: any) => r.status === "active");
+
     return codes.map((code) => {
-      const rate = rates.find(
-        (r: any) => r.brokerId === code.brokerId && r.status === "active"
+      // code.brokerId is a partnerLeaders._id. commissionRates may still key
+      // brokerId on a Clerk user ID (legacy) OR on the leader._id (migrated),
+      // so match against both forms plus the agency.
+      const leader = leaderById.get(code.brokerId);
+      const leaderClerkId = (leader as any)?.clerkUserId;
+      const rate = activeRates.find(
+        (r: any) =>
+          r.brokerId === code.brokerId ||                       // migrated: leader._id
+          (leaderClerkId && r.brokerId === leaderClerkId) ||    // legacy: leader Clerk id
+          (code.agencyId && r.agencyId === code.agencyId)       // agency-level rate
       );
       return {
         ...code,

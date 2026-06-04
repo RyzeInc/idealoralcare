@@ -115,12 +115,13 @@ export const getActiveBrokerRate = query({
 });
 
 /**
- * Record a commission payable
+ * Record a commission payable.
+ * Clerk-free identity: brokerId = partnerLeaders._id, agencyId = distributionPartners._id.
  */
 export const createCommissionPayable = mutation({
   args: {
-    brokerId: v.string(),
-    agencyId: v.optional(v.string()),
+    brokerId: v.string(), // partnerLeaders._id of the rep
+    agencyId: v.optional(v.string()), // distributionPartners._id of the agency
     enrollmentSessionId: v.optional(v.id("enrollmentSessions")),
     memberId: v.optional(v.id("memberProfiles")),
     rateApplied: v.number(),

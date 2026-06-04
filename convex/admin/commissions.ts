@@ -98,18 +98,26 @@ export const getAllPayables = query({
   },
 });
 
-/** Get broker commission summaries joined with distribution partners */
+/** Get broker commission summaries joined with reps (partnerLeaders) and agencies */
 export const getBrokerCommissions = query({
   handler: async (ctx) => {
-    const [rates, partners, payables] = await Promise.all([
+    const [rates, leaders, partners, payables] = await Promise.all([
       ctx.db.query("commissionRates").collect(),
+      ctx.db.query("partnerLeaders").collect(),
       ctx.db.query("distributionPartners").collect(),
       ctx.db.query("commissionPayables").collect(),
     ]);
 
+    // Clerk-free joins: rate.brokerId = partnerLeaders._id, rate.agencyId = distributionPartners._id
+    const leaderById = new Map(leaders.map((l: any) => [l._id, l]));
+    const partnerById = new Map(partners.map((p: any) => [p._id, p]));
+
     const activeRates = rates.filter((r: any) => r.status === "active");
     return activeRates.map((rate: any) => {
-      const partner = partners.find((p: any) => p.clerkUserId === rate.brokerId);
+      const leader = leaderById.get(rate.brokerId);
+      const partner =
+        partnerById.get(rate.agencyId) ??
+        (leader?.partnerId ? partnerById.get(leader.partnerId) : undefined);
       const brokerPayables = payables.filter((p: any) => p.brokerId === rate.brokerId);
       const pending = brokerPayables.filter((p: any) => p.status === "pending");
       const paid = brokerPayables.filter((p: any) => p.status === "paid");
@@ -119,7 +127,7 @@ export const getBrokerCommissions = query({
 
       return {
         brokerId: rate.brokerId,
-        brokerName: partner?.contactName ?? rate.brokerId,
+        brokerName: leader?.name ?? rate.brokerId,
         partnerName: partner?.name ?? "Independent",
         commissionRate: rate.ratePercentage,
         overrideRate: rate.overridePercentage,

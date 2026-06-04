@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ received: true });
         }
 
-        const { clerkUserId, enrollmentSessionId, brokerCode, brokerClerkUserId, referralCode, siteSlug } = metadata;
+        const { clerkUserId, enrollmentSessionId, brokerCode, referralCode, siteSlug } = metadata;
 
         try {
           // Fetch enrollment session to get site/account/group context
@@ -211,25 +211,51 @@ export async function POST(req: NextRequest) {
             });
           }
 
-          // 4. Complete enrollment session (only if we found one)
+          // Resolve the rep tracking code → Clerk-free Convex IDs.
+          // effectiveBrokerCode is the rep code STRING (e.g. "100001"), never a Clerk ID.
+          const effectiveBrokerCode = brokerCode || referralCode;
+          let attributedRepLeaderId: string | undefined; // partnerLeaders._id
+          let attributedAgencyId: string | undefined;    // distributionPartners._id
+          if (effectiveBrokerCode) {
+            try {
+              const agent = await convex.query(api.enrollment.agents.getAgentByRepCode, {
+                code: effectiveBrokerCode,
+              });
+              if (agent) {
+                attributedRepLeaderId = agent.id;
+                attributedAgencyId = agent.groupId ?? undefined;
+              } else {
+                console.warn(`[webhook] Rep code ${effectiveBrokerCode} did not resolve to an agent.`);
+              }
+            } catch (resolveError) {
+              console.warn("[webhook] Could not resolve rep code to agent:", resolveError);
+            }
+          }
+
+          // 4. Complete enrollment session (only if we found one).
+          //    Persist rep attribution on the sale record (canonical source of truth).
           if (enrollmentSessionId) {
             try {
               await convex.mutation(api.enrollment.sessions.completeEnrollmentSession, {
                 sessionId: enrollmentSessionId,
                 bundleId,
                 customerId: clerkUserId,
+                brokerId: attributedRepLeaderId,
+                agencyId: attributedAgencyId,
+                brokerTrackingCode: effectiveBrokerCode || undefined,
               });
             } catch (sessionError) {
               console.warn("[webhook] Could not complete enrollment session:", sessionError);
             }
           }
 
-          // 5. Create commission record if broker attribution
-          const effectiveBrokerCode = brokerCode || referralCode;
-          if (effectiveBrokerCode) {
+          // 5. Create commission record if a rep is attributed.
+          //    Clerk-free: brokerId = partnerLeaders._id, agencyId = distributionPartners._id.
+          if (attributedRepLeaderId) {
             try {
               await convex.mutation(api.subscriptions.commissions.createCommissionPayable, {
-                brokerId: effectiveBrokerCode,
+                brokerId: attributedRepLeaderId,
+                agencyId: attributedAgencyId,
                 enrollmentSessionId: enrollmentSessionDocId as any,
                 memberId: memberProfileId,
                 rateApplied: 0.15, // Default 15% - will be overridden by commissionRates
@@ -238,19 +264,6 @@ export async function POST(req: NextRequest) {
               });
             } catch (commissionError) {
               // Don't fail the whole webhook for commission tracking issues
-            }
-          }
-
-          // 5a. Assign member to the broker/staff (use brokerClerkUserId if available, fallback to brokerCode)
-          const staffClerkId = brokerClerkUserId || brokerCode;
-          if (staffClerkId) {
-            try {
-              await convex.mutation(api.admin.members.assignMemberToStaff, {
-                memberProfileId,
-                staffClerkId,
-              });
-            } catch (assignError) {
-              // Don't fail the whole webhook for staff assignment issues
             }
           }
 

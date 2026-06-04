@@ -476,7 +476,7 @@ function CreateGroupModal({ sites, accounts, onClose }: { sites: any[]; accounts
             <input type="date" value={form.terminationDate} onChange={e => setForm({ ...form, terminationDate: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
           </div>
         </div>
-        <Field label="Representative ID" value={form.brokerId} onChange={v => setForm({ ...form, brokerId: v })} placeholder="Clerk user ID of representative" />
+        <RepSelect value={form.brokerId} trackingCode={form.brokerTrackingCode} onChange={(id, code) => setForm({ ...form, brokerId: id, brokerTrackingCode: code })} />
         <Field label="Representative Tracking Code" value={form.brokerTrackingCode} onChange={v => setForm({ ...form, brokerTrackingCode: v })} />
         <div className="flex gap-2 pt-2">
           <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50">Cancel</button>
@@ -646,7 +646,7 @@ function EditGroupModal({ group, accounts, onClose }: { group: any; accounts: an
             <input type="date" value={form.terminationDate} onChange={(e) => setForm((f) => ({ ...f, terminationDate: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
           </div>
         </div>
-        <Field label="Representative ID" value={form.brokerId} onChange={(v) => setForm((f) => ({ ...f, brokerId: v }))} placeholder="Clerk user ID of representative" />
+        <RepSelect value={form.brokerId} trackingCode={form.brokerTrackingCode} onChange={(id, code) => setForm((f) => ({ ...f, brokerId: id, brokerTrackingCode: code }))} />
         <Field label="Representative Tracking Code" value={form.brokerTrackingCode} onChange={(v) => setForm((f) => ({ ...f, brokerTrackingCode: v }))} />
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
@@ -769,6 +769,46 @@ function Field({ label, value, onChange, required, placeholder }: { label: strin
     <div>
       <label className="block text-sm font-medium text-slate-700 mb-1">{label}{required && <RequiredMark />}</label>
       <input type="text" value={value} onChange={e => onChange(e.target.value)} required={required} placeholder={placeholder} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+    </div>
+  );
+}
+
+// Clerk-free rep selector. Stores partnerLeaders._id in `value` and reports the
+// rep's tracking code so the caller can keep brokerTrackingCode in sync.
+function RepSelect({
+  value,
+  trackingCode,
+  onChange,
+}: {
+  value: string;
+  trackingCode: string;
+  onChange: (repLeaderId: string, repCode: string) => void;
+}) {
+  const agents = useQuery(api.enrollment.agents.listPublicAgents) || [];
+  return (
+    <div>
+      <label className="block text-sm font-medium text-slate-700 mb-1">Representative</label>
+      <select
+        value={value}
+        onChange={(e) => {
+          const id = e.target.value;
+          const agent = agents.find((a: any) => a.id === id);
+          onChange(id, agent?.repCode ?? '');
+        }}
+        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      >
+        <option value="">No representative</option>
+        {agents.map((a: any) => (
+          <option key={a.id} value={a.id}>
+            {a.name}{a.repCode ? ` — ${a.repCode}` : ''}{a.groupName ? ` (${a.groupName})` : ''}
+          </option>
+        ))}
+      </select>
+      {value && !agents.some((a: any) => a.id === value) && (
+        <p className="text-xs text-amber-600 mt-1">
+          Current value isn&apos;t a known rep ID{trackingCode ? ` (code ${trackingCode})` : ''}. Re-select to update.
+        </p>
+      )}
     </div>
   );
 }

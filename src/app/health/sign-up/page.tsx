@@ -116,10 +116,13 @@ function PortalSignUpForm({ redirectTo }: { redirectTo: string }) {
     setIsLoading(true);
     if (!isLoaded || !signUp || !setActive) { setError("Loading. Please wait."); setIsLoading(false); return; }
     try {
+      // NOTE: phone is intentionally NOT sent to Clerk here. The Clerk instance
+      // has phone set to "Verify at sign-up", and this flow only collects an
+      // email code — attaching a phone would leave the sign-up permanently
+      // incomplete. Members can add/verify a phone later from their portal.
       const params: Record<string, string> = { emailAddress: email, password };
       if (firstName) params.firstName = firstName;
       if (lastName)  params.lastName  = lastName;
-      if (phone)     params.phoneNumber = phone.startsWith("+") ? phone : `+1${phone.replace(/\D/g, "")}`;
       const result = await signUp.create(params);
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });

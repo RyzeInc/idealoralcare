@@ -31,33 +31,57 @@ export const getAllWithStats = query({
   args: {},
   handler: async (ctx) => {
     const partners = await ctx.db.query("distributionPartners").collect();
+    const leaders = await ctx.db.query("partnerLeaders").collect();
     const sessions = await ctx.db.query("enrollmentSessions").collect();
-    const members = await ctx.db.query("memberProfiles").collect();
     const codes = await ctx.db.query("brokerTrackingCodes").collect();
 
+    // Attribution chain (Clerk-free):
+    //   distributionPartners._id
+    //     → partnerLeaders._id        (partnerLeaders.partnerId)
+    //       → brokerTrackingCodes     (brokerId = leader._id, agencyId = partner._id)
+    //         → code string
+    //           → enrollmentSessions.brokerTrackingCode
     return partners.map((p) => {
-      const clerkId = p.clerkUserId;
-      const completedSessions = clerkId
+      // Leaders that belong to this partner
+      const leaderIds = new Set(
+        leaders
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .filter((l: any) => l.partnerId === p._id)
+          .map((l: any) => l._id as string)
+      );
+
+      // Rep codes owned by this partner — match on agencyId (preferred) or
+      // a brokerId that resolves to one of this partner's leaders.
+      const partnerCodes = codes.filter(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ? sessions.filter((s: any) => s.brokerId === clerkId && s.status === "completed")
-        : [];
-      const activeMembers = clerkId
+        (c: any) => c.agencyId === p._id || leaderIds.has(c.brokerId)
+      );
+      const codeStrings = new Set(partnerCodes.map((c: any) => c.code));
+
+      // Enrollments attributed via any of this partner's tracking codes.
+      const partnerSessions = sessions.filter(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ? members.filter((m: any) => m.assignedStaffId === clerkId || sessions.some(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (s: any) => s.brokerId === clerkId && s.memberId === m._id
-          ))
-        : [];
-      const partnerCodes = clerkId
+        (s: any) => s.brokerTrackingCode && codeStrings.has(s.brokerTrackingCode)
+      );
+      const completedSessions = partnerSessions.filter(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ? codes.filter((c: any) => c.brokerId === clerkId)
-        : [];
+        (s: any) => s.status === "completed"
+      );
+
+      // Distinct members linked to those enrollments.
+      const memberIds = new Set(
+        partnerSessions
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .filter((s: any) => s.memberId)
+          .map((s: any) => s.memberId as string)
+      );
 
       return {
         ...p,
         completedEnrollments: completedSessions.length,
-        activeMemberCount: activeMembers.length,
+        activeMemberCount: memberIds.size,
         repCodeCount: partnerCodes.length,
+        leaderCount: leaderIds.size,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         totalUsage: partnerCodes.reduce((s: number, c: any) => s + c.usageCount, 0),
       };

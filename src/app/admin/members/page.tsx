@@ -45,7 +45,7 @@ function exportCSV(members: any[]) {
     'Member ID', 'Subscriber ID', 'Organization Code', 'First Name', 'Last Name',
     'Email', 'Phone', 'Status', 'Subscription Status', 'Subscription Cadence',
     'Pending Downgrade', 'Downgrade Effective', 'Careington Unique ID', 'Toothlens Member ID',
-    'DOB', 'Enrolled',
+    'DOB', 'Enrolled', 'Representative', 'Rep Code', 'Agency',
   ];
   const rows = members.map((m) => [
     m.memberId,
@@ -64,6 +64,9 @@ function exportCSV(members: any[]) {
     m.toothlensMemberId ?? '',
     m.dateOfBirth ?? '',
     m.enrolledAt ? formatDate(m.enrolledAt) : '',
+    m.attributedRepName ?? '',
+    m.attributedRepCode ?? '',
+    m.attributedAgencyName ?? '',
   ]);
   const csv = [headers, ...rows]
     .map((r) => r.map((v: any) => `"${String(v).replace(/"/g, '""')}"`).join(','))
@@ -447,6 +450,7 @@ export default function MembersAdmin() {
                     Status <SortIcon active={sortKey === 'memberType'} dir={sortDir} />
                   </button>
                 </th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Representative</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Subscription</th>
                 <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">Actions</th>
               </tr>
@@ -454,13 +458,13 @@ export default function MembersAdmin() {
             <tbody className="divide-y divide-slate-200">
               {isLoadingMembers ? (
                 <tr>
-                  <td colSpan={7} className="px-0 py-0">
-                    <SkeletonTable rows={6} cols={7} />
+                  <td colSpan={8} className="px-0 py-0">
+                    <SkeletonTable rows={6} cols={8} />
                   </td>
                 </tr>
               ) : pagedMembers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-slate-500">No members found</td>
+                  <td colSpan={8} className="px-6 py-8 text-center text-slate-500">No members found</td>
                 </tr>
               ) : (
                 pagedMembers.map((member: any) => (
@@ -476,6 +480,19 @@ export default function MembersAdmin() {
                     <td className="px-6 py-4 text-slate-600 font-mono text-sm">{member.memberId}</td>
                     <td className="px-6 py-4">
                       <StatusBadge status={member.memberType} size="md" />
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      {member.attributedRepName ? (
+                        <div className="flex flex-col">
+                          <span className="text-slate-900">{member.attributedRepName}</span>
+                          <span className="text-xs text-slate-500">
+                            {member.attributedRepCode ? `${member.attributedRepCode}` : ''}
+                            {member.attributedAgencyName ? `${member.attributedRepCode ? ' · ' : ''}${member.attributedAgencyName}` : ''}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-xs">—</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-sm">
                       {member.subscriptionStatus ? (
@@ -593,6 +610,12 @@ export default function MembersAdmin() {
                     )}
                     {memberDetail.member.listBillStatus && (
                       <div className="flex justify-between"><dt className="text-slate-500">List-Bill</dt><dd className="capitalize">{memberDetail.member.listBillStatus}</dd></div>
+                    )}
+                    {memberDetail.repAttribution?.repName && (
+                      <div className="flex justify-between"><dt className="text-slate-500">Representative</dt><dd className="font-medium text-right">{memberDetail.repAttribution.repName}{memberDetail.repAttribution.repCode ? ` (${memberDetail.repAttribution.repCode})` : ''}</dd></div>
+                    )}
+                    {memberDetail.repAttribution?.agencyName && (
+                      <div className="flex justify-between"><dt className="text-slate-500">Agency</dt><dd className="font-medium text-right">{memberDetail.repAttribution.agencyName}</dd></div>
                     )}
                   </dl>
                   <button

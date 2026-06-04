@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     const userEmail = user.emailAddresses[0].emailAddress;
 
     const body = await req.json();
-    const { planId, cadence, paymentMethod, enrollmentSessionId, brokerCode, groupId, brokerClerkUserId, dependents, referralCode, siteSlug, successUrl, cancelUrl, additionalPlanIds, memberProfile } = body;
+    const { planId, cadence, paymentMethod, enrollmentSessionId, brokerCode, groupId, dependents, referralCode, siteSlug, successUrl, cancelUrl, additionalPlanIds, memberProfile } = body;
 
     // Validate required fields
     if (!planId || !cadence || !paymentMethod) {
@@ -207,7 +207,6 @@ export async function POST(req: NextRequest) {
         clerkUserId: userId,
         enrollmentSessionId: enrollmentSessionId || "",  // Optional — may be empty from /health/checkout
         brokerCode: brokerCode || referralCode || "",
-        brokerClerkUserId: brokerClerkUserId || "",
         groupId: groupId || "",
         referralCode: referralCode || "",
         siteSlug: siteSlug || "",
