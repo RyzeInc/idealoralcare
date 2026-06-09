@@ -221,7 +221,7 @@ export default function RepRegistrationClient() {
                   <input type="date" className={inputClass}
                     value={form.eoExpiration} onChange={(e) => update('eoExpiration', e.target.value)} />
                 </Field>
-                <Field label="Commission Tier (requested)">
+                <Field label="Compensation Tier (requested)">
                   <input className={inputClass} placeholder="e.g. Tier 2"
                     value={form.commissionTier} onChange={(e) => update('commissionTier', e.target.value)} />
                 </Field>

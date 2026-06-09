@@ -195,7 +195,7 @@ export default function HealthLanding() {
                 without the hassle — and that makes a difference in how they show up every day.
               </p>
               <div className="for-organization__btn_w">
-                <a className="button button--accent" href="/contact">Schedule a Demo</a>
+                <a className="button button--accent" href="/register">Schedule a Demo</a>
               </div>
             </div>
             <div className="for-organization__img">
