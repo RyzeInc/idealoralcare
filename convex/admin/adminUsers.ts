@@ -3,7 +3,6 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { requireAdmin, requireAuth } from "../lib/authGuards";
 import { getBaseUrl } from "../lib/env";
-import { sendViaGmail } from "../lib/gmail";
 import { autoGrantFreeAccess } from "./grantFreeAccess";
 import { recordAdminAction } from "./adminAudit";
 
@@ -335,52 +334,89 @@ export const _verifyAdminForInvite = internalMutation({
   },
 });
 
-/** Send invite email via Gmail SMTP */
-async function dispatchAdminInviteEmail(opts: {
-  recipientName: string;
+/**
+ * Create a Clerk invitation so Clerk sends the invite email directly.
+ * The redirect_url is where Clerk sends the user after they complete sign-up.
+ */
+async function createClerkInvitation(opts: {
   recipientEmail: string;
-  role: string;
-  claimUrl: string;
-}): Promise<{ ok: boolean; error?: string }> {
-  const roleLabel = opts.role === "owner" ? "Owner (Full Access)" : "Editor (Operational Access)";
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-      <div style="background: linear-gradient(135deg, #0066CC 0%, #14b8a6 100%); color: white; padding: 24px 20px; text-align: center; border-radius: 8px 8px 0 0;">
-        <h1 style="margin: 0; font-size: 24px;">You're Invited to Ideal Health Admin</h1>
-        <p style="margin: 10px 0 0 0; font-size: 15px; opacity: 0.9;">Role: ${roleLabel}</p>
-      </div>
-      <div style="padding: 32px; background: #f9fafb; border-radius: 0 0 8px 8px;">
-        <p style="font-size: 16px;">Hi ${opts.recipientName},</p>
-        <p style="font-size: 15px; line-height: 1.6;">
-          You've been invited to join the <strong>Ideal Health Admin Portal</strong>.
-          Click the button below to create your account and activate your admin access.
-        </p>
-        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin: 24px 0; text-align: center;">
-          <p style="font-size: 15px; color: #374151; margin: 0 0 16px 0;">
-            Your role: <strong>${roleLabel}</strong>
-          </p>
-          <a href="${opts.claimUrl}"
-            style="display: inline-block; padding: 14px 32px; background: #0066CC; color: white; font-weight: 700; font-size: 16px; text-decoration: none; border-radius: 8px;">
-            Accept Invite &amp; Create Account
-          </a>
-          <p style="font-size: 12px; color: #9ca3af; margin: 16px 0 0 0;">This link expires in 30 days.</p>
-        </div>
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-        <p style="font-size: 13px; color: #6b7280; line-height: 1.5;">
-          Questions? Contact us at
-          <a href="mailto:support@getidealoh.com" style="color: #0066CC;">support@getidealoh.com</a>.
-        </p>
-      </div>
-    </div>`;
+  redirectUrl: string;
+}): Promise<{ ok: boolean; clerkInvitationId?: string; error?: string }> {
+  const secret = process.env.CLERK_SECRET_KEY;
+  if (!secret) {
+    return { ok: false, error: "CLERK_SECRET_KEY not configured" };
+  }
 
-  const result = await sendViaGmail({
-    to: opts.recipientEmail,
-    subject: "You're invited to Ideal Health Admin Portal",
-    html,
+  const response = await fetch("https://api.clerk.com/v1/invitations", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${secret}`,
+    },
+    body: JSON.stringify({
+      email_address: opts.recipientEmail,
+      redirect_url: opts.redirectUrl,
+      notify: true,
+    }),
   });
 
-  return { ok: result.success, error: result.error };
+  if (!response.ok) {
+    const errText = await response.text();
+    return { ok: false, error: `Clerk invitation error (${response.status}): ${errText}` };
+  }
+
+  const data = await response.json();
+  return { ok: true, clerkInvitationId: data.id };
 }
+
+/**
+ * Revoke all pending Clerk invitations for an email so a new one can be created.
+ */
+async function revokeClerkInvitationsForEmail(email: string): Promise<void> {
+  const secret = process.env.CLERK_SECRET_KEY;
+  if (!secret) return;
+
+  const listRes = await fetch(
+    `https://api.clerk.com/v1/invitations?email_address=${encodeURIComponent(email)}&status=pending`,
+    { headers: { Authorization: `Bearer ${secret}` } }
+  );
+  if (!listRes.ok) return;
+
+  const { data: invitations } = await listRes.json();
+  if (!Array.isArray(invitations)) return;
+
+  await Promise.all(
+    invitations.map((inv: { id: string }) =>
+      fetch(`https://api.clerk.com/v1/invitations/${inv.id}/revoke`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${secret}` },
+      })
+    )
+  );
+}
+
+// Get pending admin invite by email (for ticket signup flow)
+export const getPendingInviteByEmail = query({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const invites = await ctx.db
+      .query("adminInvites")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .filter((q) => q.eq(q.field("inviteStatus"), "pending"))
+      .collect();
+    
+    if (invites.length === 0) return null;
+    
+    // Return the most recent invite
+    const sorted = invites.sort((a, b) => b.createdAt - a.createdAt);
+    const latest = sorted[0];
+    
+    // Check if not expired
+    if (latest.inviteExpiry < Date.now()) return null;
+    
+    return { token: latest.inviteToken };
+  },
+});
 
 /**
  * Invite a new admin user.
@@ -404,7 +440,7 @@ export const inviteAdmin = action({
     const token = `adm_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
     const expiry = Date.now() + 30 * 24 * 60 * 60 * 1000; // 30 days
     const baseUrl = getBaseUrl();
-    const claimUrl = `${baseUrl}/health/claim-invite?token=${token}&source=admin`;
+    const signUpUrl = `${baseUrl}/health/sign-up`;
 
     const inviteId = await ctx.runMutation(
       internal.admin.adminUsers._createAdminInvite,
@@ -420,11 +456,10 @@ export const inviteAdmin = action({
       }
     );
 
-    const emailResult = await dispatchAdminInviteEmail({
-      recipientName: args.name,
+    // Send Clerk invitation - Clerk will add __clerk_ticket automatically
+    const emailResult = await createClerkInvitation({
       recipientEmail: args.email,
-      role: args.role,
-      claimUrl,
+      redirectUrl: signUpUrl,
     });
 
     return {
@@ -453,7 +488,7 @@ export const resendAdminInvite = action({
     const token = `adm_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
     const expiry = Date.now() + 30 * 24 * 60 * 60 * 1000;
     const baseUrl = getBaseUrl();
-    const claimUrl = `${baseUrl}/health/claim-invite?token=${token}&source=admin`;
+    const signUpUrl = `${baseUrl}/health/sign-up`;
 
     await ctx.runMutation(internal.admin.adminUsers._updateAdminInviteToken, {
       inviteId: args.inviteId,
@@ -461,11 +496,11 @@ export const resendAdminInvite = action({
       expiry,
     });
 
-    const emailResult = await dispatchAdminInviteEmail({
-      recipientName: invite.name,
+    // Revoke any existing Clerk invitation for this email, then create a fresh one
+    await revokeClerkInvitationsForEmail(invite.email);
+    const emailResult = await createClerkInvitation({
       recipientEmail: invite.email,
-      role: invite.role,
-      claimUrl,
+      redirectUrl: signUpUrl,
     });
 
     return { success: emailResult.ok, error: emailResult.error };
