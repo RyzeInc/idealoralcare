@@ -456,6 +456,9 @@ export const inviteAdmin = action({
       }
     );
 
+    // Revoke any existing Clerk invitations for this email, then create a fresh one
+    await revokeClerkInvitationsForEmail(args.email);
+    
     // Send Clerk invitation - Clerk will add __clerk_ticket automatically
     const emailResult = await createClerkInvitation({
       recipientEmail: args.email,
