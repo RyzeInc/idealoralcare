@@ -60,6 +60,10 @@ interface UnifiedUser {
   hasToothlens: boolean;
   toothlensUid?: string;
   toothlensScans?: number;
+  // Employer / payroll audit
+  ssn?: string;
+  location?: string;
+  department?: string;
   // Derived
   presence: SystemPresence;
   missingFields: string[];
@@ -210,6 +214,9 @@ export default function UserAuditPage() {
         toothlensScans: tl?.scanCount,
         subscriptionStatus: sub?.subscriptionStatus,
         entitlementCount: sub?.entitlementCount ?? 0,
+        ssn: (m as any).ssn ?? undefined,
+        location: (m as any).location ?? undefined,
+        department: (m as any).department ?? undefined,
         presence,
         missingFields: [],
       };
@@ -275,41 +282,54 @@ export default function UserAuditPage() {
     hasToothlens: unified.filter((u) => u.hasToothlens).length,
   }), [unified]);
 
-  // ── CSV export ────────────────────────────────────────────────────────────────
-  const exportCSV = () => {
-    const headers = ['Presence', 'First Name', 'Last Name', 'Email (member)', 'Email (Clerk)',
-      'Member ID', 'Member Status', 'Careington Unique ID', 'Seq #', 'DOB', 'Effective Date',
-      'Address Line 1', 'City', 'State', 'Zip', 'Clerk ID', 'Subscription Status',
-      'Entitlements', 'Toothlens UID', 'Scans', 'Missing Census Fields'];
-    const rows = filtered.map((u) => [
-      u.presence,
-      u.memberFirstName ?? u.clerkName?.split(' ')[0] ?? '',
-      u.memberLastName ?? u.clerkName?.split(' ').slice(1).join(' ') ?? '',
-      u.memberEmail ?? '',
-      u.clerkEmail ?? '',
-      u.memberId ?? '',
-      u.memberType ?? '',
-      u.careingtonUniqueId ?? '',
-      u.careingtonSeqNum ?? '',
-      u.memberDob ?? '',
-      u.memberEffective ?? '',
-      u.memberAddress?.line1 ?? '',
-      u.memberAddress?.city ?? '',
-      u.memberAddress?.state ?? '',
-      u.memberAddress?.postalCode ?? '',
-      u.clerkId ?? '',
-      u.subscriptionStatus ?? '',
-      String(u.entitlementCount ?? ''),
-      u.toothlensUid ?? '',
-      String(u.toothlensScans ?? ''),
-      u.missingFields.join('; '),
-    ]);
-    const csv = [headers, ...rows]
+  // ── CSV column picker ──────────────────────────────────────────────────────
+  const AUDIT_COLUMNS: { key: string; label: string; defaultOn: boolean; sensitive?: boolean; get: (u: UnifiedUser) => string }[] = [
+    { key: 'presence',        label: 'Presence',              defaultOn: true,  get: (u) => u.presence },
+    { key: 'firstName',       label: 'First Name',            defaultOn: true,  get: (u) => u.memberFirstName ?? u.clerkName?.split(' ')[0] ?? '' },
+    { key: 'lastName',        label: 'Last Name',             defaultOn: true,  get: (u) => u.memberLastName ?? u.clerkName?.split(' ').slice(1).join(' ') ?? '' },
+    { key: 'memberEmail',     label: 'Email (member)',        defaultOn: true,  get: (u) => u.memberEmail ?? '' },
+    { key: 'clerkEmail',      label: 'Email (Clerk)',         defaultOn: false, get: (u) => u.clerkEmail ?? '' },
+    { key: 'memberId',        label: 'Member ID',             defaultOn: true,  get: (u) => u.memberId ?? '' },
+    { key: 'memberType',      label: 'Member Status',         defaultOn: true,  get: (u) => u.memberType ?? '' },
+    { key: 'ssn',             label: 'SSN',                   defaultOn: false, sensitive: true, get: (u) => u.ssn ?? '' },
+    { key: 'location',        label: 'Location',              defaultOn: false, get: (u) => u.location ?? '' },
+    { key: 'department',      label: 'Department',            defaultOn: false, get: (u) => u.department ?? '' },
+    { key: 'careingtonId',    label: 'Careington Unique ID',  defaultOn: true,  get: (u) => u.careingtonUniqueId ?? '' },
+    { key: 'seqNum',          label: 'Seq #',                 defaultOn: false, get: (u) => u.careingtonSeqNum ?? '' },
+    { key: 'dob',             label: 'DOB',                   defaultOn: false, get: (u) => u.memberDob ?? '' },
+    { key: 'effectiveDate',   label: 'Effective Date',        defaultOn: false, get: (u) => u.memberEffective ?? '' },
+    { key: 'addrLine1',       label: 'Address Line 1',        defaultOn: false, get: (u) => u.memberAddress?.line1 ?? '' },
+    { key: 'city',            label: 'City',                  defaultOn: false, get: (u) => u.memberAddress?.city ?? '' },
+    { key: 'state',           label: 'State',                 defaultOn: false, get: (u) => u.memberAddress?.state ?? '' },
+    { key: 'zip',             label: 'Zip',                   defaultOn: false, get: (u) => u.memberAddress?.postalCode ?? '' },
+    { key: 'clerkId',         label: 'Clerk ID',              defaultOn: false, get: (u) => u.clerkId ?? '' },
+    { key: 'subStatus',       label: 'Subscription Status',   defaultOn: true,  get: (u) => u.subscriptionStatus ?? '' },
+    { key: 'entitlements',    label: 'Entitlements',          defaultOn: false, get: (u) => String(u.entitlementCount ?? '') },
+    { key: 'toothlensUid',    label: 'Toothlens UID',         defaultOn: false, get: (u) => u.toothlensUid ?? '' },
+    { key: 'scans',           label: 'Scans',                 defaultOn: false, get: (u) => String(u.toothlensScans ?? '') },
+    { key: 'missingFields',   label: 'Missing Census Fields', defaultOn: true,  get: (u) => u.missingFields.join('; ') },
+  ];
+
+  const [showExportPicker, setShowExportPicker] = useState(false);
+  const [exportEnabled, setExportEnabled] = useState<string[]>(
+    () => AUDIT_COLUMNS.filter((c) => c.defaultOn).map((c) => c.key)
+  );
+
+  const toggleExportCol = (key: string) =>
+    setExportEnabled((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+
+  const runExportCSV = () => {
+    const cols = AUDIT_COLUMNS.filter((c) => exportEnabled.includes(c.key));
+    const header = cols.map((c) => c.label);
+    const rows = filtered.map((u) => cols.map((c) => c.get(u)));
+    const csv = [header, ...rows]
       .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))
       .join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    a.download = `user-investigation-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `user-audit-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
   };
 
@@ -341,7 +361,7 @@ export default function UserAuditPage() {
             Refresh Clerk
           </button>
           <button
-            onClick={exportCSV}
+            onClick={() => setShowExportPicker(true)}
             className="flex items-center gap-1.5 px-3 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50"
           >
             <Download size={14} /> Export CSV
@@ -495,6 +515,54 @@ export default function UserAuditPage() {
           </table>
         </div>
       </div>
+
+      {/* ── Export column picker modal ── */}
+      {showExportPicker && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold text-slate-900">Configure CSV Export</h2>
+              <button onClick={() => setShowExportPicker(false)} className="text-slate-400 hover:text-slate-700 text-lg leading-none">&times;</button>
+            </div>
+            {/* Presets */}
+            <div className="flex gap-2 flex-wrap">
+              <span className="text-xs font-semibold text-slate-500 self-center">Presets:</span>
+              <button onClick={() => setExportEnabled(AUDIT_COLUMNS.filter((c) => c.defaultOn).map((c) => c.key))} className="px-3 py-1 text-xs rounded border border-slate-300 hover:bg-slate-50">Standard</button>
+              <button onClick={() => setExportEnabled(AUDIT_COLUMNS.map((c) => c.key))} className="px-3 py-1 text-xs rounded border border-slate-300 hover:bg-slate-50">All Columns</button>
+              <button onClick={() => setExportEnabled(['ssn', 'firstName', 'lastName', 'memberId', 'location', 'department', 'effectiveDate'])} className="px-3 py-1 text-xs rounded border border-slate-300 hover:bg-slate-50">Payroll Audit</button>
+            </div>
+            {/* Column checkboxes */}
+            <div className="grid grid-cols-2 gap-1 max-h-64 overflow-y-auto pr-1">
+              {AUDIT_COLUMNS.map((col) => (
+                <label key={col.key} className="flex items-center gap-2 text-sm cursor-pointer rounded px-2 py-1.5 hover:bg-slate-50">
+                  <input type="checkbox" checked={exportEnabled.includes(col.key)} onChange={() => toggleExportCol(col.key)} className="rounded border-slate-300" />
+                  <span className={col.sensitive ? 'text-amber-700 font-medium' : 'text-slate-700'}>
+                    {col.label}{col.sensitive && ' ⚠'}
+                  </span>
+                </label>
+              ))}
+            </div>
+            {exportEnabled.includes('ssn') && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800">
+                <strong>SSN included.</strong> This export will contain Social Security Numbers. Handle the file securely.
+              </div>
+            )}
+            <div className="flex justify-between items-center pt-1">
+              <span className="text-xs text-slate-400">{exportEnabled.length} column{exportEnabled.length !== 1 ? 's' : ''} · {filtered.length} users</span>
+              <div className="flex gap-2">
+                <button onClick={() => setShowExportPicker(false)} className="px-4 py-2 text-sm text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50">Cancel</button>
+                <button
+                  onClick={() => { runExportCSV(); setShowExportPicker(false); }}
+                  disabled={exportEnabled.length === 0}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-40"
+                >
+                  <Download size={13} /> Download CSV
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

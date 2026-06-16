@@ -22,6 +22,7 @@ import {
   RefreshCw,
   Settings2,
   History,
+  Columns3,
 } from 'lucide-react';
 import { Breadcrumbs, SkeletonCard, Modal, useToast } from '@/components/admin/ui';
 import { formatCurrency, formatDateTime } from '@/lib/admin-format';
@@ -66,34 +67,147 @@ const TIER_LABELS: Record<string, string> = {
 };
 
 // ---------------------------------------------------------------------------
-// CSV Export helper
+// Configurable CSV export
 // ---------------------------------------------------------------------------
 
-function exportCsv(
+interface ColDef {
+  key: string;
+  label: string;
+  defaultOn: boolean;
+  sensitive?: boolean;
+  getValue: (inv: NonNullable<ReturnType<typeof useInvoice>>, l: any) => string;
+}
+
+const EXPORT_COLUMNS: ColDef[] = [
+  { key: 'invoiceNumber',  label: 'Invoice #',            defaultOn: true,  getValue: (inv) => inv.invoiceNumberDisplay },
+  { key: 'groupName',      label: 'Group / Company',      defaultOn: true,  getValue: (inv) => inv.groupName },
+  { key: 'coveragePeriod', label: 'Coverage Period',      defaultOn: true,  getValue: (inv) => inv.coveragePeriod },
+  { key: 'memberId',       label: 'Member ID',            defaultOn: true,  getValue: (_, l) => l.memberId ?? '' },
+  { key: 'groupMemberId',  label: 'Employee #',           defaultOn: false, getValue: (_, l) => l.groupMemberId ?? '' },
+  { key: 'lastName',       label: 'Last Name',            defaultOn: true,  getValue: (_, l) => l.lastName ?? '' },
+  { key: 'firstName',      label: 'First Name',           defaultOn: true,  getValue: (_, l) => l.firstName ?? '' },
+  { key: 'employeeName',   label: 'Employee Name (Last, First)', defaultOn: false, getValue: (_, l) => l.lastName && l.firstName ? `${l.lastName}, ${l.firstName}` : (l.lastName ?? l.firstName ?? '') },
+  { key: 'ssn',            label: 'Employee SSN',         defaultOn: false, sensitive: true, getValue: (_, l) => l.ssn ?? '' },
+  { key: 'location',       label: 'Location',             defaultOn: false, getValue: (_, l) => l.location ?? '' },
+  { key: 'department',     label: 'Department',           defaultOn: false, getValue: (_, l) => l.department ?? '' },
+  { key: 'tier',           label: 'Tier',                 defaultOn: true,  getValue: (_, l) => l.tier ?? '' },
+  { key: 'dependentCount', label: 'Dependents',           defaultOn: true,  getValue: (_, l) => String(l.dependentCount ?? 0) },
+  { key: 'rate',           label: 'Rate',                 defaultOn: true,  getValue: (_, l) => l.rateCents != null ? (l.rateCents / 100).toFixed(2) : '' },
+  { key: 'effectiveDate',  label: 'Effective Date',       defaultOn: false, getValue: (_, l) => l.effectiveDate ?? '' },
+];
+
+const PRESET_STANDARD = EXPORT_COLUMNS.filter((c) => c.defaultOn).map((c) => c.key);
+const PRESET_TRUSTMARK = ['ssn', 'groupMemberId', 'employeeName', 'location', 'department', 'rate', 'effectiveDate'];
+
+function runExport(
   inv: NonNullable<ReturnType<typeof useInvoice>>,
+  enabledKeys: string[],
 ) {
-  const header = ['Invoice #', 'Group', 'Coverage', 'Member ID', 'Last Name', 'First Name', 'Tier', 'Dependents', 'Rate'];
-  const rows = inv.lines.map((l: { memberId: string; lastName: string; firstName: string; tier: string; dependentCount: number; rateCents: number }) => [
-    inv.invoiceNumberDisplay,
-    inv.groupName,
-    inv.coveragePeriod,
-    l.memberId,
-    l.lastName,
-    l.firstName,
-    l.tier,
-    l.dependentCount,
-    (l.rateCents / 100).toFixed(2),
-  ]);
+  const cols = EXPORT_COLUMNS.filter((c) => enabledKeys.includes(c.key));
+  const header = cols.map((c) => c.label);
+  const rows = inv.lines.map((l: any) => cols.map((c) => c.getValue(inv, l)));
   const csv = [header, ...rows]
     .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
     .join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
   a.download = `invoice-${inv.invoiceNumberDisplay}-${inv.coveragePeriod}.csv`;
   a.click();
-  URL.revokeObjectURL(url);
+}
+
+// ---------------------------------------------------------------------------
+// ExportColumnsModal
+// ---------------------------------------------------------------------------
+
+function ExportColumnsModal({
+  inv,
+  onClose,
+}: {
+  inv: NonNullable<ReturnType<typeof useInvoice>>;
+  onClose: () => void;
+}) {
+  const [enabled, setEnabled] = useState<string[]>(PRESET_STANDARD);
+
+  const toggle = (key: string) =>
+    setEnabled((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+
+  const hasSsn = enabled.includes('ssn');
+
+  return (
+    <Modal open title="Configure CSV Export" onClose={onClose}>
+      <div className="space-y-4 p-1">
+        {/* Presets */}
+        <div className="flex gap-2">
+          <span className="text-xs font-semibold text-slate-500 self-center">Presets:</span>
+          <button
+            onClick={() => setEnabled(PRESET_STANDARD)}
+            className="px-3 py-1 text-xs rounded border border-slate-300 hover:bg-slate-50"
+          >
+            Standard
+          </button>
+          <button
+            onClick={() => setEnabled(PRESET_TRUSTMARK)}
+            className="px-3 py-1 text-xs rounded border border-slate-300 hover:bg-slate-50"
+          >
+            Trustmark Format
+          </button>
+          <button
+            onClick={() => setEnabled(EXPORT_COLUMNS.map((c) => c.key))}
+            className="px-3 py-1 text-xs rounded border border-slate-300 hover:bg-slate-50"
+          >
+            All Columns
+          </button>
+        </div>
+
+        {/* Column checkboxes */}
+        <div className="grid grid-cols-2 gap-1.5">
+          {EXPORT_COLUMNS.map((col) => (
+            <label
+              key={col.key}
+              className="flex items-center gap-2 text-sm cursor-pointer rounded px-2 py-1.5 hover:bg-slate-50"
+            >
+              <input
+                type="checkbox"
+                checked={enabled.includes(col.key)}
+                onChange={() => toggle(col.key)}
+                className="rounded border-slate-300"
+              />
+              <span className={col.sensitive ? 'text-amber-700 font-medium' : 'text-slate-700'}>
+                {col.label}
+                {col.sensitive && ' ⚠'}
+              </span>
+            </label>
+          ))}
+        </div>
+
+        {/* SSN warning */}
+        {hasSsn && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800">
+            <strong>SSN included.</strong> This export will contain full Social Security Numbers.
+            Handle and store the file securely.
+          </div>
+        )}
+
+        <div className="flex justify-between items-center pt-2">
+          <span className="text-xs text-slate-400">{enabled.length} column{enabled.length !== 1 ? 's' : ''} selected · {inv.lines.length} members</span>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="px-4 py-2 text-sm text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50">
+              Cancel
+            </button>
+            <button
+              onClick={() => { runExport(inv, enabled); onClose(); }}
+              disabled={enabled.length === 0}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-40"
+            >
+              <Download size={13} /> Download CSV
+            </button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -443,6 +557,7 @@ export default function InvoiceDetailPage({
   const [showAdjust, setShowAdjust] = useState(false);
   const [showVoid, setShowVoid] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const refreshLines = useMutation(api.admin.listBillInvoices.refreshInvoiceLines);
@@ -574,10 +689,10 @@ export default function InvoiceDetailPage({
             </button>
           )}
           <button
-            onClick={() => exportCsv(inv)}
+            onClick={() => setShowExport(true)}
             className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
           >
-            <Download size={14} />
+            <Columns3 size={14} />
             Export CSV
           </button>
           <a
@@ -823,6 +938,9 @@ export default function InvoiceDetailPage({
       )}
       {showEdit && inv && (
         <EditDetailsModal inv={inv} onClose={() => setShowEdit(false)} />
+      )}
+      {showExport && inv && (
+        <ExportColumnsModal inv={inv} onClose={() => setShowExport(false)} />
       )}
 
       {/* Audit history */}

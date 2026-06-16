@@ -944,6 +944,11 @@ export default defineSchema({
     groupId: v.id("groups"),
     groupMemberId: v.optional(v.string()), // Company's internal employee ID
     externalMemberId: v.optional(v.string()), // Company system ID
+
+    // EMPLOYER / PAYROLL AUDIT
+    ssn: v.optional(v.string()),            // Social Security Number (for audit/list-bill reporting)
+    location: v.optional(v.string()),       // Sub-location within employer (e.g. "Soar 2", "SOAR II")
+    department: v.optional(v.string()),     // Department within location (e.g. "NA", "Kitchen")
     
     // PERSONAL INFORMATION
     title: v.optional(v.string()), // Mr, Mrs, Ms, etc.
@@ -1931,6 +1936,12 @@ export default defineSchema({
       dependentCount: v.number(),
       rateCents: v.number(),
       productLabel: v.string(),
+      // Enriched audit fields (optional; populated from memberProfile at generation time)
+      ssn: v.optional(v.string()),
+      location: v.optional(v.string()),
+      department: v.optional(v.string()),
+      effectiveDate: v.optional(v.string()),
+      groupMemberId: v.optional(v.string()),
     })),
 
     // ── HEAD COUNTS ───────────────────────────────────────────────────────

@@ -71,6 +71,12 @@ export interface InvoiceLine {
   dependentCount: number;
   rateCents: number;
   productLabel: string;
+  // Enriched audit fields (populated from memberProfile at generation time)
+  ssn?: string;
+  location?: string;
+  department?: string;
+  effectiveDate?: string;
+  groupMemberId?: string;
 }
 
 export interface InvoicePreview {
@@ -225,6 +231,11 @@ async function buildInvoiceLines(
       dependentCount,
       rateCents,
       productLabel,
+      ssn: (primary as any).ssn ?? undefined,
+      location: (primary as any).location ?? undefined,
+      department: (primary as any).department ?? undefined,
+      effectiveDate: primary.effectiveDate ?? undefined,
+      groupMemberId: primary.groupMemberId ?? undefined,
     });
   }
 

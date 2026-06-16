@@ -924,6 +924,10 @@ export const updateMemberProfile = mutation({
     groupMemberId: v.optional(v.string()),
     address: v.optional(v.any()),
     communicationPrefs: v.optional(v.any()),
+    // Employer / payroll audit fields
+    ssn: v.optional(v.string()),
+    location: v.optional(v.string()),
+    department: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
