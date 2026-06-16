@@ -183,6 +183,88 @@ function buildCareingtonRow(f: {
 }
 
 /**
+ * Pre-export structural validator for Careington pipe-delimited rows.
+ *
+ * Runs before any file is returned to the caller and blocks the download on hard errors.
+ * Checks:
+ *   1. Every row has exactly 28 fields (27 pipes).
+ *   2. No duplicate (UniqueID, SeqNum, GroupCode) tuple.
+ *   3. Exactly one seqNum="00" primary row per (UniqueID, GroupCode) household.
+ *   4. Dependent rows (seqNum !== "00") must not be marked guardian="1".
+ *   5. When requireEmail=true (DialCare), primary rows must have a non-empty email.
+ */
+function validateCareingtonRows(
+  rows: string[],
+  opts: { requireEmail?: boolean } = {}
+): { errors: string[]; warnings: string[] } {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const REQUIRED_FIELDS = 28;
+  const seenTuples = new Set<string>();
+  const primaryCountByHousehold = new Map<string, number>();
+
+  rows.forEach((row, idx) => {
+    if (!row.trim()) return;
+    const fields = row.split("|");
+    const lineNum = idx + 1;
+
+    if (fields.length !== REQUIRED_FIELDS) {
+      errors.push(
+        `Row ${lineNum}: expected ${REQUIRED_FIELDS} fields, found ${fields.length}`
+      );
+      return; // cannot safely read specific columns on a malformed row
+    }
+
+    const uniqueId  = fields[5];
+    const seqNum    = fields[6];
+    const groupCode = fields[17];
+    const email     = fields[25];
+    const guardian  = fields[27];
+
+    // Rule: unique (UniqueID, SeqNum, GroupCode) tuple
+    const tuple = `${uniqueId}|${seqNum}|${groupCode}`;
+    if (seenTuples.has(tuple)) {
+      errors.push(
+        `Row ${lineNum}: duplicate tuple — UniqueID=${uniqueId} SeqNum=${seqNum} GroupCode=${groupCode}`
+      );
+    }
+    seenTuples.add(tuple);
+
+    // Count primary (seqNum=00) rows per household for the household-rule check below
+    if (seqNum === "00") {
+      const key = `${uniqueId}|${groupCode}`;
+      primaryCountByHousehold.set(key, (primaryCountByHousehold.get(key) ?? 0) + 1);
+    }
+
+    // Rule: non-primary rows should not be marked as guardian
+    if (seqNum !== "00" && guardian === "1") {
+      warnings.push(
+        `Row ${lineNum}: seqNum="${seqNum}" but guardian="1" — dependent should not be guardian`
+      );
+    }
+
+    // Rule: DialCare/e-fulfillment requires email on primary rows
+    if (opts.requireEmail && seqNum === "00" && !email) {
+      errors.push(
+        `Row ${lineNum}: UniqueID=${uniqueId} — primary member has no email (required for DialCare)`
+      );
+    }
+  });
+
+  // Rule: exactly one primary row per household
+  for (const [key, count] of primaryCountByHousehold) {
+    if (count > 1) {
+      const [uid, gc] = key.split("|");
+      errors.push(
+        `Household UniqueID=${uid} GroupCode=${gc}: ${count} primary (seqNum=00) rows — expected exactly 1`
+      );
+    }
+  }
+
+  return { errors, warnings };
+}
+
+/**
  * Get vendor configurations
  */
 export const getVendorConfigurations = query({
@@ -216,7 +298,10 @@ export const getVendorFilePreview = query({
     const group: any = await ctx.runQuery(api.admin.hierarchy.getGroupById, { groupId: args.groupId });
     if (!group) throw new Error("Group not found");
 
-    const members: any[] = await ctx.runQuery(api.admin.members.getActiveMembersByGroup, { groupId: args.groupId });
+    const allMembers: any[] = await ctx.runQuery(api.admin.members.getActiveMembersByGroup, { groupId: args.groupId });
+    // Preview should only show primary households (same logic as the generators) to
+    // avoid inflated counts from separately-stored dependent memberProfile rows.
+    const members = allMembers.filter((m: any) => m.memberRole !== "dependent" && !m.primaryMemberId);
 
     // Build a preview of members with full dependent details
     const preview = members.map((member: any) => ({
@@ -268,7 +353,13 @@ export const generateDentalDiscountNetworkFile = action({
     const group = await ctx.runQuery(api.admin.hierarchy.getGroupById, { groupId: args.groupId });
     if (!group) throw new Error("Group not found");
 
-    const members = await ctx.runQuery(api.admin.members.getActiveMembersByGroup, { groupId: args.groupId });
+    const allMembers = await ctx.runQuery(api.admin.members.getActiveMembersByGroup, { groupId: args.groupId });
+    // Export only primary-role profiles. Dependent memberProfile rows are also stored
+    // separately so they can be looked up by ID, but the exporter already emits them
+    // via each primary's embedded `dependents` array. Without this filter, every
+    // dependent profile would also appear as a bogus seqNum=00 primary, triggering
+    // Careington's "Duplicate Policy Numbers" rejection.
+    const members = allMembers.filter((m: any) => m.memberRole !== "dependent" && !m.primaryMemberId);
 
     const fileType = args.fileType ?? "full";
     const today = new Date();
@@ -388,6 +479,15 @@ export const generateDentalDiscountNetworkFile = action({
       });
     }
 
+    // Pre-export structural validation — block download before a bad file reaches Careington
+    const validation = validateCareingtonRows(rows);
+    if (validation.errors.length > 0) {
+      throw new Error(
+        `Careington file failed pre-export validation (${validation.errors.length} error(s)):\n` +
+        validation.errors.join("\n")
+      );
+    }
+
     return {
       filename,
       // CRLF + trailing newline per Careington Windows-lineage parser convention.
@@ -418,7 +518,9 @@ export const generateDialCareFile = action({
     const group = await ctx.runQuery(api.admin.hierarchy.getGroupById, { groupId: args.groupId });
     if (!group) throw new Error("Group not found");
 
-    const members = await ctx.runQuery(api.admin.members.getActiveMembersByGroup, { groupId: args.groupId });
+    const allMembersDialCare = await ctx.runQuery(api.admin.members.getActiveMembersByGroup, { groupId: args.groupId });
+    // Same primary-only filter as the DDN generator (see comment there).
+    const members = allMembersDialCare.filter((m: any) => m.memberRole !== "dependent" && !m.primaryMemberId);
 
     const fileType = args.fileType ?? "full";
     const today = new Date();
@@ -453,9 +555,10 @@ export const generateDialCareFile = action({
       const workPhone = (member.workPhone ?? "").replace(/\D/g, "").slice(0, 10);
       const gender = member.gender === "male" ? "M" : member.gender === "female" ? "F" : "";
 
-      // Email is required for DialCare E-fulfillment
+      // Email is REQUIRED for DialCare E-fulfillment — missing email is a hard error,
+      // not a warning, because Careington will reject the member at eligibility check time.
       if (!member.email) {
-        warnings.push(`Member ${member.memberId} (${member.firstName} ${member.lastName}) has no email — required for DialCare`);
+        warnings.push(`BLOCKING: Member ${member.memberId} (${member.firstName} ${member.lastName}) has no email — required for DialCare`);
       }
 
       rows.push(buildCareingtonRow({
@@ -537,13 +640,24 @@ export const generateDialCareFile = action({
       });
     }
 
+    // Pre-export structural validation (requireEmail=true enforces DialCare email rule at row level)
+    const dialcareValidation = validateCareingtonRows(rows, { requireEmail: true });
+    const blockingWarnings = warnings.filter((w) => w.startsWith("BLOCKING:"));
+    const allErrors = [...dialcareValidation.errors, ...blockingWarnings];
+    if (allErrors.length > 0) {
+      throw new Error(
+        `DialCare file failed pre-export validation (${allErrors.length} error(s)):\n` +
+        allErrors.join("\n")
+      );
+    }
+
     return {
       filename,
       // CRLF + trailing newline per Careington Windows-lineage parser convention.
       content: rows.join("\r\n") + (rows.length > 0 ? "\r\n" : ""),
       memberCount: members.length,
       totalRecords,
-      warnings,
+      warnings: [...dialcareValidation.warnings, ...warnings.filter((w) => !w.startsWith("BLOCKING:"))],
       generatedAt: Date.now(),
     };
   },

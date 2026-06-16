@@ -315,42 +315,318 @@ function parseCareingtonRow(line: string): {
 }
 
 /**
- * Parse CSV content (comma-separated with header row)
- * Expects headers: firstName, lastName, email, phone, dateOfBirth, gender
+ * Robust RFC-4180-style CSV parser. Handles quoted fields, escaped quotes
+ * ("") and commas/newlines inside quotes. Returns an array of row objects
+ * keyed by the (trimmed) header names from the first row.
  */
-function parseCsvContent(content: string): Array<{
-  firstName: string;
-  lastName: string;
-  email?: string;
-  phone?: string;
-  dateOfBirth?: string;
-  gender?: string;
-}> {
-  const lines = content.split("\n").filter((l) => l.trim());
-  if (lines.length < 2) return [];
+function parseDelimitedRows(content: string): {
+  headers: string[];
+  rows: Array<Record<string, string>>;
+} {
+  const matrix: string[][] = [];
+  let field = "";
+  let row: string[] = [];
+  let inQuotes = false;
 
-  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
-  const records: Array<any> = [];
+  for (let i = 0; i < content.length; i++) {
+    const ch = content[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (content[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ",") {
+      row.push(field);
+      field = "";
+    } else if (ch === "\n") {
+      row.push(field);
+      matrix.push(row);
+      row = [];
+      field = "";
+    } else if (ch === "\r") {
+      // ignore — handled on \n
+    } else {
+      field += ch;
+    }
+  }
+  if (field.length > 0 || row.length > 0) {
+    row.push(field);
+    matrix.push(row);
+  }
 
-  for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(",").map((v) => v.trim());
-    const record: any = {};
+  if (matrix.length === 0) return { headers: [], rows: [] };
+  const headers = matrix[0].map((h) => h.trim());
+  const rows: Array<Record<string, string>> = [];
+  for (let r = 1; r < matrix.length; r++) {
+    const cells = matrix[r];
+    if (cells.every((c) => (c ?? "").trim() === "")) continue;
+    const obj: Record<string, string> = {};
     headers.forEach((h, idx) => {
-      record[h] = values[idx] ?? "";
+      obj[h] = (cells[idx] ?? "").trim();
     });
+    rows.push(obj);
+  }
+  return { headers, rows };
+}
 
-    if (record.firstname || record.firstName) {
-      records.push({
-        firstName: record.firstname || record.firstName || "",
-        lastName: record.lastname || record.lastName || "",
-        email: record.email || undefined,
-        phone: record.phone || undefined,
-        dateOfBirth: record.dateofbirth || record.dateOfBirth || record.dob || undefined,
-        gender: record.gender || undefined,
+const _normHeader = (k: string) => k.toLowerCase().replace(/[\s_/-]/g, "");
+
+/** Pick the first non-empty value among candidate header names (header-agnostic). */
+function pickCol(row: Record<string, string>, ...candidates: string[]): string {
+  for (const cand of candidates) {
+    const target = _normHeader(cand);
+    for (const k of Object.keys(row)) {
+      if (_normHeader(k) === target) {
+        const v = row[k];
+        if (v !== undefined && v !== null && String(v).trim() !== "") return String(v).trim();
+      }
+    }
+  }
+  return "";
+}
+
+/** Convert MM/DD/YYYY, M/D/YYYY, MMDDYYYY, or ISO to ISO YYYY-MM-DD. */
+function csvToIsoDate(s: string): string | undefined {
+  if (!s) return undefined;
+  const trimmed = s.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  if (/^\d{8}$/.test(trimmed)) {
+    return `${trimmed.slice(4, 8)}-${trimmed.slice(0, 2)}-${trimmed.slice(2, 4)}`;
+  }
+  const slash = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slash) {
+    return `${slash[3]}-${slash[1].padStart(2, "0")}-${slash[2].padStart(2, "0")}`;
+  }
+  return undefined;
+}
+
+/** Parse a dollar string ("14.99", "$24.99") into integer cents. */
+function dollarsToCents(s: string): number | undefined {
+  if (!s) return undefined;
+  const n = parseFloat(String(s).replace(/[^0-9.\-]/g, ""));
+  if (!isFinite(n)) return undefined;
+  return Math.round(n * 100);
+}
+
+const _normalizeGender = (raw: string): string | undefined => {
+  const g = (raw || "").trim().toUpperCase();
+  if (g.startsWith("M")) return "male";
+  if (g.startsWith("F")) return "female";
+  return undefined;
+};
+
+const _normalizeRelationship = (raw: string): "spouse" | "child" | "domestic_partner" | "other" => {
+  const r = (raw || "").trim().toLowerCase();
+  if (r.startsWith("spouse") || r === "s") return "spouse";
+  if (r.startsWith("child") || r === "c" || r.startsWith("dependent")) return "child";
+  if (r.includes("domestic")) return "domestic_partner";
+  return "other";
+};
+
+const _addressFrom = (row: Record<string, string>) => {
+  const line1 = pickCol(row, "Address 1", "Address1", "ADDRESS1", "Address Line 1", "addr1");
+  if (!line1) return undefined;
+  return {
+    line1,
+    line2: pickCol(row, "Address 2", "Address2", "ADDRESS2", "Address Line 2") || undefined,
+    city: pickCol(row, "City", "CITY"),
+    state: pickCol(row, "State", "STATE"),
+    postalCode: pickCol(row, "Zip Code", "Zip", "ZIP", "Postal Code"),
+    country: "US",
+  };
+};
+
+/**
+ * Detect whether a CSV is an employer "census / eligibility" layout where each
+ * row is a covered member (Employee / Spouse / Child) — e.g. the Soar
+ * Restaurants format. We key on the presence of a relationship column plus a
+ * tier or employee-SSN column.
+ */
+function isCensusCsv(headers: string[]): boolean {
+  const norm = headers.map(_normHeader);
+  const has = (...names: string[]) => names.some((n) => norm.includes(_normHeader(n)));
+  return (
+    has("Covered Member Relationship", "Relationship", "Relation", "Member Relationship") &&
+    has("Employee SSN", "Tier", "Covered Member Last Name", "Covered Member First Name")
+  );
+}
+
+/**
+ * Parse an employer census CSV (one row per covered member) into primary
+ * records with embedded dependents. Family grouping is keyed by the employee's
+ * identity (Employee SSN, falling back to Employee name). The row whose
+ * relationship is "Employee" becomes the primary; Spouse/Child rows attach as
+ * dependents. Captures SSN, monthly premium (Approved EE Cost), location, and
+ * tier for list-bill invoicing.
+ */
+function parseCensusCsv(rows: Array<Record<string, string>>): Array<any> {
+  type Family = { primary: any | null; dependents: any[]; order: number };
+  const families = new Map<string, Family>();
+  let order = 0;
+
+  for (const row of rows) {
+    const relRaw = pickCol(row, "Covered Member Relationship", "Member Relationship", "Relationship", "Relation");
+    const isPrimary =
+      relRaw === "" ||
+      /^(employee|self|subscriber|primary|ee)$/i.test(relRaw.trim());
+
+    const employeeSsn = pickCol(row, "Employee SSN").replace(/\D/g, "");
+    const employeeLast = pickCol(row, "Employee Last Name");
+    const employeeFirst = pickCol(row, "Employee First Name");
+    const employeeDob = csvToIsoDate(pickCol(row, "Employee DOB"));
+    const familyKey =
+      employeeSsn ||
+      `${employeeLast}|${employeeFirst}|${employeeDob ?? ""}`.toLowerCase();
+    if (!familyKey.trim()) continue;
+
+    let family = families.get(familyKey);
+    if (!family) {
+      family = { primary: null, dependents: [], order: order++ };
+      families.set(familyKey, family);
+    }
+
+    const coveredLast = pickCol(row, "Covered Member Last Name", "Last Name") || employeeLast;
+    const coveredFirst = pickCol(row, "Covered Member First Name", "First Name") || employeeFirst;
+    const coveredDob = csvToIsoDate(pickCol(row, "Covered Member DOB", "Date of Birth", "DOB")) || employeeDob;
+    const coveredSsn = pickCol(row, "Covered Member SSN").replace(/\D/g, "");
+    const email = pickCol(row, "Email", "Email Address") || pickCol(row, "Alternate Email") || undefined;
+    const phone = pickCol(row, "Home Phone", "Phone").replace(/\D/g, "") || undefined;
+    const workPhone = pickCol(row, "Work Phone").replace(/\D/g, "") || undefined;
+    const gender = _normalizeGender(pickCol(row, "Gender"));
+    const address = _addressFrom(row);
+    const effectiveDate = csvToIsoDate(pickCol(row, "Effective Date", "EFFECTIVEDATE"));
+    const termDate = csvToIsoDate(pickCol(row, "Term Date", "Termination Date", "TERMDATE"));
+
+    if (isPrimary) {
+      const premiumCents = dollarsToCents(pickCol(row, "Approved EE Cost", "EE Cost", "Employee Cost", "Premium"));
+      const location = pickCol(row, "Division", "Location", "Sub-Location") || undefined;
+      const department = pickCol(row, "Job Title", "Department") || undefined;
+      const tierCode = pickCol(row, "Tier") || undefined;
+      const groupMemberId = pickCol(row, "Employee ID", "Employee Number", "Group Number") || undefined;
+      const primaryRecord = {
+        title: undefined,
+        firstName: coveredFirst,
+        middleName: undefined,
+        lastName: coveredLast,
+        suffix: undefined,
+        email,
+        phone,
+        workPhone,
+        dateOfBirth: coveredDob,
+        effectiveDate,
+        termDate,
+        gender,
+        address,
+        ssn: (coveredSsn || employeeSsn) || undefined,
+        monthlyPremiumCents: premiumCents,
+        location,
+        department,
+        tierCode,
+        groupMemberId,
+        uniqueId: undefined,
+        dependents: undefined as any[] | undefined,
+      };
+      // If a placeholder family was created by a dependent row first, merge.
+      if (family.primary) {
+        // Duplicate employee row — keep the one with a premium.
+        if (premiumCents != null && family.primary.monthlyPremiumCents == null) {
+          family.primary = { ...primaryRecord, dependents: family.dependents.length ? family.dependents : undefined };
+        }
+      } else {
+        family.primary = primaryRecord;
+      }
+    } else {
+      family.dependents.push({
+        firstName: coveredFirst,
+        lastName: coveredLast,
+        dateOfBirth: coveredDob,
+        relationship: _normalizeRelationship(relRaw),
+        ssn: coveredSsn || undefined,
+        gender,
+        email,
+        phone,
+        address,
       });
     }
   }
 
+  const ordered = Array.from(families.values()).sort((a, b) => a.order - b.order);
+  const out: any[] = [];
+  for (const fam of ordered) {
+    // If a family had only dependent rows (no explicit Employee row), promote
+    // the first dependent to primary so the record is still ingestible.
+    let primary = fam.primary;
+    let deps = fam.dependents;
+    if (!primary) {
+      if (deps.length === 0) continue;
+      const [first, ...rest] = deps;
+      primary = {
+        firstName: first.firstName,
+        lastName: first.lastName,
+        dateOfBirth: first.dateOfBirth,
+        gender: first.gender,
+        email: first.email,
+        phone: first.phone,
+        address: first.address,
+        ssn: first.ssn,
+      };
+      deps = rest;
+    }
+    primary.dependents = deps.length > 0
+      ? deps.map((d, di) => ({ ...d, seqNum: String(di + 1).padStart(2, "0") }))
+      : undefined;
+    out.push(primary);
+  }
+  return out;
+}
+
+/**
+ * Parse CSV content (comma-separated with header row).
+ *
+ * Two layouts are supported automatically:
+ *   1. Employer census / eligibility files where each row is a covered member
+ *      (Employee / Spouse / Child) — e.g. the Soar Restaurants format. Rows are
+ *      grouped into families by Employee SSN, and SSN / monthly premium /
+ *      location / tier are captured for list-bill invoicing.
+ *   2. Simple flat files with one row per primary (headers: firstName,
+ *      lastName, email, phone, dateOfBirth, gender).
+ */
+function parseCsvContent(content: string): Array<any> {
+  const { headers, rows } = parseDelimitedRows(content);
+  if (rows.length === 0) return [];
+
+  if (isCensusCsv(headers)) {
+    return parseCensusCsv(rows);
+  }
+
+  // ── Simple flat layout ──
+  const records: Array<any> = [];
+  for (const row of rows) {
+    const firstName = pickCol(row, "firstName", "first name", "first");
+    const lastName = pickCol(row, "lastName", "last name", "last");
+    if (!firstName) continue;
+    records.push({
+      firstName,
+      lastName,
+      email: pickCol(row, "email", "email address") || undefined,
+      phone: pickCol(row, "phone", "home phone").replace(/\D/g, "") || undefined,
+      dateOfBirth: csvToIsoDate(pickCol(row, "dateOfBirth", "dob", "date of birth")),
+      gender: _normalizeGender(pickCol(row, "gender")),
+      ssn: pickCol(row, "ssn", "social security number").replace(/\D/g, "") || undefined,
+      monthlyPremiumCents: dollarsToCents(pickCol(row, "premium", "monthly premium", "approved ee cost")),
+      location: pickCol(row, "location", "division") || undefined,
+      department: pickCol(row, "department", "job title") || undefined,
+      effectiveDate: csvToIsoDate(pickCol(row, "effectiveDate", "effective date")),
+    });
+  }
   return records;
 }
 
@@ -640,6 +916,12 @@ export const processEligibilityFile = action({
         gender?: string;
         address?: any;
         uniqueId?: string;  // Careington/DialCare Unique ID (shared across family)
+        ssn?: string;
+        monthlyPremiumCents?: number;
+        location?: string;
+        department?: string;
+        tierCode?: string;
+        groupMemberId?: string;
         dependents?: Array<{ firstName: string; lastName: string; dateOfBirth?: string; relationship: string; seqNum?: string }>;
       }> = [];
       const errors: Array<{ row: number; message: string }> = [];
@@ -794,6 +1076,12 @@ export const processEligibilityFile = action({
           effectiveDate: r.effectiveDate ?? "",
           gender: r.gender ?? "",
           uniqueId: r.uniqueId ?? "",
+          ssn: r.ssn ?? "",
+          monthlyPremiumCents: r.monthlyPremiumCents,
+          location: r.location ?? "",
+          department: r.department ?? "",
+          tierCode: r.tierCode ?? "",
+          groupMemberId: r.groupMemberId ?? "",
           address: r.address,
           dependents: r.dependents,
         }));
@@ -997,14 +1285,23 @@ export const previewEligibilityFile = action({
       );
     } else if (args.fileType === "csv") {
       primaryRecords = parseCsvContent(content);
-      const headerLine = content.split(/\r?\n/)[0] ?? "";
-      detectedColumns.push(...headerLine.split(",").map((h) => h.trim()).filter(Boolean));
-      // Validate CSV records
+      const parsedCsv = parseDelimitedRows(content);
+      detectedColumns.push(...parsedCsv.headers.filter(Boolean));
+      const census = isCensusCsv(parsedCsv.headers);
+      // Validate CSV records. Employer census files (Soar-style) carry a
+      // different column set than the Careington census template, so we apply a
+      // lighter check (name + an identifier) rather than the full template rules.
       primaryRecords.forEach((record, idx) => {
-        const validationIssues = validateRequiredFields(record, idx + 2);
-        validationIssues.forEach(issue => {
-          validationErrors.push({ row: idx + 2, ...issue });
-        });
+        if (census) {
+          if (!record.firstName) validationErrors.push({ row: idx + 2, field: "firstName", message: `Row ${idx + 2}: First Name is required` });
+          if (!record.lastName) validationErrors.push({ row: idx + 2, field: "lastName", message: `Row ${idx + 2}: Last Name is required` });
+          if (!record.ssn && !record.dateOfBirth) validationErrors.push({ row: idx + 2, field: "ssn", message: `Row ${idx + 2}: SSN or Date of Birth is required to identify the member` });
+        } else {
+          const validationIssues = validateRequiredFields(record, idx + 2);
+          validationIssues.forEach(issue => {
+            validationErrors.push({ row: idx + 2, ...issue });
+          });
+        }
         record._validationRowNumber = idx + 2;
       });
     } else if (args.fileType === "xlsx") {
@@ -1215,6 +1512,12 @@ export const internalBatchCreateMembers = internalMutation({
         effectiveDate: v.string(),
         gender: v.string(),
         uniqueId: v.string(), // Careington/DialCare Unique ID (empty string if not in source file)
+        ssn: v.optional(v.string()),
+        monthlyPremiumCents: v.optional(v.number()),
+        location: v.optional(v.string()),
+        department: v.optional(v.string()),
+        tierCode: v.optional(v.string()),
+        groupMemberId: v.optional(v.string()),
         address: v.optional(v.any()),
         dependents: v.optional(v.any()),
       })
@@ -1317,6 +1620,12 @@ export const internalBatchCreateMembers = internalMutation({
             effectiveDate: record.effectiveDate || existing.effectiveDate,
             gender: validGender ?? existing.gender,
             address: record.address || existing.address,
+            ssn: record.ssn || (existing as any).ssn,
+            monthlyPremiumCents: record.monthlyPremiumCents ?? (existing as any).monthlyPremiumCents,
+            location: record.location || (existing as any).location,
+            department: record.department || (existing as any).department,
+            tierCode: record.tierCode || (existing as any).tierCode,
+            groupMemberId: record.groupMemberId || existing.groupMemberId,
             dependents: dependents ?? existing.dependents,
             careingtonUniqueId,
             careingtonSeqNum: "00",
@@ -1353,6 +1662,12 @@ export const internalBatchCreateMembers = internalMutation({
             effectiveDate: record.effectiveDate || undefined,
             gender: validGender,
             address: record.address,
+            ssn: record.ssn || undefined,
+            monthlyPremiumCents: record.monthlyPremiumCents,
+            location: record.location || undefined,
+            department: record.department || undefined,
+            tierCode: record.tierCode || undefined,
+            groupMemberId: record.groupMemberId || undefined,
             dependents,
             careingtonUniqueId,
             careingtonSeqNum: "00",
@@ -1399,6 +1714,7 @@ export const internalBatchCreateMembers = internalMutation({
                 address: dep.address || existingDep.address,
                 dateOfBirth: dep.dateOfBirth || existingDep.dateOfBirth,
                 gender: depGender ?? existingDep.gender,
+                ssn: dep.ssn || (existingDep as any).ssn,
                 relationship: dep.relationship || existingDep.relationship,
                 primaryMemberId: primaryProfileId,
                 memberRole: "dependent",
@@ -1427,6 +1743,7 @@ export const internalBatchCreateMembers = internalMutation({
                 address: dep.address,
                 dateOfBirth: dep.dateOfBirth || undefined,
                 gender: depGender,
+                ssn: dep.ssn || undefined,
                 careingtonUniqueId,
                 careingtonSeqNum: depSeqNum,
                 memberType: "eligible",

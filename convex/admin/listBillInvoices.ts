@@ -57,6 +57,80 @@ const TIER_SUFFIX: Record<"MO" | "MS" | "MF", string> = {
 };
 
 // ---------------------------------------------------------------------------
+// Invoice column configuration
+// ---------------------------------------------------------------------------
+
+export interface InvoiceColumn {
+  key: string;
+  label: string;
+  enabled: boolean;
+  sensitive?: boolean;
+}
+
+/**
+ * Master registry of every parameter that can appear on a list-bill invoice
+ * (printed table + CSV export). This is the source of truth for which keys are
+ * valid; the per-group `listBill.invoiceColumns` config selects/labels/reorders
+ * a subset. `defaultEnabled` defines the out-of-the-box column set for groups
+ * that have not customized their invoice.
+ */
+export const INVOICE_COLUMN_REGISTRY: Array<{
+  key: string;
+  label: string;
+  defaultEnabled: boolean;
+  sensitive?: boolean;
+}> = [
+  { key: "memberId", label: "Member ID", defaultEnabled: true },
+  { key: "groupMemberId", label: "Employee #", defaultEnabled: false },
+  { key: "lastName", label: "Last Name", defaultEnabled: true },
+  { key: "firstName", label: "First Name", defaultEnabled: true },
+  { key: "employeeName", label: "Employee Name (Last, First)", defaultEnabled: false },
+  { key: "ssn", label: "Employee SSN", defaultEnabled: false, sensitive: true },
+  { key: "companyName", label: "Company Name", defaultEnabled: false },
+  { key: "invoiceNumber", label: "Invoice #", defaultEnabled: false },
+  { key: "coveragePeriod", label: "Coverage Period", defaultEnabled: false },
+  { key: "location", label: "Location", defaultEnabled: false },
+  { key: "department", label: "Department", defaultEnabled: false },
+  { key: "tier", label: "Tier", defaultEnabled: true },
+  { key: "tierCode", label: "Plan / Tier Code", defaultEnabled: false },
+  { key: "dependentCount", label: "Dependents", defaultEnabled: true },
+  { key: "effectiveDate", label: "Effective Date", defaultEnabled: false },
+  { key: "rate", label: "Monthly Premium", defaultEnabled: true },
+];
+
+/** Build the default column config from the registry. */
+export function defaultInvoiceColumns(): InvoiceColumn[] {
+  return INVOICE_COLUMN_REGISTRY.map((c) => ({
+    key: c.key,
+    label: c.label,
+    enabled: c.defaultEnabled,
+    sensitive: c.sensitive,
+  }));
+}
+
+/**
+ * Resolve the effective invoice column config for a group: the stored
+ * per-group config when present, otherwise the registry defaults. Stored
+ * columns are validated against the registry (unknown keys dropped) and any
+ * new registry columns are appended as disabled so configs stay forward-compatible.
+ */
+export function resolveInvoiceColumns(
+  stored: InvoiceColumn[] | undefined | null,
+): InvoiceColumn[] {
+  if (!stored || stored.length === 0) return defaultInvoiceColumns();
+  const known = new Set(INVOICE_COLUMN_REGISTRY.map((c) => c.key));
+  const result = stored.filter((c) => known.has(c.key));
+  const present = new Set(result.map((c) => c.key));
+  for (const c of INVOICE_COLUMN_REGISTRY) {
+    if (!present.has(c.key)) {
+      result.push({ key: c.key, label: c.label, enabled: false, sensitive: c.sensitive });
+    }
+  }
+  return result;
+}
+
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -77,6 +151,8 @@ export interface InvoiceLine {
   department?: string;
   effectiveDate?: string;
   groupMemberId?: string;
+  monthlyPremiumCents?: number;
+  tierCode?: string;
 }
 
 export interface InvoicePreview {
@@ -220,7 +296,12 @@ async function buildInvoiceLines(
   for (const primary of primaries) {
     const deps = dependentsByPrimary.get(primary._id) ?? [];
     const { tier, dependentCount } = classifyTier(deps);
-    const rateCents = tier === "MO" ? moCents : tier === "MS" ? msCents : mfCents;
+    // Per-member premium captured from the eligibility file (e.g. Soar "Approved
+    // EE Cost") is authoritative when present; otherwise fall back to the
+    // tier-resolved contracted rate.
+    const memberPremium = (primary as any).monthlyPremiumCents;
+    const tierRate = tier === "MO" ? moCents : tier === "MS" ? msCents : mfCents;
+    const rateCents = typeof memberPremium === "number" && memberPremium >= 0 ? memberPremium : tierRate;
     const productLabel = `${rateLabel} - ${TIER_SUFFIX[tier]}`;
     lines.push({
       memberProfileId: primary._id,
@@ -236,6 +317,8 @@ async function buildInvoiceLines(
       department: (primary as any).department ?? undefined,
       effectiveDate: primary.effectiveDate ?? undefined,
       groupMemberId: primary.groupMemberId ?? undefined,
+      monthlyPremiumCents: typeof memberPremium === "number" ? memberPremium : undefined,
+      tierCode: (primary as any).tierCode ?? undefined,
     });
   }
 
@@ -442,6 +525,61 @@ export const getGroupAgingSummary = query({
       else summary.days91Plus += r.balanceCents;
     }
     return summary;
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Invoice column config — admin
+// ---------------------------------------------------------------------------
+
+export const getInvoiceColumns = query({
+  args: { groupId: v.id("groups") },
+  handler: async (ctx, { groupId }): Promise<InvoiceColumn[]> => {
+    await requireAdmin(ctx);
+    const group = await ctx.db.get(groupId);
+    const stored = (group?.listBill as any)?.invoiceColumns as InvoiceColumn[] | undefined;
+    return resolveInvoiceColumns(stored);
+  },
+});
+
+export const updateInvoiceColumns = mutation({
+  args: {
+    groupId: v.id("groups"),
+    columns: v.array(
+      v.object({
+        key: v.string(),
+        label: v.string(),
+        enabled: v.boolean(),
+        sensitive: v.optional(v.boolean()),
+      }),
+    ),
+  },
+  handler: async (ctx, { groupId, columns }) => {
+    await requireAdmin(ctx);
+    const group = await ctx.db.get(groupId);
+    if (!group) throw new Error(`Group not found: ${groupId}`);
+
+    // Validate against the registry — drop unknown keys, enforce known sensitivity.
+    const registry = new Map(INVOICE_COLUMN_REGISTRY.map((c) => [c.key, c]));
+    const cleaned = columns
+      .filter((c) => registry.has(c.key))
+      .map((c) => ({
+        key: c.key,
+        label: c.label.trim() || registry.get(c.key)!.label,
+        enabled: c.enabled,
+        sensitive: registry.get(c.key)!.sensitive,
+      }));
+    if (cleaned.length === 0) throw new Error("At least one valid column is required");
+
+    const existingListBill = (group.listBill as any) ?? {
+      enabled: false,
+      paymentMethod: "check" as const,
+    };
+    await ctx.db.patch(groupId, {
+      listBill: { ...existingListBill, invoiceColumns: cleaned },
+      updatedAt: Date.now(),
+    });
+    return resolveInvoiceColumns(cleaned);
   },
 });
 

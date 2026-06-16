@@ -165,6 +165,13 @@ export interface CreateMemberProfileInput {
   primaryMemberId?: Id<"memberProfiles">;
   relationship?: "spouse" | "child" | "domestic_partner" | "other";
 
+  /** Employer / payroll audit fields (captured from eligibility files). */
+  ssn?: string;
+  monthlyPremiumCents?: number;
+  location?: string;
+  department?: string;
+  tierCode?: string;
+
   /** Optional staff assignment (for admin-assisted enrollment). */
   assignedStaffId?: Id<"adminUsers">;
   assignedStaffName?: string;
@@ -261,6 +268,11 @@ export async function createMemberProfile(
     memberRole: input.memberRole ?? "primary",
     primaryMemberId: input.primaryMemberId,
     relationship: input.relationship,
+    ssn: input.ssn,
+    monthlyPremiumCents: input.monthlyPremiumCents,
+    location: input.location,
+    department: input.department,
+    tierCode: input.tierCode,
     employeeType: input.employeeType,
     listBillStatus,
     leadType: input.leadType,

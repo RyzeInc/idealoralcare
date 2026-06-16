@@ -67,45 +67,49 @@ const TIER_LABELS: Record<string, string> = {
 };
 
 // ---------------------------------------------------------------------------
-// Configurable CSV export
+// Configurable invoice columns (printed table + CSV export)
+//
+// The set of parameters shown on a list-bill invoice is admin-configurable and
+// persisted per-group via api.admin.listBillInvoices.{getInvoiceColumns,
+// updateInvoiceColumns}. Each column key maps to a value getter here. To add a
+// new parameter: add it to INVOICE_COLUMN_REGISTRY in the backend and add a
+// getter below.
 // ---------------------------------------------------------------------------
 
-interface ColDef {
-  key: string;
-  label: string;
-  defaultOn: boolean;
-  sensitive?: boolean;
-  getValue: (inv: NonNullable<ReturnType<typeof useInvoice>>, l: any) => string;
+type InvoiceColumn = { key: string; label: string; enabled: boolean; sensitive?: boolean };
+
+const SENSITIVE_KEYS = new Set(['ssn']);
+
+const VALUE_GETTERS: Record<string, (inv: any, l: any) => string> = {
+  memberId: (_, l) => l.memberId ?? '',
+  groupMemberId: (_, l) => l.groupMemberId ?? '',
+  lastName: (_, l) => l.lastName ?? '',
+  firstName: (_, l) => l.firstName ?? '',
+  employeeName: (_, l) =>
+    l.lastName && l.firstName ? `${l.lastName}, ${l.firstName}` : (l.lastName ?? l.firstName ?? ''),
+  ssn: (_, l) => l.ssn ?? '',
+  companyName: (inv) => inv.groupName ?? '',
+  invoiceNumber: (inv) => inv.invoiceNumberDisplay ?? '',
+  coveragePeriod: (inv) => inv.coveragePeriod ?? '',
+  location: (_, l) => l.location ?? '',
+  department: (_, l) => l.department ?? '',
+  tier: (_, l) => l.tier ?? '',
+  tierCode: (_, l) => l.tierCode ?? '',
+  dependentCount: (_, l) => String(l.dependentCount ?? 0),
+  effectiveDate: (_, l) => l.effectiveDate ?? '',
+  rate: (_, l) => (l.rateCents != null ? (l.rateCents / 100).toFixed(2) : ''),
+};
+
+function getCell(inv: any, l: any, key: string): string {
+  const fn = VALUE_GETTERS[key];
+  return fn ? fn(inv, l) : '';
 }
 
-const EXPORT_COLUMNS: ColDef[] = [
-  { key: 'invoiceNumber',  label: 'Invoice #',            defaultOn: true,  getValue: (inv) => inv.invoiceNumberDisplay },
-  { key: 'groupName',      label: 'Group / Company',      defaultOn: true,  getValue: (inv) => inv.groupName },
-  { key: 'coveragePeriod', label: 'Coverage Period',      defaultOn: true,  getValue: (inv) => inv.coveragePeriod },
-  { key: 'memberId',       label: 'Member ID',            defaultOn: true,  getValue: (_, l) => l.memberId ?? '' },
-  { key: 'groupMemberId',  label: 'Employee #',           defaultOn: false, getValue: (_, l) => l.groupMemberId ?? '' },
-  { key: 'lastName',       label: 'Last Name',            defaultOn: true,  getValue: (_, l) => l.lastName ?? '' },
-  { key: 'firstName',      label: 'First Name',           defaultOn: true,  getValue: (_, l) => l.firstName ?? '' },
-  { key: 'employeeName',   label: 'Employee Name (Last, First)', defaultOn: false, getValue: (_, l) => l.lastName && l.firstName ? `${l.lastName}, ${l.firstName}` : (l.lastName ?? l.firstName ?? '') },
-  { key: 'ssn',            label: 'Employee SSN',         defaultOn: false, sensitive: true, getValue: (_, l) => l.ssn ?? '' },
-  { key: 'location',       label: 'Location',             defaultOn: false, getValue: (_, l) => l.location ?? '' },
-  { key: 'department',     label: 'Department',           defaultOn: false, getValue: (_, l) => l.department ?? '' },
-  { key: 'tier',           label: 'Tier',                 defaultOn: true,  getValue: (_, l) => l.tier ?? '' },
-  { key: 'dependentCount', label: 'Dependents',           defaultOn: true,  getValue: (_, l) => String(l.dependentCount ?? 0) },
-  { key: 'rate',           label: 'Rate',                 defaultOn: true,  getValue: (_, l) => l.rateCents != null ? (l.rateCents / 100).toFixed(2) : '' },
-  { key: 'effectiveDate',  label: 'Effective Date',       defaultOn: false, getValue: (_, l) => l.effectiveDate ?? '' },
-];
-
-const PRESET_STANDARD = EXPORT_COLUMNS.filter((c) => c.defaultOn).map((c) => c.key);
-const PRESET_TRUSTMARK = ['ssn', 'groupMemberId', 'employeeName', 'location', 'department', 'rate', 'effectiveDate'];
-
-function runExport(
-  inv: NonNullable<ReturnType<typeof useInvoice>>,
-  enabledKeys: string[],
-) {
-  const cols = EXPORT_COLUMNS.filter((c) => enabledKeys.includes(c.key));
+function runExport(inv: any, columns: InvoiceColumn[]) {
+  const cols = columns.filter((c) => c.enabled && VALUE_GETTERS[c.key]);
+  if (cols.length === 0) return;
   const header = cols.map((c) => c.label);
-  const rows = inv.lines.map((l: any) => cols.map((c) => c.getValue(inv, l)));
+  const rows = inv.lines.map((l: any) => cols.map((c) => getCell(inv, l, c.key)));
   const csv = [header, ...rows]
     .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
     .join('\n');
@@ -116,89 +120,124 @@ function runExport(
 }
 
 // ---------------------------------------------------------------------------
-// ExportColumnsModal
+// ManageColumnsModal — configure which parameters appear on this group's
+// list-bill invoice (printed table + CSV export). Changes can be downloaded
+// immediately and/or saved as the group's default.
 // ---------------------------------------------------------------------------
 
-function ExportColumnsModal({
+function ManageColumnsModal({
   inv,
   onClose,
 }: {
   inv: NonNullable<ReturnType<typeof useInvoice>>;
   onClose: () => void;
 }) {
-  const [enabled, setEnabled] = useState<string[]>(PRESET_STANDARD);
+  const toast = useToast();
+  const stored = useQuery(api.admin.listBillInvoices.getInvoiceColumns, { groupId: inv.groupId });
+  const save = useMutation(api.admin.listBillInvoices.updateInvoiceColumns);
+  const [cols, setCols] = useState<InvoiceColumn[] | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Initialize local editable copy once the stored config loads.
+  if (cols === null && stored) {
+    setCols(stored.map((c) => ({ ...c })));
+  }
+
+  const working = cols ?? [];
 
   const toggle = (key: string) =>
-    setEnabled((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    setCols((prev) =>
+      (prev ?? []).map((c) => (c.key === key ? { ...c, enabled: !c.enabled } : c)),
     );
+  const rename = (key: string, label: string) =>
+    setCols((prev) => (prev ?? []).map((c) => (c.key === key ? { ...c, label } : c)));
+  const move = (idx: number, dir: -1 | 1) =>
+    setCols((prev) => {
+      const next = [...(prev ?? [])];
+      const j = idx + dir;
+      if (j < 0 || j >= next.length) return next;
+      [next[idx], next[j]] = [next[j], next[idx]];
+      return next;
+    });
 
-  const hasSsn = enabled.includes('ssn');
+  const enabledCount = working.filter((c) => c.enabled).length;
+  const hasSsn = working.some((c) => c.key === 'ssn' && c.enabled);
+
+  async function handleSaveDefault() {
+    setSaving(true);
+    try {
+      await save({ groupId: inv.groupId, columns: working.map((c) => ({ key: c.key, label: c.label, enabled: c.enabled })) });
+      toast.success('Saved as group default');
+    } catch (e: unknown) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
-    <Modal open title="Configure CSV Export" onClose={onClose}>
+    <Modal open title="Configure Invoice Columns" onClose={onClose}>
       <div className="space-y-4 p-1">
-        {/* Presets */}
-        <div className="flex gap-2">
-          <span className="text-xs font-semibold text-slate-500 self-center">Presets:</span>
-          <button
-            onClick={() => setEnabled(PRESET_STANDARD)}
-            className="px-3 py-1 text-xs rounded border border-slate-300 hover:bg-slate-50"
-          >
-            Standard
-          </button>
-          <button
-            onClick={() => setEnabled(PRESET_TRUSTMARK)}
-            className="px-3 py-1 text-xs rounded border border-slate-300 hover:bg-slate-50"
-          >
-            Trustmark Format
-          </button>
-          <button
-            onClick={() => setEnabled(EXPORT_COLUMNS.map((c) => c.key))}
-            className="px-3 py-1 text-xs rounded border border-slate-300 hover:bg-slate-50"
-          >
-            All Columns
-          </button>
-        </div>
+        <p className="text-xs text-slate-500">
+          Choose which parameters appear on this employer&apos;s list-bill invoice and CSV export.
+          Toggle, rename, and reorder columns, then save as the group default or download a CSV now.
+        </p>
 
-        {/* Column checkboxes */}
-        <div className="grid grid-cols-2 gap-1.5">
-          {EXPORT_COLUMNS.map((col) => (
-            <label
-              key={col.key}
-              className="flex items-center gap-2 text-sm cursor-pointer rounded px-2 py-1.5 hover:bg-slate-50"
-            >
-              <input
-                type="checkbox"
-                checked={enabled.includes(col.key)}
-                onChange={() => toggle(col.key)}
-                className="rounded border-slate-300"
-              />
-              <span className={col.sensitive ? 'text-amber-700 font-medium' : 'text-slate-700'}>
-                {col.label}
-                {col.sensitive && ' ⚠'}
-              </span>
-            </label>
-          ))}
-        </div>
+        {!stored ? (
+          <div className="py-6 text-center text-sm text-slate-400">Loading columns…</div>
+        ) : (
+          <div className="border border-slate-200 rounded-lg divide-y divide-slate-100 max-h-[22rem] overflow-y-auto">
+            {working.map((col, idx) => (
+              <div key={col.key} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  checked={col.enabled}
+                  onChange={() => toggle(col.key)}
+                  className="rounded border-slate-300"
+                />
+                <input
+                  value={col.label}
+                  onChange={(e) => rename(col.key, e.target.value)}
+                  className={`flex-1 text-sm border border-transparent hover:border-slate-200 focus:border-slate-300 rounded px-1.5 py-1 ${
+                    col.sensitive ? 'text-amber-700 font-medium' : 'text-slate-700'
+                  }`}
+                />
+                {col.sensitive && <span title="Sensitive PII">⚠</span>}
+                <span className="text-[0.65rem] font-mono text-slate-300">{col.key}</span>
+                <div className="flex flex-col">
+                  <button onClick={() => move(idx, -1)} disabled={idx === 0} className="text-slate-400 hover:text-slate-700 disabled:opacity-20 leading-none">▲</button>
+                  <button onClick={() => move(idx, 1)} disabled={idx === working.length - 1} className="text-slate-400 hover:text-slate-700 disabled:opacity-20 leading-none">▼</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
-        {/* SSN warning */}
         {hasSsn && (
           <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800">
-            <strong>SSN included.</strong> This export will contain full Social Security Numbers.
-            Handle and store the file securely.
+            <strong>SSN included.</strong> The invoice and export will contain full Social Security
+            Numbers. Handle and store securely.
           </div>
         )}
 
         <div className="flex justify-between items-center pt-2">
-          <span className="text-xs text-slate-400">{enabled.length} column{enabled.length !== 1 ? 's' : ''} selected · {inv.lines.length} members</span>
+          <span className="text-xs text-slate-400">
+            {enabledCount} column{enabledCount !== 1 ? 's' : ''} enabled · {inv.lines.length} members
+          </span>
           <div className="flex gap-2">
             <button onClick={onClose} className="px-4 py-2 text-sm text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50">
-              Cancel
+              Close
             </button>
             <button
-              onClick={() => { runExport(inv, enabled); onClose(); }}
-              disabled={enabled.length === 0}
+              onClick={handleSaveDefault}
+              disabled={saving || enabledCount === 0}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-40"
+            >
+              <Settings2 size={13} /> {saving ? 'Saving…' : 'Save as Default'}
+            </button>
+            <button
+              onClick={() => runExport(inv, working)}
+              disabled={enabledCount === 0}
               className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-40"
             >
               <Download size={13} /> Download CSV
@@ -552,6 +591,13 @@ export default function InvoiceDetailPage({
 
   const inv = useInvoice(invId);
 
+  // Persisted, admin-configurable invoice columns for this group (drives the
+  // member-detail table + CSV export). Falls back to registry defaults.
+  const columnConfig = useQuery(
+    api.admin.listBillInvoices.getInvoiceColumns,
+    inv ? { groupId: inv.groupId } : 'skip',
+  );
+
   const [showIssue, setShowIssue] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [showAdjust, setShowAdjust] = useState(false);
@@ -693,7 +739,7 @@ export default function InvoiceDetailPage({
             className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
           >
             <Columns3 size={14} />
-            Export CSV
+            Columns / Export
           </button>
           <a
             href={`/api/admin/list-bill-invoices/${inv._id}/group-pdf`}
@@ -848,59 +894,93 @@ export default function InvoiceDetailPage({
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Member ID</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Last Name</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">First Name</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Tier</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Deps</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Rate</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Product</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {inv.lines.map((line: {
-                memberProfileId: string;
-                memberId: string;
-                lastName: string;
-                firstName: string;
-                tier: string;
-                dependentCount: number;
-                rateCents: number;
-                productLabel: string;
-              }) => (
-                <tr key={line.memberProfileId} className="hover:bg-slate-50">
-                  <td className="px-4 py-2.5 font-mono text-slate-600 text-xs">{line.memberId}</td>
-                  <td className="px-4 py-2.5 font-medium text-slate-800">{line.lastName}</td>
-                  <td className="px-4 py-2.5 text-slate-700">{line.firstName}</td>
-                  <td className="px-4 py-2.5">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-semibold bg-slate-100 text-slate-700">
-                      {line.tier}
-                    </span>
-                    <span className="ml-2 text-xs text-slate-400">{TIER_LABELS[line.tier]}</span>
-                  </td>
-                  <td className="px-4 py-2.5 text-right text-slate-600">{line.dependentCount}</td>
-                  <td className="px-4 py-2.5 text-right font-mono font-medium text-slate-800">
-                    {formatCurrency(line.rateCents, { fromCents: true })}
-                  </td>
-                  <td className="px-4 py-2.5 text-xs text-slate-500 max-w-[200px] truncate" title={line.productLabel}>
-                    {line.productLabel}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot className="bg-slate-50 border-t border-slate-200">
-              <tr>
-                <td colSpan={5} className="px-4 py-3 text-sm font-semibold text-slate-700">
-                  Subtotal
-                </td>
-                <td className="px-4 py-3 text-right font-mono font-semibold text-slate-800">
-                  {formatCurrency(inv.subtotalCents, { fromCents: true })}
-                </td>
-                <td />
-              </tr>
-            </tfoot>
+            {(() => {
+              const enabledCols = (columnConfig ?? []).filter(
+                (c: InvoiceColumn) => c.enabled && VALUE_GETTERS[c.key],
+              );
+              const numericKeys = new Set(['dependentCount', 'rate']);
+              const rateIdx = enabledCols.findIndex((c: InvoiceColumn) => c.key === 'rate');
+              return (
+                <>
+                  <thead className="bg-slate-50">
+                    <tr>
+                      {enabledCols.map((col: InvoiceColumn) => (
+                        <th
+                          key={col.key}
+                          className={`px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider ${
+                            numericKeys.has(col.key) ? 'text-right' : 'text-left'
+                          }`}
+                        >
+                          {col.label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {inv.lines.map((line: any) => (
+                      <tr key={line.memberProfileId} className="hover:bg-slate-50">
+                        {enabledCols.map((col: InvoiceColumn) => {
+                          if (col.key === 'tier') {
+                            return (
+                              <td key={col.key} className="px-4 py-2.5">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-semibold bg-slate-100 text-slate-700">
+                                  {line.tier}
+                                </span>
+                                <span className="ml-2 text-xs text-slate-400">{TIER_LABELS[line.tier]}</span>
+                              </td>
+                            );
+                          }
+                          if (col.key === 'rate') {
+                            return (
+                              <td key={col.key} className="px-4 py-2.5 text-right font-mono font-medium text-slate-800">
+                                {line.rateCents != null ? formatCurrency(line.rateCents, { fromCents: true }) : ''}
+                              </td>
+                            );
+                          }
+                          if (col.key === 'ssn') {
+                            return (
+                              <td key={col.key} className="px-4 py-2.5 font-mono text-amber-700 text-xs">
+                                {line.ssn ?? ''}
+                              </td>
+                            );
+                          }
+                          return (
+                            <td
+                              key={col.key}
+                              className={`px-4 py-2.5 text-slate-700 ${
+                                numericKeys.has(col.key) ? 'text-right' : ''
+                              } ${col.key === 'memberId' ? 'font-mono text-slate-600 text-xs' : ''} ${
+                                col.key === 'lastName' ? 'font-medium text-slate-800' : ''
+                              }`}
+                            >
+                              {getCell(inv, line, col.key)}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-slate-50 border-t border-slate-200">
+                    <tr>
+                      <td
+                        colSpan={rateIdx >= 0 ? rateIdx : enabledCols.length}
+                        className="px-4 py-3 text-sm font-semibold text-slate-700"
+                      >
+                        Subtotal
+                      </td>
+                      {rateIdx >= 0 && (
+                        <td className="px-4 py-3 text-right font-mono font-semibold text-slate-800">
+                          {formatCurrency(inv.subtotalCents, { fromCents: true })}
+                        </td>
+                      )}
+                      {rateIdx >= 0 && rateIdx < enabledCols.length - 1 && (
+                        <td colSpan={enabledCols.length - rateIdx - 1} />
+                      )}
+                    </tr>
+                  </tfoot>
+                </>
+              );
+            })()}
           </table>
         </div>
       </div>
@@ -940,7 +1020,7 @@ export default function InvoiceDetailPage({
         <EditDetailsModal inv={inv} onClose={() => setShowEdit(false)} />
       )}
       {showExport && inv && (
-        <ExportColumnsModal inv={inv} onClose={() => setShowExport(false)} />
+        <ManageColumnsModal inv={inv} onClose={() => setShowExport(false)} />
       )}
 
       {/* Audit history */}

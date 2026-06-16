@@ -913,6 +913,17 @@ export default defineSchema({
         effectiveFrom: v.optional(v.string()), // "YYYY-MM" — applies from this period onward
         rateLabel: v.optional(v.string()),     // e.g. "Financial Shield (List Bill)"
       })),
+      // Admin-configurable list-bill invoice columns. Controls which parameters
+      // appear on this group's generated list-bill invoice + CSV export. Admins
+      // can add/remove/reorder these dynamically (e.g. Soar wants Employee SSN,
+      // Employee Name, Company Name, and Monthly Premium). When omitted, a
+      // sensible default column set is used.
+      invoiceColumns: v.optional(v.array(v.object({
+        key: v.string(),                  // stable column identifier (e.g. "ssn", "rate", "employeeName")
+        label: v.string(),                // display/header label
+        enabled: v.boolean(),             // whether the column is shown
+        sensitive: v.optional(v.boolean()), // true = contains PII like SSN (shows a warning)
+      }))),
     })),
     
     // AUDIT
@@ -949,6 +960,8 @@ export default defineSchema({
     ssn: v.optional(v.string()),            // Social Security Number (for audit/list-bill reporting)
     location: v.optional(v.string()),       // Sub-location within employer (e.g. "Soar 2", "SOAR II")
     department: v.optional(v.string()),     // Department within location (e.g. "NA", "Kitchen")
+    monthlyPremiumCents: v.optional(v.number()), // Per-member monthly premium from the eligibility file (e.g. Soar "Approved EE Cost"). Overrides tier rate on list-bill invoices when set.
+    tierCode: v.optional(v.string()),       // Raw tier code from the eligibility file (e.g. "EMP", "ESP", "ECH")
     
     // PERSONAL INFORMATION
     title: v.optional(v.string()), // Mr, Mrs, Ms, etc.
@@ -1942,6 +1955,8 @@ export default defineSchema({
       department: v.optional(v.string()),
       effectiveDate: v.optional(v.string()),
       groupMemberId: v.optional(v.string()),
+      monthlyPremiumCents: v.optional(v.number()), // per-member premium captured from the eligibility file (source of rateCents when present)
+      tierCode: v.optional(v.string()),            // raw tier code from the eligibility file (e.g. "EMP", "ESP", "ECH")
     })),
 
     // ── HEAD COUNTS ───────────────────────────────────────────────────────
