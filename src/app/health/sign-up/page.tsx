@@ -93,13 +93,43 @@ function ClerkTicketSignUpForm({ ticket }: { ticket: string }) {
     if (!isLoaded || !signUp || !setActive) { setError("Loading. Please wait."); setIsLoading(false); return; }
     try {
       const result = await signUp.create({ strategy: "ticket", ticket, password });
+      console.log("Ticket signup result:", { status: result.status, emailAddress: result.emailAddress, createdUser: result.createdUser });
+      
       if (result.status === "complete") {
-        await setActive({ session: result.createdSessionId });
+        if (result.createdSessionId) {
+          await setActive({ session: result.createdSessionId });
+        }
         // After account creation with ticket, try to find the pending admin invite
         // and redirect to claim it; otherwise go to dashboard
-        const userEmail = result.emailAddress;
+        const userEmail = result.createdUser?.emailAddresses?.[0]?.emailAddress || result.emailAddress;
+        console.log("User email extracted:", userEmail);
+        
         if (userEmail) {
           try {
+            const inviteRes = await fetch(`/api/admin/get-invite-by-email?email=${encodeURIComponent(userEmail)}`);
+            if (inviteRes.ok) {
+              const inviteData = await inviteRes.json();
+              console.log("Invite lookup result:", inviteData);
+              if (inviteData?.token) {
+                router.push(`/health/claim-invite?token=${inviteData.token}&source=admin`);
+                return;
+              }
+            }
+          } catch (lookupErr) {
+            console.error("Invite lookup error:", lookupErr);
+            // If lookup fails, just go to dashboard
+          }
+        }
+        router.push("/health/dashboard");
+      } else if (result.status === "needs_verification" || result.status === "missing_requirements") {
+        // For ticket strategy, user info might already be verified; just activate the session
+        console.log("Signup status is", result.status, "- attempting to activate session");
+        try {
+          if (result.createdSessionId) {
+            await setActive({ session: result.createdSessionId });
+          }
+          const userEmail = result.createdUser?.emailAddresses?.[0]?.emailAddress || result.emailAddress;
+          if (userEmail) {
             const inviteRes = await fetch(`/api/admin/get-invite-by-email?email=${encodeURIComponent(userEmail)}`);
             if (inviteRes.ok) {
               const inviteData = await inviteRes.json();
@@ -108,15 +138,19 @@ function ClerkTicketSignUpForm({ ticket }: { ticket: string }) {
                 return;
               }
             }
-          } catch {
-            // If lookup fails, just go to dashboard
           }
+          router.push("/health/dashboard");
+        } catch (activateErr) {
+          console.error("Session activation error:", activateErr);
+          setError("Failed to activate session. Please try signing in.");
         }
-        router.push("/health/dashboard");
       } else {
-        setError("Account setup incomplete. Please try again.");
+        console.error("Signup not complete. Status:", result.status, "Full result:", result);
+        setError(`Account setup incomplete (${result.status}). Please try again.`);
       }
     } catch (err: any) {
+      console.error("Ticket signup error:", err);
+      console.error("Full error object:", JSON.stringify(err, null, 2));
       setError(err?.errors?.[0]?.message || "Failed to create account. The invite link may have expired.");
     } finally {
       setIsLoading(false);
