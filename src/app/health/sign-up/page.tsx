@@ -71,6 +71,128 @@ const blurStyle = (e: React.FocusEvent<HTMLInputElement>) => {
   e.currentTarget.style.backgroundColor = "#f8fafc";
 };
 
+/* ── Ticket-based sign-up (for Clerk invitation links) ───────────────────── */
+function ClerkTicketSignUpForm({ ticket }: { ticket: string }) {
+  const { signUp, isLoaded, setActive } = useSignUp();
+  const router = useRouter();
+
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => { if (error) window.scrollTo({ top: 0, behavior: "smooth" }); }, [error]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    if (password !== confirmPassword) { setError("Passwords do not match."); return; }
+    if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
+    setIsLoading(true);
+    if (!isLoaded || !signUp || !setActive) { setError("Loading. Please wait."); setIsLoading(false); return; }
+    try {
+      const result = await signUp.create({ strategy: "ticket", ticket, password });
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
+        // After account creation with ticket, try to find the pending admin invite
+        // and redirect to claim it; otherwise go to dashboard
+        const userEmail = result.emailAddress;
+        if (userEmail) {
+          try {
+            const inviteRes = await fetch(`/api/admin/get-invite-by-email?email=${encodeURIComponent(userEmail)}`);
+            if (inviteRes.ok) {
+              const inviteData = await inviteRes.json();
+              if (inviteData?.token) {
+                router.push(`/health/claim-invite?token=${inviteData.token}&source=admin`);
+                return;
+              }
+            }
+          } catch {
+            // If lookup fails, just go to dashboard
+          }
+        }
+        router.push("/health/dashboard");
+      } else {
+        setError("Account setup incomplete. Please try again.");
+      }
+    } catch (err: any) {
+      setError(err?.errors?.[0]?.message || "Failed to create account. The invite link may have expired.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const passwordStrength = password
+    ? password.length >= 12 ? "strong" : password.length >= 8 ? "good" : "weak"
+    : null;
+
+  return (
+    <div className="glass-card" style={{ padding: "2rem" }}>
+      {error && (
+        <div style={{ background: "#fee2e2", border: "1px solid #fecaca", borderRadius: "12px", padding: "1rem", marginBottom: "1.5rem", display: "flex", alignItems: "flex-start", gap: "1rem" }}>
+          <AlertCircle size={20} color="#991b1b" style={{ marginTop: "2px", flexShrink: 0 }} />
+          <p style={{ color: "#7f1d1d", margin: 0, fontSize: "0.95rem" }}>{error}</p>
+        </div>
+      )}
+      <p style={{ color: "#475569", marginBottom: "1.5rem", fontSize: "0.9375rem", lineHeight: 1.6 }}>
+        Your email address has been verified via your invite. Just set a password to complete your account.
+      </p>
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        <div>
+          <label htmlFor="ticket-password" style={{ display: "block", fontWeight: 600, color: "#0f172a", marginBottom: "0.5rem", fontSize: "0.95rem" }}>
+            Password <span style={{ color: "#ef4444" }}>*</span>
+          </label>
+          <div style={{ position: "relative" }}>
+            <Lock size={18} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b", pointerEvents: "none" }} />
+            <input id="ticket-password" type={showPassword ? "text" : "password"} value={password}
+              onChange={(e) => setPassword(e.target.value)} placeholder="Min. 8 characters"
+              disabled={isLoading} autoComplete="new-password" required
+              style={{ ...inputBase, padding: "0.75rem 2.75rem" }} onFocus={focusStyle} onBlur={blurStyle} />
+            <button type="button" onClick={() => setShowPassword(s => !s)}
+              style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#64748b", padding: "4px", display: "flex" }}>
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+          {password && (
+            <div style={{ marginTop: "0.5rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <div style={{ height: "4px", flex: 1, background: "#e2e8f0", borderRadius: "2px", overflow: "hidden" }}>
+                <div style={{ height: "100%", width: passwordStrength === "strong" ? "100%" : passwordStrength === "good" ? "66%" : "33%", background: passwordStrength === "strong" ? "#22c55e" : passwordStrength === "good" ? "#3b82f6" : "#ef4444", transition: "all 0.3s" }} />
+              </div>
+              <span style={{ fontSize: "0.75rem", fontWeight: 500, color: passwordStrength === "strong" ? "#22c55e" : passwordStrength === "good" ? "#3b82f6" : "#ef4444" }}>
+                {passwordStrength === "strong" ? "Strong" : passwordStrength === "good" ? "Good" : "Weak"}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor="ticket-confirmPassword" style={{ display: "block", fontWeight: 600, color: "#0f172a", marginBottom: "0.5rem", fontSize: "0.95rem" }}>
+            Confirm password <span style={{ color: "#ef4444" }}>*</span>
+          </label>
+          <div style={{ position: "relative" }}>
+            <Lock size={18} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b", pointerEvents: "none" }} />
+            <input id="ticket-confirmPassword" type={showPassword ? "text" : "password"} value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Re-enter password"
+              disabled={isLoading} autoComplete="new-password" required
+              style={{ ...inputBase, padding: "0.75rem 2.75rem", borderColor: confirmPassword && password === confirmPassword ? "#22c55e" : "#e2e8f0" }}
+              onFocus={focusStyle}
+              onBlur={(e) => { e.currentTarget.style.borderColor = confirmPassword && password === confirmPassword ? "#22c55e" : "#e2e8f0"; e.currentTarget.style.backgroundColor = "#f8fafc"; }} />
+            {confirmPassword && password === confirmPassword && (
+              <CheckCircle2 size={18} style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", color: "#22c55e", pointerEvents: "none" }} />
+            )}
+          </div>
+        </div>
+
+        <button type="submit" disabled={isLoading || !password || !confirmPassword}
+          style={{ padding: "0.875rem 1.5rem", background: isLoading || !password || !confirmPassword ? "#cbd5e1" : "#0066CC", color: "#fff", border: "none", borderRadius: "12px", fontWeight: 600, fontSize: "1rem", cursor: isLoading ? "wait" : "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
+          {isLoading ? <><Loader size={18} style={{ animation: "spin 1s linear infinite" }} /> Setting up account…</> : "Complete Account Setup"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 /* ── Standalone Clerk sign-up form (for already-enrolled portal access) ─── */
 type Step = "form" | "verify";
 
@@ -328,6 +450,7 @@ function GetStartedPage() {
   const searchParams = useSearchParams();
   const rawRedirect = searchParams.get("redirect_url");
   const redirectTo = rawRedirect && rawRedirect.startsWith("/") ? rawRedirect : "/health/dashboard";
+  const clerkTicket = searchParams.get("__clerk_ticket");
   const [showPortalForm, setShowPortalForm] = useState(false);
 
   const enrollHref = "/health/checkout";
@@ -338,6 +461,24 @@ function GetStartedPage() {
   return (
     <div className="health-landing">
       <HealthHeader />
+
+      {/* ── Clerk invitation ticket flow ── */}
+      {clerkTicket ? (
+        <section className="section bg--white" style={{ paddingTop: "3rem", paddingBottom: "4rem" }}>
+          <div className="container" style={{ maxWidth: "480px" }}>
+            <div style={{ marginBottom: "1.5rem" }}>
+              <h2 style={{ fontSize: "1.5rem", fontWeight: 700, color: "#0f172a", marginBottom: "0.5rem" }}>
+                Complete Your Account Setup
+              </h2>
+              <p style={{ color: "#475569", fontSize: "0.9375rem", margin: 0 }}>
+                You've been invited to Ideal Health Admin. Set a password to activate your account.
+              </p>
+            </div>
+            <ClerkTicketSignUpForm ticket={clerkTicket} />
+          </div>
+        </section>
+      ) : (
+        <>
 
       {/* ── Primary CTA ── */}
       <section className="section bg--white" style={{ paddingTop: "3rem", paddingBottom: "1.5rem" }}>
@@ -409,6 +550,9 @@ function GetStartedPage() {
           )}
         </div>
       </section>
+
+      </>
+      )}
 
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
