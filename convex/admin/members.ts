@@ -928,6 +928,7 @@ export const updateMemberProfile = mutation({
     ssn: v.optional(v.string()),
     location: v.optional(v.string()),
     department: v.optional(v.string()),
+    effectiveDate: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);

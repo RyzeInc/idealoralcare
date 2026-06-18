@@ -19,7 +19,7 @@ import {
   ChevronDown,
   ChevronsUpDown,
 } from 'lucide-react';
-import { Breadcrumbs, SkeletonTable, SkeletonCard, Modal, useToast } from '@/components/admin/ui';
+import { Breadcrumbs, SkeletonTable, SkeletonCard, Modal, useToast, Tooltip } from '@/components/admin/ui';
 import { formatCurrency, formatDateTime } from '@/lib/admin-format';
 
 // ---------------------------------------------------------------------------
@@ -107,6 +107,7 @@ function GenerateInvoiceModal({
 }) {
   const toast = useToast();
   const generateInvoice = useMutation(api.admin.listBillInvoices.generateInvoice);
+  const groups = useQuery(api.admin.billing.getListBillGroups) ?? [];
   const [groupId, setGroupId] = useState('');
   const [period, setPeriod] = useState(() => {
     const d = new Date();
@@ -141,29 +142,44 @@ function GenerateInvoiceModal({
   return (
     <Modal open title="Generate Invoice" onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4 p-1">
+        <p className="text-xs text-slate-500 -mt-1">
+          Creates a <strong>draft</strong> invoice for the selected employer group and coverage month.
+          Existing non-voided invoices for the same group + period are skipped.
+        </p>
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
-            Group ID
+            Employer Group
           </label>
-          <input
-            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            value={groupId}
-            onChange={(e) => setGroupId(e.target.value)}
-            placeholder="j57abc123..."
-            required
-          />
+          {groups.length === 0 ? (
+            <p className="text-xs text-slate-400">Loading groups…</p>
+          ) : (
+            <select
+              className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              value={groupId}
+              onChange={(e) => setGroupId(e.target.value)}
+              required
+            >
+              <option value="">Select a group…</option>
+              {groups.map((g: any) => (
+                <option key={g._id} value={g._id}>
+                  {g.name ?? g.slug} {g.groupCode ? `(${g.groupCode})` : ''}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
-            Coverage Period (YYYY-MM)
+            Coverage Month
           </label>
           <input
+            type="month"
             className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
-            pattern="\d{4}-\d{2}"
             required
           />
+          <p className="text-xs text-slate-400 mt-1">The month this invoice covers (e.g. 2026-07 for July 2026).</p>
         </div>
         <div className="flex justify-end gap-3 pt-2">
           <button
@@ -175,10 +191,10 @@ function GenerateInvoiceModal({
           </button>
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || !groupId}
             className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
           >
-            {submitting ? 'Generating…' : 'Generate'}
+            {submitting ? 'Generating…' : 'Generate Invoice'}
           </button>
         </div>
       </form>
@@ -348,20 +364,30 @@ export default function ListBillInvoicesPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => setShowGenerateAllModal(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
+          <Tooltip
+            text="Create draft invoices for ALL list-bill employer groups for next month in one click. Skips any group that already has a non-voided invoice for that period."
+            width="lg"
           >
-            <RefreshCw size={14} />
-            Generate All for {defaultNextPeriod}
-          </button>
-          <button
-            onClick={() => setShowGenerateModal(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+            <button
+              onClick={() => setShowGenerateAllModal(true)}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
+            >
+              <RefreshCw size={14} />
+              Generate All for {defaultNextPeriod}
+            </button>
+          </Tooltip>
+          <Tooltip
+            text="Create a single draft invoice for a specific employer group and coverage month. Use this for one-off or out-of-cycle invoices."
+            width="lg"
           >
-            <Plus size={14} />
-            Generate Invoice
-          </button>
+            <button
+              onClick={() => setShowGenerateModal(true)}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+            >
+              <Plus size={14} />
+              Generate Invoice
+            </button>
+          </Tooltip>
         </div>
       </div>
 
@@ -465,11 +491,27 @@ export default function ListBillInvoicesPage() {
                   <ThHeader label="Coverage" k="coveragePeriod" />
                   <ThHeader label="Members" k="memberCount" />
                   <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                    MO / MS / MF
+                    <Tooltip text="Member Only / Member + Spouse / Member + Family — the three coverage tiers billed at different rates." width="lg">
+                      <span className="cursor-help border-b border-dashed border-slate-400">MO / MS / MF</span>
+                    </Tooltip>
                   </th>
                   <ThHeader label="Total" k="totalCents" />
-                  <ThHeader label="Balance" k="balanceCents" />
-                  <ThHeader label="Status" k="status" />
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer select-none hover:text-slate-700" onClick={() => handleSort('balanceCents')}>
+                    <span className="flex items-center gap-1">
+                      <Tooltip text="Amount still owed. Turns red when unpaid. Zero means paid in full.">
+                        <span className="cursor-help border-b border-dashed border-slate-400">Balance</span>
+                      </Tooltip>
+                      <SortIcon active={sortKey === 'balanceCents'} dir={sortDir} />
+                    </span>
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer select-none hover:text-slate-700" onClick={() => handleSort('status')}>
+                    <span className="flex items-center gap-1">
+                      <Tooltip text="Draft → Issued → Paid / Partial / Overdue. Voided invoices are replaced." width="lg">
+                        <span className="cursor-help border-b border-dashed border-slate-400">Status</span>
+                      </Tooltip>
+                      <SortIcon active={sortKey === 'status'} dir={sortDir} />
+                    </span>
+                  </th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     Actions
                   </th>

@@ -9,3 +9,4 @@ export type { Crumb } from './Breadcrumbs';
 export { RequiredMark, FieldLabel } from './RequiredMark';
 export { Modal } from './Modal';
 export type { ModalProps } from './Modal';
+export { Tooltip } from './Tooltip';
