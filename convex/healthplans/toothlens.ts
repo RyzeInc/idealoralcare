@@ -526,6 +526,7 @@ export const recordScanCompletedWebhook = mutation({
     completedAtMs: v.optional(v.number()),
     reportUrl: v.optional(v.string()),
     findings: v.optional(v.any()),
+    s3Key: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ matched: boolean; scanId?: Id<"toothlensScans"> }> => {
     const scan = await ctx.db
@@ -551,8 +552,11 @@ export const recordScanCompletedWebhook = mutation({
     const patch: Partial<Doc<"toothlensScans">> = {
       status: normalizedStatus,
       completedAt: args.completedAtMs ?? Date.now(),
+      callbackReceivedAt: Date.now(),
     };
     if (args.reportUrl) patch.reportUrl = args.reportUrl;
+    if (args.s3Key) patch.s3Key = args.s3Key;
+    if (args.findings !== undefined) patch.findings = args.findings;
 
     await ctx.db.patch(scan._id, patch);
     return { matched: true, scanId: scan._id };

@@ -1314,6 +1314,7 @@ export default defineSchema({
     siteId: v.id("sites"),
     accountId: v.optional(v.id("accounts")),
     groupId: v.id("groups"),
+    sourceDate: v.optional(v.string()),
     
     fileName: v.string(),
     storageId: v.optional(v.string()), // Storage ID from Convex _storage
@@ -1562,11 +1563,15 @@ export default defineSchema({
       v.literal("abandoned")   // User exited without completing
     ),
     scanUrl: v.optional(v.string()),        // Full selfcheck URL (kept for audit; never re-embedded)
-    reportUrl: v.optional(v.string()),      // Direct report/PDF URL captured via postMessage
+    reportUrl: v.optional(v.string()),      // Direct report/PDF URL captured via postMessage or AI report URL
     forwardedToTeledentist: v.optional(v.boolean()),
     forwardedAt: v.optional(v.number()),
     startedAt: v.number(),
     completedAt: v.optional(v.number()),
+    // Populated by the Toothlens completion callback
+    s3Key: v.optional(v.string()),          // S3 object key for reconciliation
+    findings: v.optional(v.any()),          // Optional AI scores/metadata payload
+    callbackReceivedAt: v.optional(v.number()),
   })
     .index("by_clerk_user", ["clerkUserId"])
     .index("by_session", ["sessionId"])

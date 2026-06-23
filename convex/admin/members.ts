@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { requireAdmin, requireAdminAction } from "../lib/authGuards";
 import { recordAdminAction } from "./adminAudit";
 import { createMemberProfile } from "../lib/memberCreation";
+import * as unifiedData from "./unifiedData";
 // @ts-ignore - Type instantiation too deep
 import { api as apiOriginal } from "../_generated/api";
 
@@ -16,81 +17,39 @@ const getApi = () => {
  * 
  * Queries and mutations for viewing, searching, and managing member profiles.
  * Leverages existing functions from convex/enrollment/members.ts
+ * 
+ * NOTE: Read queries (getAllMembers, etc.) delegate to unifiedData for
+ * consistency across all admin tabs.
  */
 
 /**
  * Get all members across all groups (paginated — max 500)
+ * Delegates to unifiedData for consistent enrichment across all admin tabs.
  */
 export const getAllMembers = query({
   args: {
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const limit = Math.min(args.limit ?? 500, 500);
-    const members = await ctx.db.query("memberProfiles").order("asc").take(limit);
-
-    // Build a customerId → bundle map (single scan vs N+1 lookups)
-    const allBundles = await ctx.db.query("subscriptionBundles").collect();
-    const bundleByCustomer = new Map<string, any>();
-    for (const b of allBundles) {
-      // Prefer the active bundle for a given customer; fall back to most recent
-      const existing = bundleByCustomer.get(b.customerId);
-      if (!existing || b.status === "active" || (b._creationTime ?? 0) > (existing._creationTime ?? 0)) {
-        bundleByCustomer.set(b.customerId, b);
-      }
-    }
-
-    // Build a groupId → group map for organizationCode/name (single scan)
-    const allGroups = await ctx.db.query("groups").collect();
-    const groupById = new Map<string, any>();
-    for (const g of allGroups) groupById.set(g._id, g);
-
-    // Clerk-free rep attribution: derive each member's rep from their enrollment
-    // session (the canonical sale record). Build memberId → attribution once.
-    const allSessions = await ctx.db.query("enrollmentSessions").collect();
-    const leaders = await ctx.db.query("partnerLeaders").collect();
-    const leaderById = new Map<string, any>(leaders.map((l) => [l._id as string, l]));
-    const partners = await ctx.db.query("distributionPartners").collect();
-    const partnerById = new Map<string, any>(partners.map((p) => [p._id as string, p]));
-
-    const attributionByMember = new Map<string, any>();
-    for (const s of allSessions) {
-      if (!s.memberId) continue;
-      if (!s.brokerId && !s.brokerTrackingCode) continue;
-      const existing = attributionByMember.get(s.memberId as string);
-      // Prefer a completed session, otherwise the most recent.
-      const better =
-        !existing ||
-        (s.status === "completed" && existing.status !== "completed") ||
-        (s.status === existing.status && (s.createdAt ?? 0) > (existing.createdAt ?? 0));
-      if (better) attributionByMember.set(s.memberId as string, s);
-    }
-
-    return members.map((m) => {
-      const bundle = m.customerId ? bundleByCustomer.get(m.customerId) : null;
-      const group = m.groupId ? groupById.get(m.groupId) : null;
-      const session = attributionByMember.get(m._id as string);
-      const leader = session?.brokerId ? leaderById.get(session.brokerId) : null;
-      const agency = session?.agencyId
-        ? partnerById.get(session.agencyId)
-        : leader?.partnerId
-        ? partnerById.get(leader.partnerId)
-        : null;
-      return {
-        ...m,
-        subscriptionStatus: bundle?.status ?? null,
-        subscriptionCadence: bundle?.cadence ?? null,
-        pendingDowngrade: bundle?.pendingDowngrade ?? null,
-        organizationCode: group?.organizationCode ?? null,
-        organizationName: group?.name ?? group?.slug ?? null,
-        // Rep attribution (Clerk-free; null when there is no rep)
-        attributedRepCode: session?.brokerTrackingCode ?? null,
-        attributedRepId: session?.brokerId ?? null,
-        attributedRepName: leader?.name ?? null,
-        attributedAgencyId: agency?._id ?? null,
-        attributedAgencyName: agency?.name ?? null,
-      };
+    await requireAdmin(ctx);
+    const enrichedMembers = await unifiedData.getAllMembersEnriched(ctx, {
+      limit: args.limit ?? 500,
     });
+
+    return enrichedMembers.map((m) => ({
+      ...m,
+      subscriptionStatus: m._subscription?.status ?? null,
+      subscriptionCadence: m._subscription?.cadence ?? null,
+      pendingDowngrade: m._subscription?.pendingDowngrade ?? null,
+      organizationCode: m._group?.organizationCode ?? null,
+      organizationName: m._group?.name ?? m._group?.slug ?? null,
+      // Rep attribution (Clerk-free; null when there is no rep)
+      attributedRepCode: m._enrollment?.brokerTrackingCode ?? null,
+      attributedRepId: m._enrollment?.brokerId ?? null,
+      attributedRepName: m._broker?.name ?? null,
+      attributedAgencyId: m._agency?._id ?? null,
+      attributedAgencyName: m._agency?.name ?? null,
+    }));
   },
 });
 

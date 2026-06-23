@@ -16,10 +16,8 @@ export default function AuditLogPage() {
   const [actorFilter, setActorFilter] = useState<string>('');
   const [limit, setLimit] = useState<number>(100);
 
-  const entriesRaw = useQuery(api.admin.adminAudit.listRecent, {
+  const entriesRaw = useQuery(api.admin.unifiedData.getRecentAuditTrailQuery, {
     limit,
-    action: actionFilter || undefined,
-    actorClerkUserId: actorFilter || undefined,
   });
   const entries = entriesRaw ?? [];
   const isLoading = entriesRaw === undefined;

@@ -96,6 +96,7 @@ export const uploadEligibilityFile = mutation({
     storageId: v.string(), // ID from Convex _storage
     fileType: v.union(v.literal("csv"), v.literal("xlsx"), v.literal("json"), v.literal("txt")),
     fileAction: v.union(v.literal("full_replace"), v.literal("additions"), v.literal("terminations"), v.literal("delta")),
+    sourceDate: v.string(),
     uploadedBy: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -104,6 +105,7 @@ export const uploadEligibilityFile = mutation({
       siteId: args.siteId,
       accountId: args.accountId,
       groupId: args.groupId,
+      sourceDate: args.sourceDate,
       fileName: args.fileName,
       storageId: args.storageId,
       fileType: args.fileType,
@@ -1094,6 +1096,7 @@ export const processEligibilityFile = action({
           siteId: file.siteId,
           accountId: resolvedAccountId,
           groupId: file.groupId,
+          sourceDate: file.sourceDate,
           records: serializedRecords,
           batchIndex: batchIdx,
           totalBatches,
@@ -1498,6 +1501,7 @@ export const internalBatchCreateMembers = internalMutation({
     siteId: v.id("sites"),
     accountId: v.id("accounts"),
     groupId: v.id("groups"),
+    sourceDate: v.optional(v.string()),
     records: v.array(
       v.object({
         title: v.string(),

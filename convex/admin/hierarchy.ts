@@ -1,12 +1,16 @@
 import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
 import { requireAdmin } from "../lib/authGuards";
+import * as unifiedData from "./unifiedData";
 
 /**
  * ADMIN HIERARCHY MANAGEMENT
  * 
  * CRUD operations for sites, accounts, and groups.
  * Follows the admin pattern: getAll / getById / getBySlug / create / update / remove / toggleVisibility
+ * 
+ * NOTE: Hierarchy read queries (getSites, getAllAccounts, getAllGroups) delegate to
+ * unifiedData.getHierarchy() to ensure consistency across all admin tabs.
  */
 
 // ============================================================================
@@ -128,14 +132,18 @@ export const removeSite = mutation({
 // Get all accounts across all sites
 export const getAllAccounts = query({
   handler: async (ctx) => {
-    return await ctx.db.query("accounts").order("asc").collect();
+    await requireAdmin(ctx);
+    const hierarchyData = await unifiedData.getHierarchy(ctx, {});
+    return hierarchyData.accounts;
   },
 });
 
 // Get all groups across all accounts
 export const getAllGroups = query({
   handler: async (ctx) => {
-    return await ctx.db.query("groups").order("asc").collect();
+    await requireAdmin(ctx);
+    const hierarchyData = await unifiedData.getHierarchy(ctx, {});
+    return hierarchyData.groups;
   },
 });
 

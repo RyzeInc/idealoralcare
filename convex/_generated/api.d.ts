@@ -35,6 +35,7 @@ import type * as admin_seedNewIdeal from "../admin/seedNewIdeal.js";
 import type * as admin_sftpDelivery from "../admin/sftpDelivery.js";
 import type * as admin_siteSettings from "../admin/siteSettings.js";
 import type * as admin_teamMembers from "../admin/teamMembers.js";
+import type * as admin_unifiedData from "../admin/unifiedData.js";
 import type * as admin_userAudit from "../admin/userAudit.js";
 import type * as admin_vendorFiles from "../admin/vendorFiles.js";
 import type * as admin_ventures from "../admin/ventures.js";
@@ -121,6 +122,7 @@ declare const fullApi: ApiFromModules<{
   "admin/sftpDelivery": typeof admin_sftpDelivery;
   "admin/siteSettings": typeof admin_siteSettings;
   "admin/teamMembers": typeof admin_teamMembers;
+  "admin/unifiedData": typeof admin_unifiedData;
   "admin/userAudit": typeof admin_userAudit;
   "admin/vendorFiles": typeof admin_vendorFiles;
   "admin/ventures": typeof admin_ventures;

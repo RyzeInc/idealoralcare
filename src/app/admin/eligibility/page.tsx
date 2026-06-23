@@ -13,6 +13,12 @@ type FileExt = 'csv' | 'xlsx' | 'txt' | 'json';
 const LS_GROUP_KEY = 'eligibility:lastGroupId';
 const LS_ACTION_KEY = 'eligibility:lastFileAction';
 
+function extractSourceDateFromFilename(fileName: string): string {
+  const match = fileName.match(/(\d{8})/);
+  if (match) return match[1];
+  return new Date().toISOString().slice(0, 10).replace(/-/g, '');
+}
+
 export default function EligibilityUploadPage() {
   const toast = useToast();
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -133,6 +139,7 @@ export default function EligibilityUploadPage() {
         storageId: pendingStorageId,
         fileType: pendingFileType,
         fileAction,
+        sourceDate: extractSourceDateFromFilename(selectedFile.name),
       });
       if (record?._id) {
         await processFile({ fileId: record._id });
@@ -331,6 +338,7 @@ export default function EligibilityUploadPage() {
         storageId,
         fileType: fileExt,
         fileAction,
+        sourceDate: extractSourceDateFromFilename(selectedFile.name),
       });
 
       // 4. Trigger processing

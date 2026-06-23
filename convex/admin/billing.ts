@@ -3,6 +3,7 @@ import { v } from "convex/values";
 // @ts-ignore - Type instantiation too deep
 import { api as apiOriginal } from "../_generated/api";
 import { requireAdmin, requireAdminAction } from "../lib/authGuards";
+import * as unifiedData from "./unifiedData";
 
 const getApi = () => {
   // @ts-ignore - Type instantiation too deep
@@ -14,102 +15,38 @@ const getApi = () => {
  *
  * Generate billing summaries for E123 import.
  * No invoice payment collection — just the data feed E123 needs.
+ * 
+ * NOTE: Billing read queries delegate to unifiedData.getBillingData()
+ * to ensure consistency with all other admin tabs.
  */
 
 /**
  * Get billing summaries for all groups
- * Cross-references subscriptionBundles to distinguish paid vs free members
+ * Delegates to unifiedData for consistent billing calculations
  */
 export const getAllGroupBillingSummaries = query({
   handler: async (ctx) => {
-    const groups = await ctx.db.query("groups").collect();
-    const allBundles = await ctx.db.query("subscriptionBundles").collect();
+    await requireAdmin(ctx);
+    const billingData = await unifiedData.getBillingData(ctx, {});
 
-    // Build a set of customerIds with paid active subscriptions (totalCents > 0),
-    // and a separate set of customerIds with a pendingDowngrade scheduled.
-    const paidCustomerIds = new Set<string>();
-    const pendingDowngradeCustomerIds = new Set<string>();
-    for (const bundle of allBundles) {
-      if (
-        bundle.status === "active" &&
-        bundle.pricingSnapshot?.totalCents > 0
-      ) {
-        paidCustomerIds.add(bundle.customerId);
-      }
-      if (bundle.pendingDowngrade) {
-        pendingDowngradeCustomerIds.add(bundle.customerId);
-      }
-    }
-
-    const summaries = [];
-    const DEFAULT_RATE = 15.0;
-
-    for (const group of groups) {
-      // Look up billing rate: account.billingDetails.perMemberRateCents, else default
-      const account = await ctx.db.get(group.accountId);
-      const rateFromAccount = (account as any)?.billingDetails?.perMemberRateCents;
-      const PAID_RATE = rateFromAccount ? rateFromAccount / 100 : DEFAULT_RATE;
-      const isListBillGroup = group.listBill?.enabled === true;
-
-      const members = await ctx.db
-        .query("memberProfiles")
-        .filter(
-          (q) =>
-            q.and(
-              q.eq(q.field("groupId"), group._id),
-              q.eq(q.field("memberType"), "active")
-            )
-        )
-        .collect();
-
-      let paidCount = 0;
-      let listBillCount = 0;
-      let freeCount = 0;
-      let pendingDowngradeCount = 0;
-
-      for (const member of members) {
-        const hasPaidBundle =
-          member.customerId && paidCustomerIds.has(member.customerId);
-        if (hasPaidBundle) {
-          paidCount++;
-        } else if (
-          isListBillGroup &&
-          (!member.listBillStatus || member.listBillStatus === "active")
-        ) {
-          listBillCount++;
-        } else {
-          freeCount++;
-        }
-        if (member.customerId && pendingDowngradeCustomerIds.has(member.customerId)) {
-          pendingDowngradeCount++;
-        }
-      }
-
-      // Billable revenue we collect through Stripe (E123 import). List-bill
-      // members are billed via list-bill invoice and tracked separately.
-      const totalAmount = paidCount * PAID_RATE;
-
-      summaries.push({
-        groupId: group._id,
-        accountId: group.accountId,
-        organizationName: (group as any).name ?? group.slug,
-        organizationCode: (group as any).organizationCode ?? null,
-        providerGroupCode: group.groupCode,
-        // Backwards-compatible aliases (consumers should migrate):
-        groupName: (group as any).name ?? group.slug,
-        groupCode: group.groupCode,
-        isListBill: isListBillGroup,
-        memberCount: members.length,
-        paidCount,
-        listBillCount,
-        freeCount,
-        pendingDowngradeCount,
-        ratePerMember: PAID_RATE,
-        totalAmount,
-      });
-    }
-
-    return summaries;
+    return billingData.groupSummaries.map((summary) => ({
+      groupId: summary.groupId,
+      accountId: summary.accountId,
+      organizationName: summary.groupName,
+      organizationCode: summary.organizationCode,
+      providerGroupCode: summary.groupCode,
+      // Backwards-compatible aliases (consumers should migrate):
+      groupName: summary.groupName,
+      groupCode: summary.groupCode,
+      isListBill: summary.isListBill,
+      memberCount: summary.memberCounts.total,
+      paidCount: summary.memberCounts.paid,
+      listBillCount: 0, // Deprecated - use memberCounts instead
+      freeCount: summary.memberCounts.free,
+      pendingDowngradeCount: summary.memberCounts.pendingDowngrade,
+      ratePerMember: summary.revenue.perMemberRate,
+      totalAmount: summary.revenue.paidTotal,
+    }));
   },
 });
 
