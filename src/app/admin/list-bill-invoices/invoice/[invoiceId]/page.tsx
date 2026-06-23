@@ -111,7 +111,7 @@ function runExport(inv: any, columns: InvoiceColumn[]) {
   const header = cols.map((c) => c.label);
   const rows = inv.lines.map((l: any) => cols.map((c) => getCell(inv, l, c.key)));
   const csv = [header, ...rows]
-    .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
+    .map((r) => r.map((c: unknown) => `"${String(c).replace(/"/g, '""')}"`).join(','))
     .join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
