@@ -752,6 +752,17 @@ function CheckoutContent() {
       setCheckoutLoading(true);
       setCheckoutError(null);
 
+      // Forward the profile collected during the signup wizard (DOB, gender,
+      // phone, address) so the webhook can persist it onto the member record.
+      // Without this, those census fields are silently dropped after payment.
+      let memberProfile: unknown = undefined;
+      try {
+        const stored = sessionStorage.getItem("careington_profile");
+        if (stored) memberProfile = JSON.parse(stored);
+      } catch {
+        // Ignore unavailable or malformed sessionStorage — checkout still proceeds.
+      }
+
       const response = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -760,6 +771,7 @@ function CheckoutContent() {
           cadence: cart.cadence,
           paymentMethod: cart.paymentMethod,
           referralCode: cart.referralCode || undefined,
+          ...(memberProfile ? { memberProfile } : {}),
         }),
       });
 

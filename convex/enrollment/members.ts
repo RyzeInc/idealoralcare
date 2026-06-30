@@ -700,3 +700,89 @@ export const getMemberByCustomerId = query({
       .first();
   },
 });
+
+/**
+ * Get the authenticated user's own member profile.
+ * Used by the dashboard profile-completion prompt to detect missing fields.
+ * Returns null if the signed-in user has no member profile yet.
+ */
+export const getMyProfile = query({
+  args: {},
+  handler: async (ctx: QueryCtx) => {
+    const identity = await requireAuth(ctx);
+    return await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_customer", (q: any) => q.eq("customerId", identity.clerkUserId))
+      .first();
+  },
+});
+
+/**
+ * Self-service profile completion.
+ * Lets the authenticated member fill in their own missing census fields
+ * (last name, DOB, gender, phone, address). Only patches provided values —
+ * never clears existing data. Secured by Clerk identity: a user can only
+ * update the profile linked to their own customerId.
+ */
+export const completeMyProfile = mutation({
+  args: {
+    firstName: v.optional(v.string()),
+    lastName: v.optional(v.string()),
+    dateOfBirth: v.optional(v.string()), // ISO "YYYY-MM-DD"
+    gender: v.optional(
+      v.union(
+        v.literal("male"),
+        v.literal("female"),
+        v.literal("non_binary"),
+        v.literal("prefer_not_to_say"),
+        v.literal("other")
+      )
+    ),
+    phone: v.optional(v.string()),
+    address: v.optional(
+      v.object({
+        line1: v.string(),
+        line2: v.optional(v.string()),
+        city: v.string(),
+        state: v.string(),
+        postalCode: v.string(),
+        country: v.string(),
+      })
+    ),
+  },
+  handler: async (ctx: MutationCtx, args: any) => {
+    const identity = await requireAuth(ctx);
+
+    const profile = await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_customer", (q: any) => q.eq("customerId", identity.clerkUserId))
+      .first();
+    if (!profile) {
+      throw new Error("No member profile found for the current user");
+    }
+
+    const updates: Record<string, unknown> = { updatedAt: Date.now() };
+    if (args.firstName?.trim()) updates.firstName = args.firstName.trim();
+    if (args.lastName?.trim()) updates.lastName = args.lastName.trim();
+    if (args.dateOfBirth) updates.dateOfBirth = args.dateOfBirth;
+    if (args.gender) updates.gender = args.gender;
+    if (args.phone?.trim()) updates.phone = args.phone.trim();
+    if (args.address) updates.address = args.address;
+
+    await ctx.db.patch(profile._id, updates);
+
+    await ctx.db.insert("memberActivities", {
+      memberProfileId: profile._id,
+      siteId: (profile as any).siteId,
+      groupId: (profile as any).groupId,
+      activityType: "profile_updated",
+      title: "Profile completed by member",
+      description: "Member verified and completed their profile information",
+      actorType: "member",
+      actorId: identity.clerkUserId,
+      createdAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});

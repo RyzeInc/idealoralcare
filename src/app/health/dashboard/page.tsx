@@ -3,6 +3,7 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import HealthHeader from "@/components/health/HealthHeader";
 import DashboardTabs from "@/components/health/DashboardTabs";
+import ProfileCompletionPrompt from "@/components/health/ProfileCompletionPrompt";
 import "@/app/health/health.css";
 
 /**
@@ -99,6 +100,9 @@ export default async function DashboardPage() {
   return (
     <div className="health-landing">
       <HealthHeader />
+
+      {/* Prompts the member to verify/complete missing census fields */}
+      <ProfileCompletionPrompt />
 
       {/* Main Dashboard Content */}
       <section className="section bg--white dashboard-section" style={{ paddingTop: "2rem", paddingBottom: "3rem" }}>
