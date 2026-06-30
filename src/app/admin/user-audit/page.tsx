@@ -2,14 +2,15 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { useQuery } from 'convex/react';
+import { useQuery, useMutation } from 'convex/react';
+import type { Id } from '@/convex/_generated/dataModel';
 import { api } from '@/convex/_generated/api';
 import { Breadcrumbs, StatusBadge } from '@/components/admin/ui';
 import {
   Users, Search, AlertTriangle, CheckCircle2, ExternalLink,
   Loader, Filter, Download, ScanLine, ShieldCheck, CreditCard,
   Building2, Database, CloudOff, Layers, UserCheck,
-  ChevronDown, ChevronUp, RefreshCw,
+  ChevronDown, ChevronUp, RefreshCw, Pencil, Trash2, Save, X, Eye, EyeOff, ChevronsUpDown,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -252,24 +253,93 @@ export default function UserAuditPage() {
   // ── Filters ──────────────────────────────────────────────────────────────────
   const [search, setSearch] = useState('');
   const [presenceFilter, setPresenceFilter] = useState<PresenceFilter>('all');
+  const [showTerminated, setShowTerminated] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [subFilter, setSubFilter] = useState<string>('all');
+  const [toothlensFilter, setToothlensFilter] = useState<string>('all');
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
+
+  // ── Sorting ──────────────────────────────────────────────────────────────────
+  type SortKey = 'name' | 'presence' | 'memberId' | 'memberType' | 'toothlens' | 'subscription' | 'census';
+  const [sortKey, setSortKey] = useState<SortKey>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  };
+
+  const terminatedCount = useMemo(
+    () => unified.filter((u) => u.memberType === 'terminated').length,
+    [unified]
+  );
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return unified.filter((u) => {
+      // Hide terminated members unless explicitly shown
+      if (!showTerminated && u.memberType === 'terminated') return false;
       if (q) {
         const name = `${u.memberFirstName ?? ''} ${u.memberLastName ?? ''} ${u.clerkName ?? ''}`.toLowerCase();
         const email = `${u.memberEmail ?? ''} ${u.clerkEmail ?? ''}`.toLowerCase();
         const ids = `${u.memberId ?? ''} ${u.clerkId ?? ''} ${u.careingtonUniqueId ?? ''}`.toLowerCase();
         if (!name.includes(q) && !email.includes(q) && !ids.includes(q)) return false;
       }
+      // Member status filter
+      if (statusFilter !== 'all' && (u.memberType ?? '') !== statusFilter) return false;
+      // Subscription filter
+      if (subFilter === 'none') {
+        if (u.subscriptionStatus) return false;
+      } else if (subFilter !== 'all') {
+        if ((u.subscriptionStatus ?? '') !== subFilter) return false;
+      }
+      // Toothlens filter
+      if (toothlensFilter === 'has' && !u.hasToothlens) return false;
+      if (toothlensFilter === 'none' && u.hasToothlens) return false;
+      // Presence / data-quality filter
       if (presenceFilter === 'all') return true;
       if (presenceFilter === 'missing-census') return u.missingFields.length > 0;
       if (presenceFilter === 'has-toothlens') return u.hasToothlens;
       if (presenceFilter === 'no-toothlens') return !u.hasToothlens && !!u.memberProfileId;
       return u.presence === presenceFilter;
     });
-  }, [unified, search, presenceFilter]);
+  }, [unified, search, presenceFilter, showTerminated, statusFilter, subFilter, toothlensFilter]);
+
+  const sorted = useMemo(() => {
+    const dir = sortDir === 'asc' ? 1 : -1;
+    const valueFor = (u: UnifiedUser): string | number => {
+      switch (sortKey) {
+        case 'name':
+          return (u.memberFirstName
+            ? `${u.memberFirstName} ${u.memberLastName ?? ''}`
+            : u.clerkName || u.clerkEmail || '').trim().toLowerCase();
+        case 'presence':
+          return u.presence;
+        case 'memberId':
+          return (u.memberId ?? '').toLowerCase();
+        case 'memberType':
+          return (u.memberType ?? '').toLowerCase();
+        case 'toothlens':
+          return u.hasToothlens ? (u.toothlensScans ?? 0) : -1;
+        case 'subscription':
+          return (u.subscriptionStatus ?? '').toLowerCase();
+        case 'census':
+          return u.memberProfileId ? u.missingFields.length : -1;
+        default:
+          return '';
+      }
+    };
+    return [...filtered].sort((a, b) => {
+      const av = valueFor(a);
+      const bv = valueFor(b);
+      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+      return String(av) < String(bv) ? -1 * dir : String(av) > String(bv) ? 1 * dir : 0;
+    });
+  }, [filtered, sortKey, sortDir]);
 
   // ── Stats ─────────────────────────────────────────────────────────────────────
   const stats = useMemo(() => ({
@@ -281,6 +351,31 @@ export default function UserAuditPage() {
     missingCensus: unified.filter((u) => u.missingFields.length > 0).length,
     hasToothlens: unified.filter((u) => u.hasToothlens).length,
   }), [unified]);
+
+  // Distinct values present in the data, for the filter dropdowns
+  const memberStatusOptions = useMemo(
+    () => Array.from(new Set(unified.map((u) => u.memberType).filter(Boolean))).sort() as string[],
+    [unified]
+  );
+  const subStatusOptions = useMemo(
+    () => Array.from(new Set(unified.map((u) => u.subscriptionStatus).filter(Boolean))).sort() as string[],
+    [unified]
+  );
+
+  const anyFilterActive =
+    !!search ||
+    presenceFilter !== 'all' ||
+    statusFilter !== 'all' ||
+    subFilter !== 'all' ||
+    toothlensFilter !== 'all';
+
+  const clearAllFilters = () => {
+    setSearch('');
+    setPresenceFilter('all');
+    setStatusFilter('all');
+    setSubFilter('all');
+    setToothlensFilter('all');
+  };
 
   // ── CSV column picker ──────────────────────────────────────────────────────
   const AUDIT_COLUMNS: { key: string; label: string; defaultOn: boolean; sensitive?: boolean; get: (u: UnifiedUser) => string }[] = [
@@ -323,7 +418,7 @@ export default function UserAuditPage() {
   const runExportCSV = () => {
     const cols = AUDIT_COLUMNS.filter((c) => exportEnabled.includes(c.key));
     const header = cols.map((c) => c.label);
-    const rows = filtered.map((u) => cols.map((c) => c.get(u)));
+    const rows = sorted.map((u) => cols.map((c) => c.get(u)));
     const csv = [header, ...rows]
       .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))
       .join('\n');
@@ -450,16 +545,69 @@ export default function UserAuditPage() {
             </optgroup>
           </select>
         </div>
-        {(search || presenceFilter !== 'all') && (
+        {/* Member status filter */}
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500"
+          title="Filter by member status"
+        >
+          <option value="all">All Statuses</option>
+          {memberStatusOptions.map((s) => (
+            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+          ))}
+        </select>
+        {/* Subscription filter */}
+        <select
+          value={subFilter}
+          onChange={(e) => setSubFilter(e.target.value)}
+          className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500"
+          title="Filter by subscription status"
+        >
+          <option value="all">All Subscriptions</option>
+          <option value="none">No subscription</option>
+          {subStatusOptions.map((s) => (
+            <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+          ))}
+        </select>
+        {/* Toothlens filter */}
+        <select
+          value={toothlensFilter}
+          onChange={(e) => setToothlensFilter(e.target.value)}
+          className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500"
+          title="Filter by Toothlens presence"
+        >
+          <option value="all">Toothlens: Any</option>
+          <option value="has">Has Toothlens</option>
+          <option value="none">No Toothlens</option>
+        </select>
+        <button
+          onClick={() => setShowTerminated((v) => !v)}
+          className={`flex items-center gap-1.5 px-3 py-2 text-sm border rounded-lg transition-colors ${
+            showTerminated
+              ? 'border-red-300 bg-red-50 text-red-700 hover:bg-red-100'
+              : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+          }`}
+          title={showTerminated ? 'Hide terminated members' : 'Show terminated members'}
+        >
+          {showTerminated ? <Eye size={14} /> : <EyeOff size={14} />}
+          {showTerminated ? 'Showing terminated' : 'Terminated hidden'}
+          {terminatedCount > 0 && (
+            <span className="ml-0.5 text-xs font-semibold bg-white/70 border border-current/20 rounded-full px-1.5">
+              {terminatedCount}
+            </span>
+          )}
+        </button>
+        {anyFilterActive && (
           <button
-            onClick={() => { setSearch(''); setPresenceFilter('all'); }}
+            onClick={clearAllFilters}
             className="text-sm text-slate-500 hover:text-slate-800"
           >
             Clear filters
           </button>
         )}
         <span className="text-sm text-slate-500">
-          Showing <strong>{filtered.length}</strong> of <strong>{unified.length}</strong> users
+          Showing <strong>{sorted.length}</strong> of <strong>{unified.length}</strong> users
         </span>
       </div>
 
@@ -477,13 +625,13 @@ export default function UserAuditPage() {
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="w-8 px-3 py-3" />
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">User</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">System Presence</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Member ID</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Status</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Toothlens</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Subscription</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Census</th>
+                <SortableTh label="User" sortKey="name" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+                <SortableTh label="System Presence" sortKey="presence" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+                <SortableTh label="Member ID" sortKey="memberId" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+                <SortableTh label="Status" sortKey="memberType" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+                <SortableTh label="Toothlens" sortKey="toothlens" activeKey={sortKey} dir={sortDir} onSort={toggleSort} align="center" />
+                <SortableTh label="Subscription" sortKey="subscription" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+                <SortableTh label="Census" sortKey="census" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
                 <th className="w-10 px-3 py-3" />
               </tr>
             </thead>
@@ -502,7 +650,7 @@ export default function UserAuditPage() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((u) => (
+                sorted.map((u) => (
                   <UserRow
                     key={u.key}
                     user={u}
@@ -548,7 +696,7 @@ export default function UserAuditPage() {
               </div>
             )}
             <div className="flex justify-between items-center pt-1">
-              <span className="text-xs text-slate-400">{exportEnabled.length} column{exportEnabled.length !== 1 ? 's' : ''} · {filtered.length} users</span>
+              <span className="text-xs text-slate-400">{exportEnabled.length} column{exportEnabled.length !== 1 ? 's' : ''} · {sorted.length} users</span>
               <div className="flex gap-2">
                 <button onClick={() => setShowExportPicker(false)} className="px-4 py-2 text-sm text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50">Cancel</button>
                 <button
@@ -564,6 +712,34 @@ export default function UserAuditPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// ─── Sortable header cell ─────────────────────────────────────────────────────
+
+function SortableTh({ label, sortKey, activeKey, dir, onSort, align }: {
+  label: string;
+  sortKey: any;
+  activeKey: string;
+  dir: 'asc' | 'desc';
+  onSort: (key: any) => void;
+  align?: 'left' | 'center';
+}) {
+  const isActive = activeKey === sortKey;
+  return (
+    <th className={`px-4 py-3 text-xs font-semibold text-slate-500 uppercase ${align === 'center' ? 'text-center' : ''}`}>
+      <button
+        onClick={() => onSort(sortKey)}
+        className={`inline-flex items-center gap-1 hover:text-slate-800 transition-colors ${isActive ? 'text-slate-800' : ''}`}
+      >
+        {label}
+        {isActive ? (
+          dir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />
+        ) : (
+          <ChevronsUpDown size={12} className="text-slate-300" />
+        )}
+      </button>
+    </th>
   );
 }
 
@@ -689,100 +865,7 @@ function UserRow({
       {isExpanded && (
         <tr>
           <td colSpan={9} className="p-0 border-b border-slate-100">
-            <div className="bg-slate-50 px-6 py-5">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5 text-sm">
-
-                {/* IdealOH */}
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">
-                    <Database size={11} /> Convex / IdealOH
-                  </p>
-                  <MiniField label="Member ID" value={u.memberId} mono />
-                  <MiniField label="Careington Unique ID" value={u.careingtonUniqueId} mono missing={!u.careingtonUniqueId} />
-                  <MiniField label="Sequence #" value={u.careingtonSeqNum} mono missing={!u.careingtonSeqNum} />
-                  <MiniField label="Date of Birth" value={u.memberDob} missing={!u.memberDob} />
-                  <MiniField label="Effective Date" value={u.memberEffective} missing={!u.memberEffective} />
-                  <MiniField label="Member Type" value={u.memberType} />
-                </div>
-
-                {/* Address */}
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">
-                    <Building2 size={11} /> Address
-                  </p>
-                  {u.memberAddress?.line1 ? (
-                    <>
-                      <MiniField label="Line 1" value={u.memberAddress.line1} />
-                      {u.memberAddress.line2 && <MiniField label="Line 2" value={u.memberAddress.line2} />}
-                      <MiniField label="City" value={u.memberAddress.city} missing={!u.memberAddress.city} />
-                      <MiniField label="State" value={u.memberAddress.state} missing={!u.memberAddress.state} />
-                      <MiniField label="Zip" value={u.memberAddress.postalCode} mono missing={!u.memberAddress.postalCode} />
-                    </>
-                  ) : (
-                    <p className="text-xs text-red-500 font-medium">No address on file</p>
-                  )}
-                </div>
-
-                {/* Clerk */}
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">
-                    <ShieldCheck size={11} /> Clerk
-                  </p>
-                  {u.clerkId ? (
-                    <>
-                      <MiniField label="Clerk ID" value={u.clerkId} mono />
-                      <MiniField label="Email" value={u.clerkEmail} />
-                      <MiniField label="Account Created" value={fmt(u.clerkCreatedAt)} />
-                    </>
-                  ) : (
-                    <p className="text-xs text-amber-600 font-semibold">No Clerk account linked</p>
-                  )}
-                </div>
-
-                {/* Toothlens */}
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">
-                    <ScanLine size={11} /> Toothlens
-                  </p>
-                  {u.hasToothlens ? (
-                    <>
-                      <MiniField label="UID" value={u.toothlensUid} mono />
-                      <MiniField label="Total Scans" value={String(u.toothlensScans ?? 0)} />
-                    </>
-                  ) : (
-                    <p className="text-xs text-slate-400">No Toothlens account</p>
-                  )}
-                </div>
-
-                {/* Census gaps */}
-                {u.memberProfileId && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">
-                      <AlertTriangle size={11} /> Census Gaps
-                    </p>
-                    {u.missingFields.length === 0 ? (
-                      <p className="text-xs text-green-600 font-semibold flex items-center gap-1">
-                        <CheckCircle2 size={11} /> All required fields present
-                      </p>
-                    ) : (
-                      <div className="flex flex-wrap gap-1">
-                        {u.missingFields.map((f) => (
-                          <span key={f} className="text-xs bg-red-100 text-red-700 border border-red-200 px-1.5 py-0.5 rounded">
-                            {f}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    <Link
-                      href={`/admin/members/${u.memberProfileId}`}
-                      className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
-                    >
-                      Full Inspector <ExternalLink size={10} />
-                    </Link>
-                  </div>
-                )}
-              </div>
-            </div>
+            <ExpandedDetail user={u} />
           </td>
         </tr>
       )}
@@ -805,5 +888,562 @@ function MiniField({ label, value, mono, missing }: {
         <p className={`text-xs text-slate-800 ${mono ? 'font-mono' : ''}`}>{value}</p>
       )}
     </div>
+  );
+}
+
+// ─── Expanded Detail: full data + inline edit + permanent delete ────────────────
+
+type EditForm = {
+  title: string; firstName: string; middleName: string; lastName: string; suffix: string;
+  email: string; phone: string; workPhone: string;
+  dateOfBirth: string; effectiveDate: string; gender: string;
+  subscriberId: string; careingtonUniqueId: string; careingtonSeqNum: string; toothlensMemberId: string;
+  ssn: string; location: string; department: string; groupMemberId: string;
+  addrLine1: string; addrLine2: string; addrCity: string; addrState: string; addrZip: string; addrCountry: string;
+  memberType: string; status: string;
+};
+
+function ExpandedDetail({ user: u }: { user: UnifiedUser }) {
+  const data = useQuery(
+    api.admin.userAudit.getMemberInspectorData,
+    u.memberProfileId ? { memberProfileId: u.memberProfileId as Id<'memberProfiles'> } : 'skip'
+  ) as any;
+
+  const updateMember = useMutation(api.admin.members.updateMemberProfile);
+  const hardDeleteMember = useMutation(api.admin.members.hardDeleteMember);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [form, setForm] = useState<EditForm | null>(null);
+  const [revealSsn, setRevealSsn] = useState(false);
+
+  const member = data?.member;
+
+  const startEdit = () => {
+    if (!member) return;
+    setErrorMsg(null);
+    setForm({
+      title: member.title ?? '', firstName: member.firstName ?? '', middleName: member.middleName ?? '',
+      lastName: member.lastName ?? '', suffix: member.suffix ?? '',
+      email: member.email ?? '', phone: member.phone ?? '', workPhone: member.workPhone ?? '',
+      dateOfBirth: member.dateOfBirth ?? '', effectiveDate: member.effectiveDate ?? '', gender: member.gender ?? '',
+      subscriberId: member.subscriberId ?? '', careingtonUniqueId: member.careingtonUniqueId ?? '',
+      careingtonSeqNum: member.careingtonSeqNum ?? '', toothlensMemberId: member.toothlensMemberId ?? '',
+      ssn: member.ssn ?? u.ssn ?? '', location: member.location ?? u.location ?? '', department: member.department ?? u.department ?? '',
+      groupMemberId: member.groupMemberId ?? '',
+      addrLine1: member.address?.line1 ?? '', addrLine2: member.address?.line2 ?? '',
+      addrCity: member.address?.city ?? '', addrState: member.address?.state ?? '',
+      addrZip: member.address?.postalCode ?? '', addrCountry: member.address?.country ?? 'US',
+      memberType: member.memberType ?? '', status: member.status ?? '',
+    });
+    setIsEditing(true);
+  };
+
+  const set = (k: keyof EditForm, val: string) =>
+    setForm((f) => (f ? { ...f, [k]: val } : f));
+
+  const handleSave = async () => {
+    if (!form || !u.memberProfileId) return;
+    setSaving(true);
+    setErrorMsg(null);
+    try {
+      const hasAddress = !!(form.addrLine1 || form.addrCity || form.addrState || form.addrZip);
+      await updateMember({
+        memberId: u.memberProfileId as Id<'memberProfiles'>,
+        title: form.title || undefined,
+        firstName: form.firstName || undefined,
+        middleName: form.middleName || undefined,
+        lastName: form.lastName || undefined,
+        suffix: form.suffix || undefined,
+        email: form.email || undefined,
+        phone: form.phone || undefined,
+        workPhone: form.workPhone || undefined,
+        dateOfBirth: form.dateOfBirth || undefined,
+        effectiveDate: form.effectiveDate || undefined,
+        gender: (form.gender || undefined) as any,
+        subscriberId: form.subscriberId || undefined,
+        careingtonUniqueId: form.careingtonUniqueId || undefined,
+        careingtonSeqNum: form.careingtonSeqNum || undefined,
+        toothlensMemberId: form.toothlensMemberId || undefined,
+        ssn: form.ssn || undefined,
+        location: form.location || undefined,
+        department: form.department || undefined,
+        groupMemberId: form.groupMemberId || undefined,
+        memberType: (form.memberType || undefined) as any,
+        status: (form.status || undefined) as any,
+        address: hasAddress
+          ? {
+              line1: form.addrLine1,
+              line2: form.addrLine2 || undefined,
+              city: form.addrCity,
+              state: form.addrState,
+              postalCode: form.addrZip,
+              country: form.addrCountry || 'US',
+            }
+          : undefined,
+      });
+      setIsEditing(false);
+    } catch (e: any) {
+      setErrorMsg(e?.message ?? 'Failed to save changes');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!u.memberProfileId) return;
+    const name = `${member?.firstName ?? ''} ${member?.lastName ?? ''}`.trim() || u.memberId || 'this member';
+    if (!window.confirm(
+      `Permanently delete ${name}?\n\nThis CANNOT be undone. The member profile, its activity log, and notes will be removed entirely. Subscriptions and Clerk/Toothlens accounts are not affected.`
+    )) return;
+    setDeleting(true);
+    setErrorMsg(null);
+    try {
+      await hardDeleteMember({ memberId: u.memberProfileId as Id<'memberProfiles'>, reason: 'Permanently deleted via User Audit' });
+      // Row will disappear from the live query automatically.
+    } catch (e: any) {
+      setErrorMsg(e?.message ?? 'Failed to delete member');
+      setDeleting(false);
+    }
+  };
+
+  // ── Clerk-only user (no Convex member profile to inspect/edit) ──
+  if (!u.memberProfileId) {
+    return (
+      <div className="bg-slate-50 px-6 py-5">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-5 text-sm">
+          <div className="space-y-2">
+            <SectionTitle icon={<ShieldCheck size={11} />}>Clerk</SectionTitle>
+            <MiniField label="Clerk ID" value={u.clerkId} mono />
+            <MiniField label="Email" value={u.clerkEmail} />
+            <MiniField label="Name" value={u.clerkName} />
+            <MiniField label="Account Created" value={fmt(u.clerkCreatedAt)} />
+          </div>
+          <div className="space-y-2">
+            <SectionTitle icon={<ScanLine size={11} />}>Toothlens</SectionTitle>
+            {u.hasToothlens ? (
+              <>
+                <MiniField label="UID" value={u.toothlensUid} mono />
+                <MiniField label="Total Scans" value={String(u.toothlensScans ?? 0)} />
+              </>
+            ) : (
+              <p className="text-xs text-slate-400">No Toothlens account</p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <SectionTitle icon={<CreditCard size={11} />}>Subscription</SectionTitle>
+            <MiniField label="Status" value={u.subscriptionStatus ?? 'None'} />
+            <MiniField label="Entitlements" value={String(u.entitlementCount ?? 0)} />
+          </div>
+        </div>
+        <p className="mt-4 text-xs text-amber-600 font-medium">
+          This is a Clerk-only account with no member profile. There is nothing to edit or delete here.
+        </p>
+      </div>
+    );
+  }
+
+  if (data === undefined) {
+    return (
+      <div className="bg-slate-50 px-6 py-8 text-center text-slate-400 text-sm">
+        <Loader size={16} className="animate-spin inline mr-2" /> Loading full record…
+      </div>
+    );
+  }
+
+  if (data === null) {
+    return (
+      <div className="bg-slate-50 px-6 py-6 text-sm text-red-600">
+        Member record not found (it may have just been deleted).
+      </div>
+    );
+  }
+
+  const addr = member.address;
+  const validation = data.validation;
+
+  return (
+    <div className="bg-slate-50 px-6 py-5 space-y-5">
+      {/* Action toolbar */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          {validation?.isComplete ? (
+            <span className="inline-flex items-center gap-1 text-xs text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded">
+              <CheckCircle2 size={12} /> Census complete
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-xs text-red-700 bg-red-50 border border-red-200 px-2 py-1 rounded">
+              <AlertTriangle size={12} /> {validation?.missingFields?.length ?? 0} census field(s) missing
+            </span>
+          )}
+          <Link
+            href={`/admin/members/${u.memberProfileId}`}
+            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+          >
+            Open full inspector <ExternalLink size={10} />
+          </Link>
+        </div>
+        <div className="flex items-center gap-2">
+          {!isEditing ? (
+            <>
+              <button
+                onClick={startEdit}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
+              >
+                <Pencil size={12} /> Edit all fields
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 bg-white border border-red-300 rounded-lg hover:bg-red-50 disabled:opacity-50"
+              >
+                {deleting ? <Loader size={12} className="animate-spin" /> : <Trash2 size={12} />} Delete permanently
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {saving ? <Loader size={12} className="animate-spin" /> : <Save size={12} />} Save changes
+              </button>
+              <button
+                onClick={() => { setIsEditing(false); setErrorMsg(null); }}
+                disabled={saving}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50"
+              >
+                <X size={12} /> Cancel
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {errorMsg && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700">
+          {errorMsg}
+        </div>
+      )}
+
+      {/* ── EDIT MODE ── */}
+      {isEditing && form ? (
+        <div className="space-y-5">
+          <FormSection title="Personal Information">
+            <Field label="Title"><Input value={form.title} onChange={(v) => set('title', v)} placeholder="Mr / Mrs / Ms" /></Field>
+            <Field label="First Name"><Input value={form.firstName} onChange={(v) => set('firstName', v)} /></Field>
+            <Field label="Middle Name"><Input value={form.middleName} onChange={(v) => set('middleName', v)} /></Field>
+            <Field label="Last Name"><Input value={form.lastName} onChange={(v) => set('lastName', v)} /></Field>
+            <Field label="Suffix"><Input value={form.suffix} onChange={(v) => set('suffix', v)} placeholder="Jr / Sr / II" /></Field>
+            <Field label="Date of Birth"><Input value={form.dateOfBirth} onChange={(v) => set('dateOfBirth', v)} placeholder="YYYY-MM-DD" /></Field>
+            <Field label="Gender">
+              <select value={form.gender} onChange={(e) => set('gender', e.target.value)} className="w-full border border-slate-300 rounded-md px-2 py-1.5 text-xs bg-white">
+                <option value="">—</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="non_binary">Non-binary</option>
+                <option value="prefer_not_to_say">Prefer not to say</option>
+                <option value="other">Other</option>
+              </select>
+            </Field>
+            <Field label="Effective Date"><Input value={form.effectiveDate} onChange={(v) => set('effectiveDate', v)} placeholder="YYYY-MM-DD" /></Field>
+          </FormSection>
+
+          <FormSection title="Contact">
+            <Field label="Email"><Input value={form.email} onChange={(v) => set('email', v)} /></Field>
+            <Field label="Phone"><Input value={form.phone} onChange={(v) => set('phone', v)} /></Field>
+            <Field label="Work Phone"><Input value={form.workPhone} onChange={(v) => set('workPhone', v)} /></Field>
+          </FormSection>
+
+          <FormSection title="Address">
+            <Field label="Line 1"><Input value={form.addrLine1} onChange={(v) => set('addrLine1', v)} /></Field>
+            <Field label="Line 2"><Input value={form.addrLine2} onChange={(v) => set('addrLine2', v)} /></Field>
+            <Field label="City"><Input value={form.addrCity} onChange={(v) => set('addrCity', v)} /></Field>
+            <Field label="State"><Input value={form.addrState} onChange={(v) => set('addrState', v)} /></Field>
+            <Field label="Zip"><Input value={form.addrZip} onChange={(v) => set('addrZip', v)} /></Field>
+            <Field label="Country"><Input value={form.addrCountry} onChange={(v) => set('addrCountry', v)} /></Field>
+          </FormSection>
+
+          <FormSection title="Vendor / Identity IDs">
+            <Field label="Subscriber ID"><Input value={form.subscriberId} onChange={(v) => set('subscriberId', v)} /></Field>
+            <Field label="Careington Unique ID"><Input value={form.careingtonUniqueId} onChange={(v) => set('careingtonUniqueId', v)} /></Field>
+            <Field label="Careington Seq #"><Input value={form.careingtonSeqNum} onChange={(v) => set('careingtonSeqNum', v)} placeholder="00" /></Field>
+            <Field label="Toothlens Member ID"><Input value={form.toothlensMemberId} onChange={(v) => set('toothlensMemberId', v)} /></Field>
+            <Field label="Group Member ID"><Input value={form.groupMemberId} onChange={(v) => set('groupMemberId', v)} /></Field>
+          </FormSection>
+
+          <FormSection title="Employer / Payroll Audit">
+            <Field label="SSN"><Input value={form.ssn} onChange={(v) => set('ssn', v)} /></Field>
+            <Field label="Location"><Input value={form.location} onChange={(v) => set('location', v)} /></Field>
+            <Field label="Department"><Input value={form.department} onChange={(v) => set('department', v)} /></Field>
+          </FormSection>
+
+          <FormSection title="Status">
+            <Field label="Member Type">
+              <select value={form.memberType} onChange={(e) => set('memberType', e.target.value)} className="w-full border border-slate-300 rounded-md px-2 py-1.5 text-xs bg-white">
+                <option value="">—</option>
+                {['lead', 'eligible', 'enrolling', 'active', 'inactive', 'terminated', 'declined'].map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Account Status">
+              <select value={form.status} onChange={(e) => set('status', e.target.value)} className="w-full border border-slate-300 rounded-md px-2 py-1.5 text-xs bg-white">
+                <option value="">—</option>
+                {['active', 'inactive', 'suspended', 'terminated'].map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </Field>
+          </FormSection>
+        </div>
+      ) : (
+        /* ── READ MODE: every data point ── */
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-5 text-sm">
+          {/* Identity */}
+          <div className="space-y-2">
+            <SectionTitle icon={<Database size={11} />}>Identity</SectionTitle>
+            <MiniField label="Member ID" value={member.memberId} mono />
+            <MiniField label="Subscriber ID" value={member.subscriberId} mono />
+            <MiniField label="Barcode" value={member.barcode} mono />
+            <MiniField label="Profile _id" value={member._id} mono />
+            <MiniField label="Group Member ID" value={member.groupMemberId} mono />
+          </div>
+
+          {/* Personal */}
+          <div className="space-y-2">
+            <SectionTitle icon={<UserCheck size={11} />}>Personal</SectionTitle>
+            <MiniField label="Title" value={member.title} />
+            <MiniField label="First Name" value={member.firstName} missing={!member.firstName} />
+            <MiniField label="Middle Name" value={member.middleName} />
+            <MiniField label="Last Name" value={member.lastName} missing={!member.lastName} />
+            <MiniField label="Suffix" value={member.suffix} />
+            <MiniField label="Date of Birth" value={member.dateOfBirth} missing={!member.dateOfBirth} />
+            <MiniField label="Gender" value={member.gender} />
+            <MiniField label="Effective Date" value={member.effectiveDate} missing={!member.effectiveDate} />
+          </div>
+
+          {/* Contact */}
+          <div className="space-y-2">
+            <SectionTitle icon={<UserCheck size={11} />}>Contact</SectionTitle>
+            <MiniField label="Email" value={member.email} missing={!member.email} />
+            <MiniField label="Phone" value={member.phone} />
+            <MiniField label="Work Phone" value={member.workPhone} />
+          </div>
+
+          {/* Address */}
+          <div className="space-y-2">
+            <SectionTitle icon={<Building2 size={11} />}>Address</SectionTitle>
+            {addr?.line1 ? (
+              <>
+                <MiniField label="Line 1" value={addr.line1} />
+                {addr.line2 && <MiniField label="Line 2" value={addr.line2} />}
+                <MiniField label="City" value={addr.city} missing={!addr.city} />
+                <MiniField label="State" value={addr.state} missing={!addr.state} />
+                <MiniField label="Zip" value={addr.postalCode} mono missing={!addr.postalCode} />
+                <MiniField label="Country" value={addr.country} />
+              </>
+            ) : (
+              <p className="text-xs text-red-500 font-medium">No address on file</p>
+            )}
+          </div>
+
+          {/* Vendor IDs */}
+          <div className="space-y-2">
+            <SectionTitle icon={<CreditCard size={11} />}>Vendor IDs</SectionTitle>
+            <MiniField label="Careington Unique ID" value={member.careingtonUniqueId} mono missing={!member.careingtonUniqueId} />
+            <MiniField label="Careington Seq #" value={member.careingtonSeqNum} mono missing={!member.careingtonSeqNum} />
+            <MiniField label="Toothlens Member ID" value={member.toothlensMemberId} mono />
+          </div>
+
+          {/* Employer / Payroll */}
+          <div className="space-y-2">
+            <SectionTitle icon={<Building2 size={11} />}>Employer / Payroll</SectionTitle>
+            <div>
+              <p className="text-xs text-slate-400">SSN</p>
+              {(member.ssn || u.ssn) ? (
+                <p className="text-xs text-slate-800 font-mono flex items-center gap-1">
+                  {revealSsn ? (member.ssn ?? u.ssn) : '•••-••-' + String(member.ssn ?? u.ssn ?? '').slice(-4)}
+                  <button onClick={() => setRevealSsn((s) => !s)} className="text-slate-400 hover:text-slate-700">
+                    {revealSsn ? <EyeOff size={11} /> : <Eye size={11} />}
+                  </button>
+                </p>
+              ) : (
+                <p className="text-xs text-slate-400 italic">—</p>
+              )}
+            </div>
+            <MiniField label="Location" value={member.location ?? u.location} />
+            <MiniField label="Department" value={member.department ?? u.department} />
+            <MiniField label="Employee Type" value={member.employeeType} />
+          </div>
+
+          {/* Status */}
+          <div className="space-y-2">
+            <SectionTitle icon={<ShieldCheck size={11} />}>Status</SectionTitle>
+            <MiniField label="Member Type" value={member.memberType} />
+            <MiniField label="Account Status" value={member.status} />
+            <MiniField label="Member Role" value={member.memberRole} />
+            <MiniField label="Relationship" value={member.relationship} />
+          </div>
+
+          {/* Enrollment */}
+          <div className="space-y-2">
+            <SectionTitle icon={<Layers size={11} />}>Enrollment</SectionTitle>
+            <MiniField label="Enrolled At" value={fmt(member.enrolledAt)} />
+            <MiniField label="Created At" value={fmt(member.createdAt)} />
+            <MiniField label="Updated At" value={fmt(member.updatedAt)} />
+            <MiniField label="Signup Source" value={member.signupSource} />
+            <MiniField label="Eligibility File" value={member.eligibilityFileId} mono />
+          </div>
+
+          {/* Hierarchy */}
+          <div className="space-y-2">
+            <SectionTitle icon={<Building2 size={11} />}>Hierarchy</SectionTitle>
+            <MiniField label="Group" value={data.hierarchy?.groupName} />
+            <MiniField label="Group Code" value={data.hierarchy?.groupCode} />
+            <MiniField label="Org Code" value={data.hierarchy?.organizationCode} />
+            <MiniField label="Account" value={data.hierarchy?.accountName} />
+            <MiniField label="Site" value={data.hierarchy?.siteName} />
+          </div>
+
+          {/* Clerk */}
+          <div className="space-y-2">
+            <SectionTitle icon={<ShieldCheck size={11} />}>Clerk</SectionTitle>
+            {member.customerId ? (
+              <>
+                <MiniField label="Clerk ID" value={member.customerId} mono />
+                <MiniField label="Email" value={u.clerkEmail} />
+                <MiniField label="Created" value={fmt(u.clerkCreatedAt)} />
+              </>
+            ) : (
+              <p className="text-xs text-amber-600 font-semibold">No Clerk account linked</p>
+            )}
+          </div>
+
+          {/* Subscription */}
+          <div className="space-y-2">
+            <SectionTitle icon={<CreditCard size={11} />}>Subscription</SectionTitle>
+            {data.subscription ? (
+              <>
+                <MiniField label="Status" value={data.subscription.status} />
+                <MiniField label="Cadence" value={data.subscription.cadence} />
+                <MiniField label="Payment Method" value={data.subscription.paymentMethod} />
+                <MiniField label="Total" value={data.subscription.totalCents != null ? `$${(data.subscription.totalCents / 100).toFixed(2)}` : undefined} />
+                <MiniField label="Period End" value={fmt(data.subscription.currentPeriodEnd)} />
+                <MiniField label="Stripe Customer" value={data.subscription.stripeCustomerId} mono />
+                <MiniField label="Stripe Sub" value={data.subscription.stripeSubscriptionId} mono />
+              </>
+            ) : (
+              <p className="text-xs text-slate-400">No subscription bundle</p>
+            )}
+            {data.entitlements?.length > 0 && (
+              <div className="pt-1">
+                <p className="text-xs text-slate-400 mb-1">Entitlements ({data.entitlements.length})</p>
+                <div className="flex flex-wrap gap-1">
+                  {data.entitlements.map((e: any) => (
+                    <span key={e._id} className="text-xs bg-slate-100 border border-slate-200 text-slate-700 px-1.5 py-0.5 rounded">
+                      {e.productName} · {e.status}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Toothlens */}
+          <div className="space-y-2">
+            <SectionTitle icon={<ScanLine size={11} />}>Toothlens</SectionTitle>
+            {data.toothlens ? (
+              <>
+                <MiniField label="UID" value={data.toothlens.toothlensUid} mono />
+                <MiniField label="Company" value={data.toothlens.company} />
+                <MiniField label="Email" value={data.toothlens.email} />
+                <MiniField label="Total Scans" value={String(data.toothlens.scanCount ?? 0)} />
+                <MiniField label="Last Scan" value={fmt(data.toothlens.lastScanAt)} />
+              </>
+            ) : (
+              <p className="text-xs text-slate-400">No Toothlens account</p>
+            )}
+          </div>
+
+          {/* Dependents */}
+          {data.dependents?.length > 0 && (
+            <div className="space-y-2 col-span-2">
+              <SectionTitle icon={<Users size={11} />}>Dependents ({data.dependents.length})</SectionTitle>
+              <div className="space-y-1">
+                {data.dependents.map((d: any, i: number) => (
+                  <div key={i} className="text-xs text-slate-700 bg-white border border-slate-200 rounded px-2 py-1 flex flex-wrap gap-x-3">
+                    <span className="font-medium">{d.firstName} {d.lastName}</span>
+                    <span className="text-slate-400">{d.relationship}</span>
+                    {d.dateOfBirth && <span className="text-slate-400">DOB {d.dateOfBirth}</span>}
+                    {d.seqNum && <span className="font-mono text-slate-400">Seq {d.seqNum}</span>}
+                    {d.toothlensMemberId && <span className="font-mono text-slate-400">TL {d.toothlensMemberId}</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Census gaps */}
+          <div className="space-y-2 col-span-2">
+            <SectionTitle icon={<AlertTriangle size={11} />}>Census Validation</SectionTitle>
+            {validation?.isComplete ? (
+              <p className="text-xs text-green-600 font-semibold flex items-center gap-1">
+                <CheckCircle2 size={11} /> All required fields present
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-1">
+                {validation?.missingFields?.map((f: string) => (
+                  <span key={f} className="text-xs bg-red-100 text-red-700 border border-red-200 px-1.5 py-0.5 rounded">{f}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SectionTitle({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">
+      {icon} {children}
+    </p>
+  );
+}
+
+function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-white border border-slate-200 rounded-lg p-4">
+      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{title}</p>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="block text-xs text-slate-500 mb-1">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function Input({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <input
+      type="text"
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full border border-slate-300 rounded-md px-2 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+    />
   );
 }

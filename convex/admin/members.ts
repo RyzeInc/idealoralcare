@@ -870,24 +870,118 @@ export const removeMember = mutation({
 });
 
 /**
+ * Permanently delete a member profile and its directly-owned records.
+ *
+ * Unlike removeMember (which soft-deletes by setting status to "terminated"),
+ * this fully removes the memberProfile row plus its memberActivities and
+ * memberNotes so the user disappears from the User Audit and Members views.
+ *
+ * Subscription bundles, entitlements, and Toothlens records are keyed by the
+ * Clerk customerId (not the profile) and are intentionally left untouched.
+ * The deletion is recorded in the append-only admin audit log.
+ */
+export const hardDeleteMember = mutation({
+  args: {
+    memberId: v.id("memberProfiles"),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await requireAdmin(ctx);
+    const member = await ctx.db.get(args.memberId);
+    if (!member) throw new Error("Member not found");
+
+    // Delete directly-owned activity log rows
+    const activities = await ctx.db
+      .query("memberActivities")
+      .filter((q) => q.eq(q.field("memberProfileId"), args.memberId))
+      .collect();
+    for (const a of activities) {
+      await ctx.db.delete(a._id);
+    }
+
+    // Delete directly-owned notes
+    const notes = await ctx.db
+      .query("memberNotes")
+      .filter((q) => q.eq(q.field("memberProfileId"), args.memberId))
+      .collect();
+    for (const n of notes) {
+      await ctx.db.delete(n._id);
+    }
+
+    // Record the deletion BEFORE removing the profile (audit log is independent)
+    await recordAdminAction(ctx, identity, {
+      action: "member.hardDelete",
+      targetType: "memberProfile",
+      targetId: String(args.memberId),
+      summary: `Permanently deleted ${member.firstName ?? ''} ${member.lastName ?? ''} (${member.memberId})`,
+      metadata: {
+        reason: args.reason ?? null,
+        memberId: member.memberId,
+        customerId: member.customerId ?? null,
+        careingtonUniqueId: member.careingtonUniqueId ?? null,
+        deletedActivities: activities.length,
+        deletedNotes: notes.length,
+      },
+    });
+
+    await ctx.db.delete(args.memberId);
+
+    return { success: true, deletedActivities: activities.length, deletedNotes: notes.length };
+  },
+});
+
+/**
  * Update member profile fields (admin action)
  */
 export const updateMemberProfile = mutation({
   args: {
     memberId: v.id("memberProfiles"),
+    // Personal information
+    title: v.optional(v.string()),
     firstName: v.optional(v.string()),
+    middleName: v.optional(v.string()),
     lastName: v.optional(v.string()),
+    suffix: v.optional(v.string()),
     email: v.optional(v.string()),
     phone: v.optional(v.string()),
+    workPhone: v.optional(v.string()),
     dateOfBirth: v.optional(v.string()),
+    gender: v.optional(v.union(
+      v.literal("male"),
+      v.literal("female"),
+      v.literal("non_binary"),
+      v.literal("prefer_not_to_say"),
+      v.literal("other")
+    )),
     groupMemberId: v.optional(v.string()),
     address: v.optional(v.any()),
     communicationPrefs: v.optional(v.any()),
+    // Vendor / identity fields (Careington / DialCare / Toothlens)
+    subscriberId: v.optional(v.string()),
+    careingtonUniqueId: v.optional(v.string()),
+    careingtonSeqNum: v.optional(v.string()),
+    toothlensMemberId: v.optional(v.string()),
     // Employer / payroll audit fields
     ssn: v.optional(v.string()),
     location: v.optional(v.string()),
     department: v.optional(v.string()),
     effectiveDate: v.optional(v.string()),
+    // Status
+    memberType: v.optional(v.union(
+      v.literal("lead"),
+      v.literal("eligible"),
+      v.literal("enrolling"),
+      v.literal("active"),
+      v.literal("inactive"),
+      v.literal("terminated"),
+      v.literal("declined")
+    )),
+    status: v.optional(v.union(
+      v.literal("active"),
+      v.literal("inactive"),
+      v.literal("suspended"),
+      v.literal("terminated")
+    )),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);

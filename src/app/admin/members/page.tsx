@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Search, Eye, Edit, Trash2, X, Clock, Send, CreditCard, Plus, Download, CheckSquare, Square, UserX, ExternalLink, AlertTriangle, CheckCircle2, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { Search, Eye, Edit, Trash2, X, Clock, Send, CreditCard, Plus, Download, CheckSquare, Square, UserX, ExternalLink, AlertTriangle, CheckCircle2, ChevronUp, ChevronDown, ChevronsUpDown, EyeOff } from 'lucide-react';
 import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
@@ -99,6 +99,7 @@ export default function MembersAdmin() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState({ groupId: '', firstName: '', lastName: '', email: '', phone: '', dateOfBirth: '', memberType: 'eligible', employeeType: '' });
   const [showMissingOnly, setShowMissingOnly] = useState(false);
+  const [showTerminated, setShowTerminated] = useState(false);
   const [sortKey, setSortKey] = useState<'name' | 'email' | 'memberId' | 'memberType' | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
@@ -153,7 +154,9 @@ export default function MembersAdmin() {
     const matchesStatus = !selectedStatus || member.memberType === selectedStatus;
     const matchesGroup = !selectedGroupId || member.groupId === selectedGroupId;
     const matchesMissing = !showMissingOnly || getMissingFields(member).length > 0;
-    return matchesSearch && matchesStatus && matchesGroup && matchesMissing;
+    // Hide terminated members unless explicitly toggled on or filtered for
+    const matchesTerminated = showTerminated || selectedStatus === 'terminated' || member.memberType !== 'terminated';
+    return matchesSearch && matchesStatus && matchesGroup && matchesMissing && matchesTerminated;
   });
 
   // Apply sorting
@@ -404,6 +407,18 @@ export default function MembersAdmin() {
           <option value="">All Organizations</option>
           {(groups as any[]).map((g) => <option key={g._id} value={g._id}>{g.name}</option>)}
         </select>
+        <button
+          onClick={() => { setShowTerminated((v) => !v); setCurrentPage(0); }}
+          className={`flex items-center gap-1.5 px-4 py-2 text-sm border rounded-lg transition-colors ${
+            showTerminated
+              ? 'border-red-300 bg-red-50 text-red-700 hover:bg-red-100'
+              : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+          }`}
+          title={showTerminated ? 'Hide terminated members' : 'Show terminated members'}
+        >
+          {showTerminated ? <Eye size={16} /> : <EyeOff size={16} />}
+          {showTerminated ? 'Showing terminated' : 'Terminated hidden'}
+        </button>
       </div>
 
       {/* Bulk action bar */}
