@@ -1357,6 +1357,9 @@ export default defineSchema({
       v.literal("terminations"),
       v.literal("delta")
     ),
+
+    // Source/as-of date parsed from the file name (e.g. "20260625")
+    sourceDate: v.optional(v.string()),
     
     // AUDIT
     uploadedBy: v.optional(v.string()), // Clerk user ID

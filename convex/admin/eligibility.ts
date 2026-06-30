@@ -96,7 +96,7 @@ export const uploadEligibilityFile = mutation({
     storageId: v.string(), // ID from Convex _storage
     fileType: v.union(v.literal("csv"), v.literal("xlsx"), v.literal("json"), v.literal("txt")),
     fileAction: v.union(v.literal("full_replace"), v.literal("additions"), v.literal("terminations"), v.literal("delta")),
-    sourceDate: v.string(),
+    sourceDate: v.optional(v.string()), // Source/as-of date parsed from the file name (e.g. "20260625")
     uploadedBy: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
