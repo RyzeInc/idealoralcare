@@ -1314,6 +1314,7 @@ export default defineSchema({
     siteId: v.id("sites"),
     accountId: v.optional(v.id("accounts")),
     groupId: v.id("groups"),
+    // Source/as-of date parsed from the file name (e.g. "20260625")
     sourceDate: v.optional(v.string()),
     
     fileName: v.string(),
@@ -1357,9 +1358,6 @@ export default defineSchema({
       v.literal("terminations"),
       v.literal("delta")
     ),
-
-    // Source/as-of date parsed from the file name (e.g. "20260625")
-    sourceDate: v.optional(v.string()),
     
     // AUDIT
     uploadedBy: v.optional(v.string()), // Clerk user ID
