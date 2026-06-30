@@ -10,7 +10,7 @@ import {
   Users, Search, AlertTriangle, CheckCircle2, ExternalLink,
   Loader, Filter, Download, ScanLine, ShieldCheck, CreditCard,
   Building2, Database, CloudOff, Layers, UserCheck,
-  ChevronDown, ChevronUp, RefreshCw, Pencil, Trash2, Save, X, Eye, EyeOff, ChevronsUpDown,
+  ChevronDown, ChevronUp, RefreshCw, Pencil, Trash2, Save, X, Eye, EyeOff, ChevronsUpDown, Columns3,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -51,6 +51,7 @@ interface UnifiedUser {
   memberEmail?: string;
   memberDob?: string;
   memberEffective?: string;
+  memberCreatedAt?: number;
   memberAddress?: { line1?: string; line2?: string; city?: string; state?: string; postalCode?: string };
   careingtonUniqueId?: string;
   careingtonSeqNum?: string;
@@ -68,6 +69,8 @@ interface UnifiedUser {
   // Derived
   presence: SystemPresence;
   missingFields: string[];
+  // Earliest known creation date across systems (when first added to our system)
+  systemCreatedAt?: number;
 }
 
 // ─── Census validation ────────────────────────────────────────────────────────
@@ -114,6 +117,207 @@ function PresenceBadge({ presence }: { presence: SystemPresence }) {
     </span>
   );
 }
+
+const SUB_COLORS: Record<string, string> = {
+  active: 'text-green-700 bg-green-50',
+  cancelled: 'text-red-600 bg-red-50',
+  past_due: 'text-orange-600 bg-orange-50',
+  payment_failed: 'text-red-600 bg-red-50',
+  cancel_at_period_end: 'text-amber-700 bg-amber-50',
+};
+
+// Small render helpers for table cells
+function Plain({ value, mono }: { value?: string | null; mono?: boolean }) {
+  if (!value) return <span className="text-xs text-slate-300">—</span>;
+  return <span className={mono ? 'font-mono text-xs text-slate-600' : 'text-slate-700'}>{value}</span>;
+}
+
+// ─── Configurable table columns ────────────────────────────────────────────────
+
+interface DisplayColumn {
+  key: string;
+  label: string;
+  defaultOn: boolean;
+  fixed?: boolean;            // always shown (cannot be toggled off)
+  align?: 'left' | 'center';
+  sortValue: (u: UnifiedUser) => string | number;
+  render: (u: UnifiedUser) => React.ReactNode;
+}
+
+const DISPLAY_COLUMNS: DisplayColumn[] = [
+  {
+    key: 'user', label: 'User', defaultOn: true, fixed: true,
+    sortValue: (u) => (u.memberFirstName
+      ? `${u.memberFirstName} ${u.memberLastName ?? ''}`
+      : u.clerkName || u.clerkEmail || '').trim().toLowerCase(),
+    render: (u) => {
+      const displayName = u.memberFirstName
+        ? `${u.memberFirstName} ${u.memberLastName ?? ''}`.trim()
+        : u.clerkName || u.clerkEmail || '(unknown)';
+      const displayEmail = u.memberEmail ?? u.clerkEmail ?? '—';
+      return (
+        <div className="flex items-center gap-2.5">
+          {u.clerkImageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={u.clerkImageUrl} alt="" className="w-7 h-7 rounded-full flex-shrink-0 object-cover" />
+          ) : (
+            <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600 flex-shrink-0">
+              {displayName.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div className="min-w-0">
+            <p className="font-medium text-slate-900 truncate">{displayName}</p>
+            <p className="text-xs text-slate-500 truncate">{displayEmail}</p>
+          </div>
+        </div>
+      );
+    },
+  },
+  {
+    key: 'created', label: 'Created', defaultOn: true,
+    sortValue: (u) => u.systemCreatedAt ?? Number.POSITIVE_INFINITY,
+    render: (u) => (
+      u.systemCreatedAt
+        ? <span className="text-xs text-slate-600 whitespace-nowrap">{fmt(u.systemCreatedAt)}</span>
+        : <span className="text-xs text-slate-300">—</span>
+    ),
+  },
+  {
+    key: 'presence', label: 'System Presence', defaultOn: true,
+    sortValue: (u) => u.presence,
+    render: (u) => <PresenceBadge presence={u.presence} />,
+  },
+  {
+    key: 'memberId', label: 'Member ID', defaultOn: true,
+    sortValue: (u) => (u.memberId ?? '').toLowerCase(),
+    render: (u) => <Plain value={u.memberId} mono />,
+  },
+  {
+    key: 'memberType', label: 'Status', defaultOn: true,
+    sortValue: (u) => (u.memberType ?? '').toLowerCase(),
+    render: (u) => u.memberType
+      ? <StatusBadge status={u.memberType} />
+      : <span className="text-xs text-slate-300">—</span>,
+  },
+  {
+    key: 'toothlens', label: 'Toothlens', defaultOn: true, align: 'center',
+    sortValue: (u) => (u.hasToothlens ? (u.toothlensScans ?? 0) : -1),
+    render: (u) => u.hasToothlens
+      ? (
+        <span className="inline-flex items-center gap-1 text-xs text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
+          <ScanLine size={10} /> {u.toothlensScans ?? 0}
+        </span>
+      )
+      : <span className="text-xs text-slate-300">—</span>,
+  },
+  {
+    key: 'subscription', label: 'Subscription', defaultOn: true,
+    sortValue: (u) => (u.subscriptionStatus ?? '').toLowerCase(),
+    render: (u) => u.subscriptionStatus
+      ? (
+        <span className={`text-xs font-medium px-2 py-0.5 rounded ${SUB_COLORS[u.subscriptionStatus] ?? 'text-slate-600 bg-slate-100'}`}>
+          {u.subscriptionStatus.replace(/_/g, ' ')}
+          {u.entitlementCount ? ` · ${u.entitlementCount}` : ''}
+        </span>
+      )
+      : <span className="text-xs text-slate-300">None</span>,
+  },
+  {
+    key: 'census', label: 'Census', defaultOn: true,
+    sortValue: (u) => (u.memberProfileId ? u.missingFields.length : -1),
+    render: (u) => !u.memberProfileId
+      ? <span className="text-xs text-slate-300">N/A</span>
+      : u.missingFields.length === 0
+        ? (
+          <span className="inline-flex items-center gap-1 text-xs text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded">
+            <CheckCircle2 size={10} /> OK
+          </span>
+        )
+        : (
+          <span className="inline-flex items-center gap-1 text-xs text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded">
+            <AlertTriangle size={10} /> {u.missingFields.length} missing
+          </span>
+        ),
+  },
+  // ── Optional columns (off by default) ──
+  {
+    key: 'clerkCreated', label: 'Clerk Created', defaultOn: false,
+    sortValue: (u) => u.clerkCreatedAt ?? Number.POSITIVE_INFINITY,
+    render: (u) => u.clerkCreatedAt
+      ? <span className="text-xs text-slate-600 whitespace-nowrap">{fmt(u.clerkCreatedAt)}</span>
+      : <span className="text-xs text-slate-300">—</span>,
+  },
+  {
+    key: 'memberCreated', label: 'Convex Created', defaultOn: false,
+    sortValue: (u) => u.memberCreatedAt ?? Number.POSITIVE_INFINITY,
+    render: (u) => u.memberCreatedAt
+      ? <span className="text-xs text-slate-600 whitespace-nowrap">{fmt(u.memberCreatedAt)}</span>
+      : <span className="text-xs text-slate-300">—</span>,
+  },
+  {
+    key: 'memberEmail', label: 'Member Email', defaultOn: false,
+    sortValue: (u) => (u.memberEmail ?? '').toLowerCase(),
+    render: (u) => <Plain value={u.memberEmail} />,
+  },
+  {
+    key: 'clerkEmail', label: 'Clerk Email', defaultOn: false,
+    sortValue: (u) => (u.clerkEmail ?? '').toLowerCase(),
+    render: (u) => <Plain value={u.clerkEmail} />,
+  },
+  {
+    key: 'dob', label: 'DOB', defaultOn: false,
+    sortValue: (u) => u.memberDob ?? '',
+    render: (u) => <Plain value={u.memberDob} mono />,
+  },
+  {
+    key: 'effective', label: 'Effective Date', defaultOn: false,
+    sortValue: (u) => u.memberEffective ?? '',
+    render: (u) => <Plain value={u.memberEffective} mono />,
+  },
+  {
+    key: 'careingtonId', label: 'Careington ID', defaultOn: false,
+    sortValue: (u) => (u.careingtonUniqueId ?? '').toLowerCase(),
+    render: (u) => <Plain value={u.careingtonUniqueId} mono />,
+  },
+  {
+    key: 'seqNum', label: 'Seq #', defaultOn: false,
+    sortValue: (u) => u.careingtonSeqNum ?? '',
+    render: (u) => <Plain value={u.careingtonSeqNum} mono />,
+  },
+  {
+    key: 'entitlements', label: 'Entitlements', defaultOn: false, align: 'center',
+    sortValue: (u) => u.entitlementCount ?? 0,
+    render: (u) => <Plain value={u.entitlementCount != null ? String(u.entitlementCount) : undefined} mono />,
+  },
+  {
+    key: 'location', label: 'Location', defaultOn: false,
+    sortValue: (u) => (u.location ?? '').toLowerCase(),
+    render: (u) => <Plain value={u.location} />,
+  },
+  {
+    key: 'department', label: 'Department', defaultOn: false,
+    sortValue: (u) => (u.department ?? '').toLowerCase(),
+    render: (u) => <Plain value={u.department} />,
+  },
+  {
+    key: 'city', label: 'City', defaultOn: false,
+    sortValue: (u) => (u.memberAddress?.city ?? '').toLowerCase(),
+    render: (u) => <Plain value={u.memberAddress?.city} />,
+  },
+  {
+    key: 'state', label: 'State', defaultOn: false,
+    sortValue: (u) => (u.memberAddress?.state ?? '').toLowerCase(),
+    render: (u) => <Plain value={u.memberAddress?.state} mono />,
+  },
+  {
+    key: 'clerkId', label: 'Clerk ID', defaultOn: false,
+    sortValue: (u) => (u.clerkId ?? '').toLowerCase(),
+    render: (u) => <Plain value={u.clerkId} mono />,
+  },
+];
+
+const COLUMN_STORAGE_KEY = 'userAuditVisibleColumns';
+const DEFAULT_VISIBLE_COLUMNS = DISPLAY_COLUMNS.filter((c) => c.defaultOn || c.fixed).map((c) => c.key);
 
 
 // ─── Main page ────────────────────────────────────────────────────────────────
@@ -207,6 +411,7 @@ export default function UserAuditPage() {
         memberEmail: m.email,
         memberDob: m.dateOfBirth,
         memberEffective: m.effectiveDate,
+        memberCreatedAt: m.createdAt,
         memberAddress: m.address,
         careingtonUniqueId: m.careingtonUniqueId,
         careingtonSeqNum: m.careingtonSeqNum,
@@ -220,6 +425,10 @@ export default function UserAuditPage() {
         department: (m as any).department ?? undefined,
         presence,
         missingFields: [],
+        systemCreatedAt: (() => {
+          const c = [m.createdAt, clerk?.createdAt].filter((x): x is number => typeof x === 'number');
+          return c.length ? Math.min(...c) : undefined;
+        })(),
       };
       row.missingFields = getMissing(row);
       rows.push(row);
@@ -244,6 +453,7 @@ export default function UserAuditPage() {
         entitlementCount: sub?.entitlementCount ?? 0,
         presence: 'clerk-only',
         missingFields: [],
+        systemCreatedAt: u.createdAt,
       });
     }
 
@@ -260,11 +470,11 @@ export default function UserAuditPage() {
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
   // ── Sorting ──────────────────────────────────────────────────────────────────
-  type SortKey = 'name' | 'presence' | 'memberId' | 'memberType' | 'toothlens' | 'subscription' | 'census';
-  const [sortKey, setSortKey] = useState<SortKey>('name');
+  // Default: chronological by when they were first added to our system (oldest first)
+  const [sortKey, setSortKey] = useState<string>('created');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
-  const toggleSort = (key: SortKey) => {
+  const toggleSort = (key: string) => {
     if (sortKey === key) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     } else {
@@ -272,6 +482,38 @@ export default function UserAuditPage() {
       setSortDir('asc');
     }
   };
+
+  // ── Visible columns (persisted) ──────────────────────────────────────────────
+  const [visibleCols, setVisibleCols] = useState<string[]>(DEFAULT_VISIBLE_COLUMNS);
+  const [showColumnPicker, setShowColumnPicker] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(COLUMN_STORAGE_KEY);
+      if (saved) {
+        const arr = JSON.parse(saved);
+        if (Array.isArray(arr) && arr.every((x) => typeof x === 'string')) {
+          setVisibleCols(arr);
+        }
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(visibleCols));
+    } catch { /* ignore */ }
+  }, [visibleCols]);
+
+  const enabledColumns = useMemo(
+    () => DISPLAY_COLUMNS.filter((c) => c.fixed || visibleCols.includes(c.key)),
+    [visibleCols]
+  );
+
+  const toggleColumn = (key: string) =>
+    setVisibleCols((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
 
   const terminatedCount = useMemo(
     () => unified.filter((u) => u.memberType === 'terminated').length,
@@ -311,28 +553,8 @@ export default function UserAuditPage() {
 
   const sorted = useMemo(() => {
     const dir = sortDir === 'asc' ? 1 : -1;
-    const valueFor = (u: UnifiedUser): string | number => {
-      switch (sortKey) {
-        case 'name':
-          return (u.memberFirstName
-            ? `${u.memberFirstName} ${u.memberLastName ?? ''}`
-            : u.clerkName || u.clerkEmail || '').trim().toLowerCase();
-        case 'presence':
-          return u.presence;
-        case 'memberId':
-          return (u.memberId ?? '').toLowerCase();
-        case 'memberType':
-          return (u.memberType ?? '').toLowerCase();
-        case 'toothlens':
-          return u.hasToothlens ? (u.toothlensScans ?? 0) : -1;
-        case 'subscription':
-          return (u.subscriptionStatus ?? '').toLowerCase();
-        case 'census':
-          return u.memberProfileId ? u.missingFields.length : -1;
-        default:
-          return '';
-      }
-    };
+    const col = DISPLAY_COLUMNS.find((c) => c.key === sortKey);
+    const valueFor = col?.sortValue ?? ((u: UnifiedUser) => u.key);
     return [...filtered].sort((a, b) => {
       const av = valueFor(a);
       const bv = valueFor(b);
@@ -380,6 +602,7 @@ export default function UserAuditPage() {
   // ── CSV column picker ──────────────────────────────────────────────────────
   const AUDIT_COLUMNS: { key: string; label: string; defaultOn: boolean; sensitive?: boolean; get: (u: UnifiedUser) => string }[] = [
     { key: 'presence',        label: 'Presence',              defaultOn: true,  get: (u) => u.presence },
+    { key: 'systemCreated',   label: 'Created (System)',      defaultOn: true,  get: (u) => u.systemCreatedAt ? new Date(u.systemCreatedAt).toISOString().slice(0, 10) : '' },
     { key: 'firstName',       label: 'First Name',            defaultOn: true,  get: (u) => u.memberFirstName ?? u.clerkName?.split(' ')[0] ?? '' },
     { key: 'lastName',        label: 'Last Name',             defaultOn: true,  get: (u) => u.memberLastName ?? u.clerkName?.split(' ').slice(1).join(' ') ?? '' },
     { key: 'memberEmail',     label: 'Email (member)',        defaultOn: true,  get: (u) => u.memberEmail ?? '' },
@@ -454,6 +677,12 @@ export default function UserAuditPage() {
           >
             <RefreshCw size={14} className={clerkLoading ? 'animate-spin' : ''} />
             Refresh Clerk
+          </button>
+          <button
+            onClick={() => setShowColumnPicker(true)}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50"
+          >
+            <Columns3 size={14} /> Columns
           </button>
           <button
             onClick={() => setShowExportPicker(true)}
@@ -625,27 +854,31 @@ export default function UserAuditPage() {
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="w-8 px-3 py-3" />
-                <SortableTh label="User" sortKey="name" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
-                <SortableTh label="System Presence" sortKey="presence" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
-                <SortableTh label="Member ID" sortKey="memberId" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
-                <SortableTh label="Status" sortKey="memberType" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
-                <SortableTh label="Toothlens" sortKey="toothlens" activeKey={sortKey} dir={sortDir} onSort={toggleSort} align="center" />
-                <SortableTh label="Subscription" sortKey="subscription" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
-                <SortableTh label="Census" sortKey="census" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+                {enabledColumns.map((col) => (
+                  <SortableTh
+                    key={col.key}
+                    label={col.label}
+                    sortKey={col.key}
+                    activeKey={sortKey}
+                    dir={sortDir}
+                    onSort={toggleSort}
+                    align={col.align}
+                  />
+                ))}
                 <th className="w-10 px-3 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {dataLoading ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-slate-400">
+                  <td colSpan={enabledColumns.length + 2} className="px-4 py-12 text-center text-slate-400">
                     <Loader size={18} className="animate-spin inline mr-2" />
                     Loading users from Clerk, Convex, and Toothlens…
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-slate-400">
+                  <td colSpan={enabledColumns.length + 2} className="px-4 py-10 text-center text-slate-400">
                     No users match the current filters.
                   </td>
                 </tr>
@@ -654,6 +887,7 @@ export default function UserAuditPage() {
                   <UserRow
                     key={u.key}
                     user={u}
+                    columns={enabledColumns}
                     isExpanded={expandedKey === u.key}
                     onToggle={() => setExpandedKey(expandedKey === u.key ? null : u.key)}
                   />
@@ -711,6 +945,57 @@ export default function UserAuditPage() {
           </div>
         </div>
       )}
+
+      {/* ── Table column picker modal ── */}
+      {showColumnPicker && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold text-slate-900">Table Columns</h2>
+              <button onClick={() => setShowColumnPicker(false)} className="text-slate-400 hover:text-slate-700 text-lg leading-none">&times;</button>
+            </div>
+            <p className="text-xs text-slate-500">
+              Choose which data points appear as columns in the table. Your selection is saved on this device.
+            </p>
+            {/* Presets */}
+            <div className="flex gap-2 flex-wrap">
+              <span className="text-xs font-semibold text-slate-500 self-center">Presets:</span>
+              <button onClick={() => setVisibleCols(DEFAULT_VISIBLE_COLUMNS)} className="px-3 py-1 text-xs rounded border border-slate-300 hover:bg-slate-50">Default</button>
+              <button onClick={() => setVisibleCols(DISPLAY_COLUMNS.map((c) => c.key))} className="px-3 py-1 text-xs rounded border border-slate-300 hover:bg-slate-50">Show all</button>
+              <button onClick={() => setVisibleCols(DISPLAY_COLUMNS.filter((c) => c.fixed).map((c) => c.key))} className="px-3 py-1 text-xs rounded border border-slate-300 hover:bg-slate-50">Minimal</button>
+            </div>
+            {/* Column checkboxes */}
+            <div className="grid grid-cols-2 gap-1 max-h-72 overflow-y-auto pr-1">
+              {DISPLAY_COLUMNS.map((col) => (
+                <label
+                  key={col.key}
+                  className={`flex items-center gap-2 text-sm rounded px-2 py-1.5 ${col.fixed ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50'}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={col.fixed || visibleCols.includes(col.key)}
+                    disabled={col.fixed}
+                    onChange={() => toggleColumn(col.key)}
+                    className="rounded border-slate-300"
+                  />
+                  <span className="text-slate-700">
+                    {col.label}{col.fixed && <span className="text-xs text-slate-400"> (always)</span>}
+                  </span>
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-between items-center pt-1">
+              <span className="text-xs text-slate-400">{enabledColumns.length} column{enabledColumns.length !== 1 ? 's' : ''} shown</span>
+              <button
+                onClick={() => setShowColumnPicker(false)}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -746,25 +1031,13 @@ function SortableTh({ label, sortKey, activeKey, dir, onSort, align }: {
 // ─── Expandable Row ───────────────────────────────────────────────────────────
 
 function UserRow({
-  user: u, isExpanded, onToggle,
+  user: u, columns, isExpanded, onToggle,
 }: {
   user: UnifiedUser;
+  columns: DisplayColumn[];
   isExpanded: boolean;
   onToggle: () => void;
 }) {
-  const displayName = u.memberFirstName
-    ? `${u.memberFirstName} ${u.memberLastName ?? ''}`.trim()
-    : u.clerkName || u.clerkEmail || '(unknown)';
-  const displayEmail = u.memberEmail ?? u.clerkEmail ?? '—';
-
-  const subColors: Record<string, string> = {
-    active: 'text-green-700 bg-green-50',
-    cancelled: 'text-red-600 bg-red-50',
-    past_due: 'text-orange-600 bg-orange-50',
-    payment_failed: 'text-red-600 bg-red-50',
-    cancel_at_period_end: 'text-amber-700 bg-amber-50',
-  };
-
   return (
     <>
       <tr
@@ -775,77 +1048,11 @@ function UserRow({
           {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
         </td>
 
-        {/* User identity */}
-        <td className="px-4 py-3">
-          <div className="flex items-center gap-2.5">
-            {u.clerkImageUrl ? (
-              <img src={u.clerkImageUrl} alt="" className="w-7 h-7 rounded-full flex-shrink-0 object-cover" />
-            ) : (
-              <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600 flex-shrink-0">
-                {displayName.charAt(0).toUpperCase()}
-              </div>
-            )}
-            <div className="min-w-0">
-              <p className="font-medium text-slate-900 truncate">{displayName}</p>
-              <p className="text-xs text-slate-500 truncate">{displayEmail}</p>
-            </div>
-          </div>
-        </td>
-
-        {/* Presence */}
-        <td className="px-4 py-3"><PresenceBadge presence={u.presence} /></td>
-
-        {/* Member ID */}
-        <td className="px-4 py-3">
-          <span className="font-mono text-xs text-slate-600">{u.memberId ?? '—'}</span>
-        </td>
-
-        {/* Member status */}
-        <td className="px-4 py-3">
-          {u.memberType ? (
-            <StatusBadge status={u.memberType} />
-          ) : (
-            <span className="text-xs text-slate-300">—</span>
-          )}
-        </td>
-
-        {/* Toothlens */}
-        <td className="px-4 py-3 text-center">
-          {u.hasToothlens ? (
-            <span className="inline-flex items-center gap-1 text-xs text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
-              <ScanLine size={10} /> {u.toothlensScans ?? 0}
-            </span>
-          ) : (
-            <span className="text-xs text-slate-300">—</span>
-          )}
-        </td>
-
-        {/* Subscription */}
-        <td className="px-4 py-3">
-          {u.subscriptionStatus ? (
-            <span className={`text-xs font-medium px-2 py-0.5 rounded ${subColors[u.subscriptionStatus] ?? 'text-slate-600 bg-slate-100'}`}>
-              {u.subscriptionStatus.replace(/_/g, ' ')}
-              {u.entitlementCount ? ` · ${u.entitlementCount}` : ''}
-            </span>
-          ) : (
-            <span className="text-xs text-slate-300">None</span>
-          )}
-        </td>
-
-        {/* Census */}
-        <td className="px-4 py-3">
-          {!u.memberProfileId ? (
-            <span className="text-xs text-slate-300">N/A</span>
-          ) : u.missingFields.length === 0 ? (
-            <span className="inline-flex items-center gap-1 text-xs text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded">
-              <CheckCircle2 size={10} /> OK
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 text-xs text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded">
-              <AlertTriangle size={10} /> {u.missingFields.length} missing
-            </span>
-          )}
-        </td>
+        {columns.map((col) => (
+          <td key={col.key} className={`px-4 py-3 ${col.align === 'center' ? 'text-center' : ''}`}>
+            {col.render(u)}
+          </td>
+        ))}
 
         {/* Inspector link */}
         <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
@@ -864,7 +1071,7 @@ function UserRow({
       {/* Expanded inline detail */}
       {isExpanded && (
         <tr>
-          <td colSpan={9} className="p-0 border-b border-slate-100">
+          <td colSpan={columns.length + 2} className="p-0 border-b border-slate-100">
             <ExpandedDetail user={u} />
           </td>
         </tr>
