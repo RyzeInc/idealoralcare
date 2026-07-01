@@ -142,6 +142,7 @@ async function seedPrimary(
     relationship?: "spouse" | "child" | "domestic_partner" | "other";
     noEmail?: boolean;
     noCustomerId?: boolean;
+    effectiveDate?: string;
   } = {},
 ): Promise<Id<"memberProfiles">> {
   return t.run(async (ctx) => {
@@ -158,6 +159,7 @@ async function seedPrimary(
       email: opts.noEmail ? undefined : `${Math.random().toString(36).slice(2)}@test.lbi`,
       memberType: opts.memberType ?? "active",
       status: "active",
+      effectiveDate: opts.effectiveDate,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -171,6 +173,7 @@ async function seedDependent(
   opts: {
     relationship?: "spouse" | "child" | "domestic_partner" | "other";
     memberType?: "active" | "enrolling" | "terminated";
+    effectiveDate?: string;
   } = {},
 ): Promise<Id<"memberProfiles">> {
   return t.run(async (ctx) => {
@@ -189,6 +192,7 @@ async function seedDependent(
       email: `${Math.random().toString(36).slice(2)}@dep.lbi`,
       memberType: opts.memberType ?? "active",
       status: "active",
+      effectiveDate: opts.effectiveDate,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -276,6 +280,101 @@ describe("T1 — generateInvoice creates draft invoice", () => {
     expect(inv!.lines).toHaveLength(1);
     expect(inv!.lines[0].lastName).toBe("Waters");
     expect(inv!.subtotalCents).toBe(1499);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// T1b — Effective-date gating: don't bill for coverage that hasn't started
+// ---------------------------------------------------------------------------
+describe("T1b — generateInvoice respects member effectiveDate", () => {
+  test("primary with effectiveDate after the coverage period is excluded", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const world = await seedBaseWorld(t, {
+      customRates: { moCents: 1499, msCents: 2499, mfCents: 2499 },
+    });
+    // Group is billing 2026-07, but this member's coverage doesn't start until 2026-08.
+    await seedPrimary(t, world, { firstName: "Future", lastName: "Member", effectiveDate: "2026-08-01" });
+
+    const { invoiceId } = await asAdmin(t).mutation(generate, {
+      groupId: world.groupId,
+      coveragePeriod: "2026-07",
+    });
+
+    const inv = await asAdmin(t).query(getInvoice, { invoiceId });
+    expect(inv!.memberCount).toBe(0);
+    expect(inv!.lines).toHaveLength(0);
+    expect(inv!.subtotalCents).toBe(0);
+  });
+
+  test("primary with effectiveDate within/before the coverage period is included", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const world = await seedBaseWorld(t, {
+      customRates: { moCents: 1499, msCents: 2499, mfCents: 2499 },
+    });
+    await seedPrimary(t, world, { firstName: "Current", lastName: "Member", effectiveDate: "2026-07-15" });
+
+    const { invoiceId } = await asAdmin(t).mutation(generate, {
+      groupId: world.groupId,
+      coveragePeriod: "2026-07",
+    });
+
+    const inv = await asAdmin(t).query(getInvoice, { invoiceId });
+    expect(inv!.memberCount).toBe(1);
+    expect(inv!.lines[0].lastName).toBe("Member");
+  });
+
+  test("member with no effectiveDate set is still billed (fail-open for legacy records)", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const world = await seedBaseWorld(t, {
+      customRates: { moCents: 1499, msCents: 2499, mfCents: 2499 },
+    });
+    await seedPrimary(t, world, { firstName: "NoDate", lastName: "Member" });
+
+    const { invoiceId } = await asAdmin(t).mutation(generate, {
+      groupId: world.groupId,
+      coveragePeriod: "2026-07",
+    });
+
+    const inv = await asAdmin(t).query(getInvoice, { invoiceId });
+    expect(inv!.memberCount).toBe(1);
+  });
+
+  test("dependent with a future effectiveDate doesn't count toward tier/dependentCount", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const world = await seedBaseWorld(t, {
+      customRates: { moCents: 1499, msCents: 2499, mfCents: 2499 },
+    });
+    const pid = await seedPrimary(t, world, { firstName: "Parent", lastName: "Member" });
+    await seedDependent(t, world, pid, { effectiveDate: "2026-09-01" }); // future, should not count
+
+    const { invoiceId } = await asAdmin(t).mutation(generate, {
+      groupId: world.groupId,
+      coveragePeriod: "2026-07",
+    });
+
+    const inv = await asAdmin(t).query(getInvoice, { invoiceId });
+    expect(inv!.memberCount).toBe(1);
+    expect(inv!.lines[0].tier).toBe("MO"); // dependent excluded, so still member-only
+    expect(inv!.lines[0].dependentCount).toBe(0);
+  });
+
+  test("preview also respects effectiveDate gating", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const world = await seedBaseWorld(t, {
+      customRates: { moCents: 1499, msCents: 2499, mfCents: 2499 },
+    });
+    await seedPrimary(t, world, { effectiveDate: "2026-08-01" });
+
+    const preview = await asAdmin(t).query(previewInvoice, {
+      groupId: world.groupId,
+      coveragePeriod: "2026-07",
+    });
+    expect(preview!.memberCount).toBe(0);
   });
 });
 

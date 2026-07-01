@@ -46,6 +46,7 @@ A dependent counts toward tier determination if ALL of the following hold:
 1. `memberProfiles.primaryMemberId` = this primary's `_id`
 2. `memberProfiles.memberType` ∈ `{"active", "enrolling", "eligible"}`
 3. `memberProfiles.memberRole` = `"dependent"`
+4. `memberProfiles.effectiveDate` (if set) is on or before the end of the invoice's coverage period — see §2.2
 
 Terminated / inactive dependents are excluded. This snapshot is taken at invoice generation time and frozen in the invoice line items.
 
@@ -55,6 +56,29 @@ Terminated / inactive dependents are excluded. This snapshot is taken at invoice
 > email) and so never transition out of `"eligible"`. Employer coverage — and the
 > obligation to bill for it — starts at eligibility-file ingest, not at portal
 > signup, so `"eligible"` members must remain billable indefinitely.
+
+### 2.2 Effective-Date Gating
+
+A member (primary or dependent) is only billed on an invoice if their coverage
+has actually started by the end of that invoice's coverage period:
+
+```
+isEffectiveForPeriod(member) :=
+  member.effectiveDate is unset OR unparseable  →  true  (fail-open; legacy records)
+  otherwise                                      →  Date.parse(member.effectiveDate) <= coverageEnd
+```
+
+This prevents billing for coverage that hasn't started yet — e.g. a member
+added mid-cycle with a next-month effective date (say, effective `2026-08-01`
+while generating the `2026-07` invoice) is excluded from that invoice and will
+appear starting on the `2026-08` invoice instead. This check is independent of
+(and in addition to) the `"eligible"` retroactive-billing rule above: a member
+can be billable-by-`memberType` yet still excluded from a specific period if
+their coverage hasn't started by that period's end.
+
+Note this is **not** proration (see §18.1) — the member is either fully
+included or fully excluded from a given period; there's no partial-month
+charge.
 
 ---
 
@@ -466,13 +490,17 @@ The preview query runs the same tier-classification logic as `generateInvoice` b
 
 ```
 function buildInvoiceLines(groupId, coveragePeriod, snapshotMs):
+  coverageEnd ← periodWindow(coveragePeriod).coverageEnd
+
   members ← memberProfiles WHERE groupId=groupId AND memberType IN (active, enrolling, eligible)
                                AND memberRole = "primary"
+                               AND isEffectiveForPeriod(effectiveDate, coverageEnd)   // §2.2
 
   for each primary in members:
     deps ← memberProfiles WHERE primaryMemberId=primary._id
                               AND memberType IN (active, enrolling, eligible)
                               AND memberRole = "dependent"
+                              AND isEffectiveForPeriod(effectiveDate, coverageEnd)    // §2.2
 
     hasChild   ← deps.some(d => d.relationship IN {child, other} OR d.relationship IS null)
     hasSpouse  ← deps.some(d => d.relationship IN {spouse, domestic_partner})
@@ -491,6 +519,10 @@ function buildInvoiceLines(groupId, coveragePeriod, snapshotMs):
     append line { memberProfileId, memberId, lastName, firstName, tier, depCount, rate, label }
 
   return lines.sortBy(lastName, firstName)
+
+function isEffectiveForPeriod(effectiveDate, coverageEnd):
+  if effectiveDate is unset or unparseable → true   // fail-open
+  return Date.parse(effectiveDate) <= coverageEnd
 
 function resolveRate(group, tier):
   if group.listBill.rates.{tier}Cents  → return that
@@ -641,7 +673,7 @@ Vitest tests at `convex/admin/listBillInvoices.test.ts`:
 
 ## 18. Open Decisions / Future Work
 
-1. **Proration**: Currently out-of-scope. Mid-month enrollments and terminations are rounded to full months. A proration engine (§ TBD) will need a `proratedDays` field per line item.
+1. **Proration**: Currently out-of-scope. Mid-month enrollments and terminations are rounded to full months. A proration engine (§ TBD) will need a `proratedDays` field per line item. Note: effective-date *gating* (whole-period include/exclude, §2.2) IS in scope and implemented — a member is either fully billed for a period or fully excluded from it; only partial-month/partial-charge proration remains out-of-scope.
 
 2. **Email delivery**: The `issueInvoice` mutation should trigger a Resend email with the PDF attached (or a link). Integration with the Resend email system is deferred to the email-delivery sprint.
 

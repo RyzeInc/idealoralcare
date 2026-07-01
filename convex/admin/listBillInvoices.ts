@@ -60,6 +60,23 @@ const DEFAULT_RATE_LABEL = "Ideal Oral Health";
 // members must stay billable indefinitely in "eligible" status.
 const BILLABLE_MEMBER_TYPES = new Set(["active", "enrolling", "eligible"]);
 
+/**
+ * True if a member's coverage effective date (if any) has begun on or before
+ * the end of the invoice's coverage period. Members added mid-cycle with a
+ * future effective date (e.g. effective 2026-08-01 while billing the
+ * 2026-07 period) must NOT be charged for a period before their coverage
+ * starts — even though they're otherwise a billable memberType (e.g.
+ * "eligible" members provisioned retroactively, see BILLABLE_MEMBER_TYPES).
+ * A missing or unparseable effectiveDate does not exclude the member
+ * (fail-open: many historical/legacy records have no effectiveDate set).
+ */
+function isEffectiveForPeriod(effectiveDate: string | undefined, coverageEnd: number): boolean {
+  if (!effectiveDate) return true;
+  const ms = Date.parse(effectiveDate);
+  if (Number.isNaN(ms)) return true;
+  return ms <= coverageEnd;
+}
+
 // Tier display suffixes
 const TIER_SUFFIX: Record<"MO" | "MS" | "MF", string> = {
   MO: "Member Only",
@@ -276,6 +293,7 @@ async function buildInvoiceLines(
   groupId: Id<"groups">,
   group: Doc<"groups">,
   account: Doc<"accounts">,
+  coverageEnd: number,
 ): Promise<InvoiceLine[]> {
   const { moCents, msCents, mfCents, rateLabel } = resolveRates(group, account);
 
@@ -291,7 +309,10 @@ async function buildInvoiceLines(
       // Exclude members who have converted to self-pay or were termed from payroll deduction.
       // `undefined` means eligibility-loaded and still employer-covered.
       (!m.listBillStatus || m.listBillStatus === "active") &&
-      (m.memberRole === "primary" || m.memberRole === undefined || m.memberRole === null),
+      (m.memberRole === "primary" || m.memberRole === undefined || m.memberRole === null) &&
+      // Don't bill for coverage that hasn't started yet (e.g. member added
+      // mid-cycle with a next-month effective date).
+      isEffectiveForPeriod(m.effectiveDate, coverageEnd),
   );
 
   const dependentsByPrimary = new Map<string, Doc<"memberProfiles">[]>();
@@ -305,7 +326,9 @@ async function buildInvoiceLines(
 
   const lines: InvoiceLine[] = [];
   for (const primary of primaries) {
-    const deps = dependentsByPrimary.get(primary._id) ?? [];
+    const deps = (dependentsByPrimary.get(primary._id) ?? []).filter((d) =>
+      isEffectiveForPeriod(d.effectiveDate, coverageEnd),
+    );
     const { tier, dependentCount } = classifyTier(deps);
     // Per-member premium captured from the eligibility file (e.g. Soar "Approved
     // EE Cost") is authoritative when present; otherwise fall back to the
@@ -407,7 +430,8 @@ export const previewInvoice = query({
     const account = await ctx.db.get(group.accountId);
     if (!account) return null;
     const { moCents, msCents, mfCents, rateLabel } = resolveRates(group, account);
-    const lines = await buildInvoiceLines(ctx, groupId, group, account);
+    const { coverageEnd } = periodWindow(coveragePeriod);
+    const lines = await buildInvoiceLines(ctx, groupId, group, account, coverageEnd);
     const { moCount, msCount, mfCount, subtotalCents } = computeCounts(lines);
     return {
       source: "preview",
@@ -627,14 +651,14 @@ export const generateInvoice = mutation({
     if (!account) throw new Error("Account not found");
 
     const { moCents, msCents, mfCents, rateLabel } = resolveRates(group, account);
-    const lines = await buildInvoiceLines(ctx, groupId, group, account);
+    const { coverageStart, coverageEnd } = periodWindow(coveragePeriod);
+    const lines = await buildInvoiceLines(ctx, groupId, group, account, coverageEnd);
     const { moCount, msCount, mfCount, subtotalCents } = computeCounts(lines);
 
     // LBI-01: verify
     const sumCheck = lines.reduce((s, l) => s + l.rateCents, 0);
     if (sumCheck !== subtotalCents) throw new Error("LBI-01 violated");
 
-    const { coverageStart, coverageEnd } = periodWindow(coveragePeriod);
     const now = Date.now();
     const billing = billingDate ?? now;
 
@@ -978,9 +1002,9 @@ export const generateReplacementInvoice = mutation({
     if (!account) throw new Error("Account not found");
 
     const { moCents, msCents, mfCents, rateLabel } = resolveRates(group, account);
-    const lines = await buildInvoiceLines(ctx, voided.groupId, group, account);
-    const { moCount, msCount, mfCount, subtotalCents } = computeCounts(lines);
     const { coverageStart, coverageEnd } = periodWindow(period);
+    const lines = await buildInvoiceLines(ctx, voided.groupId, group, account, coverageEnd);
+    const { moCount, msCount, mfCount, subtotalCents } = computeCounts(lines);
     const { invoiceNumber, invoiceNumberDisplay } = await allocateInvoiceNumber(ctx);
     const now = Date.now();
 
@@ -1082,6 +1106,7 @@ export const generateMonthlyInvoices = internalMutation({
   args: {},
   handler: async (ctx): Promise<{ generated: number; skipped: number }> => {
     const period = nextMonthPeriod();
+    const { coverageStart: periodCoverageStart, coverageEnd: periodCoverageEnd } = periodWindow(period);
     const allGroups = await ctx.db.query("groups").collect();
     const listBillGroups = allGroups.filter((g) => g.listBill?.enabled === true && g.status === "active");
 
@@ -1100,9 +1125,10 @@ export const generateMonthlyInvoices = internalMutation({
       if (!account) { skipped++; continue; }
 
       const { moCents, msCents, mfCents, rateLabel } = resolveRates(group, account);
-      const lines = await buildInvoiceLines(ctx, group._id, group, account);
+      const lines = await buildInvoiceLines(ctx, group._id, group, account, periodCoverageEnd);
       const { moCount, msCount, mfCount, subtotalCents } = computeCounts(lines);
-      const { coverageStart, coverageEnd } = periodWindow(period);
+      const coverageStart = periodCoverageStart;
+      const coverageEnd = periodCoverageEnd;
       const { invoiceNumber, invoiceNumberDisplay } = await allocateInvoiceNumber(ctx);
       const now = Date.now();
 
@@ -1182,6 +1208,7 @@ export const triggerMonthlyGeneration = mutation({
   handler: async (ctx): Promise<{ generated: number; skipped: number }> => {
     await requireAdmin(ctx);
     const period = nextMonthPeriod();
+    const { coverageStart: periodCoverageStart, coverageEnd: periodCoverageEnd } = periodWindow(period);
     const allGroups = await ctx.db.query("groups").collect();
     const listBillGroups = allGroups.filter((g) => g.listBill?.enabled === true && g.status === "active");
 
@@ -1199,9 +1226,10 @@ export const triggerMonthlyGeneration = mutation({
       if (!account) { skipped++; continue; }
 
       const { moCents, msCents, mfCents, rateLabel } = resolveRates(group, account);
-      const lines = await buildInvoiceLines(ctx, group._id, group, account);
+      const lines = await buildInvoiceLines(ctx, group._id, group, account, periodCoverageEnd);
       const { moCount, msCount, mfCount, subtotalCents } = computeCounts(lines);
-      const { coverageStart, coverageEnd } = periodWindow(period);
+      const coverageStart = periodCoverageStart;
+      const coverageEnd = periodCoverageEnd;
       const { invoiceNumber, invoiceNumberDisplay } = await allocateInvoiceNumber(ctx);
       const now = Date.now();
 
@@ -1277,7 +1305,7 @@ export const refreshInvoiceLines = mutation({
     if (!account) throw new Error("Account not found.");
 
     const { moCents, msCents, mfCents, rateLabel } = resolveRates(group, account);
-    const lines = await buildInvoiceLines(ctx, inv.groupId, group, account);
+    const lines = await buildInvoiceLines(ctx, inv.groupId, group, account, inv.coverageEnd);
     const { moCount, msCount, mfCount, subtotalCents } = computeCounts(lines);
 
     await ctx.db.patch(invoiceId, {
