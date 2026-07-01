@@ -143,6 +143,7 @@ async function seedPrimary(
     noEmail?: boolean;
     noCustomerId?: boolean;
     effectiveDate?: string;
+    createdAt?: number;
   } = {},
 ): Promise<Id<"memberProfiles">> {
   return t.run(async (ctx) => {
@@ -160,7 +161,11 @@ async function seedPrimary(
       memberType: opts.memberType ?? "active",
       status: "active",
       effectiveDate: opts.effectiveDate,
-      createdAt: Date.now(),
+      // Default to a fixed long-past date (not Date.now()) so tests that seed
+      // a member for an arbitrary historical coveragePeriod (e.g. "2025-07")
+      // aren't tripped up by the existedByPeriodEnd gate unless a test is
+      // specifically exercising it (via an explicit `createdAt` override).
+      createdAt: opts.createdAt ?? Date.UTC(2000, 0, 1),
       updatedAt: Date.now(),
     });
   });
@@ -174,6 +179,7 @@ async function seedDependent(
     relationship?: "spouse" | "child" | "domestic_partner" | "other";
     memberType?: "active" | "enrolling" | "terminated";
     effectiveDate?: string;
+    createdAt?: number;
   } = {},
 ): Promise<Id<"memberProfiles">> {
   return t.run(async (ctx) => {
@@ -193,7 +199,7 @@ async function seedDependent(
       memberType: opts.memberType ?? "active",
       status: "active",
       effectiveDate: opts.effectiveDate,
-      createdAt: Date.now(),
+      createdAt: opts.createdAt ?? Date.UTC(2000, 0, 1),
       updatedAt: Date.now(),
     });
   });
@@ -373,6 +379,103 @@ describe("T1b — generateInvoice respects member effectiveDate", () => {
     const preview = await asAdmin(t).query(previewInvoice, {
       groupId: world.groupId,
       coveragePeriod: "2026-07",
+    });
+    expect(preview!.memberCount).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// T1c — System-entry gating: don't retroactively bill a past period for
+//   members Ideal didn't know about yet (added via a later eligibility file),
+//   even if their effectiveDate predates the period being generated.
+// ---------------------------------------------------------------------------
+describe("T1c — generateInvoice respects when a member was added to the system", () => {
+  test("member created after the coverage period end is excluded, even with an earlier effectiveDate", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const world = await seedBaseWorld(t, {
+      customRates: { moCents: 1499, msCents: 2499, mfCents: 2499 },
+    });
+    // Real-world hire date is well before May, but this member wasn't added to
+    // Ideal's system (via eligibility file) until a June upload.
+    await seedPrimary(t, world, {
+      firstName: "LateAdd",
+      lastName: "Member",
+      effectiveDate: "2026-01-15",
+      createdAt: Date.UTC(2026, 5, 20), // 2026-06-20
+    });
+
+    const { invoiceId } = await asAdmin(t).mutation(generate, {
+      groupId: world.groupId,
+      coveragePeriod: "2026-05",
+    });
+
+    const inv = await asAdmin(t).query(getInvoice, { invoiceId });
+    expect(inv!.memberCount).toBe(0);
+    expect(inv!.lines).toHaveLength(0);
+  });
+
+  test("same member is included once billing reaches a period on/after their system-entry date", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const world = await seedBaseWorld(t, {
+      customRates: { moCents: 1499, msCents: 2499, mfCents: 2499 },
+    });
+    await seedPrimary(t, world, {
+      firstName: "LateAdd",
+      lastName: "Member",
+      effectiveDate: "2026-01-15",
+      createdAt: Date.UTC(2026, 5, 20), // 2026-06-20
+    });
+
+    const { invoiceId } = await asAdmin(t).mutation(generate, {
+      groupId: world.groupId,
+      coveragePeriod: "2026-06",
+    });
+
+    const inv = await asAdmin(t).query(getInvoice, { invoiceId });
+    expect(inv!.memberCount).toBe(1);
+    expect(inv!.lines[0].lastName).toBe("Member");
+  });
+
+  test("dependent created after the coverage period end doesn't count toward tier/dependentCount", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const world = await seedBaseWorld(t, {
+      customRates: { moCents: 1499, msCents: 2499, mfCents: 2499 },
+    });
+    const pid = await seedPrimary(t, world, { firstName: "Parent", lastName: "Member" });
+    await seedDependent(t, world, pid, {
+      relationship: "spouse",
+      effectiveDate: "2026-01-01",
+      createdAt: Date.UTC(2026, 5, 20), // added June, after the May period
+    });
+
+    const { invoiceId } = await asAdmin(t).mutation(generate, {
+      groupId: world.groupId,
+      coveragePeriod: "2026-05",
+    });
+
+    const inv = await asAdmin(t).query(getInvoice, { invoiceId });
+    expect(inv!.memberCount).toBe(1);
+    expect(inv!.lines[0].tier).toBe("MO");
+    expect(inv!.lines[0].dependentCount).toBe(0);
+  });
+
+  test("preview also respects system-entry gating", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const world = await seedBaseWorld(t, {
+      customRates: { moCents: 1499, msCents: 2499, mfCents: 2499 },
+    });
+    await seedPrimary(t, world, {
+      effectiveDate: "2026-01-01",
+      createdAt: Date.UTC(2026, 5, 20),
+    });
+
+    const preview = await asAdmin(t).query(previewInvoice, {
+      groupId: world.groupId,
+      coveragePeriod: "2026-05",
     });
     expect(preview!.memberCount).toBe(0);
   });

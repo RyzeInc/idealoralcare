@@ -77,6 +77,22 @@ function isEffectiveForPeriod(effectiveDate: string | undefined, coverageEnd: nu
   return ms <= coverageEnd;
 }
 
+/**
+ * True if this memberProfile record already existed in our system by the end
+ * of the invoice's coverage period. This guards against regenerating or
+ * refreshing a PAST period's invoice today and having it "see" members who
+ * were only added to Ideal via a later eligibility file — even when their
+ * `effectiveDate` reflects an earlier real-world hire/coverage date at the
+ * employer. Without this, re-running/refreshing e.g. the May invoice in July
+ * would pull in everyone added since (via June/July census files), making a
+ * "May" invoice look identical to "July". `createdAt` is set once at insert
+ * and never changed by later re-uploads/updates, so it's a stable proxy for
+ * "when did Ideal first know this person existed."
+ */
+function existedByPeriodEnd(createdAt: number, coverageEnd: number): boolean {
+  return createdAt <= coverageEnd;
+}
+
 // Tier display suffixes
 const TIER_SUFFIX: Record<"MO" | "MS" | "MF", string> = {
   MO: "Member Only",
@@ -312,7 +328,10 @@ async function buildInvoiceLines(
       (m.memberRole === "primary" || m.memberRole === undefined || m.memberRole === null) &&
       // Don't bill for coverage that hasn't started yet (e.g. member added
       // mid-cycle with a next-month effective date).
-      isEffectiveForPeriod(m.effectiveDate, coverageEnd),
+      isEffectiveForPeriod(m.effectiveDate, coverageEnd) &&
+      // Don't bill a past period for someone Ideal didn't even know about yet
+      // (added to our system via a later eligibility file).
+      existedByPeriodEnd(m.createdAt, coverageEnd),
   );
 
   const dependentsByPrimary = new Map<string, Doc<"memberProfiles">[]>();
@@ -326,8 +345,8 @@ async function buildInvoiceLines(
 
   const lines: InvoiceLine[] = [];
   for (const primary of primaries) {
-    const deps = (dependentsByPrimary.get(primary._id) ?? []).filter((d) =>
-      isEffectiveForPeriod(d.effectiveDate, coverageEnd),
+    const deps = (dependentsByPrimary.get(primary._id) ?? []).filter(
+      (d) => isEffectiveForPeriod(d.effectiveDate, coverageEnd) && existedByPeriodEnd(d.createdAt, coverageEnd),
     );
     const { tier, dependentCount } = classifyTier(deps);
     // Per-member premium captured from the eligibility file (e.g. Soar "Approved
@@ -1377,5 +1396,82 @@ export const _migrationRefreshInvoiceLines = internalMutation({
   args: { invoiceId: v.id("listBillInvoices") },
   handler: async (ctx, { invoiceId }): Promise<void> => {
     await performRefreshInvoiceLines(ctx, invoiceId, "system:data-migration");
+  },
+});
+
+// ---------------------------------------------------------------------------
+// _migrationRefreshAllEligibleInvoices — one-off bulk pass (2026-07-01) to
+//   retroactively apply the newly-added §2.3 system-entry gating (and any
+//   other membership changes since generation) to every already-existing
+//   invoice across all groups. Only touches invoices that are safely
+//   refreshable — draft/issued/overdue with no payment recorded — the exact
+//   same guard as the public refreshInvoiceLines mutation. Never touches
+//   paid/partial/voided/disputed invoices.
+// ---------------------------------------------------------------------------
+export const _migrationRefreshAllEligibleInvoices = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const all = await ctx.db.query("listBillInvoices").collect();
+    const eligible = all.filter(
+      (inv) => REFRESHABLE_STATUSES.has(inv.status) && inv.amountPaidCents === 0,
+    );
+
+    const results: Array<{
+      invoiceId: string;
+      groupName: string;
+      coveragePeriod: string;
+      invoiceNumberDisplay: string;
+      status: string;
+      previousMemberCount: number;
+      newMemberCount: number;
+      previousSubtotalCents: number;
+      newSubtotalCents: number;
+      ok: boolean;
+      error?: string;
+    }> = [];
+
+    for (const inv of eligible) {
+      try {
+        await performRefreshInvoiceLines(ctx, inv._id, "system:data-migration");
+        const after = await ctx.db.get(inv._id);
+        results.push({
+          invoiceId: inv._id,
+          groupName: inv.groupName,
+          coveragePeriod: inv.coveragePeriod,
+          invoiceNumberDisplay: inv.invoiceNumberDisplay,
+          status: inv.status,
+          previousMemberCount: inv.memberCount,
+          newMemberCount: after?.memberCount ?? inv.memberCount,
+          previousSubtotalCents: inv.subtotalCents,
+          newSubtotalCents: after?.subtotalCents ?? inv.subtotalCents,
+          ok: true,
+        });
+      } catch (e: any) {
+        results.push({
+          invoiceId: inv._id,
+          groupName: inv.groupName,
+          coveragePeriod: inv.coveragePeriod,
+          invoiceNumberDisplay: inv.invoiceNumberDisplay,
+          status: inv.status,
+          previousMemberCount: inv.memberCount,
+          newMemberCount: inv.memberCount,
+          previousSubtotalCents: inv.subtotalCents,
+          newSubtotalCents: inv.subtotalCents,
+          ok: false,
+          error: e?.message ?? String(e),
+        });
+      }
+    }
+
+    const changed = results.filter(
+      (r) => r.ok && (r.previousMemberCount !== r.newMemberCount || r.previousSubtotalCents !== r.newSubtotalCents),
+    );
+
+    return {
+      totalInvoices: all.length,
+      totalEligible: eligible.length,
+      totalChanged: changed.length,
+      results,
+    };
   },
 });

@@ -47,6 +47,7 @@ A dependent counts toward tier determination if ALL of the following hold:
 2. `memberProfiles.memberType` ∈ `{"active", "enrolling", "eligible"}`
 3. `memberProfiles.memberRole` = `"dependent"`
 4. `memberProfiles.effectiveDate` (if set) is on or before the end of the invoice's coverage period — see §2.2
+5. `memberProfiles.createdAt` is on or before the end of the invoice's coverage period — see §2.3
 
 Terminated / inactive dependents are excluded. This snapshot is taken at invoice generation time and frozen in the invoice line items.
 
@@ -79,6 +80,30 @@ their coverage hasn't started by that period's end.
 Note this is **not** proration (see §18.1) — the member is either fully
 included or fully excluded from a given period; there's no partial-month
 charge.
+
+### 2.3 System-Entry Gating
+
+A member (primary or dependent) is only billed on an invoice if their
+memberProfile record already existed in our system by the end of that
+invoice's coverage period:
+
+```
+existedByPeriodEnd(member) :=
+  member.createdAt <= coverageEnd
+```
+
+`createdAt` is set once at insert and never changed by later re-uploads or
+field updates, so it's a stable proxy for "when did Ideal first know this
+person existed" — unlike `effectiveDate`, which often reflects an employer-side
+hire/coverage-start date that can predate the eligibility file that actually
+introduced the member to our system.
+
+Without this gate, regenerating or refreshing a **past** period's invoice
+today would "see" everyone added since (via later eligibility files), even
+though their effective date predates the period — making an old invoice look
+identical to the most recent one instead of reflecting membership as it stood
+at that time. This check is independent of (and in addition to) §2.2's
+effective-date gating; a member must satisfy both to appear on a given period.
 
 ---
 
@@ -495,12 +520,14 @@ function buildInvoiceLines(groupId, coveragePeriod, snapshotMs):
   members ← memberProfiles WHERE groupId=groupId AND memberType IN (active, enrolling, eligible)
                                AND memberRole = "primary"
                                AND isEffectiveForPeriod(effectiveDate, coverageEnd)   // §2.2
+                               AND existedByPeriodEnd(createdAt, coverageEnd)         // §2.3
 
   for each primary in members:
     deps ← memberProfiles WHERE primaryMemberId=primary._id
                               AND memberType IN (active, enrolling, eligible)
                               AND memberRole = "dependent"
                               AND isEffectiveForPeriod(effectiveDate, coverageEnd)    // §2.2
+                              AND existedByPeriodEnd(createdAt, coverageEnd)          // §2.3
 
     hasChild   ← deps.some(d => d.relationship IN {child, other} OR d.relationship IS null)
     hasSpouse  ← deps.some(d => d.relationship IN {spouse, domestic_partner})
@@ -523,6 +550,9 @@ function buildInvoiceLines(groupId, coveragePeriod, snapshotMs):
 function isEffectiveForPeriod(effectiveDate, coverageEnd):
   if effectiveDate is unset or unparseable → true   // fail-open
   return Date.parse(effectiveDate) <= coverageEnd
+
+function existedByPeriodEnd(createdAt, coverageEnd):
+  return createdAt <= coverageEnd
 
 function resolveRate(group, tier):
   if group.listBill.rates.{tier}Cents  → return that
