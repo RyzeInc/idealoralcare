@@ -35,6 +35,7 @@ import { internal } from "../_generated/api";
 import { Doc, Id } from "../_generated/dataModel";
 import {
   internalMutation,
+  internalQuery,
   mutation,
   query,
   MutationCtx,
@@ -541,10 +542,10 @@ export const getGroupInvoiceHistory = query({
 });
 
 export const getGroupAgingSummary = query({
-  args: { groupId: v.id("groups") },
+  args: { groupId: v.id("groups"), asOfDate: v.optional(v.number()) },
   handler: async (
     ctx,
-    { groupId },
+    { groupId, asOfDate },
   ): Promise<{
     current: number;
     upTo30Days: number;
@@ -558,7 +559,7 @@ export const getGroupAgingSummary = query({
       .query("listBillInvoices")
       .withIndex("by_group", (q) => q.eq("groupId", groupId))
       .collect();
-    const now = Date.now();
+    const now = asOfDate ?? Date.now();
     const summary = {
       current: 0,
       upTo30Days: 0,
@@ -568,6 +569,13 @@ export const getGroupAgingSummary = query({
       totalDue: 0,
     };
     for (const r of rows) {
+      // A statement generated "as of" a given date (e.g. embedded in a
+      // specific invoice's PDF) must never show invoices that didn't exist
+      // yet at that point — otherwise reprinting an old invoice later would
+      // leak in later periods' balances (e.g. a May invoice regenerated in
+      // July showing July's invoice too). Live/dashboard callers omit
+      // asOfDate and see everything up to now, as before.
+      if (asOfDate !== undefined && r.billingDate > asOfDate) continue;
       if (r.balanceCents <= 0 || r.status === "voided") continue;
       const bucket = computeAgingBucket(r.balanceCents, r.paymentDueDate, now);
       if (bucket === "paid") continue;
@@ -1473,5 +1481,121 @@ export const _migrationRefreshAllEligibleInvoices = internalMutation({
       totalChanged: changed.length,
       results,
     };
+  },
+});
+
+/**
+ * DIAGNOSTIC (read-only): compare every invoice's stored subtotal/memberCount
+ * to what buildInvoiceLines would compute *right now* for that invoice's own
+ * groupId + coveragePeriod — regardless of status. Unlike
+ * _migrationRefreshAllEligibleInvoices (which only touches draft/issued/
+ * overdue invoices with zero payment, by design), this reports drift on
+ * EVERY invoice, including partial/paid/voided ones that are intentionally
+ * never auto-refreshed once money has moved. Used to find invoices whose
+ * stale, pre-existedByPeriodEnd-gate line items are still baked into a
+ * balance that feeds the group's aging table / Invoice History PDF section.
+ */
+export const _debugCompareAllInvoicesToLivePreview = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const all = await ctx.db.query("listBillInvoices").collect();
+    const results: Array<{
+      invoiceId: string;
+      groupName: string;
+      coveragePeriod: string;
+      invoiceNumberDisplay: string;
+      status: string;
+      amountPaidCents: number;
+      balanceCents: number;
+      storedMemberCount: number;
+      liveMemberCount: number;
+      storedSubtotalCents: number;
+      liveSubtotalCents: number;
+      drifted: boolean;
+    }> = [];
+
+    for (const inv of all) {
+      const group = await ctx.db.get(inv.groupId);
+      if (!group) continue;
+      const account = await ctx.db.get(inv.accountId);
+      if (!account) continue;
+      const { coverageEnd } = periodWindow(inv.coveragePeriod);
+      const lines = await buildInvoiceLines(ctx, inv.groupId, group, account, coverageEnd);
+      const { subtotalCents: liveSubtotalCents } = computeCounts(lines);
+      const liveMemberCount = lines.length;
+      const drifted = liveMemberCount !== inv.memberCount || liveSubtotalCents !== inv.subtotalCents;
+
+      results.push({
+        invoiceId: inv._id,
+        groupName: inv.groupName,
+        coveragePeriod: inv.coveragePeriod,
+        invoiceNumberDisplay: inv.invoiceNumberDisplay,
+        status: inv.status,
+        amountPaidCents: inv.amountPaidCents,
+        balanceCents: inv.balanceCents,
+        storedMemberCount: inv.memberCount,
+        liveMemberCount,
+        storedSubtotalCents: inv.subtotalCents,
+        liveSubtotalCents,
+        drifted,
+      });
+    }
+
+    const drifted = results.filter((r) => r.drifted);
+    return { totalInvoices: results.length, totalDrifted: drifted.length, results };
+  },
+});
+
+/**
+ * DIAGNOSTIC (read-only): for every invoice, compute the "Invoice History"
+ * aging Total Due the OLD way (live, aged against now, all non-voided group
+ * invoices) vs the NEW way (as of that invoice's own billingDate, excluding
+ * invoices billed later). Proves the PDF fix actually separates periods on
+ * real data — if oldTotalDue > newTotalDue for a past-period invoice, that's
+ * exactly the "May PDF showing July" leak, now closed.
+ */
+export const _debugCompareAgingAsOf = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const all = await ctx.db.query("listBillInvoices").collect();
+
+    const sumAging = (
+      rows: Doc<"listBillInvoices">[],
+      asOfDate: number | undefined,
+      now: number,
+    ) => {
+      let totalDue = 0;
+      const includedPeriods: string[] = [];
+      for (const r of rows) {
+        if (asOfDate !== undefined && r.billingDate > asOfDate) continue;
+        if (r.balanceCents <= 0 || r.status === "voided") continue;
+        const bucket = computeAgingBucket(r.balanceCents, r.paymentDueDate, asOfDate ?? now);
+        if (bucket === "paid") continue;
+        totalDue += r.balanceCents;
+        includedPeriods.push(r.coveragePeriod);
+      }
+      return { totalDue, includedPeriods };
+    };
+
+    const now = Date.now();
+    const results = [];
+    for (const inv of all) {
+      const groupRows = all.filter((r) => r.groupId === inv.groupId);
+      const live = sumAging(groupRows, undefined, now);
+      const asOf = sumAging(groupRows, inv.billingDate, now);
+      results.push({
+        invoiceNumberDisplay: inv.invoiceNumberDisplay,
+        groupName: inv.groupName,
+        coveragePeriod: inv.coveragePeriod,
+        status: inv.status,
+        billingDate: new Date(inv.billingDate).toISOString().slice(0, 10),
+        oldTotalDue: live.totalDue,
+        oldPeriods: live.includedPeriods.sort().join(","),
+        newTotalDue: asOf.totalDue,
+        newPeriods: asOf.includedPeriods.sort().join(","),
+        leakClosed: live.totalDue !== asOf.totalDue,
+      });
+    }
+    return results;
   },
 });

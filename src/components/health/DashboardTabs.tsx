@@ -176,6 +176,7 @@ export default function DashboardTabs({
             hasSubscriptions={hasSubscriptions}
             subscriptions={subscriptions}
             onTabChange={setActiveTab}
+            memberCardData={memberCardData}
             isFamily={isFamily}
           />
         )}

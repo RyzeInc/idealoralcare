@@ -319,7 +319,7 @@ The **Invoice History** section on the cover page shows only open invoices for t
 
 ### 7.1 Group-Level Aging Summary
 
-The `getGroupAgingSummary({ groupId })` query returns:
+The `getGroupAgingSummary({ groupId, asOfDate? })` query returns:
 
 ```ts
 {
@@ -331,6 +331,25 @@ The `getGroupAgingSummary({ groupId })` query returns:
   totalDue: number,     // sum of all buckets
 }
 ```
+
+### 7.2 `asOfDate` — point-in-time scoping (PDF vs. live dashboard)
+
+A generated invoice PDF is a **historical statement**, not a live view. Without
+scoping, regenerating/reprinting an old invoice's PDF later would leak in
+invoices/balances from periods that didn't exist yet when it was originally
+billed — e.g. reprinting a May invoice in July would show July's invoice too,
+since the aging summary would be computed against "now" (July) instead of
+"then" (May).
+
+`getGroupAgingSummary` accepts an optional `asOfDate` (Unix ms):
+- **Omitted** — live view: every open invoice for the group, aged against
+  the current date. Used by the admin dashboard (group invoice history page).
+- **Provided** — statement-as-of view: invoices with `billingDate > asOfDate`
+  are excluded entirely, and the remaining invoices are aged against
+  `asOfDate` instead of the current date. Used by the group-PDF route, which
+  always passes the invoice's own `billingDate` — so a given invoice's PDF
+  shows the exact same Invoice History numbers no matter when it's
+  regenerated.
 
 ---
 

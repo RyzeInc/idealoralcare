@@ -72,7 +72,11 @@ export async function GET(
     const summary: any = await convex.query(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       api.admin.listBillInvoices.getGroupAgingSummary as any,
-      { groupId: inv.groupId },
+      // "As of" this invoice's own billing date — a PDF is a historical
+      // statement, not a live view, so reprinting an old invoice later
+      // (e.g. a May invoice regenerated in July) must not leak in
+      // invoices/balances from periods that didn't exist yet at billing time.
+      { groupId: inv.groupId, asOfDate: inv.billingDate },
     );
     if (summary) {
       aging = {

@@ -86,6 +86,7 @@ import type * as subscriptions_entitlements from "../subscriptions/entitlements.
 import type * as subscriptions_events from "../subscriptions/events.js";
 import type * as subscriptions_mutations from "../subscriptions/mutations.js";
 import type * as subscriptions_queries from "../subscriptions/queries.js";
+import type * as subscriptions_reconcile from "../subscriptions/reconcile.js";
 import type * as subscriptions_webhookActions from "../subscriptions/webhookActions.js";
 
 import type {
@@ -173,6 +174,7 @@ declare const fullApi: ApiFromModules<{
   "subscriptions/events": typeof subscriptions_events;
   "subscriptions/mutations": typeof subscriptions_mutations;
   "subscriptions/queries": typeof subscriptions_queries;
+  "subscriptions/reconcile": typeof subscriptions_reconcile;
   "subscriptions/webhookActions": typeof subscriptions_webhookActions;
 }>;
 

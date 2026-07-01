@@ -10,9 +10,9 @@
  * For now, these validate Stripe event context via bundleId lookup.
  */
 
-import { mutation, query } from "../_generated/server";
+import { mutation, query, internalQuery, internalMutation } from "../_generated/server";
 import { v } from "convex/values";
-import { internal } from "../_generated/api";
+import { internal, api } from "../_generated/api";
 
 /**
  * Look up a subscription bundle by Stripe subscription ID
@@ -438,5 +438,193 @@ export const getMemberForCancellation = query({
       lastName: profile.lastName,
       email: profile.email ?? null,
     };
+  },
+});
+
+// ---------------------------------------------------------------------------
+// STRIPE ↔ CONVEX RECONCILIATION
+//
+// Webhooks are the primary way bundle/entitlement state is kept in sync with
+// Stripe, but webhook delivery is not guaranteed (endpoint downtime, missed
+// events, one-off manual fixes, etc.). This reconciliation pass is a safety
+// net: it re-checks every bundle Convex still considers "live" against the
+// actual Stripe subscription status and self-heals any drift, so a member
+// who has stopped paying (or whose subscription Stripe already cancelled)
+// doesn't stay marked active indefinitely.
+// ---------------------------------------------------------------------------
+
+/**
+ * List every bundle that Convex currently considers "live" (i.e. we still
+ * expect Stripe to be billing it) and that has a Stripe subscription to
+ * check against. Used by the reconciliation action.
+ */
+export const listReconcilableBundles = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const liveStatuses = ["active", "past_due", "cancel_at_period_end"] as const;
+    const bundles = [];
+    for (const status of liveStatuses) {
+      const rows = await ctx.db
+        .query("subscriptionBundles")
+        .withIndex("by_status", (q) => q.eq("status", status))
+        .collect();
+      bundles.push(...rows);
+    }
+    // Only real Stripe subscriptions can be checked against the Stripe API.
+    // Comp/free-access bundles (grantFreeAccess.ts) use a synthetic
+    // "free_<timestamp>" stripeSubscriptionId and must never be sent to
+    // Stripe — they'd come back "not found" and be wrongly cancelled.
+    return bundles.filter((b) => b.stripeSubscriptionId?.startsWith("sub_"));
+  },
+});
+
+/**
+ * Apply the outcome of comparing one bundle's Convex status against its
+ * real Stripe subscription status. Reuses the exact same status-transition
+ * semantics as the live webhook handlers (suspend/cancel/reactivate), so a
+ * reconciliation correction is indistinguishable from one driven by a
+ * (delayed) webhook.
+ */
+export const applyReconciliationOutcome = internalMutation({
+  args: {
+    bundleId: v.id("subscriptionBundles"),
+    stripeStatus: v.string(),
+    currentPeriodStart: v.number(), // Unix ms; 0 if Stripe didn't report one
+    currentPeriodEnd: v.number(), // Unix ms; 0 if Stripe didn't report one
+  },
+  handler: async (ctx, args) => {
+    const bundle = await ctx.db.get(args.bundleId);
+    if (!bundle) return { action: "none", reason: "bundle_not_found" };
+
+    const now = Date.now();
+    const previousStatus = bundle.status;
+    const stripeIsDead = ["canceled", "unpaid", "incomplete_expired"].includes(args.stripeStatus);
+    const stripeIsPastDue = args.stripeStatus === "past_due";
+    const stripeIsLive = ["active", "trialing"].includes(args.stripeStatus);
+
+    const logCorrection = async (action: string, extra?: Record<string, unknown>) => {
+      await ctx.runMutation(api.subscriptions.mutations.webhookLogEvent, {
+        eventType: "stripe_reconcile.corrected",
+        actor: "system",
+        customerId: bundle.customerId,
+        bundleId: bundle._id,
+        stripeObjectId: bundle.stripeSubscriptionId,
+        payload: { action, previousStatus, stripeStatus: args.stripeStatus, ...extra },
+        success: true,
+        idempotencyKey: `reconcile_${bundle._id}_${now}`,
+      });
+    };
+
+    // 1. Stripe considers the subscription dead, but Convex still thinks
+    //    it's live — the case where a member stopped paying and no webhook
+    //    (or a failed one) ever cancelled the bundle on our side.
+    if (stripeIsDead && previousStatus !== "cancelled") {
+      await ctx.db.patch(bundle._id, {
+        status: "cancelled",
+        updatedAt: now,
+        cancelledAt: now,
+        cancellationReason: `Reconciliation: Stripe subscription status is "${args.stripeStatus}"`,
+      });
+
+      const entitlements = await ctx.db
+        .query("entitlements")
+        .withIndex("by_bundle", (q) => q.eq("bundleId", bundle._id))
+        .collect();
+
+      let revokedCount = 0;
+      for (const entitlement of entitlements) {
+        if (["active", "cancel_at_period_end", "suspended"].includes(entitlement.status)) {
+          await ctx.db.patch(entitlement._id, {
+            status: "revoked",
+            revokedAt: now,
+            endCondition: "expire",
+            notes: `Reconciliation: Stripe subscription ${args.stripeStatus}`,
+          });
+          revokedCount++;
+        }
+      }
+
+      await logCorrection("cancelled", { revokedCount });
+      return { action: "cancelled", previousStatus, revokedCount };
+    }
+
+    // 2. Stripe says payment is failing (past_due) but Convex still shows
+    //    active — suspend the bundle and its entitlements, mirroring
+    //    invoice.payment_failed.
+    if (stripeIsPastDue && previousStatus === "active") {
+      await ctx.db.patch(bundle._id, {
+        status: "past_due",
+        updatedAt: now,
+        pastDueAt: bundle.pastDueAt ?? now,
+      });
+
+      const entitlements = await ctx.db
+        .query("entitlements")
+        .withIndex("by_bundle", (q) => q.eq("bundleId", bundle._id))
+        .collect();
+
+      let suspendedCount = 0;
+      for (const entitlement of entitlements) {
+        if (entitlement.status === "active") {
+          await ctx.db.patch(entitlement._id, {
+            status: "suspended",
+            suspendedAt: now,
+            notes: "Reconciliation: Stripe subscription past_due",
+          });
+          suspendedCount++;
+        }
+      }
+
+      await logCorrection("suspended", { suspendedCount });
+      return { action: "suspended", previousStatus, suspendedCount };
+    }
+
+    // 3. Stripe says the subscription recovered (active/trialing) but Convex
+    //    still shows past_due — reactivate, mirroring invoice.payment_succeeded.
+    if (stripeIsLive && previousStatus === "past_due") {
+      await ctx.db.patch(bundle._id, {
+        status: "active",
+        updatedAt: now,
+        pastDueAt: undefined,
+      });
+
+      const entitlements = await ctx.db
+        .query("entitlements")
+        .withIndex("by_bundle", (q) => q.eq("bundleId", bundle._id))
+        .collect();
+
+      let reactivatedCount = 0;
+      for (const entitlement of entitlements) {
+        if (entitlement.status === "suspended") {
+          await ctx.db.patch(entitlement._id, {
+            status: "active",
+            notes: "Reconciliation: Stripe subscription recovered",
+          });
+          reactivatedCount++;
+        }
+      }
+
+      await logCorrection("reactivated", { reactivatedCount });
+      return { action: "reactivated", previousStatus, reactivatedCount };
+    }
+
+    // 4. Status already agrees — just keep the renewal-date bookkeeping
+    //    fresh so the admin UI doesn't show a stale period forever.
+    if (
+      stripeIsLive &&
+      previousStatus === "active" &&
+      args.currentPeriodEnd > 0 &&
+      (bundle.currentPeriodStart !== args.currentPeriodStart ||
+        bundle.currentPeriodEnd !== args.currentPeriodEnd)
+    ) {
+      await ctx.db.patch(bundle._id, {
+        currentPeriodStart: args.currentPeriodStart,
+        currentPeriodEnd: args.currentPeriodEnd,
+        updatedAt: now,
+      });
+      return { action: "period_synced", previousStatus };
+    }
+
+    return { action: "none", previousStatus };
   },
 });

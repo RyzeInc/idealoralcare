@@ -677,3 +677,61 @@ export const _mergeDuplicateMemberAndRefreshInvoices = internalMutation({
   },
 });
 
+/**
+ * ONE-OFF FIX: The initial rollout of the Stripe reconciliation job
+ * (convex/subscriptions/reconcile.ts) incorrectly treated synthetic
+ * "free_..." stripeSubscriptionIds (comp/free-access bundles granted via
+ * grantFreeAccess.ts, which were never real Stripe subscriptions) as
+ * "not found on Stripe" and cancelled them + revoked their entitlements.
+ * This reverts that regression for a specific, explicit list of bundle IDs
+ * back to active, and only touches bundles whose stripeSubscriptionId
+ * starts with "free_" as a safety guard.
+ */
+export const _fixFreeAccessReconciliationRegression = internalMutation({
+  args: { bundleIds: v.array(v.id("subscriptionBundles")) },
+  handler: async (ctx, args) => {
+    const results: Array<{ bundleId: string; restored: boolean; reason?: string; entitlementsRestored?: number }> = [];
+
+    for (const bundleId of args.bundleIds) {
+      const bundle = await ctx.db.get(bundleId);
+      if (!bundle) {
+        results.push({ bundleId, restored: false, reason: "bundle not found" });
+        continue;
+      }
+      if (!bundle.stripeSubscriptionId?.startsWith("free_")) {
+        results.push({ bundleId, restored: false, reason: "not a free-access bundle; refusing to touch" });
+        continue;
+      }
+
+      await ctx.db.patch(bundleId, {
+        status: "active",
+        updatedAt: Date.now(),
+        cancelledAt: undefined,
+        cancellationReason: undefined,
+      });
+
+      const entitlements = await ctx.db
+        .query("entitlements")
+        .withIndex("by_bundle", (q) => q.eq("bundleId", bundleId))
+        .collect();
+
+      let entitlementsRestored = 0;
+      for (const entitlement of entitlements) {
+        if (entitlement.status === "revoked" && entitlement.notes?.includes("Reconciliation")) {
+          await ctx.db.patch(entitlement._id, {
+            status: "active",
+            revokedAt: undefined,
+            endCondition: "expire",
+            notes: "Free access auto-granted on team member addition",
+          });
+          entitlementsRestored++;
+        }
+      }
+
+      results.push({ bundleId, restored: true, entitlementsRestored });
+    }
+
+    return results;
+  },
+});
+

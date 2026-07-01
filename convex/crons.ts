@@ -59,4 +59,17 @@ crons.cron(
   internal.admin.listBillInvoices.markOverdueInvoices,
 );
 
+// ---------------------------------------------------------------------------
+// Stripe ↔ Convex reconciliation — daily self-healing check
+// Re-verifies every "live" (active/past_due/cancel_at_period_end) bundle
+// against the real Stripe subscription status and corrects drift caused by
+// missed/failed webhooks (e.g. a member who stopped paying but whose bundle
+// never got cancelled on our side).
+// ---------------------------------------------------------------------------
+crons.cron(
+  "stripe-subscription-reconcile-daily",
+  "30 8 * * *",
+  internal.subscriptions.reconcile.reconcileStripeSubscriptions,
+);
+
 export default crons;

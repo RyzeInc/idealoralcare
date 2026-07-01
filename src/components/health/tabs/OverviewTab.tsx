@@ -182,10 +182,13 @@ export default function OverviewTab({
     return () => { document.body.style.overflow = ''; };
   }, [showHowItWorks]);
 
-  // Build card data from available props when full profile not yet loaded from Convex
+  // Build card data from available props when full profile not yet loaded from Convex.
+  // NOTE: never fall back to a subscription/bundle document ID for `memberId` — that
+  // is an internal Convex row id, not a member-facing identifier. Show a placeholder
+  // instead so we never render a fake ID on the card.
   const cardData: MemberCardData = memberCardData ?? {
     memberName: fullName ?? 'Member',
-    memberId: subscriptions[0]?.id?.slice(-9) ?? '—',
+    memberId: '—',
     planName: subscriptions[0]?.name ?? 'Ideal Oral Savings Plan',
     effectiveDate: subscriptions[0]?.renewDate ?? '—',
     networks: {

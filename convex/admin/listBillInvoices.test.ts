@@ -983,6 +983,51 @@ describe("T16 — getGroupAgingSummary aging buckets", () => {
 });
 
 // ---------------------------------------------------------------------------
+// T16b — getGroupAgingSummary asOfDate: a historical invoice's embedded
+// aging table must not leak in invoices billed after it. This is the fix for
+// a regenerated May invoice's PDF showing July's invoice too when reprinted
+// in July.
+// ---------------------------------------------------------------------------
+describe("T16b — getGroupAgingSummary asOfDate scoping", () => {
+  test("asOfDate excludes invoices billed after that date", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const world = await seedBaseWorld(t, {
+      customRates: { moCents: 5000, msCents: 7000, mfCents: 9000 },
+    });
+    await seedPrimary(t, world);
+
+    const mayBillingDate = Date.UTC(2026, 4, 25); // May 25, 2026
+    const { invoiceId: mayInvoiceId } = await asAdmin(t).mutation(generate, {
+      groupId: world.groupId,
+      coveragePeriod: "2026-05",
+      billingDate: mayBillingDate,
+    });
+    await asAdmin(t).mutation(issueInv, { invoiceId: mayInvoiceId });
+
+    const julyBillingDate = Date.UTC(2026, 6, 25); // July 25, 2026 — after May
+    const { invoiceId: julyInvoiceId } = await asAdmin(t).mutation(generate, {
+      groupId: world.groupId,
+      coveragePeriod: "2026-07",
+      billingDate: julyBillingDate,
+    });
+    await asAdmin(t).mutation(issueInv, { invoiceId: julyInvoiceId });
+
+    // Reprinting the May invoice's PDF "as of" its own billing date must only
+    // ever show May's own balance — never July's, no matter when it's regenerated.
+    const asOfMay = await asAdmin(t).query(getAging, {
+      groupId: world.groupId,
+      asOfDate: mayBillingDate,
+    });
+    expect(asOfMay.totalDue).toBe(5000);
+
+    // The live/dashboard view (no asOfDate) sees everything, including July.
+    const live = await asAdmin(t).query(getAging, { groupId: world.groupId });
+    expect(live.totalDue).toBe(10000);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // T17 — markOverdueInvoices: flips past-due issued invoices
 // ---------------------------------------------------------------------------
 describe("T17 — markOverdueInvoices cron", () => {
