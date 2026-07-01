@@ -1,5 +1,6 @@
-import { mutation, query } from "../_generated/server";
+import { mutation, query, internalQuery, internalMutation } from "../_generated/server";
 import { v } from "convex/values";
+import { internal } from "../_generated/api";
 import { createMemberProfile, deriveCareingtonUniqueId } from "../lib/memberCreation";
 import { requireAdmin } from "../lib/authGuards";
 import { recordAdminAction } from "./adminAudit";
@@ -433,3 +434,246 @@ export const deduplicateMemberProfiles = mutation({
     };
   },
 });
+
+/**
+ * ONE-OFF INVESTIGATION (2026-07-01): find memberProfiles by name, scoped to
+ * a group if provided. Internal-only (not reachable by any client) — used to
+ * locate duplicate profiles created by the no-email eligibility re-upload bug
+ * (see convex/admin/eligibility.ts internalBatchCreateMembers fallback match).
+ * Returns non-sensitive fields only (SSN/DOB withheld from this readout).
+ */
+export const _debugFindMembersByName = internalQuery({
+  args: {
+    firstName: v.string(),
+    lastName: v.string(),
+    groupCode: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const all = await ctx.db.query("memberProfiles").collect();
+    const first = args.firstName.trim().toLowerCase();
+    const last = args.lastName.trim().toLowerCase();
+    const matches = all.filter(
+      (m) => m.firstName.trim().toLowerCase() === first && m.lastName.trim().toLowerCase() === last,
+    );
+
+    const groupIds = Array.from(new Set(matches.map((m) => m.groupId)));
+    const groups = await Promise.all(groupIds.map((id) => ctx.db.get(id)));
+    const groupById = new Map(groups.filter(Boolean).map((g: any) => [g._id, g]));
+
+    let filtered = matches;
+    if (args.groupCode) {
+      const code = args.groupCode.trim().toLowerCase();
+      filtered = matches.filter((m) => (groupById.get(m.groupId) as any)?.groupCode?.toLowerCase() === code);
+    }
+
+    return filtered.map((m) => {
+      const g = groupById.get(m.groupId) as any;
+      return {
+        _id: m._id,
+        firstName: m.firstName,
+        lastName: m.lastName,
+        email: m.email ?? null,
+        hasSsn: !!m.ssn,
+        memberType: m.memberType,
+        status: m.status,
+        memberRole: m.memberRole,
+        groupId: m.groupId,
+        groupName: g?.name ?? null,
+        groupCode: g?.groupCode ?? null,
+        careingtonUniqueId: m.careingtonUniqueId ?? null,
+        groupMemberId: m.groupMemberId ?? null,
+        eligibilityFileId: m.eligibilityFileId ?? null,
+        customerId: m.customerId ?? null,
+        createdAt: m.createdAt,
+        updatedAt: m.updatedAt,
+      };
+    });
+  },
+});
+
+/**
+ * ONE-OFF INVESTIGATION (2026-07-01): given two candidate memberProfile IDs
+ * (e.g. an original + a duplicate created by the no-email eligibility
+ * re-upload bug), report: (1) any dependents pointing at either as primary,
+ * (2) every list-bill invoice for the group and whether each one's `lines`
+ * currently includes either ID. Internal-only (not reachable by any client).
+ */
+export const _debugInspectDuplicateMember = internalQuery({
+  args: {
+    groupId: v.id("groups"),
+    idA: v.id("memberProfiles"),
+    idB: v.id("memberProfiles"),
+  },
+  handler: async (ctx, args) => {
+    const [a, b] = await Promise.all([ctx.db.get(args.idA), ctx.db.get(args.idB)]);
+
+    const allInGroup = await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_group", (q) => q.eq("groupId", args.groupId))
+      .collect();
+    const depsOfA = allInGroup.filter((m) => m.primaryMemberId === args.idA);
+    const depsOfB = allInGroup.filter((m) => m.primaryMemberId === args.idB);
+
+    const invoices = await ctx.db
+      .query("listBillInvoices")
+      .withIndex("by_group", (q) => q.eq("groupId", args.groupId))
+      .collect();
+
+    const invoiceSummary = invoices
+      .sort((x, y) => x.coveragePeriod.localeCompare(y.coveragePeriod))
+      .map((inv) => ({
+        invoiceId: inv._id,
+        invoiceNumberDisplay: inv.invoiceNumberDisplay,
+        coveragePeriod: inv.coveragePeriod,
+        status: inv.status,
+        memberCount: inv.memberCount,
+        subtotalCents: inv.subtotalCents,
+        totalCents: inv.totalCents,
+        amountPaidCents: inv.amountPaidCents,
+        balanceCents: inv.balanceCents,
+        containsA: inv.memberProfileIdsSnapshot.includes(args.idA),
+        containsB: inv.memberProfileIdsSnapshot.includes(args.idB),
+      }));
+
+    return {
+      a: a ? { _id: a._id, memberId: a.memberId, careingtonUniqueId: a.careingtonUniqueId, ssn: a.ssn ? "***set***" : null, effectiveDate: a.effectiveDate, monthlyPremiumCents: a.monthlyPremiumCents, createdAt: a.createdAt, updatedAt: a.updatedAt } : null,
+      b: b ? { _id: b._id, memberId: b.memberId, careingtonUniqueId: b.careingtonUniqueId, ssn: b.ssn ? "***set***" : null, effectiveDate: b.effectiveDate, monthlyPremiumCents: b.monthlyPremiumCents, createdAt: b.createdAt, updatedAt: b.updatedAt } : null,
+      dependentsOfA: depsOfA.map((d) => ({ _id: d._id, firstName: d.firstName, lastName: d.lastName, relationship: d.relationship })),
+      dependentsOfB: depsOfB.map((d) => ({ _id: d._id, firstName: d.firstName, lastName: d.lastName, relationship: d.relationship })),
+      invoices: invoiceSummary,
+    };
+  },
+});
+
+/**
+ * ONE-OFF DATA REMEDIATION (2026-07-01): merge a duplicate memberProfile
+ * (created by the now-fixed no-email eligibility re-upload matching bug)
+ * back into the original record, then delete the duplicate. Also retroactively
+ * refreshes a caller-supplied set of that group's list-bill invoices so the
+ * (now correctly de-duplicated) member is reflected on them.
+ *
+ * Internal-only — not reachable by any client. Run via:
+ *   npx convex run admin/devTools:_mergeDuplicateMemberAndRefreshInvoices \
+ *     '{"keepId":"...","removeId":"...","invoiceIds":["...","..."]}' --prod
+ */
+export const _mergeDuplicateMemberAndRefreshInvoices = internalMutation({
+  args: {
+    keepId: v.id("memberProfiles"),
+    removeId: v.id("memberProfiles"),
+    invoiceIds: v.array(v.id("listBillInvoices")),
+  },
+  handler: async (ctx, args) => {
+    const keep = await ctx.db.get(args.keepId);
+    const remove = await ctx.db.get(args.removeId);
+    if (!keep || !remove) throw new Error("Both memberProfiles must exist.");
+    if (keep.groupId !== remove.groupId) {
+      throw new Error("Refusing to merge memberProfiles from different groups.");
+    }
+
+    // Reassign any dependents currently pointing at the duplicate.
+    const groupMembers = await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_group", (q) => q.eq("groupId", keep.groupId))
+      .collect();
+    const reassignedDependents: string[] = [];
+    for (const m of groupMembers) {
+      if (m.primaryMemberId === args.removeId) {
+        await ctx.db.patch(m._id, { primaryMemberId: args.keepId, updatedAt: Date.now() });
+        reassignedDependents.push(m._id);
+      }
+    }
+
+    // Defensively repoint any invoice lines that already reference the
+    // duplicate (not expected here, but keeps this safe to reuse elsewhere).
+    const groupInvoices = await ctx.db
+      .query("listBillInvoices")
+      .withIndex("by_group", (q) => q.eq("groupId", keep.groupId))
+      .collect();
+    const repointedInvoices: string[] = [];
+    for (const inv of groupInvoices) {
+      if (inv.memberProfileIdsSnapshot.includes(args.removeId)) {
+        const lines = inv.lines.map((l) =>
+          l.memberProfileId === args.removeId ? { ...l, memberProfileId: args.keepId } : l,
+        );
+        await ctx.db.patch(inv._id, {
+          lines,
+          memberProfileIdsSnapshot: lines.map((l) => l.memberProfileId),
+          updatedAt: Date.now(),
+        });
+        repointedInvoices.push(inv._id);
+      }
+    }
+
+    // Merge the duplicate's more-recent/complete field values onto the
+    // kept record. Never touches stable identity fields (memberId,
+    // careingtonUniqueId, careingtonSeqNum, customerId, barcode, etc).
+    const mergeableFields = [
+      "ssn",
+      "location",
+      "department",
+      "monthlyPremiumCents",
+      "tierCode",
+      "phone",
+      "workPhone",
+      "dateOfBirth",
+      "gender",
+      "preferredLanguage",
+      "address",
+      "groupMemberId",
+      "externalMemberId",
+      "effectiveDate",
+    ] as const;
+    const patch: Record<string, unknown> = {
+      updatedAt: Date.now(),
+      eligibilityFileId: (remove as any).eligibilityFileId ?? (keep as any).eligibilityFileId,
+    };
+    for (const field of mergeableFields) {
+      const value = (remove as any)[field];
+      if (value !== undefined && value !== null && value !== "") {
+        patch[field] = value;
+      }
+    }
+    await ctx.db.patch(args.keepId, patch);
+    await ctx.db.delete(args.removeId);
+
+    await recordAdminAction(
+      ctx,
+      { clerkUserId: "system:data-migration" },
+      {
+        action: "member_profile.merge_duplicate",
+        targetType: "memberProfile",
+        targetId: args.keepId,
+        summary: `Merged duplicate memberProfile ${args.removeId} into ${args.keepId} (root cause: no-email eligibility re-upload matching bug, since fixed) and deleted the duplicate.`,
+        metadata: {
+          keepId: args.keepId,
+          removeId: args.removeId,
+          mergedFields: Object.keys(patch),
+          reassignedDependents,
+          repointedInvoices,
+        },
+      },
+    );
+
+    // Retroactively refresh the requested invoices so the merged member
+    // shows up correctly going forward.
+    const invoiceRefreshResults: Array<{ invoiceId: string; ok: boolean; error?: string }> = [];
+    for (const invoiceId of args.invoiceIds) {
+      try {
+        await ctx.runMutation(internal.admin.listBillInvoices._migrationRefreshInvoiceLines, {
+          invoiceId,
+        });
+        invoiceRefreshResults.push({ invoiceId, ok: true });
+      } catch (e: any) {
+        invoiceRefreshResults.push({ invoiceId, ok: false, error: e?.message ?? String(e) });
+      }
+    }
+
+    return {
+      merged: true,
+      reassignedDependents,
+      repointedInvoices,
+      invoiceRefreshResults,
+    };
+  },
+});
+

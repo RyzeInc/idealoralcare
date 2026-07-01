@@ -540,7 +540,7 @@ function ProductSummaryTable({ lines }: { lines: ListBillInvoiceLine[] }) {
   const totalCount = rows.reduce((s, [, v]) => s + v.count, 0);
   const totalCents = rows.reduce((s, [, v]) => s + v.cents, 0);
   return (
-    <View>
+    <View wrap={false}>
       <Text style={s.sectionH}>Product Summary</Text>
       <View style={s.psTable}>
         <View style={s.psHeader}>

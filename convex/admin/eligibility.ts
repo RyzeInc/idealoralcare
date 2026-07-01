@@ -1789,6 +1789,39 @@ export const internalBatchCreateMembers = internalMutation({
           existing = sameGroupMemberId.find((m: any) => m.memberRole !== "dependent") ?? null;
         }
 
+        // Fallback matching for members with no email: SSN, then name + DOB,
+        // scoped to this group. Some source files (e.g. some restaurant/QSR
+        // census exports) provide no email, no Careington Unique ID, and no
+        // employee ID column at all — without these fallbacks every re-upload
+        // of the same file would create a brand-new duplicate member instead
+        // of updating the existing one (e.g. "Harlie Waters" from Soar).
+        const normalizedSsn = (record.ssn ?? "").replace(/\D/g, "");
+        const canNameDobMatch = !!(record.firstName && record.lastName && record.dateOfBirth);
+        if (!existing && (normalizedSsn || canNameDobMatch)) {
+          const sameGroup = await ctx.db
+            .query("memberProfiles")
+            .withIndex("by_group", (q: any) => q.eq("groupId", args.groupId))
+            .collect();
+
+          if (normalizedSsn) {
+            existing = sameGroup.find(
+              (m: any) => m.memberRole !== "dependent" && (m.ssn ?? "").replace(/\D/g, "") === normalizedSsn
+            ) ?? null;
+          }
+
+          if (!existing && canNameDobMatch) {
+            const normFirst = record.firstName.trim().toLowerCase();
+            const normLast = record.lastName.trim().toLowerCase();
+            existing = sameGroup.find(
+              (m: any) =>
+                m.memberRole !== "dependent" &&
+                m.dateOfBirth === record.dateOfBirth &&
+                (m.firstName ?? "").trim().toLowerCase() === normFirst &&
+                (m.lastName ?? "").trim().toLowerCase() === normLast
+            ) ?? null;
+          }
+        }
+
         // Normalize gender
         const genderLower = (record.gender || "").toLowerCase();
         const validGender = (["male", "female", "non_binary", "prefer_not_to_say", "other"].includes(genderLower))

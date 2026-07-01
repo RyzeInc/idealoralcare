@@ -669,6 +669,9 @@ export default function InvoiceDetailPage({
   const canPay = !isDraft && !isVoided && !isPaid;
   const canAdjust = !isVoided && !isPaid;
   const canVoid = !isVoided;
+  // Lines can be rebuilt on draft/issued/overdue invoices as long as no
+  // payment has posted yet — matches the backend guard in refreshInvoiceLines.
+  const canRefresh = ['draft', 'issued', 'overdue'].includes(status) && inv.amountPaidCents === 0;
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 space-y-6">
@@ -703,7 +706,7 @@ export default function InvoiceDetailPage({
 
         {/* Action toolbar */}
         <div className="flex flex-wrap gap-2">
-          {canIssue && (
+          {canRefresh && (
             <button
               onClick={handleRefreshLines}
               disabled={isRefreshing}

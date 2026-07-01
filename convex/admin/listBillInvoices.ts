@@ -1282,61 +1282,100 @@ export const triggerMonthlyGeneration = mutation({
 });
 
 // ---------------------------------------------------------------------------
-// refreshInvoiceLines — rebuild lines on a draft invoice to reflect current
-//   membership (useful when new members join after the draft was created).
-//   Only allowed on `draft` status invoices.
+// refreshInvoiceLines — rebuild lines on an open invoice to reflect current
+//   membership (useful when new members join, or a data-fix like the
+//   no-email eligibility duplicate-match bug retroactively makes someone
+//   billable, after the invoice was already created).
+//   Allowed on draft/issued/overdue invoices with no payment recorded yet.
+//   Refused once any payment has posted (partial/paid) or the invoice is
+//   voided/disputed — those require applyAdjustment or a void/replacement
+//   instead, to avoid silently changing a total after money has moved.
 // ---------------------------------------------------------------------------
+const REFRESHABLE_STATUSES = new Set(["draft", "issued", "overdue"]);
+
+async function performRefreshInvoiceLines(
+  ctx: MutationCtx,
+  invoiceId: Id<"listBillInvoices">,
+  actorClerkUserId: string,
+): Promise<void> {
+  const inv = await ctx.db.get(invoiceId);
+  if (!inv) throw new Error("Invoice not found.");
+  if (!REFRESHABLE_STATUSES.has(inv.status)) {
+    throw new Error(
+      `Cannot refresh lines on a ${inv.status} invoice. Only draft, issued, or overdue invoices can be refreshed.`,
+    );
+  }
+  if (inv.amountPaidCents > 0) {
+    throw new Error(
+      "Cannot refresh lines on an invoice with a recorded payment. Use an adjustment instead.",
+    );
+  }
+
+  const group = await ctx.db.get(inv.groupId);
+  if (!group) throw new Error("Group not found.");
+  const account = await ctx.db.get(group.accountId);
+  if (!account) throw new Error("Account not found.");
+
+  const { moCents, msCents, mfCents, rateLabel } = resolveRates(group, account);
+  const lines = await buildInvoiceLines(ctx, inv.groupId, group, account, inv.coverageEnd);
+  const { moCount, msCount, mfCount, subtotalCents } = computeCounts(lines);
+
+  await ctx.db.patch(invoiceId, {
+    lines,
+    memberCount: lines.length,
+    moCount,
+    msCount,
+    mfCount,
+    subtotalCents,
+    adjustmentCents: inv.adjustmentCents,
+    totalCents: subtotalCents + (inv.adjustmentCents ?? 0),
+    balanceCents: subtotalCents + (inv.adjustmentCents ?? 0) - inv.amountPaidCents,
+    moCents,
+    msCents,
+    mfCents,
+    rateLabel,
+    memberProfileIdsSnapshot: lines.map((l) => l.memberProfileId),
+    updatedAt: Date.now(),
+  });
+
+  const wasNonDraft = inv.status !== "draft";
+  await ctx.runMutation(internal.admin.adminAudit.record, {
+    actorClerkUserId,
+    action: "list_bill_invoice.refresh_lines",
+    targetType: "listBillInvoice",
+    targetId: invoiceId,
+    summary: wasNonDraft
+      ? `Refreshed lines on ${inv.status} invoice #${inv.invoiceNumberDisplay} (retroactive correction): ${inv.memberCount} → ${lines.length} members, subtotal ${inv.subtotalCents}¢ → ${subtotalCents}¢`
+      : `Refreshed lines on invoice #${inv.invoiceNumberDisplay}: ${inv.memberCount} → ${lines.length} members`,
+    metadata: {
+      invoiceNumber: inv.invoiceNumberDisplay,
+      previousStatus: inv.status,
+      previousMemberCount: inv.memberCount,
+      newMemberCount: lines.length,
+      previousSubtotalCents: inv.subtotalCents,
+      newSubtotalCents: subtotalCents,
+    },
+  });
+}
+
 export const refreshInvoiceLines = mutation({
   args: { invoiceId: v.id("listBillInvoices") },
   handler: async (ctx, { invoiceId }): Promise<void> => {
     const actor = await requireAdmin(ctx);
+    await performRefreshInvoiceLines(ctx, invoiceId, actor.clerkUserId);
+  },
+});
 
-    const inv = await ctx.db.get(invoiceId);
-    if (!inv) throw new Error("Invoice not found.");
-    if (inv.status !== "draft") {
-      throw new Error(
-        `Cannot refresh lines on a ${inv.status} invoice. Only drafts can be refreshed.`,
-      );
-    }
-
-    const group = await ctx.db.get(inv.groupId);
-    if (!group) throw new Error("Group not found.");
-    const account = await ctx.db.get(group.accountId);
-    if (!account) throw new Error("Account not found.");
-
-    const { moCents, msCents, mfCents, rateLabel } = resolveRates(group, account);
-    const lines = await buildInvoiceLines(ctx, inv.groupId, group, account, inv.coverageEnd);
-    const { moCount, msCount, mfCount, subtotalCents } = computeCounts(lines);
-
-    await ctx.db.patch(invoiceId, {
-      lines,
-      memberCount: lines.length,
-      moCount,
-      msCount,
-      mfCount,
-      subtotalCents,
-      adjustmentCents: inv.adjustmentCents,
-      totalCents: subtotalCents + (inv.adjustmentCents ?? 0),
-      balanceCents: subtotalCents + (inv.adjustmentCents ?? 0) - inv.amountPaidCents,
-      moCents,
-      msCents,
-      mfCents,
-      rateLabel,
-      memberProfileIdsSnapshot: lines.map((l) => l.memberProfileId),
-      updatedAt: Date.now(),
-    });
-
-    await ctx.runMutation(internal.admin.adminAudit.record, {
-      actorClerkUserId: actor.clerkUserId,
-      action: "list_bill_invoice.refresh_lines",
-      targetType: "listBillInvoice",
-      targetId: invoiceId,
-      summary: `Refreshed lines on invoice #${inv.invoiceNumberDisplay}: ${inv.memberCount} → ${lines.length} members`,
-      metadata: {
-        invoiceNumber: inv.invoiceNumberDisplay,
-        previousMemberCount: inv.memberCount,
-        newMemberCount: lines.length,
-      },
-    });
+// ---------------------------------------------------------------------------
+// _migrationRefreshInvoiceLines — internal-only variant of refreshInvoiceLines
+//   for one-off data-remediation scripts run via `npx convex run --prod`
+//   (no client-reachable auth context to satisfy requireAdmin). Uses the
+//   exact same guarded logic/audit trail as the public mutation above, just
+//   with a fixed "system:data-migration" actor for a transparent audit trail.
+// ---------------------------------------------------------------------------
+export const _migrationRefreshInvoiceLines = internalMutation({
+  args: { invoiceId: v.id("listBillInvoices") },
+  handler: async (ctx, { invoiceId }): Promise<void> => {
+    await performRefreshInvoiceLines(ctx, invoiceId, "system:data-migration");
   },
 });
