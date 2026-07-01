@@ -418,28 +418,10 @@ export default function ProfileCompletionPrompt() {
             padding: "1rem 1.5rem 1.5rem",
             display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
-            gap: "0.75rem",
+            justifyContent: "flex-end",
+            gap: "0.5rem",
           }}
         >
-          <button
-            type="button"
-            onClick={dismiss}
-            disabled={saving}
-            style={{
-              background: "none",
-              border: "none",
-              color: "#94a3b8",
-              fontSize: "0.8125rem",
-              fontWeight: 500,
-              cursor: saving ? "not-allowed" : "pointer",
-              padding: "0.5rem 0",
-            }}
-          >
-            I&apos;ll do this later
-          </button>
-
-          <div style={{ display: "flex", gap: "0.5rem" }}>
             {stepIndex > 0 && (
               <button
                 type="button"
@@ -480,7 +462,6 @@ export default function ProfileCompletionPrompt() {
             >
               {saving ? "Saving…" : isLastStep ? "Save & Verify" : "Continue"}
             </button>
-          </div>
         </div>
       </div>
     </div>
