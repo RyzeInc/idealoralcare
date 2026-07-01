@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
-import { Plus, Edit, Trash2, X } from 'lucide-react';
-import { useToast, Breadcrumbs, RequiredMark } from '@/components/admin/ui';
+import { Plus, Edit, Trash2, X, Info, Users } from 'lucide-react';
+import { useToast, Breadcrumbs, RequiredMark, Tooltip } from '@/components/admin/ui';
 import { useEffect, useRef } from 'react';
 import { PROVIDER_GROUP_CODE } from '@/lib/constants';
 
@@ -195,6 +196,7 @@ function GroupsList({ groups, accounts, sites }: { groups: any[]; accounts: any[
   const acctMap = Object.fromEntries(accounts.map(a => [a._id, a.slug]));
   const memberCounts = useQuery(api.admin.members.getMemberCountsByGroup, {}) || {};
   const [editingGroup, setEditingGroup] = useState<any | null>(null);
+  const [viewingMembersGroup, setViewingMembersGroup] = useState<any | null>(null);
   const [search, setSearch] = useState('');
 
   const filtered = groups.filter((g: any) =>
@@ -238,7 +240,15 @@ function GroupsList({ groups, accounts, sites }: { groups: any[]; accounts: any[
                   <td className="px-6 py-4 font-mono text-sm">{grp.groupCode}</td>
                   <td className="px-6 py-4 text-slate-600">{acctMap[grp.accountId] || '—'}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">
-                    <span className="font-medium text-slate-900">{counts.total}</span> · <span className="text-green-700">{counts.active} active</span>
+                    <button
+                      type="button"
+                      onClick={() => setViewingMembersGroup(grp)}
+                      className="inline-flex items-center gap-1.5 hover:underline text-left"
+                      title="Inspect member breakdown"
+                    >
+                      <Users size={13} className="text-slate-400" />
+                      <span className="font-medium text-slate-900">{counts.total}</span> · <span className="text-green-700">{counts.active} active</span>
+                    </button>
                   </td>
                   <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-xs font-semibold ${grp.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{grp.status}</span></td>
                   <td className="px-6 py-4 text-right">
@@ -254,6 +264,7 @@ function GroupsList({ groups, accounts, sites }: { groups: any[]; accounts: any[
         </tbody>
       </table>
       {editingGroup && <EditGroupModal group={editingGroup} accounts={accounts} onClose={() => setEditingGroup(null)} />}
+      {viewingMembersGroup && <MemberBreakdownModal group={viewingMembersGroup} onClose={() => setViewingMembersGroup(null)} />}
     </>
   );
 }
@@ -441,19 +452,23 @@ function CreateGroupModal({ sites, accounts, onClose }: { sites: any[]; accounts
     <ModalWrapper title="Create Organization" onClose={onClose}>
       <form onSubmit={handleSave} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Carrier (Site)</label>
+          <label className="block">
+            <LabelRow label="Carrier (Site)" tooltip="Which platform/carrier this organization sits under (e.g. Ideal Health vs. a white-label site). Determines branding and which brokers appear below." />
+          </label>
           <select value={form.siteId} onChange={e => setForm({ ...form, siteId: e.target.value, accountId: '' })} className="w-full px-3 py-2 border border-slate-300 rounded-lg">
             {sites.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Broker</label>
+          <label className="block">
+            <LabelRow label="Broker" tooltip="The Broker/Account that owns this organization. Controls billing model and reporting rollups." />
+          </label>
           <select value={form.accountId} onChange={e => setForm({ ...form, accountId: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg">
             <option value="">Select broker...</option>
             {filteredAccounts.map((a: any) => <option key={a._id} value={a._id}>{a.slug}</option>)}
           </select>
         </div>
-        <Field label="Organization Name" value={form.name} onChange={v => {
+        <Field label="Organization Name" tooltip="Display name shown to admins and on invoices (e.g. 'ACME Corp' or 'Ideal Direct Consumer'). Not shown to members." value={form.name} onChange={v => {
           // Auto-suggest organizationCode from name if user hasn't typed one yet
           setForm(f => {
             const slugCode = v.toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 12);
@@ -461,23 +476,27 @@ function CreateGroupModal({ sites, accounts, onClose }: { sites: any[]; accounts
             return { ...f, name: v, organizationCode: f.organizationCode ? f.organizationCode : suggest };
           });
         }} placeholder="e.g. ACME Corp / Ideal Direct Consumer" />
-        <Field label="Description" value={form.description} onChange={v => setForm({ ...form, description: v })} />
-        <Field label="Slug" value={form.slug} onChange={v => setForm({ ...form, slug: v })} required placeholder="e.g. acme / ideal-direct-consumer" />
-        <Field label="Organization Code (Subscriber ID)" value={form.organizationCode} onChange={v => setForm({ ...form, organizationCode: v })} required placeholder="e.g. ACME-0042 or IDC-0001" />
-        <Field label="Provider Group Code" value={form.groupCode} onChange={v => setForm({ ...form, groupCode: v })} required placeholder={`e.g. ${PROVIDER_GROUP_CODE} (Careington/DialCare-required)`} />
-        <Field label="Max Members" value={form.maxMembers} onChange={v => setForm({ ...form, maxMembers: v })} placeholder="Leave blank for unlimited" />
+        <Field label="Description" tooltip="Optional internal note about this organization. Not shown to members or on any documents." value={form.description} onChange={v => setForm({ ...form, description: v })} />
+        <Field label="Slug" tooltip="A URL-friendly identifier used internally (and in enrollment links) to reference this organization. Lowercase letters, numbers, and dashes only." value={form.slug} onChange={v => setForm({ ...form, slug: v })} required placeholder="e.g. acme / ideal-direct-consumer" />
+        <Field label="Organization Code (Subscriber ID)" tooltip="Becomes the Subscriber ID on every member's ID card and eligibility file for this organization. Required — without it, enrolled members won't have a valid Subscriber ID." value={form.organizationCode} onChange={v => setForm({ ...form, organizationCode: v })} required placeholder="e.g. ACME-0042 or IDC-0001" />
+        <Field label="Provider Group Code" tooltip="The vendor-required group code (Careington/DialCare) printed on ID cards and sent in vendor eligibility files. Defaults to the standard Ideal Health code — only change if this organization uses a different provider network." value={form.groupCode} onChange={v => setForm({ ...form, groupCode: v })} required placeholder={`e.g. ${PROVIDER_GROUP_CODE} (Careington/DialCare-required)`} />
+        <Field label="Max Members" tooltip="Caps how many members can enroll in this organization. Leave blank to allow unlimited enrollments." value={form.maxMembers} onChange={v => setForm({ ...form, maxMembers: v })} placeholder="Leave blank for unlimited" />
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Effective Date</label>
+            <label className="block">
+              <LabelRow label="Effective Date" tooltip="The date coverage/eligibility for this organization begins. Optional — leave blank if not yet determined." />
+            </label>
             <input type="date" value={form.effectiveDate} onChange={e => setForm({ ...form, effectiveDate: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Termination Date</label>
+            <label className="block">
+              <LabelRow label="Termination Date" tooltip="The date this organization's coverage ends. Optional — set later if/when the group is cancelled." />
+            </label>
             <input type="date" value={form.terminationDate} onChange={e => setForm({ ...form, terminationDate: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
           </div>
         </div>
-        <RepSelect value={form.brokerId} trackingCode={form.brokerTrackingCode} onChange={(id, code) => setForm({ ...form, brokerId: id, brokerTrackingCode: code })} />
-        <Field label="Representative Tracking Code" value={form.brokerTrackingCode} onChange={v => setForm({ ...form, brokerTrackingCode: v })} />
+        <RepSelect value={form.brokerId} trackingCode={form.brokerTrackingCode} onChange={(id, code) => setForm({ ...form, brokerId: id, brokerTrackingCode: code })} tooltip="Attributes this organization to a broker rep/agent for commission tracking. Choose 'No representative' if this is a direct/house account." />
+        <Field label="Representative Tracking Code" tooltip="Auto-filled from the selected representative's code. Used to attribute enrollments in this organization back to that rep for commissions." value={form.brokerTrackingCode} onChange={v => setForm({ ...form, brokerTrackingCode: v })} />
         <div className="flex gap-2 pt-2">
           <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50">Cancel</button>
           <button type="submit" disabled={saving || !form.accountId} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">Create</button>
@@ -724,9 +743,80 @@ function EditGroupModal({ group, accounts, onClose }: { group: any; accounts: an
   );
 }
 
+/* ─── Member breakdown (inspect members within an organization) ─── */
+
+const MEMBER_STATUS_META: Record<string, { label: string; color: string; description: string }> = {
+  lead: { label: 'Lead', color: 'bg-slate-100 text-slate-700', description: 'Prospect — not yet matched to an eligibility file or enrolled.' },
+  eligible: { label: 'Eligible', color: 'bg-blue-100 text-blue-700', description: 'Matched to an eligibility file; entitled to coverage but hasn\u2019t activated yet.' },
+  enrolling: { label: 'Enrolling', color: 'bg-amber-100 text-amber-700', description: 'Currently in the enrollment flow — started but not finished.' },
+  active: { label: 'Active', color: 'bg-green-100 text-green-700', description: 'Enrolled and currently active on the plan.' },
+  inactive: { label: 'Inactive', color: 'bg-gray-100 text-gray-700', description: 'No active plans right now.' },
+  terminated: { label: 'Terminated', color: 'bg-red-100 text-red-700', description: 'Removed from the plan.' },
+  declined: { label: 'Declined', color: 'bg-orange-100 text-orange-700', description: 'Declined enrollment.' },
+};
+
+function MemberBreakdownModal({ group, onClose }: { group: any; onClose: () => void }) {
+  const breakdown = useQuery(api.admin.members.getGroupMemberBreakdown, { groupId: group._id });
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  return (
+    <ModalWrapper title={`Members: ${group.name || group.groupCode}`} onClose={onClose} wide>
+      {breakdown === undefined ? (
+        <p className="text-sm text-slate-500 py-8 text-center">Loading…</p>
+      ) : breakdown.total === 0 ? (
+        <p className="text-sm text-slate-500 py-8 text-center">No members in this organization yet.</p>
+      ) : (
+        <div className="space-y-2 max-h-[65vh] overflow-y-auto pr-1">
+          <p className="text-sm text-slate-600 pb-1">
+            <span className="font-semibold text-slate-900">{breakdown.total}</span> total member{breakdown.total === 1 ? '' : 's'} — click a status to see who&apos;s in it.
+          </p>
+          {Object.entries(breakdown.byStatus).map(([status, count]) => {
+            if ((count as number) === 0) return null;
+            const meta = MEMBER_STATUS_META[status] || { label: status, color: 'bg-slate-100 text-slate-700', description: '' };
+            const list = breakdown.detailsByStatus[status] || [];
+            const isOpen = expanded === status;
+            return (
+              <div key={status} className="border border-slate-200 rounded-lg overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setExpanded(isOpen ? null : status)}
+                  className="w-full flex items-center justify-between gap-3 px-3 py-2 hover:bg-slate-50 text-left"
+                >
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold ${meta.color}`}>{meta.label}</span>
+                    <span className="text-xs text-slate-500 truncate">{meta.description}</span>
+                  </span>
+                  <span className="shrink-0 text-sm font-semibold text-slate-900">{count as number}</span>
+                </button>
+                {isOpen && (
+                  <div className="border-t border-slate-100 divide-y divide-slate-100 bg-slate-50/50">
+                    {list.map((m: any) => (
+                      <Link
+                        key={m.id}
+                        href={`/admin/members/${m.id}`}
+                        className="flex items-center justify-between gap-3 px-3 py-2 text-sm hover:bg-blue-50"
+                      >
+                        <span className="text-slate-900 truncate">{m.name}{m.email ? <span className="text-slate-400"> — {m.email}</span> : null}</span>
+                        <span className="shrink-0 text-xs text-slate-400 font-mono">{m.memberId}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div className="flex justify-end pt-4">
+        <button type="button" onClick={onClose} className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50">Close</button>
+      </div>
+    </ModalWrapper>
+  );
+}
+
 /* ─── Shared helpers ─── */
 
-function ModalWrapper({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+function ModalWrapper({ title, children, onClose, wide }: { title: string; children: React.ReactNode; onClose: () => void; wide?: boolean }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -748,7 +838,7 @@ function ModalWrapper({ title, children, onClose }: { title: string; children: R
     >
       <div
         ref={dialogRef}
-        className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
+        className={`bg-white rounded-lg p-6 w-full mx-4 ${wide ? 'max-w-xl' : 'max-w-md'}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -764,10 +854,25 @@ function ModalWrapper({ title, children, onClose }: { title: string; children: R
   );
 }
 
-function Field({ label, value, onChange, required, placeholder }: { label: string; value: string; onChange: (v: string) => void; required?: boolean; placeholder?: string }) {
+function LabelRow({ label, required, tooltip }: { label: string; required?: boolean; tooltip?: string }) {
+  return (
+    <span className="flex items-center gap-1.5 mb-1">
+      <span className="text-sm font-medium text-slate-700">{label}{required && <RequiredMark />}</span>
+      {tooltip && (
+        <Tooltip text={tooltip} width="md">
+          <Info size={13} className="text-slate-400 cursor-help" />
+        </Tooltip>
+      )}
+    </span>
+  );
+}
+
+function Field({ label, value, onChange, required, placeholder, tooltip }: { label: string; value: string; onChange: (v: string) => void; required?: boolean; placeholder?: string; tooltip?: string }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1">{label}{required && <RequiredMark />}</label>
+      <label className="block">
+        <LabelRow label={label} required={required} tooltip={tooltip} />
+      </label>
       <input type="text" value={value} onChange={e => onChange(e.target.value)} required={required} placeholder={placeholder} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
     </div>
   );
@@ -779,15 +884,19 @@ function RepSelect({
   value,
   trackingCode,
   onChange,
+  tooltip,
 }: {
   value: string;
   trackingCode: string;
   onChange: (repLeaderId: string, repCode: string) => void;
+  tooltip?: string;
 }) {
   const agents = useQuery(api.enrollment.agents.listPublicAgents) || [];
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1">Representative</label>
+      <label className="block">
+        <LabelRow label="Representative" tooltip={tooltip} />
+      </label>
       <select
         value={value}
         onChange={(e) => {
