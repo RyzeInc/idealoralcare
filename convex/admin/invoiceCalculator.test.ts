@@ -111,8 +111,9 @@ async function seedMember(
     customerId: string;
     role: "primary" | "dependent";
     primaryMemberId?: Id<"memberProfiles">;
-    memberType?: "active" | "terminated";
+    memberType?: "active" | "enrolling" | "eligible" | "terminated";
     memberId?: string;
+    createdAt?: number;
   },
 ): Promise<Id<"memberProfiles">> {
   return t.run(async (ctx) => {
@@ -130,7 +131,7 @@ async function seedMember(
       email: `${opts.customerId}@test.inv`,
       memberType: opts.memberType ?? "active",
       status: "active",
-      createdAt: Date.now(),
+      createdAt: opts.createdAt ?? Date.now(),
       updatedAt: Date.now(),
     });
   });
@@ -142,10 +143,11 @@ async function seedBundle(
     customerId: string;
     totalCents: number;
     status?: "active" | "cancelled";
+    createdAt?: number;
   },
 ) {
   return t.run(async (ctx) => {
-    const now = Date.now();
+    const now = opts.createdAt ?? Date.now();
     return ctx.db.insert("subscriptionBundles", {
       customerId: opts.customerId,
       cadence: "monthly",
@@ -333,6 +335,48 @@ describe("invoiceCalculator — spec §11.2 fixtures", () => {
     expect(r.grand.individualPrimaryCount).toBe(0);
   });
 
+  test("F11: eligible list-bill primary (no Clerk account yet) is still billed", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const w = await seedWorld(t, { listBill: true, groupCode: "ELIG1" });
+    // No customerId/bundle at all — this mirrors an eligibility-file-imported
+    // member who hasn't been Clerk-provisioned. List-bill primaries are
+    // classified by household size, not by Stripe bundle.
+    await seedMember(t, w, {
+      customerId: "elig_u1",
+      role: "primary",
+      memberType: "eligible",
+    });
+
+    const r = await asAdmin(t).query(get, {});
+    expect(r.grand.activeMemberCount).toBe(1);
+    expect(r.grand.individualPrimaryCount).toBe(1);
+    expect(r.grand.totals).toEqual(DISPERSAL.individual);
+    expect(r.employerPaid.totals).toEqual(DISPERSAL.individual);
+  });
+
+  test("F12: eligible list-bill primary + eligible dependent → classified as family", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const w = await seedWorld(t, { listBill: true, groupCode: "ELIG2" });
+    const primaryMemberId = await seedMember(t, w, {
+      customerId: "elig_u2",
+      role: "primary",
+      memberType: "eligible",
+    });
+    await seedMember(t, w, {
+      customerId: "elig_u2",
+      role: "dependent",
+      primaryMemberId,
+      memberType: "eligible",
+    });
+
+    const r = await asAdmin(t).query(get, {});
+    expect(r.grand.familyPrimaryCount).toBe(1);
+    expect(r.grand.dependentCount).toBe(1);
+    expect(r.grand.totals).toEqual(DISPERSAL.family);
+  });
+
   test("F10: penny invariant fuzz — random rosters always satisfy INV-01", async () => {
     const t = convexTest(schema);
     await seedAdmin(t);
@@ -364,14 +408,18 @@ describe("invoiceCalculator — closePeriod", () => {
     const t = convexTest(schema);
     await seedAdmin(t);
     const w = await seedWorld(t, { listBill: true });
-    await seedMember(t, w, { customerId: "uc1", role: "primary" });
-    await seedBundle(t, { customerId: "uc1", totalCents: 1499 });
 
     // Close prior calendar month so it isn't the current period.
     const now = new Date();
     const prev = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
     const year = prev.getUTCFullYear();
     const month = prev.getUTCMonth() + 1;
+    // Member/bundle must have existed DURING the period being closed, not
+    // "right now" — the asOfMs gate excludes anything created after
+    // period-end.
+    const midPeriod = Date.UTC(year, month - 1, 15);
+    await seedMember(t, w, { customerId: "uc1", role: "primary", createdAt: midPeriod });
+    await seedBundle(t, { customerId: "uc1", totalCents: 1499, createdAt: midPeriod });
 
     const first = await asAdmin(t).mutation(closeManual, { year, month });
     expect(first.skipped).toBeFalsy();
@@ -390,14 +438,15 @@ describe("invoiceCalculator — closePeriod", () => {
     const t = convexTest(schema);
     await seedAdmin(t);
     const w = await seedWorld(t);
-    await seedMember(t, w, { customerId: "uc2", role: "primary" });
-    await seedBundle(t, { customerId: "uc2", totalCents: 2499 });
 
     const now = new Date();
     const prev = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
     const year = prev.getUTCFullYear();
     const month = prev.getUTCMonth() + 1;
     const periodKey = `${year}-${String(month).padStart(2, "0")}`;
+    const midPeriod = Date.UTC(year, month - 1, 15);
+    await seedMember(t, w, { customerId: "uc2", role: "primary", createdAt: midPeriod });
+    await seedBundle(t, { customerId: "uc2", totalCents: 2499, createdAt: midPeriod });
 
     await asAdmin(t).mutation(closeManual, { year, month });
 
@@ -415,6 +464,148 @@ describe("invoiceCalculator — closePeriod", () => {
     expect(r.source).toBe("closed");
     expect(r.grand.totals).toEqual(DISPERSAL.family);
     expect(r.groups[0].periodId).toBeDefined();
+  });
+
+  test("closePeriodManual excludes a member/bundle created after the period already ended", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const w = await seedWorld(t);
+
+    const now = new Date();
+    const prev = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+    const year = prev.getUTCFullYear();
+    const month = prev.getUTCMonth() + 1;
+    const periodEndMs = Date.UTC(year, month, 1); // exclusive end of the closed month
+
+    // Member existed during the period → billable.
+    const midPeriod = Date.UTC(year, month - 1, 15);
+    await seedMember(t, w, { customerId: "in-period", role: "primary", createdAt: midPeriod });
+    await seedBundle(t, { customerId: "in-period", totalCents: 1499, createdAt: midPeriod });
+
+    // Member created just after the period ended (e.g. cron ran a few
+    // minutes late) → must NOT be counted in this closed period.
+    const afterPeriod = periodEndMs + 60_000;
+    await seedMember(t, w, { customerId: "late-signup", role: "primary", createdAt: afterPeriod });
+    await seedBundle(t, { customerId: "late-signup", totalCents: 2499, createdAt: afterPeriod });
+
+    const result = await asAdmin(t).mutation(closeManual, { year, month });
+    expect(result.rowsWritten).toBe(1);
+
+    const periodKey = `${year}-${String(month).padStart(2, "0")}`;
+    const r = await asAdmin(t).query(getForPeriod, { period: periodKey });
+    expect(r.grand.activeMemberCount).toBe(1);
+    expect(r.grand.totals.grossCents).toBe(1499);
+  });
+
+  test("closePeriodManual excludes a member whose effectiveDate is after period-end", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const w = await seedWorld(t, { listBill: true });
+
+    const now = new Date();
+    const prev = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+    const year = prev.getUTCFullYear();
+    const month = prev.getUTCMonth() + 1;
+    const midPeriod = Date.UTC(year, month - 1, 15);
+
+    // Created well before period-end, but coverage doesn't start until well
+    // into the month AFTER the one being closed (avoids the exact
+    // period-end instant, which is an inclusive boundary in isEffectiveAsOf).
+    const nextMonthEffective = new Date(Date.UTC(year, month, 5)).toISOString().slice(0, 10);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("memberProfiles", {
+        memberId: "future-eff",
+        barcode: "FUTUREEFF01",
+        customerId: "future-eff",
+        siteId: w.siteId,
+        accountId: w.accountId,
+        groupId: w.groupId,
+        memberRole: "primary",
+        firstName: "Future",
+        lastName: "Eff",
+        memberType: "eligible",
+        status: "active",
+        effectiveDate: nextMonthEffective,
+        createdAt: midPeriod,
+        updatedAt: midPeriod,
+      });
+    });
+
+    const result = await asAdmin(t).mutation(closeManual, { year, month });
+    // The (empty) group still gets a snapshot row, but with zero members —
+    // the future-effective member must not be counted.
+    expect(result.rowsWritten).toBe(1);
+
+    const periodKey = `${year}-${String(month).padStart(2, "0")}`;
+    const r = await asAdmin(t).query(getForPeriod, { period: periodKey });
+    expect(r.grand.activeMemberCount).toBe(0);
+    expect(r.grand.totals.grossCents).toBe(0);
+  });
+
+  test("closePeriodManual uses the tier that was in effect during the period, not a later upgrade (bundleTierHistory)", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const w = await seedWorld(t);
+
+    const now = new Date();
+    const prev = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+    const year = prev.getUTCFullYear();
+    const month = prev.getUTCMonth() + 1;
+    const midPeriod = Date.UTC(year, month - 1, 15);
+    const periodEndMs = Date.UTC(year, month, 1);
+
+    await seedMember(t, w, { customerId: "upgrader", role: "primary", createdAt: midPeriod });
+    const bundleId = await seedBundle(t, {
+      customerId: "upgrader",
+      totalCents: 1499, // Individual during the closed period.
+      createdAt: midPeriod,
+    });
+
+    // Member upgraded to Family AFTER the period already ended, but the
+    // close hasn't run yet (e.g. admin retroactively closes a stale month).
+    // The bundle's CURRENT pricingSnapshot now says Family — without
+    // bundleTierHistory, closePeriod would wrongly bill this as Family for
+    // the already-ended period.
+    const upgradeAt = periodEndMs + 5 * 24 * 60 * 60 * 1000; // 5 days into next month
+    await t.run(async (ctx) => {
+      const bundle = await ctx.db.get(bundleId);
+      if (!bundle) throw new Error("bundle missing");
+      await ctx.db.insert("bundleTierHistory", {
+        bundleId,
+        customerId: "upgrader",
+        totalCents: 1499,
+        effectiveFrom: bundle.pricingSnapshot.capturedAt,
+        effectiveTo: upgradeAt,
+        reason: "upgrade",
+        createdAt: upgradeAt,
+      });
+      await ctx.db.patch(bundleId, {
+        pricingSnapshot: {
+          cadence: "monthly",
+          paymentMethod: "card",
+          totalCents: 2499,
+          planCount: 1,
+          capturedAt: upgradeAt,
+        },
+        updatedAt: upgradeAt,
+      });
+    });
+
+    const result = await asAdmin(t).mutation(closeManual, { year, month });
+    expect(result.rowsWritten).toBe(1);
+
+    const periodKey = `${year}-${String(month).padStart(2, "0")}`;
+    const r = await asAdmin(t).query(getForPeriod, { period: periodKey });
+    // Closed period must reflect Individual ($14.99), the tier that was
+    // actually in effect at period-end — NOT the post-upgrade Family tier.
+    expect(r.grand.individualPrimaryCount).toBe(1);
+    expect(r.grand.familyPrimaryCount).toBe(0);
+    expect(r.grand.totals).toEqual(DISPERSAL.individual);
+
+    // Meanwhile the TRUE live view (no period arg) reflects the upgrade.
+    const live = await asAdmin(t).query(get, {});
+    expect(live.grand.familyPrimaryCount).toBe(1);
+    expect(live.grand.individualPrimaryCount).toBe(0);
   });
 });
 

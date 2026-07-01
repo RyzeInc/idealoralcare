@@ -94,7 +94,7 @@ No rounding errors leak across periods. All math is performed in **integer cents
 
 | Table | Role in calculator |
 |---|---|
-| [`memberProfiles`](../../convex/schema.ts) | Roster. Filter: `memberType === "active"`. Classify by `memberRole` (`"primary"` vs `"dependent"`). Group via `groupId`. |
+| [`memberProfiles`](../../convex/schema.ts) | Roster. Filter: `memberType ∈ {"active", "enrolling", "eligible"}` (fixed 2026-07-01 — `"eligible"` = list-bill members imported via eligibility file, not yet Clerk-provisioned, but still billable to the employer; same `BILLABLE_MEMBER_TYPES` rule as `listBillInvoices.ts`). Classify by `memberRole` (`"primary"` vs `"dependent"`). Group via `groupId`. |
 | [`subscriptionBundles`](../../convex/schema.ts) | Determines tier per primary. Filter: `status === "active"`. Tier from `pricingSnapshot.totalCents`. |
 | [`groups`](../../convex/schema.ts) | Org metadata + `listBill.enabled` (employer-paid flag). |
 | [`accounts`](../../convex/schema.ts) | Parent of groups. Carries `billingDetails.perMemberRateCents` and `accountType`. |
@@ -114,7 +114,7 @@ Bundles failing this match are intentionally excluded from revenue and counted a
 
 ### 3.3 Member → tier resolution
 
-1. Skip member if `memberType !== "active"`.
+1. Skip member if `memberType ∉ {"active", "enrolling", "eligible"}`.
 2. If `memberRole === "dependent"` → contributes `0` to all buckets, increments `dependentCount`.
 3. Else (primary or legacy unset role):
    - Look up `tierByCustomer[member.customerId]` from active bundles.
@@ -211,6 +211,34 @@ To make any historical period reproducible, the system must persist enough state
 - Cons: large schema change; rewrite of every mutation that touches `memberProfiles` or `subscriptionBundles`.
 
 **Decision:** ship (A) first. Migrate to (B) only if audit/regulatory pressure demands it. Either way, the public Convex query signature stays the same: `getInvoiceBreakdown({ period?, asOfMs? })`.
+
+**Point-in-time gate (added 2026-07-01):** `computeLiveBreakdown` accepts an
+optional `asOfMs`. `closePeriodInternal` passes the period's `endMs`, which
+excludes any `memberProfiles` (`createdAt` or `effectiveDate` after `asOfMs`)
+or `subscriptionBundles` (`createdAt` after `asOfMs`) that didn't exist yet
+at period-end — preventing a member/bundle created in the gap between
+period-end and the closing cron actually running from being baked into the
+wrong month's frozen snapshot.
+
+**Bundle-tier history (added 2026-07-01):** existence-gating alone wasn't
+enough — a bundle that already existed by period-end but had its tier
+*mutated* (upgraded/downgraded) between period-end and the closing cron's
+execution would still resolve to the CURRENT (post-mutation) tier. This is
+now solved with a `bundleTierHistory` table (`convex/schema.ts`): the single
+mutation point that changes an existing bundle's `pricingSnapshot`
+(`processTierChange` in `convex/subscriptions/webhookActions.ts`) writes a
+row recording the superseded tier's `totalCents` and the
+`[effectiveFrom, effectiveTo)` window it covered, before overwriting the
+snapshot. `computeLiveBreakdown` resolves each bundle's tier via
+`resolveBundleTierTotalCentsAsOf`: if the bundle's current snapshot was
+already captured by `asOfMs` it's used as-is; otherwise the function looks
+up the `bundleTierHistory` segment that covered `asOfMs` and uses that
+tier instead. If no segment covers `asOfMs` (e.g. the mutation predates
+this feature shipping, so no history was recorded), the bundle is treated
+as unresolvable and excluded from that customer's tier for that instant —
+an acceptable, narrow limitation vs. silently using the wrong tier. Live
+queries (`getInvoiceBreakdown` with no `asOfMs`) are unaffected and
+continue to always reflect the current tier.
 
 ### 5.5 Time-zone policy
 

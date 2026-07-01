@@ -517,6 +517,27 @@ export default defineSchema({
     .index("by_stripe_subscription", ["stripeSubscriptionId"])
     .index("by_renewal_date", ["currentPeriodEnd"]),
 
+  // TIER-CHANGE HISTORY (added 2026-07-01 — supports point-in-time
+  // reconstruction of a bundle's tier for Invoice Calculator closePeriod).
+  // `subscriptionBundles.pricingSnapshot` only ever holds the CURRENT tier —
+  // `processTierChange` (upgrade/downgrade) overwrites it in place with no
+  // record of what the tier was before. Without this, closing/reconstructing
+  // a past period after a mid-cycle tier change would use the wrong
+  // (current, not as-of-period-end) tier. One row is written per superseded
+  // segment — the still-current segment lives only on the bundle itself
+  // (no open-ended row here).
+  bundleTierHistory: defineTable({
+    bundleId: v.id("subscriptionBundles"),
+    customerId: v.string(), // Denormalized for convenience/future querying.
+    totalCents: v.number(), // The tier's price during [effectiveFrom, effectiveTo).
+    effectiveFrom: v.number(), // Unix ms — when this segment began (bundle creation or previous change).
+    effectiveTo: v.number(), // Unix ms — when this segment ended (superseded by a new tier).
+    reason: v.union(v.literal("upgrade"), v.literal("downgrade")),
+    createdAt: v.number(),
+  })
+    .index("by_bundle", ["bundleId"])
+    .index("by_customer", ["customerId"]),
+
   // ENTITLEMENT LEDGER (source of truth for access)
   entitlements: defineTable({
     // IDENTITY

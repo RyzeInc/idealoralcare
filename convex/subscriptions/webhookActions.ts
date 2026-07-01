@@ -344,7 +344,21 @@ export const processTierChange = mutation({
       notes: `Tier ${args.direction} from previous plan`,
     });
 
-    // 3. Update bundle pricing snapshot
+    // 3. Record the superseded tier segment for point-in-time reconstruction
+    // (Invoice Calculator closePeriod uses this — see bundleTierHistory in
+    // schema.ts). The segment started when the CURRENT pricingSnapshot was
+    // captured (bundle creation, or the previous tier change) and ends now.
+    await ctx.db.insert("bundleTierHistory", {
+      bundleId: args.bundleId,
+      customerId: args.customerId,
+      totalCents: bundle.pricingSnapshot.totalCents,
+      effectiveFrom: bundle.pricingSnapshot.capturedAt ?? bundle.createdAt,
+      effectiveTo: now,
+      reason: args.direction,
+      createdAt: now,
+    });
+
+    // 4. Update bundle pricing snapshot
     await ctx.db.patch(args.bundleId, {
       updatedAt: now,
       pricingSnapshot: {

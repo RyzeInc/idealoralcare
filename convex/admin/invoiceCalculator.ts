@@ -133,19 +133,85 @@ function classifyListBillTierFromHousehold(
 }
 
 /**
+ * True if a member's coverage effective date (if any) has begun on or before
+ * `asOfMs`. Mirrors `isEffectiveForPeriod` in listBillInvoices.ts. A missing
+ * or unparseable effectiveDate does not exclude the member (fail-open — many
+ * historical/legacy records have no effectiveDate set).
+ */
+function isEffectiveAsOf(effectiveDate: string | undefined, asOfMs: number): boolean {
+  if (!effectiveDate) return true;
+  const ms = Date.parse(effectiveDate);
+  if (Number.isNaN(ms)) return true;
+  return ms <= asOfMs;
+}
+
+/**
+ * True if this memberProfile record already existed in our system by
+ * `asOfMs`. Guards against closing/reconstructing a PAST period and having
+ * it "see" members who were only added later (e.g. via a subsequent
+ * eligibility file, or a self-pay signup that completed after the period
+ * actually ended but before the closing cron ran). Mirrors
+ * `existedByPeriodEnd` in listBillInvoices.ts. `createdAt` is set once at
+ * insert and never changed by later updates, so it's a stable proxy for
+ * "when did Ideal first know this person existed."
+ */
+function existedAsOf(createdAt: number, asOfMs: number): boolean {
+  return createdAt <= asOfMs;
+}
+
+/**
+ * Resolve what a bundle's tier-determining `totalCents` actually was at
+ * `asOfMs`, instead of blindly trusting the bundle's CURRENT
+ * `pricingSnapshot` (which only ever holds the latest tier). If the current
+ * snapshot was already in effect by `asOfMs`, it's authoritative. Otherwise
+ * the bundle's tier has changed since `asOfMs` (via `processTierChange` —
+ * upgrade/downgrade) and we must look at `bundleTierHistory` for the
+ * segment that actually covered `asOfMs`. Returns `null` if no segment
+ * covers `asOfMs` (e.g. history wasn't recorded before this feature
+ * shipped) — callers should treat that as "unresolvable" rather than guess.
+ */
+async function resolveBundleTierTotalCentsAsOf(
+  ctx: QueryCtx,
+  bundle: Doc<"subscriptionBundles">,
+  asOfMs: number,
+): Promise<number | null> {
+  if (bundle.pricingSnapshot.capturedAt <= asOfMs) {
+    return bundle.pricingSnapshot.totalCents;
+  }
+  const history = await ctx.db
+    .query("bundleTierHistory")
+    .withIndex("by_bundle", (q) => q.eq("bundleId", bundle._id))
+    .collect();
+  const covering = history.find(
+    (h) => h.effectiveFrom <= asOfMs && asOfMs < h.effectiveTo,
+  );
+  return covering ? covering.totalCents : null;
+}
+
+/**
  * Compute a per-group breakdown from the LIVE tables.
  *
  * For closed periods (where bundles or members may have changed since
  * close), the snapshot read from `invoicePeriods` is authoritative — this
  * function should NOT be used to retroactively rebuild closed periods.
+ *
+ * @param asOfMs Optional point-in-time gate. When provided, member profiles
+ *   that didn't exist yet (`createdAt > asOfMs`) or whose coverage hadn't
+ *   started yet (`effectiveDate > asOfMs`) are excluded — used by
+ *   `closePeriod`/`closePeriodManual` (passing the period's `endMs`) so a
+ *   member added between period-end and the closing cron's execution can't
+ *   get baked into the wrong month's frozen snapshot. When omitted, this is
+ *   a true "right now" live view (dashboards) with no date gating — matches
+ *   existing behavior.
  */
 async function computeLiveBreakdown(
   ctx: QueryCtx,
+  asOfMs?: number,
 ): Promise<InvoiceBreakdown> {
   // Use index-filtered queries so we only read relevant documents.
   // Without these filters the function reads every document in each table,
   // which can exceed Convex's per-query read limit once data grows.
-  const [groups, accounts, allBundles, activeMembers, enrollingMembers] = await Promise.all([
+  const [groups, accounts, allBundles, activeMembers, enrollingMembers, eligibleMembers] = await Promise.all([
     ctx.db.query("groups").collect(),
     ctx.db.query("accounts").collect(),
     // Only active bundles determine a member's billable tier.
@@ -160,22 +226,54 @@ async function computeLiveBreakdown(
     ctx.db.query("memberProfiles")
       .withIndex("by_member_type", (q) => q.eq("memberType", "enrolling"))
       .collect(),
+    // Eligible members — eligibility-file-imported list-bill members who have
+    // not yet been provisioned a Clerk/portal account. They're still billable
+    // to the employer (same BILLABLE_MEMBER_TYPES rule as listBillInvoices.ts)
+    // — omitting them here silently undercounts employer-paid revenue vs. the
+    // roster the User Audit dashboard shows (which counts all memberProfiles).
+    ctx.db.query("memberProfiles")
+      .withIndex("by_member_type", (q) => q.eq("memberType", "eligible"))
+      .collect(),
   ]);
 
-  // Merge active + enrolling into one list (both contribute to billing).
-  const allMembers = [...activeMembers, ...enrollingMembers];
+  // Merge active + enrolling + eligible into one list (all contribute to billing).
+  let allMembers = [...activeMembers, ...enrollingMembers, ...eligibleMembers];
+
+  // Point-in-time gate (closePeriod path only — see doc comment above).
+  if (asOfMs !== undefined) {
+    allMembers = allMembers.filter(
+      (m) => existedAsOf(m.createdAt, asOfMs) && isEffectiveAsOf(m.effectiveDate, asOfMs),
+    );
+  }
 
   // customerId → tier of CURRENT active paying bundle. Family wins over
   // Individual if a customer somehow has multiple active bundles.
   const tierByCustomer = new Map<string, PlanTier>();
   const bundleIdByCustomer = new Map<string, Id<"subscriptionBundles">>();
   for (const bundle of allBundles) {
-    const tier = classifyTier(bundle.pricingSnapshot?.totalCents);
+    // Same point-in-time gate applied to bundles: a bundle created after
+    // asOfMs (e.g. a member subscribing in the gap between period-end and
+    // the closing cron's execution) must not retroactively flip an
+    // already-existing member from unbilled to individual/family for a
+    // period that had already ended before they subscribed.
+    if (asOfMs !== undefined && !existedAsOf(bundle.createdAt, asOfMs)) continue;
+
+    // Resolve the tier-determining totalCents as of asOfMs (falls back to
+    // the current snapshot for true live mode, or when nothing changed
+    // since asOfMs — see resolveBundleTierTotalCentsAsOf doc comment).
+    let totalCentsForTier: number | null | undefined = bundle.pricingSnapshot?.totalCents;
+    if (asOfMs !== undefined) {
+      totalCentsForTier = await resolveBundleTierTotalCentsAsOf(ctx, bundle, asOfMs);
+      if (totalCentsForTier === null) continue; // unresolvable — treat as unbilled
+    }
+
+    const tier = classifyTier(totalCentsForTier);
     if (tier === "none") continue;
     if (tierByCustomer.get(bundle.customerId) === "family") continue;
     tierByCustomer.set(bundle.customerId, tier);
     bundleIdByCustomer.set(bundle.customerId, bundle._id);
   }
+
 
   const accountsById = new Map(accounts.map((a) => [a._id, a]));
   type ActiveMember = (typeof allMembers)[number];
@@ -360,7 +458,10 @@ export const getInvoiceBreakdownForPeriod = query({
       // Closed snapshot missing — surface live data with a marker that
       // the data is not the historical close. Caller can decide whether
       // to display a warning. We mark `source: "live"` to be explicit.
-      const snap = await computeLiveBreakdown(ctx);
+      // Gate to the period's end so members/bundles created afterward
+      // (i.e. after this past period truly ended) don't leak into the
+      // reconstruction.
+      const snap = await computeLiveBreakdown(ctx, window.endMs);
       return { ...snap, period };
     }
 
@@ -434,8 +535,11 @@ export const getGroupInvoice = query({
 
     if (isLive) {
       // Live drill-down — compute from current tables for this group only.
-      // Include both active and enrolling members; enrolling members without
-      // a paying bundle surface as Unbilled (counted in unbilledPrimaryCount).
+      // Include active, enrolling, AND eligible members (eligible = list-bill
+      // members imported via eligibility file, not yet Clerk-provisioned —
+      // still billable to the employer, same as computeLiveBreakdown above).
+      // Enrolling/eligible members without a paying bundle surface as
+      // Unbilled (counted in unbilledPrimaryCount).
       // Use the by_group index and filter member type in JS to avoid full
       // table scans (Convex `.filter()` without `.withIndex()` reads every doc).
       const membersInGroup = await ctx.db
@@ -443,7 +547,10 @@ export const getGroupInvoice = query({
         .withIndex("by_group", (q) => q.eq("groupId", groupId))
         .collect();
       const members = membersInGroup.filter(
-        (m) => m.memberType === "active" || m.memberType === "enrolling",
+        (m) =>
+          m.memberType === "active" ||
+          m.memberType === "enrolling" ||
+          m.memberType === "eligible",
       );
 
       const customerIds = members
@@ -887,7 +994,10 @@ async function closePeriodInternal(
 
   // Compute the live breakdown — at close time, the live tables ARE the
   // historical truth for this period (we no longer mutate completed months).
-  const breakdown = await computeLiveBreakdown(ctx);
+  // Gated to `window.endMs` so a member/bundle created between period-end
+  // and this cron/manual-close actually running doesn't get baked into the
+  // wrong month's frozen snapshot (see existedAsOf/isEffectiveAsOf above).
+  const breakdown = await computeLiveBreakdown(ctx, window.endMs);
   const pricing: PricingSnapshot = currentPricingSnapshot();
   const sourceGitSha =
     process.env.VERCEL_GIT_COMMIT_SHA ??
