@@ -10,6 +10,7 @@
  *     recordPayment              — record a full or partial payment
  *     applyAdjustment            — add a signed adjustment to an invoice
  *     voidInvoice                — mark voided (immutable after this)
+ *     unvoidInvoice               — restore a voided invoice to its pre-void status
  *     generateReplacementInvoice — create a new draft referencing a voided invoice
  *     disputeInvoice             — mark disputed
  *     resolveDispute             — disputed → issued
@@ -48,6 +49,16 @@ import { DISPERSAL } from "../lib/dispersal";
 // ---------------------------------------------------------------------------
 
 const DEFAULT_RATE_LABEL = "Ideal Oral Health";
+
+// Member lifecycle states that should be billed on a list-bill invoice.
+// Includes "eligible" (not just "active"/"enrolling") because members loaded
+// from an employer eligibility file who lack an email address can never be
+// portal-provisioned (see convex/admin/eligibilityProvisioning.ts, which
+// requires an email to create the Clerk account and flip memberType to
+// "active"/"enrolling"). Employer coverage — and the obligation to bill for
+// it — starts at eligibility-file ingest, not at portal signup, so those
+// members must stay billable indefinitely in "eligible" status.
+const BILLABLE_MEMBER_TYPES = new Set(["active", "enrolling", "eligible"]);
 
 // Tier display suffixes
 const TIER_SUFFIX: Record<"MO" | "MS" | "MF", string> = {
@@ -212,7 +223,7 @@ function classifyTier(
 ): { tier: InvoiceTier; dependentCount: number } {
   const active = deps.filter(
     (d) =>
-      (d.memberType === "active" || d.memberType === "enrolling") &&
+      BILLABLE_MEMBER_TYPES.has(d.memberType) &&
       d.memberRole === "dependent",
   );
   const count = active.length;
@@ -276,7 +287,7 @@ async function buildInvoiceLines(
 
   const primaries = allMembers.filter(
     (m) =>
-      (m.memberType === "active" || m.memberType === "enrolling") &&
+      BILLABLE_MEMBER_TYPES.has(m.memberType) &&
       // Exclude members who have converted to self-pay or were termed from payroll deduction.
       // `undefined` means eligibility-loaded and still employer-covered.
       (!m.listBillStatus || m.listBillStatus === "active") &&
@@ -881,10 +892,11 @@ export const voidInvoice = mutation({
     const inv = await ctx.db.get(invoiceId);
     if (!inv) throw new Error("Invoice not found");
     if (inv.status === "voided") throw new Error("Invoice is already voided");
-    // LBI-05: once voided, immutable
+    // LBI-05: once voided, immutable (until explicitly un-voided)
     const now = Date.now();
     await ctx.db.patch(invoiceId, {
       status: "voided",
+      previousStatus: inv.status,
       voidedAt: now,
       voidedBy: actor.clerkUserId,
       voidReason: reason.trim(),
@@ -896,6 +908,54 @@ export const voidInvoice = mutation({
       targetType: "listBillInvoices",
       targetId: invoiceId,
       summary: `Voided invoice #${inv.invoiceNumberDisplay}: ${reason}`,
+    });
+  },
+});
+
+export const unvoidInvoice = mutation({
+  args: {
+    invoiceId: v.id("listBillInvoices"),
+  },
+  handler: async (ctx, { invoiceId }) => {
+    const actor = await requireAdmin(ctx);
+    const inv = await ctx.db.get(invoiceId);
+    if (!inv) throw new Error("Invoice not found");
+    if (inv.status !== "voided") throw new Error("Invoice is not voided");
+    // Refuse to resurrect an invoice that has already been replaced — the
+    // replacement invoice is the active record for this group × period, and
+    // un-voiding this one would create a duplicate bill.
+    if (inv.supersededById) {
+      const replacement = await ctx.db.get(inv.supersededById);
+      throw new Error(
+        `Cannot un-void: this invoice was superseded by replacement invoice ` +
+        `#${replacement?.invoiceNumberDisplay ?? inv.supersededById}. Void the replacement first if needed.`,
+      );
+    }
+
+    const now = Date.now();
+    // Re-derive the restored status rather than blindly trusting the stored
+    // previousStatus, in case the due date has since passed (issued/partial → overdue).
+    let restoredStatus: Doc<"listBillInvoices">["status"] = inv.previousStatus ?? "issued";
+    if ((restoredStatus === "issued" || restoredStatus === "partial") && inv.paymentDueDate < now) {
+      restoredStatus = "overdue";
+    }
+    if (inv.balanceCents <= 0 && restoredStatus !== "draft") {
+      restoredStatus = "paid";
+    }
+
+    await ctx.db.patch(invoiceId, {
+      status: restoredStatus,
+      previousStatus: undefined,
+      unvoidedAt: now,
+      unvoidedBy: actor.clerkUserId,
+      updatedAt: now,
+    });
+    await ctx.runMutation(internal.admin.adminAudit.record, {
+      actorClerkUserId: actor.clerkUserId,
+      action: "list_bill_invoice.unvoid",
+      targetType: "listBillInvoices",
+      targetId: invoiceId,
+      summary: `Un-voided invoice #${inv.invoiceNumberDisplay} (restored to "${restoredStatus}")`,
     });
   },
 });

@@ -138,22 +138,24 @@ async function seedPrimary(
   opts: {
     firstName?: string;
     lastName?: string;
-    memberType?: "active" | "enrolling" | "terminated";
+    memberType?: "active" | "enrolling" | "eligible" | "terminated";
     relationship?: "spouse" | "child" | "domestic_partner" | "other";
+    noEmail?: boolean;
+    noCustomerId?: boolean;
   } = {},
 ): Promise<Id<"memberProfiles">> {
   return t.run(async (ctx) => {
     return ctx.db.insert("memberProfiles", {
       memberId: `M${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
       barcode: Math.random().toString(36).slice(2, 14).toUpperCase(),
-      customerId: `cust_${Math.random().toString(36).slice(2)}`,
+      customerId: opts.noCustomerId ? undefined : `cust_${Math.random().toString(36).slice(2)}`,
       siteId: world.siteId,
       accountId: world.accountId,
       groupId: world.groupId,
       memberRole: "primary",
       firstName: opts.firstName ?? "Alice",
       lastName: opts.lastName ?? "Doe",
-      email: `${Math.random().toString(36).slice(2)}@test.lbi`,
+      email: opts.noEmail ? undefined : `${Math.random().toString(36).slice(2)}@test.lbi`,
       memberType: opts.memberType ?? "active",
       status: "active",
       createdAt: Date.now(),
@@ -205,6 +207,7 @@ const previewInvoice = api.admin.listBillInvoices.previewInvoice;
 const recordPayment = api.admin.listBillInvoices.recordPayment;
 const applyAdjustment = api.admin.listBillInvoices.applyAdjustment;
 const voidInvoice = api.admin.listBillInvoices.voidInvoice;
+const unvoidInvoice = api.admin.listBillInvoices.unvoidInvoice;
 const genReplacement = api.admin.listBillInvoices.generateReplacementInvoice;
 const getHistory = api.admin.listBillInvoices.getGroupInvoiceHistory;
 const getAging = api.admin.listBillInvoices.getGroupAgingSummary;
@@ -242,6 +245,37 @@ describe("T1 — generateInvoice creates draft invoice", () => {
     expect(inv!.amountPaidCents).toBe(0);
     expect(inv!.lines).toHaveLength(1);
     expect(inv!.lines[0].tier).toBe("MO");
+  });
+
+  test("eligibility-imported member with no email (memberType='eligible', unprovisioned) is still billed", async () => {
+    // Regression test: members loaded from an employer eligibility file with no
+    // email address can never be Clerk-provisioned (see eligibilityProvisioning.ts,
+    // which requires an email) and so stay in memberType="eligible" forever. They
+    // must still appear on the list-bill invoice — the employer owes for them
+    // regardless of whether the member has ever signed into the portal.
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const world = await seedBaseWorld(t, {
+      customRates: { moCents: 1499, msCents: 2499, mfCents: 2499 },
+    });
+    await seedPrimary(t, world, {
+      firstName: "Harlie",
+      lastName: "Waters",
+      memberType: "eligible",
+      noEmail: true,
+      noCustomerId: true,
+    });
+
+    const { invoiceId } = await asAdmin(t).mutation(generate, {
+      groupId: world.groupId,
+      coveragePeriod: "2025-07",
+    });
+
+    const inv = await asAdmin(t).query(getInvoice, { invoiceId });
+    expect(inv!.memberCount).toBe(1);
+    expect(inv!.lines).toHaveLength(1);
+    expect(inv!.lines[0].lastName).toBe("Waters");
+    expect(inv!.subtotalCents).toBe(1499);
   });
 });
 
@@ -495,6 +529,78 @@ describe("T10 — voidInvoice", () => {
         paymentMethod: "check",
       }),
     ).rejects.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// T10b — unvoidInvoice: restores prior status and re-allows mutation
+// ---------------------------------------------------------------------------
+describe("T10b — unvoidInvoice", () => {
+  test("restores an issued invoice to issued and allows payment again", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const world = await seedBaseWorld(t);
+    await seedPrimary(t, world);
+
+    const { invoiceId } = await asAdmin(t).mutation(generate, {
+      groupId: world.groupId,
+      coveragePeriod: "2025-07",
+    });
+    await asAdmin(t).mutation(issueInv, { invoiceId });
+    await asAdmin(t).mutation(voidInvoice, { invoiceId, reason: "Oops" });
+
+    let inv = await asAdmin(t).query(getInvoice, { invoiceId });
+    expect(inv!.status).toBe("voided");
+
+    await asAdmin(t).mutation(unvoidInvoice, { invoiceId });
+
+    inv = await asAdmin(t).query(getInvoice, { invoiceId });
+    expect(inv!.status).toBe("issued");
+    expect(inv!.previousStatus).toBeUndefined();
+    expect(inv!.unvoidedAt).toBeDefined();
+
+    // Payment should work again post-unvoid
+    await asAdmin(t).mutation(recordPayment, {
+      invoiceId,
+      amountCents: inv!.totalCents,
+      paymentMethod: "check",
+    });
+    inv = await asAdmin(t).query(getInvoice, { invoiceId });
+    expect(inv!.status).toBe("paid");
+  });
+
+  test("refuses to unvoid an invoice already superseded by a replacement", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const world = await seedBaseWorld(t);
+    await seedPrimary(t, world);
+
+    const { invoiceId: origId } = await asAdmin(t).mutation(generate, {
+      groupId: world.groupId,
+      coveragePeriod: "2025-07",
+    });
+    await asAdmin(t).mutation(voidInvoice, { invoiceId: origId, reason: "Error" });
+    await asAdmin(t).mutation(genReplacement, { voidedInvoiceId: origId });
+
+    await expect(
+      asAdmin(t).mutation(unvoidInvoice, { invoiceId: origId }),
+    ).rejects.toThrow(/superseded/);
+  });
+
+  test("throws when invoice is not voided", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const world = await seedBaseWorld(t);
+    await seedPrimary(t, world);
+
+    const { invoiceId } = await asAdmin(t).mutation(generate, {
+      groupId: world.groupId,
+      coveragePeriod: "2025-07",
+    });
+
+    await expect(
+      asAdmin(t).mutation(unvoidInvoice, { invoiceId }),
+    ).rejects.toThrow(/not voided/);
   });
 });
 

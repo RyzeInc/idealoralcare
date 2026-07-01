@@ -607,7 +607,9 @@ export default function InvoiceDetailPage({
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const refreshLines = useMutation(api.admin.listBillInvoices.refreshInvoiceLines);
+  const unvoidInvoice = useMutation(api.admin.listBillInvoices.unvoidInvoice);
   const toast = useToast();
+  const [isUnvoiding, setIsUnvoiding] = useState(false);
 
   async function handleRefreshLines() {
     setIsRefreshing(true);
@@ -618,6 +620,19 @@ export default function InvoiceDetailPage({
       toast.fromError(err, 'Failed to refresh lines');
     } finally {
       setIsRefreshing(false);
+    }
+  }
+
+  async function handleUnvoid() {
+    if (!window.confirm('Un-void this invoice and restore its prior status?')) return;
+    setIsUnvoiding(true);
+    try {
+      await unvoidInvoice({ invoiceId: invId });
+      toast.success('Invoice un-voided', 'Status restored.');
+    } catch (err) {
+      toast.fromError(err, 'Failed to un-void invoice');
+    } finally {
+      setIsUnvoiding(false);
     }
   }
 
@@ -757,6 +772,16 @@ export default function InvoiceDetailPage({
             >
               <Trash2 size={14} />
               Void
+            </button>
+          )}
+          {isVoided && !inv.supersededById && (
+            <button
+              onClick={handleUnvoid}
+              disabled={isUnvoiding}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-amber-700 bg-white border border-amber-300 rounded-md hover:bg-amber-50 disabled:opacity-50"
+            >
+              <RefreshCw size={14} className={isUnvoiding ? 'animate-spin' : ''} />
+              Un-void
             </button>
           )}
         </div>

@@ -44,10 +44,17 @@ Every active primary member on a list-bill group is assigned exactly one tier at
 A dependent counts toward tier determination if ALL of the following hold:
 
 1. `memberProfiles.primaryMemberId` = this primary's `_id`
-2. `memberProfiles.memberType` ∈ `{"active", "enrolling"}`
+2. `memberProfiles.memberType` ∈ `{"active", "enrolling", "eligible"}`
 3. `memberProfiles.memberRole` = `"dependent"`
 
 Terminated / inactive dependents are excluded. This snapshot is taken at invoice generation time and frozen in the invoice line items.
+
+> **Why `"eligible"` counts as billable:** members loaded from an employer
+> eligibility file with no email address can never be portal-provisioned (Clerk
+> account creation — see `convex/admin/eligibilityProvisioning.ts` — requires an
+> email) and so never transition out of `"eligible"`. Employer coverage — and the
+> obligation to bill for it — starts at eligibility-file ingest, not at portal
+> signup, so `"eligible"` members must remain billable indefinitely.
 
 ---
 
@@ -227,6 +234,7 @@ The existing `listBillPayments` table is kept as-is for historical records. New 
 | issued / partial / overdue | disputed | `disputeInvoice` mutation | admin |
 | disputed | issued | `resolveDispute` mutation | admin |
 | issued / partial / overdue / disputed | voided | `voidInvoice` mutation | admin |
+| voided | previous status (re-derived) | `unvoidInvoice` mutation — blocked if `supersededById` is set | admin |
 | voided | — (new draft created) | `generateReplacementInvoice` | admin |
 
 ---
@@ -431,7 +439,8 @@ All functions live in `convex/admin/listBillInvoices.ts` and are exported via `c
 | `generateMonthlyInvoices` | `{}` (internal) | Cron: generate drafts for all list-bill groups for next month. |
 | `issueInvoice` | `{ invoiceId }` | Transition draft → issued. Sets `issuedAt`, optionally sends email. |
 | `recordPayment` | `{ invoiceId, amountCents, paymentMethod, checkNumber?, achConfirmationNumber?, paidAt? }` | Record a full or partial payment. Transitions to `paid` or `partial`. |
-| `voidInvoice` | `{ invoiceId, reason }` | Mark voided. |
+| `voidInvoice` | `{ invoiceId, reason }` | Mark voided. Stores `previousStatus` so the void can be undone. |
+| `unvoidInvoice` | `{ invoiceId }` | Restore a voided invoice to its pre-void status (re-derived as `overdue`/`paid` if the due date has passed or the balance is now settled). Refuses if the invoice has already been superseded by a replacement. |
 | `generateReplacementInvoice` | `{ voidedInvoiceId, coveragePeriod? }` | Create a fresh draft that references the voided invoice. |
 | `applyAdjustment` | `{ invoiceId, adjustmentCents, notes }` | Add a signed adjustment (positive = credit). Recalculates `totalCents` and `balanceCents`. |
 | `markOverdueInvoices` | `{}` (internal) | Cron: flip issued/partial invoices past due to `overdue`. |
@@ -457,12 +466,12 @@ The preview query runs the same tier-classification logic as `generateInvoice` b
 
 ```
 function buildInvoiceLines(groupId, coveragePeriod, snapshotMs):
-  members ← memberProfiles WHERE groupId=groupId AND memberType IN (active, enrolling)
+  members ← memberProfiles WHERE groupId=groupId AND memberType IN (active, enrolling, eligible)
                                AND memberRole = "primary"
 
   for each primary in members:
     deps ← memberProfiles WHERE primaryMemberId=primary._id
-                              AND memberType IN (active, enrolling)
+                              AND memberType IN (active, enrolling, eligible)
                               AND memberRole = "dependent"
 
     hasChild   ← deps.some(d => d.relationship IN {child, other} OR d.relationship IS null)

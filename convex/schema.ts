@@ -2004,6 +2004,18 @@ export default defineSchema({
     voidedAt: v.optional(v.number()),
     voidedBy: v.optional(v.string()),
     voidReason: v.optional(v.string()),
+    // Status the invoice was in immediately before being voided — restored
+    // (and re-derived for overdue/partial) when the void is undone.
+    previousStatus: v.optional(v.union(
+      v.literal("draft"),
+      v.literal("issued"),
+      v.literal("paid"),
+      v.literal("partial"),
+      v.literal("overdue"),
+      v.literal("disputed")
+    )),
+    unvoidedAt: v.optional(v.number()),
+    unvoidedBy: v.optional(v.string()),
     supersededById: v.optional(v.id("listBillInvoices")),
 
     // ── SOURCE PROVENANCE ─────────────────────────────────────────────────

@@ -42,13 +42,26 @@ export function Modal({
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useRef(`modal-title-${Math.random().toString(36).slice(2, 9)}`).current;
 
+  // Keep the latest onClose/preventClose in refs so the effect below doesn't
+  // need them as dependencies. Callers commonly pass inline arrow functions
+  // (e.g. onClose={() => setShow(false)}), which get a new identity on every
+  // parent re-render — if those were in the dependency array, this effect
+  // would re-run (and re-steal focus to the first input) on every keystroke
+  // inside the modal.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const preventCloseRef = useRef(preventClose);
+  preventCloseRef.current = preventClose;
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !preventClose) onClose();
+      if (e.key === 'Escape' && !preventCloseRef.current) onCloseRef.current();
     };
     document.addEventListener('keydown', onKey);
-    // Auto-focus first interactive element (skip the close button)
+    // Auto-focus first interactive element (skip the close button).
+    // Runs only when the modal transitions open (see dependency array below),
+    // not on every re-render.
     const focusable = dialogRef.current?.querySelector<HTMLElement>(
       'input, select, textarea, button:not([data-modal-close])'
     );
@@ -60,7 +73,8 @@ export function Modal({
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prevOverflow;
     };
-  }, [open, preventClose, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   if (!open) return null;
 
