@@ -633,6 +633,178 @@ function parseCsvContent(content: string): Array<any> {
 }
 
 /**
+ * Detect the "wide" employer census/enrollment layout where each row is one
+ * covered person for ONE employee (repeated on every row) with a single
+ * embedded dependent's fields inline (Dep Name / Relationship / Date Of Birth)
+ * rather than the dependent living on its own row. Distinguished by having
+ * BOTH "EEID" and "Dep Name" columns, plus duplicate "Relationship" and
+ * "Date Of Birth" columns (once for the employee, once for the dependent) —
+ * e.g. the "IDEAL Dental Enrollment" format:
+ *   Company | EEID | Last Name | First Name | Relationship | Gender | SSN |
+ *   Date Of Birth | Dep Name | Relationship | Date Of Birth | Address | City |
+ *   State | Zip | Last Hire Date | Job Title | Stub Description |
+ *   Benefit Option | Benefit Start Date
+ */
+function isWideCensusHeaderRow(headerRow: any[]): boolean {
+  const norm = (headerRow ?? []).map((h) => String(h ?? "").toLowerCase().replace(/[\s_-]/g, ""));
+  const has = (n: string) => norm.includes(n);
+  const relationshipCount = norm.filter((h) => h === "relationship").length;
+  return has("eeid") && has("depname") && relationshipCount >= 2;
+}
+
+/**
+ * Parse the wide employer census layout (see isWideCensusHeaderRow) into
+ * primary records with embedded dependents.
+ *
+ * Because the "Relationship" and "Date Of Birth" headers repeat (once for the
+ * employee, once for the dependent), columns are resolved by POSITION (first
+ * occurrence = employee, second = dependent) rather than by name — a named
+ * lookup would silently collide on duplicate headers and clobber the
+ * employee's values with the dependent's.
+ *
+ * Families are grouped by EEID. Each row contributes at most one dependent
+ * (Dep Name), so an employee with N dependents appears on N rows with
+ * identical employee columns — only the first row per EEID is used to build
+ * the primary; every row is scanned for a dependent to attach.
+ */
+function parseWideCensusXlsx(aoa: any[][]): Array<any> {
+  if (aoa.length === 0) return [];
+  const headerRow = (aoa[0] ?? []).map((h) => String(h ?? ""));
+  const norm = headerRow.map((h) => h.toLowerCase().replace(/[\s_-]/g, ""));
+
+  const indicesOf = (name: string): number[] => {
+    const out: number[] = [];
+    norm.forEach((h, i) => { if (h === name) out.push(i); });
+    return out;
+  };
+  const nthOf = (name: string, n: number): number => indicesOf(name)[n] ?? -1;
+
+  const col = {
+    company: nthOf("company", 0),
+    eeid: nthOf("eeid", 0),
+    lastName: nthOf("lastname", 0),
+    firstName: nthOf("firstname", 0),
+    gender: nthOf("gender", 0),
+    ssn: nthOf("ssn", 0),
+    dobEmployee: nthOf("dateofbirth", 0),
+    depName: nthOf("depname", 0),
+    relDependent: nthOf("relationship", 1),
+    dobDependent: nthOf("dateofbirth", 1),
+    address: nthOf("address", 0),
+    city: nthOf("city", 0),
+    state: nthOf("state", 0),
+    zip: nthOf("zip", 0),
+    jobTitle: nthOf("jobtitle", 0),
+    benefitOption: nthOf("benefitoption", 0),
+    benefitStartDate: nthOf("benefitstartdate", 0),
+  };
+
+  const get = (row: any[], idx: number): string => (idx < 0 ? "" : String(row[idx] ?? "").trim());
+
+  const toIsoDate = (s: string): string | undefined => {
+    if (!s) return undefined;
+    const trimmed = s.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    if (/^\d{8}$/.test(trimmed)) return `${trimmed.slice(4, 8)}-${trimmed.slice(0, 2)}-${trimmed.slice(2, 4)}`;
+    const slash = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (slash) return `${slash[3]}-${slash[1].padStart(2, "0")}-${slash[2].padStart(2, "0")}`;
+    return undefined;
+  };
+
+  const normalizeGender = (raw: string): string | undefined => {
+    const g = raw.trim().toUpperCase();
+    if (g.startsWith("M")) return "male";
+    if (g.startsWith("F")) return "female";
+    return undefined;
+  };
+
+  const normalizeRelationship = (raw: string): "spouse" | "child" | "domestic_partner" | "other" => {
+    const r = raw.trim().toLowerCase();
+    if (r.includes("spouse")) return "spouse";
+    if (r.includes("child")) return "child";
+    if (r.includes("domestic")) return "domestic_partner";
+    return "other";
+  };
+
+  type Family = { primary: any; dependents: any[]; order: number };
+  const families = new Map<string, Family>();
+  let order = 0;
+
+  for (let r = 1; r < aoa.length; r++) {
+    const row = aoa[r];
+    if (!row || row.every((c) => String(c ?? "").trim() === "")) continue;
+
+    const eeid = get(row, col.eeid);
+    const lastName = get(row, col.lastName);
+    const firstName = get(row, col.firstName);
+    if (!eeid && !firstName && !lastName) continue;
+
+    const familyKey = eeid || `${lastName}|${firstName}`.toLowerCase();
+
+    let family = families.get(familyKey);
+    if (!family) {
+      // Some source spreadsheets bleed "City, ST ZIP" into the City column
+      // (a data-entry error) even though State/Zip already have their own
+      // columns — strip that back down to just the city name when detected.
+      const rawCity = get(row, col.city);
+      const cityMatch = rawCity.match(/^([^,]+),\s*[A-Za-z]{2}\s+\d{5}(-\d{4})?$/);
+      const city = cityMatch ? cityMatch[1].trim() : rawCity;
+
+      family = {
+        primary: {
+          firstName,
+          lastName,
+          gender: normalizeGender(get(row, col.gender)),
+          ssn: get(row, col.ssn).replace(/\D/g, "") || undefined,
+          dateOfBirth: toIsoDate(get(row, col.dobEmployee)),
+          effectiveDate: toIsoDate(get(row, col.benefitStartDate)),
+          address: get(row, col.address) ? {
+            line1: get(row, col.address),
+            city,
+            state: get(row, col.state),
+            postalCode: get(row, col.zip),
+            country: "US",
+          } : undefined,
+          groupMemberId: eeid || undefined,
+          location: get(row, col.company) || undefined,
+          department: get(row, col.jobTitle) || undefined,
+          tierCode: get(row, col.benefitOption) || undefined,
+        },
+        dependents: [],
+        order: order++,
+      };
+      families.set(familyKey, family);
+    }
+
+    const depName = get(row, col.depName);
+    if (depName) {
+      // Dependent name arrives as "Last, First[ Middle/Suffix]".
+      const commaIdx = depName.indexOf(",");
+      let depFirst = depName;
+      let depLast = lastName;
+      if (commaIdx >= 0) {
+        depLast = depName.slice(0, commaIdx).trim();
+        depFirst = depName.slice(commaIdx + 1).trim();
+      }
+      family.dependents.push({
+        firstName: depFirst,
+        lastName: depLast,
+        dateOfBirth: toIsoDate(get(row, col.dobDependent)),
+        relationship: normalizeRelationship(get(row, col.relDependent)),
+      });
+    }
+  }
+
+  const ordered = Array.from(families.values()).sort((a, b) => a.order - b.order);
+  return ordered.map((fam) => ({
+    ...fam.primary,
+    dependents: fam.dependents.length > 0
+      ? fam.dependents.map((d, di) => ({ ...d, seqNum: String(di + 1).padStart(2, "0") }))
+      : undefined,
+  }));
+}
+
+/**
  * Parse an XLSX buffer (Ideal Sample Census format) into primary records + dependents.
  *
  * Header-driven: matches columns by lowercased/normalized header name. Recognized headers
@@ -642,6 +814,9 @@ function parseCsvContent(content: string): Array<any> {
  *
  * Rows with seqNum "00" (or blank) are primaries; non-zero seqNums are dependents that
  * attach to the primary with the same Unique ID.
+ *
+ * Also auto-detects the "wide" employer census layout (see isWideCensusHeaderRow /
+ * parseWideCensusXlsx) and delegates to that parser when detected.
  */
 function parseXlsxBuffer(
   buffer: ArrayBuffer,
@@ -665,6 +840,12 @@ function parseXlsxBuffer(
   const sheetName = wb.SheetNames[0];
   if (!sheetName) return [];
   const sheet = wb.Sheets[sheetName];
+
+  const headerAoa: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: "" });
+  if (headerAoa[0] && isWideCensusHeaderRow(headerAoa[0])) {
+    return parseWideCensusXlsx(headerAoa);
+  }
+
   const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "", raw: false });
 
   const norm = (k: string) => k.toLowerCase().replace(/[\s_-]/g, "");
@@ -1316,12 +1497,22 @@ export const previewEligibilityFile = action({
       if (headerRows[0]) {
         detectedColumns.push(...(headerRows[0] as any[]).map((h) => String(h).trim()).filter(Boolean));
       }
-      // Validate XLSX records
+      const wideCensus = isWideCensusHeaderRow(headerRows[0] ?? []);
+      // Validate XLSX records. The wide employer census layout (e.g. "IDEAL
+      // Dental Enrollment") carries a different column set than the
+      // Careington census template, so apply the lighter check (name + an
+      // identifier) rather than the full template rules.
       primaryRecords.forEach((record, idx) => {
-        const validationIssues = validateRequiredFields(record, idx + 2);
-        validationIssues.forEach(issue => {
-          validationErrors.push({ row: idx + 2, ...issue });
-        });
+        if (wideCensus) {
+          if (!record.firstName) validationErrors.push({ row: idx + 2, field: "firstName", message: `Row ${idx + 2}: First Name is required` });
+          if (!record.lastName) validationErrors.push({ row: idx + 2, field: "lastName", message: `Row ${idx + 2}: Last Name is required` });
+          if (!record.ssn && !record.dateOfBirth) validationErrors.push({ row: idx + 2, field: "ssn", message: `Row ${idx + 2}: SSN or Date of Birth is required to identify the member` });
+        } else {
+          const validationIssues = validateRequiredFields(record, idx + 2);
+          validationIssues.forEach(issue => {
+            validationErrors.push({ row: idx + 2, ...issue });
+          });
+        }
         record._validationRowNumber = idx + 2;
       });
     } else if (args.fileType === "json") {
@@ -1582,6 +1773,20 @@ export const internalBatchCreateMembers = internalMutation({
             )
             .collect();
           existing = sameUniqueId.find((m: any) => (m.careingtonSeqNum ?? "00") === "00") ?? null;
+        }
+
+        // Also match by the employer's internal employee ID (groupMemberId),
+        // scoped to this group. Some employer census layouts (e.g. wide
+        // enrollment exports keyed by EEID) provide neither an email nor a
+        // Careington Unique ID, so without this fallback every re-upload
+        // would create duplicate members instead of updating the existing one.
+        if (!existing && record.groupMemberId) {
+          const sameGroupMemberId = await ctx.db
+            .query("memberProfiles")
+            .withIndex("by_group", (q: any) => q.eq("groupId", args.groupId))
+            .filter((q: any) => q.eq(q.field("groupMemberId"), record.groupMemberId))
+            .collect();
+          existing = sameGroupMemberId.find((m: any) => m.memberRole !== "dependent") ?? null;
         }
 
         // Normalize gender
