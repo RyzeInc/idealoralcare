@@ -38,6 +38,25 @@ export function formatCurrency(
   }).format(value);
 }
 
+/**
+ * Resolve the member-facing "Member ID" — the same value the member sees on
+ * their Health Dashboard card and PDF download (and what's submitted to
+ * Careington/DialCare in eligibility files). This MUST mirror the formula in
+ * `getMemberCardDataPublic` (convex/subscriptions/queries.ts) and
+ * `toUniqueId` (convex/admin/vendorFiles.ts) so admin views never show a
+ * different "Member ID" than what the member sees.
+ *
+ * Priority: stored careingtonUniqueId → digits-only of the internal memberId
+ * (max 12 chars).
+ */
+export function resolveMemberFacingId(
+  memberId: string | null | undefined,
+  careingtonUniqueId?: string | null
+): string {
+  if (careingtonUniqueId) return careingtonUniqueId;
+  return (memberId ?? '').replace(/[^0-9]/g, '').slice(0, 12);
+}
+
 /** Format a US-style phone number. Falls back to the raw value if it can't be parsed. */
 export function formatPhone(input: string | null | undefined): string {
   if (!input) return '—';

@@ -8,7 +8,7 @@ import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { FunctionReference } from 'convex/server';
 import { useToast, Breadcrumbs, StatusBadge, SkeletonTable, RequiredMark } from '@/components/admin/ui';
-import { formatDate, formatDateTime, formatPhone, formatCurrency } from '@/lib/admin-format';
+import { formatDate, formatDateTime, formatPhone, formatCurrency, resolveMemberFacingId } from '@/lib/admin-format';
 
 const ALL_STATUSES = ['lead', 'eligible', 'enrolling', 'active', 'inactive', 'terminated', 'declined'] as const;
 const PAGE_SIZE = 25;
@@ -492,7 +492,7 @@ export default function MembersAdmin() {
                     </td>
                     <td className="px-6 py-4 font-medium text-slate-900">{member.firstName} {member.lastName}</td>
                     <td className="px-6 py-4 text-slate-600 text-sm">{member.email}</td>
-                    <td className="px-6 py-4 text-slate-600 font-mono text-sm">{member.memberId}</td>
+                    <td className="px-6 py-4 text-slate-600 font-mono text-sm">{resolveMemberFacingId(member.memberId, member.careingtonUniqueId)}</td>
                     <td className="px-6 py-4">
                       <StatusBadge status={member.memberType} size="md" />
                     </td>
@@ -615,7 +615,8 @@ export default function MembersAdmin() {
                 <>
                   <dl className="mt-3 space-y-2 text-sm">
                     <div className="flex justify-between"><dt className="text-slate-500">Email</dt><dd className="font-medium">{memberDetail.member.email || '—'}</dd></div>
-                    <div className="flex justify-between"><dt className="text-slate-500">Member ID</dt><dd className="font-mono font-medium">{memberDetail.member.memberId}</dd></div>
+                    <div className="flex justify-between"><dt className="text-slate-500">Member ID</dt><dd className="font-mono font-medium">{resolveMemberFacingId(memberDetail.member.memberId, memberDetail.member.careingtonUniqueId)}</dd></div>
+                    <div className="flex justify-between"><dt className="text-slate-500">Internal ID</dt><dd className="font-mono text-slate-500">{memberDetail.member.memberId}</dd></div>
                     <div className="flex justify-between"><dt className="text-slate-500">Status</dt><dd><StatusBadge status={memberDetail.member.memberType} /></dd></div>
                     <div className="flex justify-between"><dt className="text-slate-500">Phone</dt><dd>{formatPhone(memberDetail.member.phone) || '—'}</dd></div>
                     <div className="flex justify-between"><dt className="text-slate-500">DOB</dt><dd>{memberDetail.member.dateOfBirth || '—'}</dd></div>

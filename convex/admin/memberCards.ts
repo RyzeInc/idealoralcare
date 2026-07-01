@@ -46,9 +46,17 @@ export const getMemberCardData: any = action({
       organizationCode = group?.organizationCode;
     }
 
+    // Member-facing ID must match what the member sees on their dashboard card
+    // and PDF download (getMemberCardDataPublic in convex/subscriptions/queries.ts),
+    // and what's submitted to Careington/DialCare in eligibility files.
+    // Priority: stored careingtonUniqueId → digits-only of memberId (max 12 chars).
+    const memberFacingId: string =
+      (member as any).careingtonUniqueId ??
+      (member.memberId ?? "").replace(/[^0-9]/g, "").slice(0, 12);
+
     return {
       memberName: `${member.firstName} ${member.lastName}`,
-      memberId: member.memberId || "MBR-2026-00001",
+      memberId: memberFacingId || member.memberId || "MBR-2026-00001",
       email: member.email,
       planName: "Oral Health Plan",
       effectiveDate: firstOfNextMonth(member.createdAt),

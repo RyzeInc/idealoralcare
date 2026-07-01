@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import Link from 'next/link';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
-import { Plus, Edit, Trash2, X, Info, Users } from 'lucide-react';
+import { Plus, Edit, Trash2, X, Info, Users, ChevronDown, ChevronRight } from 'lucide-react';
 import { useToast, Breadcrumbs, RequiredMark, Tooltip } from '@/components/admin/ui';
 import { useEffect, useRef } from 'react';
 import { PROVIDER_GROUP_CODE } from '@/lib/constants';
@@ -196,7 +196,7 @@ function GroupsList({ groups, accounts, sites }: { groups: any[]; accounts: any[
   const acctMap = Object.fromEntries(accounts.map(a => [a._id, a.slug]));
   const memberCounts = useQuery(api.admin.members.getMemberCountsByGroup, {}) || {};
   const [editingGroup, setEditingGroup] = useState<any | null>(null);
-  const [viewingMembersGroup, setViewingMembersGroup] = useState<any | null>(null);
+  const [expandedMembersId, setExpandedMembersId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
   const filtered = groups.filter((g: any) =>
@@ -233,38 +233,48 @@ function GroupsList({ groups, accounts, sites }: { groups: any[]; accounts: any[
           ) : (
             filtered.map((grp: any) => {
               const counts = (memberCounts as any)[grp._id] || { total: 0, active: 0 };
+              const isExpanded = expandedMembersId === grp._id;
               return (
-                <tr key={grp._id} className="hover:bg-slate-50">
-                  <td className="px-6 py-4 font-medium text-slate-900">{grp.name || grp.slug}</td>
-                  <td className="px-6 py-4 font-mono text-sm">{grp.organizationCode || <span className="text-slate-400">—</span>}</td>
-                  <td className="px-6 py-4 font-mono text-sm">{grp.groupCode}</td>
-                  <td className="px-6 py-4 text-slate-600">{acctMap[grp.accountId] || '—'}</td>
-                  <td className="px-6 py-4 text-sm text-slate-600">
-                    <button
-                      type="button"
-                      onClick={() => setViewingMembersGroup(grp)}
-                      className="inline-flex items-center gap-1.5 hover:underline text-left"
-                      title="Inspect member breakdown"
-                    >
-                      <Users size={13} className="text-slate-400" />
-                      <span className="font-medium text-slate-900">{counts.total}</span> · <span className="text-green-700">{counts.active} active</span>
-                    </button>
-                  </td>
-                  <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-xs font-semibold ${grp.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{grp.status}</span></td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex gap-1 justify-end">
-                      <button onClick={() => setEditingGroup(grp)} className="p-1 hover:bg-slate-200 rounded" title="Edit"><Edit size={16} /></button>
-                      <button onClick={() => { if (confirm(`Delete organization "${grp.name || grp.groupCode}"?`)) removeGroup({ groupId: grp._id }); }} className="p-1 hover:bg-red-100 rounded text-red-600"><Trash2 size={16} /></button>
-                    </div>
-                  </td>
-                </tr>
+                <Fragment key={grp._id}>
+                  <tr className="hover:bg-slate-50">
+                    <td className="px-6 py-4 font-medium text-slate-900">{grp.name || grp.slug}</td>
+                    <td className="px-6 py-4 font-mono text-sm">{grp.organizationCode || <span className="text-slate-400">—</span>}</td>
+                    <td className="px-6 py-4 font-mono text-sm">{grp.groupCode}</td>
+                    <td className="px-6 py-4 text-slate-600">{acctMap[grp.accountId] || '—'}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedMembersId(isExpanded ? null : grp._id)}
+                        className="inline-flex items-center gap-1.5 hover:underline text-left"
+                        title="Inspect member breakdown"
+                      >
+                        {isExpanded ? <ChevronDown size={13} className="text-slate-400" /> : <ChevronRight size={13} className="text-slate-400" />}
+                        <Users size={13} className="text-slate-400" />
+                        <span className="font-medium text-slate-900">{counts.total}</span> · <span className="text-green-700">{counts.active} active</span>
+                      </button>
+                    </td>
+                    <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-xs font-semibold ${grp.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{grp.status}</span></td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex gap-1 justify-end">
+                        <button onClick={() => setEditingGroup(grp)} className="p-1 hover:bg-slate-200 rounded" title="Edit"><Edit size={16} /></button>
+                        <button onClick={() => { if (confirm(`Delete organization "${grp.name || grp.groupCode}"?`)) removeGroup({ groupId: grp._id }); }} className="p-1 hover:bg-red-100 rounded text-red-600"><Trash2 size={16} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                  {isExpanded && (
+                    <tr className="bg-slate-50/70">
+                      <td colSpan={7} className="px-6 py-4 border-b border-slate-200">
+                        <MemberBreakdownPanel groupId={grp._id} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               );
             })
           )}
         </tbody>
       </table>
       {editingGroup && <EditGroupModal group={editingGroup} accounts={accounts} onClose={() => setEditingGroup(null)} />}
-      {viewingMembersGroup && <MemberBreakdownModal group={viewingMembersGroup} onClose={() => setViewingMembersGroup(null)} />}
     </>
   );
 }
@@ -755,62 +765,59 @@ const MEMBER_STATUS_META: Record<string, { label: string; color: string; descrip
   declined: { label: 'Declined', color: 'bg-orange-100 text-orange-700', description: 'Declined enrollment.' },
 };
 
-function MemberBreakdownModal({ group, onClose }: { group: any; onClose: () => void }) {
-  const breakdown = useQuery(api.admin.members.getGroupMemberBreakdown, { groupId: group._id });
+function MemberBreakdownPanel({ groupId }: { groupId: string }) {
+  const breakdown = useQuery(api.admin.members.getGroupMemberBreakdown, { groupId: groupId as Id<'groups'> });
   const [expanded, setExpanded] = useState<string | null>(null);
 
+  if (breakdown === undefined) {
+    return <p className="text-sm text-slate-500 py-2">Loading…</p>;
+  }
+  if (breakdown.total === 0) {
+    return <p className="text-sm text-slate-500 py-2">No members in this organization yet.</p>;
+  }
+
   return (
-    <ModalWrapper title={`Members: ${group.name || group.groupCode}`} onClose={onClose} wide>
-      {breakdown === undefined ? (
-        <p className="text-sm text-slate-500 py-8 text-center">Loading…</p>
-      ) : breakdown.total === 0 ? (
-        <p className="text-sm text-slate-500 py-8 text-center">No members in this organization yet.</p>
-      ) : (
-        <div className="space-y-2 max-h-[65vh] overflow-y-auto pr-1">
-          <p className="text-sm text-slate-600 pb-1">
-            <span className="font-semibold text-slate-900">{breakdown.total}</span> total member{breakdown.total === 1 ? '' : 's'} — click a status to see who&apos;s in it.
-          </p>
-          {Object.entries(breakdown.byStatus).map(([status, count]) => {
-            if ((count as number) === 0) return null;
-            const meta = MEMBER_STATUS_META[status] || { label: status, color: 'bg-slate-100 text-slate-700', description: '' };
-            const list = breakdown.detailsByStatus[status] || [];
-            const isOpen = expanded === status;
-            return (
-              <div key={status} className="border border-slate-200 rounded-lg overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setExpanded(isOpen ? null : status)}
-                  className="w-full flex items-center justify-between gap-3 px-3 py-2 hover:bg-slate-50 text-left"
-                >
-                  <span className="flex items-center gap-2 min-w-0">
-                    <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold ${meta.color}`}>{meta.label}</span>
-                    <span className="text-xs text-slate-500 truncate">{meta.description}</span>
-                  </span>
-                  <span className="shrink-0 text-sm font-semibold text-slate-900">{count as number}</span>
-                </button>
-                {isOpen && (
-                  <div className="border-t border-slate-100 divide-y divide-slate-100 bg-slate-50/50">
-                    {list.map((m: any) => (
-                      <Link
-                        key={m.id}
-                        href={`/admin/members/${m.id}`}
-                        className="flex items-center justify-between gap-3 px-3 py-2 text-sm hover:bg-blue-50"
-                      >
-                        <span className="text-slate-900 truncate">{m.name}{m.email ? <span className="text-slate-400"> — {m.email}</span> : null}</span>
-                        <span className="shrink-0 text-xs text-slate-400 font-mono">{m.memberId}</span>
-                      </Link>
-                    ))}
-                  </div>
-                )}
+    <div className="space-y-2">
+      <p className="text-sm text-slate-600">
+        <span className="font-semibold text-slate-900">{breakdown.total}</span> total member{breakdown.total === 1 ? '' : 's'} — click a status to see who&apos;s in it.
+      </p>
+      {Object.entries(breakdown.byStatus).map(([status, count]) => {
+        if ((count as number) === 0) return null;
+        const meta = MEMBER_STATUS_META[status] || { label: status, color: 'bg-slate-100 text-slate-700', description: '' };
+        const list = breakdown.detailsByStatus[status] || [];
+        const isOpen = expanded === status;
+        return (
+          <div key={status} className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+            <button
+              type="button"
+              onClick={() => setExpanded(isOpen ? null : status)}
+              className="w-full flex items-center justify-between gap-3 px-3 py-2 hover:bg-slate-50 text-left"
+            >
+              <span className="flex items-center gap-2 min-w-0">
+                {isOpen ? <ChevronDown size={12} className="shrink-0 text-slate-400" /> : <ChevronRight size={12} className="shrink-0 text-slate-400" />}
+                <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold ${meta.color}`}>{meta.label}</span>
+                <span className="text-xs text-slate-500 truncate">{meta.description}</span>
+              </span>
+              <span className="shrink-0 text-sm font-semibold text-slate-900">{count as number}</span>
+            </button>
+            {isOpen && (
+              <div className="border-t border-slate-100 divide-y divide-slate-100 bg-slate-50/50">
+                {list.map((m: any) => (
+                  <Link
+                    key={m.id}
+                    href={`/admin/members/${m.id}`}
+                    className="flex items-center justify-between gap-3 px-3 py-2 text-sm hover:bg-blue-50"
+                  >
+                    <span className="text-slate-900 truncate">{m.name}{m.email ? <span className="text-slate-400"> — {m.email}</span> : null}</span>
+                    <span className="shrink-0 text-xs text-slate-400 font-mono">{m.memberId}</span>
+                  </Link>
+                ))}
               </div>
-            );
-          })}
-        </div>
-      )}
-      <div className="flex justify-end pt-4">
-        <button type="button" onClick={onClose} className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50">Close</button>
-      </div>
-    </ModalWrapper>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -832,13 +839,13 @@ function ModalWrapper({ title, children, onClose, wide }: { title: string; child
   }, [onClose]);
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-slate-900/10 flex items-center justify-center z-50"
       onClick={onClose}
       role="presentation"
     >
       <div
         ref={dialogRef}
-        className={`bg-white rounded-lg p-6 w-full mx-4 ${wide ? 'max-w-xl' : 'max-w-md'}`}
+        className={`bg-white rounded-lg p-6 w-full mx-4 shadow-2xl ring-1 ring-slate-200 ${wide ? 'max-w-xl' : 'max-w-md'}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
