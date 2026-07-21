@@ -23,6 +23,7 @@ import {
   Settings2,
   History,
   Columns3,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { Breadcrumbs, SkeletonCard, Modal, useToast } from '@/components/admin/ui';
 import { formatCurrency, formatDateTime } from '@/lib/admin-format';
@@ -105,18 +106,34 @@ function getCell(inv: any, l: any, key: string): string {
   return fn ? fn(inv, l) : '';
 }
 
-function runExport(inv: any, columns: InvoiceColumn[]) {
+function exportRows(inv: any, columns: InvoiceColumn[]) {
   const cols = columns.filter((c) => c.enabled && VALUE_GETTERS[c.key]);
-  if (cols.length === 0) return;
+  if (cols.length === 0) return null;
   const header = cols.map((c) => c.label);
   const rows = inv.lines.map((l: any) => cols.map((c) => getCell(inv, l, c.key)));
-  const csv = [header, ...rows]
+  return { header, rows };
+}
+
+function runExport(inv: any, columns: InvoiceColumn[]) {
+  const data = exportRows(inv, columns);
+  if (!data) return;
+  const csv = [data.header, ...data.rows]
     .map((r) => r.map((c: unknown) => `"${String(c).replace(/"/g, '""')}"`).join(','))
     .join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
   a.download = `invoice-${inv.invoiceNumberDisplay}-${inv.coveragePeriod}.csv`;
   a.click();
+}
+
+async function runExportXlsx(inv: any, columns: InvoiceColumn[]) {
+  const data = exportRows(inv, columns);
+  if (!data) return;
+  const XLSX = await import('xlsx');
+  const sheet = XLSX.utils.aoa_to_sheet([data.header, ...data.rows]);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Invoice');
+  XLSX.writeFile(workbook, `invoice-${inv.invoiceNumberDisplay}-${inv.coveragePeriod}.xlsx`);
 }
 
 // ---------------------------------------------------------------------------
@@ -238,9 +255,16 @@ function ManageColumnsModal({
             <button
               onClick={() => runExport(inv, working)}
               disabled={enabledCount === 0}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-40"
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-40"
             >
               <Download size={13} /> Download CSV
+            </button>
+            <button
+              onClick={() => runExportXlsx(inv, working)}
+              disabled={enabledCount === 0}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-40"
+            >
+              <FileSpreadsheet size={13} /> Download Excel
             </button>
           </div>
         </div>

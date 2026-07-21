@@ -16,7 +16,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useConvexAuth } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
 const US_STATES = [
@@ -79,7 +79,15 @@ function Field({ label, optional, children }: { label: string; optional?: boolea
 }
 
 export default function ProfileCompletionPrompt() {
-  const profile = useQuery(api.enrollment.members.getMyProfile, {});
+  // useConvexAuth reflects when the Convex client actually has the JWT token
+  // ready — not just when Clerk has loaded. Gating on this prevents the query
+  // from firing unauthenticated during the SSO redirect, which would make
+  // requireAuth throw a server error and crash the dashboard.
+  const { isAuthenticated } = useConvexAuth();
+  const profile = useQuery(
+    api.enrollment.members.getMyProfile,
+    isAuthenticated ? {} : "skip"
+  );
   const completeProfile = useMutation(api.enrollment.members.completeMyProfile);
 
   const [dismissed, setDismissed] = useState<boolean>(() => {

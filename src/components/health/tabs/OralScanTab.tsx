@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Scan, X } from 'lucide-react';
-import { useQuery, useMutation, useAction } from 'convex/react';
+import { useQuery, useMutation, useAction, useConvexAuth } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 
 interface OralScanTabProps {
@@ -26,15 +26,19 @@ export default function OralScanTab({ userId, onTabChange }: OralScanTabProps) {
   // True when the confirm-on-close modal is visible (during active scan)
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-  // Convex queries — server derives the caller from auth; gate on userId to
-  // avoid firing until Clerk is ready.
+  // Convex queries — server derives the caller from auth. Gate on both the
+  // server-side userId prop AND useConvexAuth's isAuthenticated: userId can be
+  // truthy (from Clerk's server session) before the Convex client has actually
+  // attached the JWT, which would make these requireAuth-secured queries throw.
+  const { isAuthenticated } = useConvexAuth();
+  const canQuery = Boolean(userId) && isAuthenticated;
   const toothlensUser = useQuery(
     api.healthplans.toothlens.getToothlensUser,
-    userId ? {} : "skip"
+    canQuery ? {} : "skip"
   );
   const scanHistory = useQuery(
     api.healthplans.toothlens.getScanHistory,
-    userId ? {} : "skip"
+    canQuery ? {} : "skip"
   ) ?? [];
 
   // Convex mutations & actions
