@@ -31,8 +31,8 @@ export function NexusHealthFooter() {
             </p>
             <div style={{ fontSize: "0.8125rem", color: "#475569", lineHeight: "1.6" }}>
               <p style={{ margin: "0 0 0.125rem 0" }}>Customer Service line:</p>
-              <a href="tel:8018200010" style={{ color: "#0f172a", fontWeight: 600, textDecoration: "none", display: "block", marginBottom: "0.625rem" }}>
-                801-820-0010
+              <a href="tel:8446799367" style={{ color: "#0f172a", fontWeight: 600, textDecoration: "none", display: "block", marginBottom: "0.625rem" }}>
+                844-679-9367
               </a>
               <p style={{ margin: "0 0 0.125rem 0" }}>Email:</p>
               <a href="mailto:info@getidealhealth.com" style={{ color: "#0066CC", textDecoration: "none", fontWeight: 500 }}>

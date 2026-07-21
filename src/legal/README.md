@@ -475,7 +475,7 @@ Ideal Oral Health <onboarding@resend.dev>
 ## Company Information (Already Configured)
 
 **Ideal Oral Health**
-- Phone: 801-820-0010
+- Phone: 844-679-9367
 - Email: support@getidealoh.com
 - Locations:
   - Northeast: 116 S. Main St, Wallingford CT 06492

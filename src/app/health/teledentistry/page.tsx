@@ -325,7 +325,7 @@ export default function TeledentistryPage() {
             <div>
               <h2 style={{ margin: "0 0 0.75rem" }}>Get in Touch</h2>
               <p style={{ margin: 0, fontSize: "1rem", color: "#1f2937" }}>
-                Customer Service line: 801-820-0010
+                Customer Service line: 844-679-9367
               </p>
               <p style={{ margin: "0.5rem 0 0", fontSize: "1rem", color: "#1f2937" }}>
                 Email: info@getidealhealth.com

@@ -706,7 +706,7 @@ export default function NewIdealLandingPage() {
             }}
           >
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              <Phone size={14} /> Customer Service: 844-433-2502
+              <Phone size={14} /> Customer Service: 844-679-9367
             </span>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
               <Globe size={14} /> getidealhealth.com

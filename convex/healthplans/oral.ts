@@ -145,7 +145,7 @@ export const getOralPlan = query({
 
       // Member Support
       support: {
-        phone: "801-820-0010",
+        phone: "844-679-9367",
         email: "support@idealoralhealth.com",
         hours: "24/7",
         availability: "Call, email, or via member app",

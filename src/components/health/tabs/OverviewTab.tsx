@@ -45,7 +45,7 @@ interface OverviewTabProps {
 const SUPPORT_PHONE_OPTIONS = [
   { label: 'Tech / Plan Support', number: '(844) 679-9367', tel: '+18446799367' },
   { label: 'Teledentistry Support', number: '(855) 335-2255', tel: '+18553352255' },
-  { label: 'Dentist Network Support', number: '(800) 290-0526', tel: '+18002900526' },
+  { label: 'Dentist Network Support', number: '(800) 290-0523', tel: '+18002900523' },
 ];
 
 function SupportCard() {

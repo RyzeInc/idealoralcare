@@ -32,7 +32,7 @@ export function OrganizationJsonLd() {
           "Ideal Health offers affordable oral health plans with AI oral scanning, 24/7 teledentistry, and access to a dental discount network of 140,000+ providers.",
         contactPoint: {
           "@type": "ContactPoint",
-          telephone: "+1-801-820-0010",
+          telephone: "+1-844-679-9367",
           contactType: "customer service",
           email: "support@getidealoh.com",
           availableLanguage: "English",

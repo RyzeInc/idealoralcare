@@ -12,7 +12,7 @@ https://github.com/idealhealth/idealoralcare/blob/main/src/legal/
 
 **All documents are:**
 - Branded as "Ideal Oral Health"
-- Include company locations and contact info (801-820-0010, support@getidealoh.com)
+- Include company locations and contact info (844-679-9367, support@getidealoh.com)
 - Reference correct service providers (Careington, DialCare)
 - Compliant with state regulations (MD, AR, VT, WA disclosures)
 
@@ -268,7 +268,7 @@ When creating membership agreement, these fields auto-populate:
 ## 📞 Company Information (Pre-Configured)
 
 **Ideal Oral Health**
-- 📱 Phone: 801-820-0010
+- 📱 Phone: 844-679-9367
 - 📧 Email: support@getidealoh.com
 - 📍 Northeast: 116 S. Main St, Wallingford CT 06492
 - 📍 Southern: 800 S Gay St STE 700, Knoxville TN 37929
