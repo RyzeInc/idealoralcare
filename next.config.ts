@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 import withBundleAnalyzer from "@next/bundle-analyzer";
 
@@ -11,11 +12,21 @@ const nextConfig: NextConfig = {
   // listing it here makes Next require() it at runtime instead.
   serverExternalPackages: ["ssh2", "ssh2-sftp-client"],
 
-  // The admin SOP Library / docs viewer reads docs/admin/**/*.md from disk
-  // at request time. Without this, Vercel's output file tracing won't bundle
-  // that directory into the serverless function and reads will 404 in prod.
-  outputFileTracingIncludes: {
-    "/admin/docs/[[...slug]]": ["./docs/admin/**/*"],
+  // The admin SOP Library / docs viewer (src/lib/admin-docs-content.ts) imports
+  // docs/admin/**/*.md files directly so their content is compiled into the JS
+  // bundle at build time. This rule makes `import x from "*.md"` resolve to the
+  // file's raw text. We deliberately do NOT read these files from disk at
+  // request time — Vercel's output file tracing can silently drop dynamically
+  // constructed fs paths (and, in testing, even statically-included files named
+  // README.md) from the deployed serverless function, which 404s in production
+  // while working fine locally.
+  webpack: (config) => {
+    config.module.rules.push({
+      test: /\.md$/,
+      type: "asset/source",
+      include: path.resolve(__dirname, "docs"),
+    });
+    return config;
   },
 
   experimental: {
