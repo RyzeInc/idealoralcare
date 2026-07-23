@@ -192,8 +192,9 @@ export default function AdminHelpPage() {
       </Section>
 
       <footer className="text-xs text-slate-500 border-t pt-4">
-        Need more detail? See <code className="bg-slate-100 px-1 rounded">ADMIN_QUICK_START.md</code> in the repo
-        for the full operator runbook.
+        Need more detail? See <code className="bg-slate-100 px-1 rounded">docs/admin/</code> in the repo for the
+        full feature-by-feature guide and a step-by-step SOP library, or{' '}
+        <code className="bg-slate-100 px-1 rounded">ADMIN_QUICK_START.md</code> for first-time setup.
       </footer>
     </div>
   );

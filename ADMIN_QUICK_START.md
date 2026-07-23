@@ -2,6 +2,8 @@
 
 Welcome to the Ideal Health platform administration panel. This guide covers day-to-day administrative tasks and configuration.
 
+> **Looking for more depth?** [`docs/admin/`](docs/admin/README.md) has a full feature-by-feature guide (how each admin page actually works internally, including known bugs/stubs) plus a concrete SOP library (step-by-step runbooks for common tasks like onboarding an employer group, processing a refund, or generating vendor files). This file remains the quick first-time-setup overview; `docs/admin/` is the deeper reference.
+
 ## First-Time Setup
 
 ### 1. Create Your Admin Account
