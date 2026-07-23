@@ -11,6 +11,13 @@ const nextConfig: NextConfig = {
   // listing it here makes Next require() it at runtime instead.
   serverExternalPackages: ["ssh2", "ssh2-sftp-client"],
 
+  // The admin SOP Library / docs viewer reads docs/admin/**/*.md from disk
+  // at request time. Without this, Vercel's output file tracing won't bundle
+  // that directory into the serverless function and reads will 404 in prod.
+  outputFileTracingIncludes: {
+    "/admin/docs/[[...slug]]": ["./docs/admin/**/*"],
+  },
+
   experimental: {
     serverActions: {
       allowedOrigins: [

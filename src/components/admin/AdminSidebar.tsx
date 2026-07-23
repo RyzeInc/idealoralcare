@@ -25,6 +25,7 @@ import {
   ClipboardList,
   HelpCircle,
   Inbox,
+  Library,
 } from "lucide-react";
 
 type NavItem = {
@@ -88,6 +89,7 @@ const ADMIN_NAVIGATION: NavSection[] = [
   {
     section: "Help",
     items: [
+      { label: "SOP Library", href: "/admin/docs/sops", icon: Library, tooltip: "Step-by-step procedures for common admin tasks." },
       { label: "Help & Vocabulary", href: "/admin/help", icon: HelpCircle, tooltip: "Learn the terminology and common workflows." },
     ],
   },
