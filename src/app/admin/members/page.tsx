@@ -6,7 +6,6 @@ import { Search, Eye, Edit, Trash2, X, Clock, Send, CreditCard, Plus, Download, 
 import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
-import { FunctionReference } from 'convex/server';
 import { useToast, Breadcrumbs, StatusBadge, SkeletonTable, RequiredMark } from '@/components/admin/ui';
 import { formatDate, formatDateTime, formatPhone, formatCurrency, resolveMemberFacingId } from '@/lib/admin-format';
 
@@ -142,9 +141,6 @@ export default function MembersAdmin() {
   const bulkUpdate = useMutation(api.admin.members.bulkUpdateMemberStatus);
   const termListBillMember = useMutation(api.admin.members.termListBillMember);
   const sendReenrollLink = useAction((api as any).admin.members.sendReenrollmentLink);
-  const generateIdCard = useAction(
-    "admin/memberCards:generateMemberIdCardPdf" as unknown as FunctionReference<"action", "public", { memberId: Id<'memberProfiles'> }, any>
-  );
 
   const filteredMembers = members.filter((member: any) => {
     const memberName = `${member.firstName || ''} ${member.lastName || ''}`.toLowerCase();
@@ -637,11 +633,18 @@ export default function MembersAdmin() {
                   <button
                     onClick={async () => {
                       try {
-                        const result = await generateIdCard({ memberId: selectedMemberId! });
-                        if (result?.htmlContent) {
-                          const win = window.open('', '_blank');
-                          if (win) { win.document.write(result.htmlContent); win.document.close(); }
+                        const res = await fetch(`/api/admin/members/${selectedMemberId}/id-card`);
+                        if (!res.ok) {
+                          const body = await res.json().catch(() => ({}));
+                          throw new Error(body?.error || 'Failed to generate ID card');
                         }
+                        const blob = await res.blob();
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = `${memberDetail.member.lastName}_ID_Card.pdf`;
+                        link.click();
+                        URL.revokeObjectURL(url);
                       } catch (err) {
                         toast.fromError(err, 'Could not generate ID card');
                       }
@@ -649,7 +652,9 @@ export default function MembersAdmin() {
                     className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
                     <CreditCard size={14} />
-                    Download ID Card
+                    {memberDetail.member.dependents?.length
+                      ? `Download ID Cards (${1 + memberDetail.member.dependents.length})`
+                      : 'Download ID Card'}
                   </button>
 
                   {/* List-Bill Actions (FT employees) */}

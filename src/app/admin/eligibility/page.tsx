@@ -369,13 +369,14 @@ export default function EligibilityUploadPage() {
     //   Coverage     — MF=Family, MO=Member Only, MS=Member+Spouse, MD=Member+Child
     //   Relation     — blank=primary, S=Spouse, C=Child, O=Other
     //   Student Stat — Y/N for dependents only
-    //   Guardian     — 1=primary/guardian, 0=dependent
+    //   Guardian     — 1=legal guardian/caregiver for someone else on the plan (rare),
+    //                  0=everyone else, including primary account holders and dependents
     const csv = [
       'Title,First Name,Middle Name,Last Name,Post Name,Unique ID,Sequence Number,Address Line 1,Address Line 2,City,State,Zip,Plus 4,Home Phone,Work Phone,Coverage,Group Code,Termination Date,Effective Date,Date of Birth,Relation,Student Status,Gender,Email Address,Reporting Segment,Guardian',
-      ',Jane,,Smith,,0000000001,00,123 Main St,,Dallas,TX,75001,,8175551234,,MF,IDEALDO,,01/01/2026,03/15/1985,,,F,jane.smith@example.com,,1',
+      ',Jane,,Smith,,0000000001,00,123 Main St,,Dallas,TX,75001,,8175551234,,MF,IDEALDO,,01/01/2026,03/15/1985,,,F,jane.smith@example.com,,0',
       ',John,,Smith,,0000000001,01,123 Main St,,Dallas,TX,75001,,8175551234,,MF,IDEALDO,,01/01/2026,07/22/1987,S,N,M,jane.smith@example.com,,0',
       ',Sam,,Smith,,0000000001,02,123 Main St,,Dallas,TX,75001,,8175551234,,MF,IDEALDO,,01/01/2026,11/30/2010,C,N,M,jane.smith@example.com,,0',
-      ',Mary,,Jones,,0000000002,00,456 Oak Ave,,Austin,TX,78701,,5125559876,,MO,IDEALDO,,01/01/2026,06/14/1978,,,F,mary.jones@example.com,,1',
+      ',Mary,,Jones,,0000000002,00,456 Oak Ave,,Austin,TX,78701,,5125559876,,MO,IDEALDO,,01/01/2026,06/14/1978,,,F,mary.jones@example.com,,0',
     ].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);

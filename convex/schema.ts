@@ -1705,7 +1705,7 @@ export default defineSchema({
     gender: v.optional(v.string()),           // "M", "F", etc.
     relation: v.optional(v.string()),         // Relationship to subscriber: "01"=self, "02"=spouse, etc.
     studentStatus: v.optional(v.string()),    // Full-time, part-time, etc.
-    guardian: v.optional(v.string()),         // Guardian name if minor
+    guardian: v.optional(v.string()),         // Careington "Guardian" flag ("0"/"1"); should always be "0" — we don't track legal-guardian relationships
 
     // REPORTING
     reportingSegment: v.optional(v.string()), // Careington reporting segment code

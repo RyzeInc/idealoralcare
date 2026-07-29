@@ -1195,3 +1195,22 @@ export function MemberCardPdf({ data }: { data: FulfillmentPacketData }) {
     </Document>
   );
 }
+
+// One front+back pair per family member (primary + dependents), no title pages —
+// used for the admin "download all" bundle where each card is already labeled by name.
+export function MemberCardsPdf({ people }: { people: FulfillmentPacketData[] }) {
+  const pages = people.flatMap((data, i) => [
+    <MemberCardFrontPage key={`front-${i}`} data={data} />,
+    <MemberCardBackPage key={`back-${i}`} data={data} />,
+  ]);
+
+  return (
+    <Document
+      title="Ideal Oral Health Member ID Cards"
+      author="Ideal Oral Health"
+      subject="Member ID Cards"
+    >
+      {pages}
+    </Document>
+  );
+}

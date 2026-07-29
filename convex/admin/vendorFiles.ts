@@ -148,7 +148,11 @@ function buildCareingtonRow(f: {
   gender: string;       // M | F | empty
   email: string;
   reportingSegment: string;
-  guardian: string;     // "1" for primary/guardian, "0" for dependent
+  // "1" = this person is a legal guardian/caregiver for someone else on the plan
+  // (a relationship we do not currently track). Our primary members are simply
+  // account holders and their dependents are simply dependents — neither is a
+  // "guardian" in the Careington sense, so this must always be "0" for now.
+  guardian: string;
 }): string {
   return [
     trunc(sanitizeCell(f.title), 3),              // [0]  Title             max 3
@@ -190,7 +194,8 @@ function buildCareingtonRow(f: {
  *   1. Every row has exactly 28 fields (27 pipes).
  *   2. No duplicate (UniqueID, SeqNum, GroupCode) tuple.
  *   3. Exactly one seqNum="00" primary row per (UniqueID, GroupCode) household.
- *   4. Dependent rows (seqNum !== "00") must not be marked guardian="1".
+ *   4. No row should be marked guardian="1" — we do not track legal-guardian
+ *      relationships, so neither primary members nor dependents qualify.
  *   5. When requireEmail=true (DialCare), primary rows must have a non-empty email.
  */
 function validateCareingtonRows(
@@ -236,10 +241,11 @@ function validateCareingtonRows(
       primaryCountByHousehold.set(key, (primaryCountByHousehold.get(key) ?? 0) + 1);
     }
 
-    // Rule: non-primary rows should not be marked as guardian
-    if (seqNum !== "00" && guardian === "1") {
+    // Rule: no row should be marked as guardian — we don't track legal-guardian
+    // relationships, so this must always be "0" (primary or dependent alike).
+    if (guardian === "1") {
       warnings.push(
-        `Row ${lineNum}: seqNum="${seqNum}" but guardian="1" — dependent should not be guardian`
+        `Row ${lineNum}: UniqueID=${uniqueId} SeqNum=${seqNum} — marked guardian="1" but guardian should always be "0"`
       );
     }
 
@@ -397,7 +403,7 @@ export const generateDentalDiscountNetworkFile = action({
       const workPhone = (member.workPhone ?? "").replace(/\D/g, "").slice(0, 10);
       const gender = member.gender === "male" ? "M" : member.gender === "female" ? "F" : "";
 
-      // Primary member row — Sequence 00, Guardian = 1
+      // Primary member row — Sequence 00, Guardian = 0 (account holder, not a legal guardian)
       rows.push(buildCareingtonRow({
         title: member.title ?? "",
         firstName: member.firstName,
@@ -423,7 +429,7 @@ export const generateDentalDiscountNetworkFile = action({
         gender,
         email: member.email ?? "",
         reportingSegment: "",
-        guardian: "1",
+        guardian: "0",
       }));
       totalRecords++;
 
@@ -586,7 +592,7 @@ export const generateDialCareFile = action({
         gender,
         email: member.email ?? "",
         reportingSegment: "",
-        guardian: "1",
+        guardian: "0",
       }));
       totalRecords++;
 
