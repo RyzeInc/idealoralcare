@@ -115,10 +115,9 @@ export async function GET(
 
   const people = [primary, ...dependents];
   const safeName = cardData.memberName.replace(/[^a-z0-9]+/gi, "_");
-  const filename =
-    dependents.length > 0
-      ? `Ideal_Oral_Health_ID_Cards_${safeName}_Family.pdf`
-      : `Ideal_Oral_Health_ID_Card_${safeName}.pdf`;
+  const safeMemberNumber = String(cardData.memberId).replace(/[^a-z0-9]+/gi, "_");
+  const docLabel = dependents.length > 0 ? "ID_Cards_Family" : "ID_Card";
+  const filename = `Ideal_Oral_Health_${safeName}_${safeMemberNumber}_${docLabel}.pdf`;
 
   try {
     const doc =

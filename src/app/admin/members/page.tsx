@@ -638,11 +638,13 @@ export default function MembersAdmin() {
                           const body = await res.json().catch(() => ({}));
                           throw new Error(body?.error || 'Failed to generate ID card');
                         }
+                        const disposition = res.headers.get('Content-Disposition') ?? '';
+                        const filenameMatch = disposition.match(/filename="([^"]+)"/);
                         const blob = await res.blob();
                         const url = URL.createObjectURL(blob);
                         const link = document.createElement('a');
                         link.href = url;
-                        link.download = `${memberDetail.member.lastName}_ID_Card.pdf`;
+                        link.download = filenameMatch?.[1] ?? `${memberDetail.member.lastName}_ID_Card.pdf`;
                         link.click();
                         URL.revokeObjectURL(url);
                       } catch (err) {
