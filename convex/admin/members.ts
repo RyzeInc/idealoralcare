@@ -25,6 +25,16 @@ const getApi = () => {
 /**
  * Get all members across all groups (paginated — max 500)
  * Delegates to unifiedData for consistent enrichment across all admin tabs.
+ *
+ * billingSource taxonomy (mirrors getGroupMembersWithBillingStatus in billing.ts):
+ *   • "individual" — went through direct checkout; a Stripe bundle exists with a
+ *                    non-zero price. Whether it is currently *collecting* depends
+ *                    on subscriptionStatus (draft = never completed checkout).
+ *   • "list_bill"  — group is list-bill enabled and the member has not termed or
+ *                    converted off payroll deduction; the employer is invoiced.
+ *   • "comp"       — active coverage that costs nobody anything ($0 bundle or
+ *                    employer-comped with no bundle).
+ *   • "none"       — no bundle and no coverage; account exists but never transacted.
  */
 export const getAllMembers = query({
   args: {
@@ -36,20 +46,62 @@ export const getAllMembers = query({
       limit: args.limit ?? 500,
     });
 
-    return enrichedMembers.map((m) => ({
-      ...m,
-      subscriptionStatus: m._subscription?.status ?? null,
-      subscriptionCadence: m._subscription?.cadence ?? null,
-      pendingDowngrade: m._subscription?.pendingDowngrade ?? null,
-      organizationCode: m._group?.organizationCode ?? null,
-      organizationName: m._group?.name ?? m._group?.slug ?? null,
-      // Rep attribution (Clerk-free; null when there is no rep)
-      attributedRepCode: m._enrollment?.brokerTrackingCode ?? null,
-      attributedRepId: m._enrollment?.brokerId ?? null,
-      attributedRepName: m._broker?.name ?? null,
-      attributedAgencyId: m._agency?._id ?? null,
-      attributedAgencyName: m._agency?.name ?? null,
-    }));
+    const dependentCounts = new Map<string, number>();
+    const nameByProfileId = new Map<string, string>();
+    for (const m of enrichedMembers) {
+      nameByProfileId.set(
+        m._id as string,
+        `${m.firstName ?? ""} ${m.lastName ?? ""}`.trim()
+      );
+      if (m.primaryMemberId) {
+        const key = m.primaryMemberId as string;
+        dependentCounts.set(key, (dependentCounts.get(key) ?? 0) + 1);
+      }
+    }
+
+    return enrichedMembers.map((m) => {
+      const bundle = m._subscription;
+      const isListBillGroup = m._group?.listBill?.enabled === true;
+      const onListBill =
+        isListBillGroup && (!m.listBillStatus || m.listBillStatus === "active");
+
+      let billingSource: "individual" | "list_bill" | "comp" | "none";
+      if (bundle && (bundle.pricingSnapshot?.totalCents ?? 0) > 0) {
+        billingSource = "individual";
+      } else if (onListBill) {
+        billingSource = "list_bill";
+      } else if (bundle || m.memberType === "active") {
+        billingSource = "comp";
+      } else {
+        billingSource = "none";
+      }
+
+      return {
+        ...m,
+        subscriptionStatus: m._subscription?.status ?? null,
+        subscriptionCadence: m._subscription?.cadence ?? null,
+        pendingDowngrade: m._subscription?.pendingDowngrade ?? null,
+        organizationCode: m._group?.organizationCode ?? null,
+        organizationName: m._group?.name ?? m._group?.slug ?? null,
+        // Billing classification — who pays, and how
+        billingSource,
+        isListBillGroup,
+        // Family structure. Dependents exist either as linked profiles
+        // (primaryMemberId) or as a legacy embedded array — never sum the two,
+        // since enrollment can populate both for the same family.
+        dependentCount:
+          dependentCounts.get(m._id as string) ?? m.dependents?.length ?? 0,
+        primaryMemberName: m.primaryMemberId
+          ? nameByProfileId.get(m.primaryMemberId as string) ?? null
+          : null,
+        // Rep attribution (Clerk-free; null when there is no rep)
+        attributedRepCode: m._enrollment?.brokerTrackingCode ?? null,
+        attributedRepId: m._enrollment?.brokerId ?? null,
+        attributedRepName: m._broker?.name ?? null,
+        attributedAgencyId: m._agency?._id ?? null,
+        attributedAgencyName: m._agency?.name ?? null,
+      };
+    });
   },
 });
 

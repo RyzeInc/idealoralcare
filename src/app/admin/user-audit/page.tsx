@@ -34,6 +34,21 @@ type SystemPresence =
 
 type PresenceFilter = 'all' | SystemPresence | 'missing-census' | 'has-toothlens' | 'no-toothlens';
 
+// How a member's coverage is paid for (computed server-side in admin/members.ts)
+type BillingSource = 'individual' | 'list_bill' | 'comp' | 'none';
+
+// Whether money is actually flowing for that coverage right now
+type PaymentState =
+  | 'paid'          // individual enrollment, currently collecting
+  | 'employer_paid' // list bill — employer is invoiced, no Stripe bundle
+  | 'comped'        // active coverage at $0
+  | 'incomplete'    // started checkout, never completed it
+  | 'past_due'      // payment failed / past due / suspended
+  | 'cancelled'     // was paying, no longer
+  | 'none';         // never enrolled
+
+type MemberRole = 'primary' | 'dependent';
+
 interface UnifiedUser {
   key: string;
   // Clerk
@@ -58,6 +73,16 @@ interface UnifiedUser {
   // Subscription
   subscriptionStatus?: string;
   entitlementCount?: number;
+  // Billing — how coverage is paid for, and whether it currently is
+  billingSource: BillingSource;
+  paymentState: PaymentState;
+  listBillStatus?: string;
+  organizationName?: string;
+  // Family structure
+  memberRole?: MemberRole;
+  relationship?: string;
+  primaryMemberName?: string;
+  dependentCount?: number;
   // Toothlens
   hasToothlens: boolean;
   toothlensUid?: string;
@@ -118,6 +143,54 @@ function PresenceBadge({ presence }: { presence: SystemPresence }) {
   );
 }
 
+// ─── Billing / family classification ──────────────────────────────────────────
+
+const BILLING_SOURCE_META: Record<BillingSource, { label: string; short: string; color: string }> = {
+  individual: { label: 'Individual',  short: 'Individual', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+  list_bill:  { label: 'List Bill',   short: 'List Bill',  color: 'text-indigo-700 bg-indigo-50 border-indigo-200' },
+  comp:       { label: 'Comped',      short: 'Comped',     color: 'text-sky-700 bg-sky-50 border-sky-200' },
+  none:       { label: 'No Plan',     short: 'No Plan',    color: 'text-slate-500 bg-slate-100 border-slate-200' },
+};
+
+const PAYMENT_STATE_META: Record<PaymentState, { label: string; color: string; paying: boolean }> = {
+  paid:          { label: 'Paid',            color: 'text-green-700',  paying: true },
+  employer_paid: { label: 'Employer paid',   color: 'text-indigo-700', paying: true },
+  comped:        { label: '$0 / comped',     color: 'text-sky-700',    paying: false },
+  incomplete:    { label: 'Never completed', color: 'text-amber-700',  paying: false },
+  past_due:      { label: 'Past due',        color: 'text-red-600',    paying: false },
+  cancelled:     { label: 'Cancelled',       color: 'text-red-600',    paying: false },
+  none:          { label: 'Never enrolled',  color: 'text-slate-400',  paying: false },
+};
+
+// Ordered worst-to-best so sorting groups the problem accounts together
+const PAYMENT_STATE_ORDER: PaymentState[] = [
+  'none', 'incomplete', 'past_due', 'cancelled', 'comped', 'employer_paid', 'paid',
+];
+
+function derivePaymentState(source: BillingSource, subscriptionStatus?: string): PaymentState {
+  if (source === 'list_bill') return 'employer_paid';
+  if (source === 'comp') return 'comped';
+  switch (subscriptionStatus) {
+    // Still collecting through the end of the current period
+    case 'active':
+    case 'cancel_at_period_end':
+      return 'paid';
+    case 'draft':               return 'incomplete';
+    case 'past_due':
+    case 'payment_failed':
+    case 'suspended':           return 'past_due';
+    case 'cancelled':           return 'cancelled';
+    default:                    return 'none';
+  }
+}
+
+const RELATIONSHIP_LABELS: Record<string, string> = {
+  spouse: 'Spouse',
+  child: 'Child',
+  domestic_partner: 'Domestic partner',
+  other: 'Other',
+};
+
 const SUB_COLORS: Record<string, string> = {
   active: 'text-green-700 bg-green-50',
   cancelled: 'text-red-600 bg-red-50',
@@ -125,6 +198,26 @@ const SUB_COLORS: Record<string, string> = {
   payment_failed: 'text-red-600 bg-red-50',
   cancel_at_period_end: 'text-amber-700 bg-amber-50',
 };
+
+function FilterChip({ label, count, active, tone, onClick }: {
+  label: string;
+  count: number;
+  active: boolean;
+  tone: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border transition-all ${
+        active ? `${tone} ring-2 ring-offset-1 ring-blue-300` : `${tone} hover:brightness-95`
+      }`}
+    >
+      {label}
+      <span className="font-bold">{count}</span>
+    </button>
+  );
+}
 
 // Small render helpers for table cells
 function Plain({ value, mono }: { value?: string | null; mono?: boolean }) {
@@ -198,6 +291,54 @@ const DISPLAY_COLUMNS: DisplayColumn[] = [
     render: (u) => u.memberType
       ? <StatusBadge status={u.memberType} />
       : <span className="text-xs text-slate-300">—</span>,
+  },
+  {
+    key: 'billing', label: 'Billing', defaultOn: true,
+    sortValue: (u) => `${u.billingSource}:${PAYMENT_STATE_ORDER.indexOf(u.paymentState)}`,
+    render: (u) => {
+      const src = BILLING_SOURCE_META[u.billingSource];
+      const pay = PAYMENT_STATE_META[u.paymentState];
+      return (
+        <div className="leading-tight">
+          <span className={`inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded border ${src.color}`}>
+            {src.short}
+          </span>
+          <p className={`text-[11px] mt-0.5 whitespace-nowrap ${pay.color}`}>{pay.label}</p>
+        </div>
+      );
+    },
+  },
+  {
+    key: 'role', label: 'Role', defaultOn: true,
+    sortValue: (u) => (!u.memberProfileId ? 'z' : u.memberRole === 'dependent' ? 'b' : 'a'),
+    render: (u) => {
+      if (!u.memberProfileId) return <span className="text-xs text-slate-300">—</span>;
+      if (u.memberRole === 'dependent') {
+        return (
+          <div className="leading-tight">
+            <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded border text-purple-700 bg-purple-50 border-purple-200">
+              Dependent
+            </span>
+            <p className="text-[11px] text-slate-500 mt-0.5 whitespace-nowrap">
+              {[RELATIONSHIP_LABELS[u.relationship ?? ''], u.primaryMemberName && `of ${u.primaryMemberName}`]
+                .filter(Boolean).join(' ')}
+            </p>
+          </div>
+        );
+      }
+      return (
+        <div className="leading-tight">
+          <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded border text-slate-700 bg-slate-50 border-slate-200">
+            Primary
+          </span>
+          {!!u.dependentCount && (
+            <p className="text-[11px] text-slate-500 mt-0.5 whitespace-nowrap">
+              +{u.dependentCount} dependent{u.dependentCount === 1 ? '' : 's'}
+            </p>
+          )}
+        </div>
+      );
+    },
   },
   {
     key: 'toothlens', label: 'Toothlens', defaultOn: true, align: 'center',
@@ -314,9 +455,25 @@ const DISPLAY_COLUMNS: DisplayColumn[] = [
     sortValue: (u) => (u.clerkId ?? '').toLowerCase(),
     render: (u) => <Plain value={u.clerkId} mono />,
   },
+  {
+    key: 'organization', label: 'Organization', defaultOn: false,
+    sortValue: (u) => (u.organizationName ?? '').toLowerCase(),
+    render: (u) => <Plain value={u.organizationName} />,
+  },
+  {
+    key: 'listBillStatus', label: 'List Bill Status', defaultOn: false,
+    sortValue: (u) => (u.listBillStatus ?? '').toLowerCase(),
+    render: (u) => <Plain value={u.listBillStatus} />,
+  },
+  {
+    key: 'relationship', label: 'Relationship', defaultOn: false,
+    sortValue: (u) => (u.relationship ?? '').toLowerCase(),
+    render: (u) => <Plain value={RELATIONSHIP_LABELS[u.relationship ?? ''] ?? u.relationship} />,
+  },
 ];
 
-const COLUMN_STORAGE_KEY = 'userAuditVisibleColumns';
+// Versioned: bumping resets saved selections so newly-added default columns appear.
+const COLUMN_STORAGE_KEY = 'userAuditVisibleColumns.v2';
 const DEFAULT_VISIBLE_COLUMNS = DISPLAY_COLUMNS.filter((c) => c.defaultOn || c.fixed).map((c) => c.key);
 
 
@@ -385,12 +542,22 @@ export default function UserAuditPage() {
       const tl = clerkId ? toothlensMap.get(clerkId) : undefined;
       const sub = clerkId ? subscriptionStatuses[clerkId] : undefined;
 
+      const billingSource: BillingSource = (m.billingSource ?? 'none') as BillingSource;
+      const subscriptionStatus: string | undefined =
+        sub?.subscriptionStatus ?? m.subscriptionStatus ?? undefined;
+      const paymentState = derivePaymentState(billingSource, subscriptionStatus);
+
       let presence: SystemPresence;
       if (!clerkId || !clerk) {
         presence = 'convex-only';
-      } else if (sub?.hasDashboard || sub?.subscriptionStatus === 'active') {
+      } else if (
+        sub?.hasDashboard ||
+        subscriptionStatus === 'active' ||
+        // List-bill members are actively covered but never hold a Stripe bundle
+        billingSource === 'list_bill'
+      ) {
         presence = 'both-active';
-      } else if (sub?.subscriptionStatus) {
+      } else if (subscriptionStatus) {
         presence = 'both-no-sub';
       } else {
         presence = 'both';
@@ -418,8 +585,16 @@ export default function UserAuditPage() {
         hasToothlens: !!tl,
         toothlensUid: tl?.toothlensUid,
         toothlensScans: tl?.scanCount,
-        subscriptionStatus: sub?.subscriptionStatus,
+        subscriptionStatus,
         entitlementCount: sub?.entitlementCount ?? 0,
+        billingSource,
+        paymentState,
+        listBillStatus: m.listBillStatus ?? undefined,
+        organizationName: m.organizationName ?? undefined,
+        memberRole: (m.memberRole ?? (m.primaryMemberId ? 'dependent' : 'primary')) as MemberRole,
+        relationship: m.relationship ?? undefined,
+        primaryMemberName: m.primaryMemberName ?? undefined,
+        dependentCount: m.dependentCount ?? 0,
         ssn: (m as any).ssn ?? undefined,
         location: (m as any).location ?? undefined,
         department: (m as any).department ?? undefined,
@@ -451,6 +626,9 @@ export default function UserAuditPage() {
         toothlensScans: tl?.scanCount,
         subscriptionStatus: sub?.subscriptionStatus,
         entitlementCount: sub?.entitlementCount ?? 0,
+        // No member profile means no enrollment ever completed
+        billingSource: 'none',
+        paymentState: derivePaymentState('none', sub?.subscriptionStatus),
         presence: 'clerk-only',
         missingFields: [],
         systemCreatedAt: u.createdAt,
@@ -467,6 +645,9 @@ export default function UserAuditPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [subFilter, setSubFilter] = useState<string>('all');
   const [toothlensFilter, setToothlensFilter] = useState<string>('all');
+  const [billingFilter, setBillingFilter] = useState<string>('all');
+  const [payFilter, setPayFilter] = useState<string>('all');
+  const [roleFilter, setRoleFilter] = useState<string>('all');
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
   // ── Sorting ──────────────────────────────────────────────────────────────────
@@ -542,6 +723,16 @@ export default function UserAuditPage() {
       // Toothlens filter
       if (toothlensFilter === 'has' && !u.hasToothlens) return false;
       if (toothlensFilter === 'none' && u.hasToothlens) return false;
+      // Billing source filter (individual / list bill / comped / no plan)
+      if (billingFilter !== 'all' && u.billingSource !== billingFilter) return false;
+      // Payment filter — either the paying/not-paying rollup or a specific state
+      if (payFilter === 'paying' || payFilter === 'not-paying') {
+        if (PAYMENT_STATE_META[u.paymentState].paying !== (payFilter === 'paying')) return false;
+      } else if (payFilter !== 'all' && u.paymentState !== payFilter) return false;
+      // Primary / dependent filter — only meaningful for rows with a member profile
+      if (roleFilter !== 'all') {
+        if (!u.memberProfileId || (u.memberRole ?? 'primary') !== roleFilter) return false;
+      }
       // Presence / data-quality filter
       if (presenceFilter === 'all') return true;
       if (presenceFilter === 'missing-census') return u.missingFields.length > 0;
@@ -549,7 +740,7 @@ export default function UserAuditPage() {
       if (presenceFilter === 'no-toothlens') return !u.hasToothlens && !!u.memberProfileId;
       return u.presence === presenceFilter;
     });
-  }, [unified, search, presenceFilter, showTerminated, statusFilter, subFilter, toothlensFilter]);
+  }, [unified, search, presenceFilter, showTerminated, statusFilter, subFilter, toothlensFilter, billingFilter, payFilter, roleFilter]);
 
   const sorted = useMemo(() => {
     const dir = sortDir === 'asc' ? 1 : -1;
@@ -574,6 +765,19 @@ export default function UserAuditPage() {
     hasToothlens: unified.filter((u) => u.hasToothlens).length,
   }), [unified]);
 
+  const billingStats = useMemo(() => ({
+    individual: unified.filter((u) => u.billingSource === 'individual').length,
+    listBill: unified.filter((u) => u.billingSource === 'list_bill').length,
+    comped: unified.filter((u) => u.billingSource === 'comp').length,
+    noPlan: unified.filter((u) => u.billingSource === 'none').length,
+    paying: unified.filter((u) => PAYMENT_STATE_META[u.paymentState].paying).length,
+    notPaying: unified.filter((u) => !PAYMENT_STATE_META[u.paymentState].paying).length,
+    incomplete: unified.filter((u) => u.paymentState === 'incomplete').length,
+    pastDue: unified.filter((u) => u.paymentState === 'past_due').length,
+    primary: unified.filter((u) => u.memberProfileId && (u.memberRole ?? 'primary') === 'primary').length,
+    dependents: unified.filter((u) => u.memberRole === 'dependent').length,
+  }), [unified]);
+
   // Distinct values present in the data, for the filter dropdowns
   const memberStatusOptions = useMemo(
     () => Array.from(new Set(unified.map((u) => u.memberType).filter(Boolean))).sort() as string[],
@@ -589,7 +793,10 @@ export default function UserAuditPage() {
     presenceFilter !== 'all' ||
     statusFilter !== 'all' ||
     subFilter !== 'all' ||
-    toothlensFilter !== 'all';
+    toothlensFilter !== 'all' ||
+    billingFilter !== 'all' ||
+    payFilter !== 'all' ||
+    roleFilter !== 'all';
 
   const clearAllFilters = () => {
     setSearch('');
@@ -597,6 +804,9 @@ export default function UserAuditPage() {
     setStatusFilter('all');
     setSubFilter('all');
     setToothlensFilter('all');
+    setBillingFilter('all');
+    setPayFilter('all');
+    setRoleFilter('all');
   };
 
   // ── CSV column picker ──────────────────────────────────────────────────────
@@ -609,6 +819,15 @@ export default function UserAuditPage() {
     { key: 'clerkEmail',      label: 'Email (Clerk)',         defaultOn: false, get: (u) => u.clerkEmail ?? '' },
     { key: 'memberId',        label: 'Member ID',             defaultOn: true,  get: (u) => u.memberId ?? '' },
     { key: 'memberType',      label: 'Member Status',         defaultOn: true,  get: (u) => u.memberType ?? '' },
+    { key: 'billingSource',   label: 'Billing Type',          defaultOn: true,  get: (u) => BILLING_SOURCE_META[u.billingSource].label },
+    { key: 'paymentState',    label: 'Payment Status',        defaultOn: true,  get: (u) => PAYMENT_STATE_META[u.paymentState].label },
+    { key: 'isPaying',        label: 'Paying?',               defaultOn: true,  get: (u) => (PAYMENT_STATE_META[u.paymentState].paying ? 'Yes' : 'No') },
+    { key: 'listBillStatus',  label: 'List Bill Status',      defaultOn: false, get: (u) => u.listBillStatus ?? '' },
+    { key: 'organization',    label: 'Organization',          defaultOn: false, get: (u) => u.organizationName ?? '' },
+    { key: 'memberRole',      label: 'Member Role',           defaultOn: true,  get: (u) => (u.memberProfileId ? (u.memberRole === 'dependent' ? 'Dependent' : 'Primary') : '') },
+    { key: 'relationship',    label: 'Relationship',          defaultOn: false, get: (u) => RELATIONSHIP_LABELS[u.relationship ?? ''] ?? u.relationship ?? '' },
+    { key: 'primaryMember',   label: 'Primary Member',        defaultOn: false, get: (u) => u.primaryMemberName ?? '' },
+    { key: 'dependentCount',  label: 'Dependents',            defaultOn: false, get: (u) => (u.memberRole === 'dependent' ? '' : String(u.dependentCount ?? 0)) },
     { key: 'ssn',             label: 'SSN',                   defaultOn: false, sensitive: true, get: (u) => u.ssn ?? '' },
     { key: 'location',        label: 'Location',              defaultOn: false, get: (u) => u.location ?? '' },
     { key: 'department',      label: 'Department',            defaultOn: false, get: (u) => u.department ?? '' },
@@ -719,6 +938,67 @@ export default function UserAuditPage() {
         ))}
       </div>
 
+      {/* ── Billing & family breakdown (clickable filters) ── */}
+      <div className="bg-white border border-slate-200 rounded-xl p-3 flex flex-wrap items-center gap-2">
+        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Who pays</span>
+        <FilterChip
+          label="Individual" count={billingStats.individual} tone={BILLING_SOURCE_META.individual.color}
+          active={billingFilter === 'individual'}
+          onClick={() => setBillingFilter(billingFilter === 'individual' ? 'all' : 'individual')}
+        />
+        <FilterChip
+          label="List Bill" count={billingStats.listBill} tone={BILLING_SOURCE_META.list_bill.color}
+          active={billingFilter === 'list_bill'}
+          onClick={() => setBillingFilter(billingFilter === 'list_bill' ? 'all' : 'list_bill')}
+        />
+        <FilterChip
+          label="Comped" count={billingStats.comped} tone={BILLING_SOURCE_META.comp.color}
+          active={billingFilter === 'comp'}
+          onClick={() => setBillingFilter(billingFilter === 'comp' ? 'all' : 'comp')}
+        />
+        <FilterChip
+          label="No Plan" count={billingStats.noPlan} tone={BILLING_SOURCE_META.none.color}
+          active={billingFilter === 'none'}
+          onClick={() => setBillingFilter(billingFilter === 'none' ? 'all' : 'none')}
+        />
+
+        <span className="w-px h-5 bg-slate-200 mx-1.5" />
+        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Paid</span>
+        <FilterChip
+          label="Paying" count={billingStats.paying} tone="text-green-700 bg-green-50 border-green-200"
+          active={payFilter === 'paying'}
+          onClick={() => setPayFilter(payFilter === 'paying' ? 'all' : 'paying')}
+        />
+        <FilterChip
+          label="Not paying" count={billingStats.notPaying} tone="text-slate-600 bg-slate-100 border-slate-200"
+          active={payFilter === 'not-paying'}
+          onClick={() => setPayFilter(payFilter === 'not-paying' ? 'all' : 'not-paying')}
+        />
+        <FilterChip
+          label="Never completed checkout" count={billingStats.incomplete} tone="text-amber-700 bg-amber-50 border-amber-200"
+          active={payFilter === 'incomplete'}
+          onClick={() => setPayFilter(payFilter === 'incomplete' ? 'all' : 'incomplete')}
+        />
+        <FilterChip
+          label="Past due" count={billingStats.pastDue} tone="text-red-700 bg-red-50 border-red-200"
+          active={payFilter === 'past_due'}
+          onClick={() => setPayFilter(payFilter === 'past_due' ? 'all' : 'past_due')}
+        />
+
+        <span className="w-px h-5 bg-slate-200 mx-1.5" />
+        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Family</span>
+        <FilterChip
+          label="Primary" count={billingStats.primary} tone="text-slate-700 bg-slate-50 border-slate-200"
+          active={roleFilter === 'primary'}
+          onClick={() => setRoleFilter(roleFilter === 'primary' ? 'all' : 'primary')}
+        />
+        <FilterChip
+          label="Dependent" count={billingStats.dependents} tone="text-purple-700 bg-purple-50 border-purple-200"
+          active={roleFilter === 'dependent'}
+          onClick={() => setRoleFilter(roleFilter === 'dependent' ? 'all' : 'dependent')}
+        />
+      </div>
+
       {/* ── The key insight explainer ── */}
       {!dataLoading && (stats.clerkOnly > 0 || stats.convexOnly > 0) && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-900 space-y-1">
@@ -798,6 +1078,22 @@ export default function UserAuditPage() {
           {subStatusOptions.map((s) => (
             <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
           ))}
+        </select>
+        {/* Payment status filter */}
+        <select
+          value={payFilter}
+          onChange={(e) => setPayFilter(e.target.value)}
+          className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500"
+          title="Filter by payment status"
+        >
+          <option value="all">All Payment States</option>
+          <option value="paying">Paying (any source)</option>
+          <option value="not-paying">Not paying</option>
+          <optgroup label="Specific">
+            {PAYMENT_STATE_ORDER.map((s) => (
+              <option key={s} value={s}>{PAYMENT_STATE_META[s].label}</option>
+            ))}
+          </optgroup>
         </select>
         {/* Toothlens filter */}
         <select
@@ -912,6 +1208,7 @@ export default function UserAuditPage() {
               <button onClick={() => setExportEnabled(AUDIT_COLUMNS.filter((c) => c.defaultOn).map((c) => c.key))} className="px-3 py-1 text-xs rounded border border-slate-300 hover:bg-slate-50">Standard</button>
               <button onClick={() => setExportEnabled(AUDIT_COLUMNS.map((c) => c.key))} className="px-3 py-1 text-xs rounded border border-slate-300 hover:bg-slate-50">All Columns</button>
               <button onClick={() => setExportEnabled(['ssn', 'firstName', 'lastName', 'memberId', 'location', 'department', 'effectiveDate'])} className="px-3 py-1 text-xs rounded border border-slate-300 hover:bg-slate-50">Payroll Audit</button>
+              <button onClick={() => setExportEnabled(['firstName', 'lastName', 'memberEmail', 'memberId', 'memberType', 'billingSource', 'paymentState', 'isPaying', 'listBillStatus', 'organization', 'memberRole', 'relationship', 'primaryMember', 'dependentCount', 'subStatus'])} className="px-3 py-1 text-xs rounded border border-slate-300 hover:bg-slate-50">Billing &amp; Family</button>
             </div>
             {/* Column checkboxes */}
             <div className="grid grid-cols-2 gap-1 max-h-64 overflow-y-auto pr-1">
