@@ -175,7 +175,16 @@ function SignInForm() {
   // Verification flow state
   const [step, setStep] = useState<"credentials" | "verification">("credentials");
   const [verificationCode, setVerificationCode] = useState("");
-  const [verificationMethod, setVerificationMethod] = useState<"email_code" | "phone_code" | "totp">("email_code");
+  const [verificationMethod, setVerificationMethod] = useState<"email_code" | "phone_code" | "totp" | "backup_code">("email_code");
+  const [factorStage, setFactorStage] = useState<"first" | "second">("first");
+  const [secondFactorOptions, setSecondFactorOptions] = useState<string[]>([]);
+
+  // Every second-factor strategy this UI knows how to render, in preferred order.
+  // Add new strategies here (and to the verification-step UI below) rather than
+  // introducing another one-off if/else — that's how this app ended up unable
+  // to handle backup codes even though Clerk had them enabled.
+  const SECOND_FACTOR_PRIORITY = ["totp", "phone_code", "backup_code"] as const;
+  type SecondFactorStrategy = (typeof SECOND_FACTOR_PRIORITY)[number];
 
   useEffect(() => {
     if (isLoaded) return;
@@ -202,6 +211,19 @@ function SignInForm() {
     }
   };
 
+  const activateSecondFactor = async (strategy: SecondFactorStrategy) => {
+    if (!signIn) return;
+    if (strategy === "phone_code") {
+      await signIn.prepareSecondFactor({ strategy: "phone_code" });
+    }
+    // totp and backup_code need no preparation — user already has the code in hand.
+    setVerificationMethod(strategy);
+    setFactorStage("second");
+    setStep("verification");
+    setVerificationCode("");
+    setError("");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -217,24 +239,17 @@ function SignInForm() {
         await setActive({ session: result.createdSessionId });
         router.push(redirectTo);
       } else if (result.status === "needs_second_factor") {
-        // MFA required — prepare the second factor and show code input
+        // MFA required — pick the highest-priority strategy this UI supports
         const supported = result.supportedSecondFactors ?? [];
-        const totp = supported.find((f: any) => f.strategy === "totp");
-        const phoneCode = supported.find((f: any) => f.strategy === "phone_code");
-        if (totp) {
-          setVerificationMethod("totp");
-          // TOTP doesn't need preparation (user reads from authenticator app)
-          setStep("verification");
-          setVerificationCode("");
-          setError("");
-        } else if (phoneCode) {
-          await signIn.prepareSecondFactor({ strategy: "phone_code" });
-          setVerificationMethod("phone_code");
-          setStep("verification");
-          setVerificationCode("");
-          setError("");
+        setSecondFactorOptions(supported.map((f) => f.strategy));
+        const chosen = SECOND_FACTOR_PRIORITY.find((strategy) =>
+          supported.some((f) => f.strategy === strategy)
+        );
+        if (chosen) {
+          await activateSecondFactor(chosen);
         } else {
-          setError("Multi-factor verification is required but no supported method was found. Please contact support.");
+          const found = supported.map((f) => f.strategy).join(", ") || "none";
+          setError(`Multi-factor verification is required, but this app doesn't yet support your account's method (${found}). Please contact support.`);
         }
       } else if (result.status === "needs_first_factor") {
         // Email/phone code required as first factor — find and prepare it
@@ -248,17 +263,20 @@ function SignInForm() {
         if (emailCode) {
           await signIn.prepareFirstFactor({ strategy: "email_code", emailAddressId: emailCode.emailAddressId });
           setVerificationMethod("email_code");
+          setFactorStage("first");
           setStep("verification");
           setVerificationCode("");
           setError("");
         } else if (phoneCode) {
           await signIn.prepareFirstFactor({ strategy: "phone_code", phoneNumberId: phoneCode.phoneNumberId });
           setVerificationMethod("phone_code");
+          setFactorStage("first");
           setStep("verification");
           setVerificationCode("");
           setError("");
         } else {
-          setError("Verification is required but no supported method was found. Please contact support.");
+          const found = supported.map((f) => f.strategy).join(", ") || "none";
+          setError(`Verification is required, but this app doesn't yet support your account's method (${found}). Please contact support.`);
         }
       } else {
         setError("Sign-in failed. Please try again.");
@@ -280,14 +298,15 @@ function SignInForm() {
       return; 
     }
     try {
-      const isSecondFactor = signIn.status === "needs_second_factor";
-      const result = isSecondFactor
+      // verificationMethod was set to whichever strategy we actually activated,
+      // so it's always the correct strategy to attempt — no need to re-derive it.
+      const result = factorStage === "second"
         ? await signIn.attemptSecondFactor({
-            strategy: verificationMethod === "totp" ? "totp" : "phone_code",
+            strategy: verificationMethod as SecondFactorStrategy,
             code: verificationCode,
           })
         : await signIn.attemptFirstFactor({
-            strategy: verificationMethod === "email_code" ? "email_code" : "phone_code",
+            strategy: verificationMethod as "email_code" | "phone_code",
             code: verificationCode,
           });
 
@@ -296,11 +315,12 @@ function SignInForm() {
         router.push(redirectTo);
       } else if (result.status === "needs_second_factor") {
         // Additional verification needed
+        setFactorStage("second");
         setStep("verification");
         setVerificationCode("");
         const factorVerification = result.secondFactorVerification;
         if (factorVerification?.strategy) {
-          setVerificationMethod(factorVerification.strategy as "email_code" | "phone_code" | "totp");
+          setVerificationMethod(factorVerification.strategy as typeof verificationMethod);
         }
       } else {
         setError("Verification failed. Please try again.");
@@ -316,9 +336,19 @@ function SignInForm() {
     setStep("credentials");
     setVerificationCode("");
     setError("");
+    setFactorStage("first");
+    setSecondFactorOptions([]);
   };
 
   const busy = isLoading || !!oauthLoading;
+  const isBackupCode = verificationMethod === "backup_code";
+  // Other second-factor strategies the account has enrolled and this UI supports,
+  // so a user isn't stuck contacting support just because their first choice
+  // (e.g. a lost authenticator app) isn't available right now.
+  const switchableSecondFactors = secondFactorOptions.filter(
+    (s): s is SecondFactorStrategy =>
+      (SECOND_FACTOR_PRIORITY as readonly string[]).includes(s) && s !== verificationMethod
+  );
   const formValid = identifier.trim() !== "" && password.length >= 1 && isLoaded;
   const signUpHref = redirectTo !== "/health/dashboard"
     ? `/health/sign-up?redirect_url=${encodeURIComponent(redirectTo)}`
@@ -494,21 +524,43 @@ function SignInForm() {
                         {verificationMethod === "email_code" && "Enter the code sent to your email"}
                         {verificationMethod === "phone_code" && "Enter the code sent to your phone"}
                         {verificationMethod === "totp" && "Enter your authenticator app code"}
+                        {verificationMethod === "backup_code" && "Enter one of your saved backup codes"}
                       </p>
                       <input
                         id="verificationCode"
                         type="text"
                         value={verificationCode}
-                        onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                        placeholder={verificationMethod === "totp" ? "000000" : "000000"}
+                        onChange={(e) => setVerificationCode(
+                          isBackupCode
+                            ? e.target.value.replace(/\s/g, "").slice(0, 24)
+                            : e.target.value.replace(/\D/g, "").slice(0, 6)
+                        )}
+                        placeholder={isBackupCode ? "xxxxx-xxxxx" : "000000"}
                         disabled={busy}
                         autoComplete="one-time-code"
-                        inputMode="numeric"
-                        maxLength={6}
-                        style={{ ...inputBase, padding: "0.75rem", textAlign: "center", fontSize: "1.5rem", letterSpacing: "0.5rem", fontWeight: 600 }}
+                        inputMode={isBackupCode ? "text" : "numeric"}
+                        maxLength={isBackupCode ? 24 : 6}
+                        style={{ ...inputBase, padding: "0.75rem", textAlign: "center", fontSize: isBackupCode ? "1.125rem" : "1.5rem", letterSpacing: isBackupCode ? "0.05em" : "0.5rem", fontWeight: 600 }}
                         onFocus={focusStyle}
                         onBlur={blurStyle}
                       />
+                      {factorStage === "second" && switchableSecondFactors.length > 0 && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem", marginTop: "0.75rem", alignItems: "center" }}>
+                          {switchableSecondFactors.map((strategy) => (
+                            <button
+                              key={strategy}
+                              type="button"
+                              onClick={() => activateSecondFactor(strategy)}
+                              disabled={busy}
+                              style={{ background: "none", border: "none", color: "#0066CC", fontSize: "0.8125rem", fontWeight: 500, cursor: busy ? "wait" : "pointer", padding: "0.125rem" }}
+                            >
+                              {strategy === "totp" && "Use authenticator app instead"}
+                              {strategy === "phone_code" && "Text me a code instead"}
+                              {strategy === "backup_code" && "Use a backup code instead"}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
