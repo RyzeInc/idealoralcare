@@ -1231,6 +1231,8 @@ async function computeBackfill(
     alreadyHasDetail: boolean;
     reconciles: boolean;
     memberLineCount: number;
+    memberCount: number;
+    deltaCents: number;
     frozenGrossCents: number;
     recomputedGrossCents: number;
     detail: string;
@@ -1271,17 +1273,81 @@ async function computeBackfill(
       frozenGrossCents: snapshot.grossCents,
       recomputedGrossCents,
       deltaCents: recomputedGrossCents - snapshot.grossCents,
+      memberCount: group?.memberLines?.length ?? 0,
       detail: alreadyHasDetail
-        ? "Already has member detail — leaving it as is"
-        : !group
-          ? "This organization no longer exists, so its members cannot be rebuilt"
+        ? "Already broken out"
+        : !group || (group.memberLines?.length ?? 0) === 0
+          ? "Nothing left to name — this organization's members are no longer on file"
           : reconciles
-            ? `Matches the closed total exactly — ${group.memberLines?.length ?? 0} members ready to add`
-            : `Found ${group.memberLines?.length ?? 0} members worth ${formatCentsForHumans(recomputedGrossCents)}, but this month closed at ${formatCentsForHumans(snapshot.grossCents)}. Rebuilding anyway will name those members without changing the total.`,
+            ? `${group.memberLines?.length ?? 0} members, matching the closed total exactly`
+            : `${group.memberLines?.length ?? 0} members. The roster has changed since this month closed (${formatCentsForHumans(recomputedGrossCents)} now vs ${formatCentsForHumans(snapshot.grossCents)} then), so the listed lines won't sum to the closed total.`,
     };
   });
 
   return { period, rows };
+}
+
+/**
+ * Fill in the member list for every close in `period` that can be
+ * reconstructed at all.
+ *
+ * Whether the rebuilt roster still adds up to the closed total decides how the
+ * row is STAMPED, not whether the members are named. A month whose roster has
+ * shifted since it closed is exactly the month someone needs to look at
+ * member-by-member, so withholding the names there was backwards.
+ *
+ * Totals, `payloadHash`, and `closedAt` are never written. The only thing this
+ * changes is whether a name is visible.
+ *
+ * Returns counts of organizations filled, split by whether the rebuild matched
+ * the closed figures.
+ */
+export async function fillMemberLines(
+  ctx: any,
+  period: string,
+): Promise<{ exact: number; mismatched: number; unavailable: number }> {
+  const snapshots = await ctx.db
+    .query("invoicePeriods")
+    .withIndex("by_period", (q: any) => q.eq("period", period))
+    .collect();
+  const gaps = snapshots.filter(
+    (s: Doc<"invoicePeriods">) => s.memberLines === undefined,
+  );
+  if (gaps.length === 0) return { exact: 0, mismatched: 0, unavailable: 0 };
+
+  const window = parsePeriodKey(period);
+  const rebuilt = await computeLiveBreakdown(ctx, window.endMs);
+  const byGroup = new Map(
+    rebuilt.groups.map((g) => [String(g.groupId), g]),
+  );
+
+  let exact = 0;
+  let mismatched = 0;
+  let unavailable = 0;
+
+  for (const snapshot of gaps) {
+    const group = byGroup.get(String(snapshot.groupId));
+    const lines = group?.memberLines ?? [];
+    if (!group || lines.length === 0) {
+      // Nothing left to name — the organization or its members are gone.
+      unavailable++;
+      continue;
+    }
+    const reconciles =
+      group.totals.grossCents === snapshot.grossCents &&
+      group.totals.toothlensCents === snapshot.toothlensCents &&
+      group.totals.careingtonCents === snapshot.careingtonCents &&
+      group.totals.processingCents === snapshot.processingCents &&
+      group.totals.partnerVendorCents === snapshot.partnerVendorCents &&
+      group.totals.ryzeKeepCents === snapshot.ryzeKeepCents;
+    await ctx.db.patch(snapshot._id, {
+      memberLines: lines,
+      memberLinesRebuilt: reconciles ? "exact" : "forced",
+    });
+    if (reconciles) exact++;
+    else mismatched++;
+  }
+  return { exact, mismatched, unavailable };
 }
 
 /** Dry run: what a backfill would and would not be able to fill in. */
@@ -1290,11 +1356,15 @@ export const previewMemberLineBackfill = query({
   handler: async (ctx, { period }) => {
     await requireAdmin(ctx);
     const { rows } = await computeBackfill(ctx, period);
+    const pending = rows.filter((r) => !r.alreadyHasDetail);
     return {
       period,
       rows,
-      fillable: rows.filter((r) => !r.alreadyHasDetail && r.reconciles).length,
-      blocked: rows.filter((r) => !r.alreadyHasDetail && !r.reconciles).length,
+      // Everything reconstructable gets named; only an organization with
+      // nothing left on file is genuinely out of reach.
+      fillable: pending.filter((r) => r.memberCount > 0).length,
+      blocked: pending.filter((r) => r.memberCount === 0).length,
+      mismatched: pending.filter((r) => r.memberCount > 0 && !r.reconciles).length,
       untouched: rows.filter((r) => r.alreadyHasDetail).length,
     };
   },
@@ -1308,16 +1378,11 @@ export const previewMemberLineBackfill = query({
 export const backfillMemberLines = mutation({
   args: {
     period: v.string(),
-    /**
-     * Add member lines even where the rebuild does not reproduce the closed
-     * total. The lines are marked `forced` and the totals are still left
-     * exactly as closed — the names become visible, the money does not move.
-     */
+    /** Retained for older callers; filling is unconditional now. */
     force: v.optional(v.boolean()),
   },
-  handler: async (ctx, { period, force }) => {
+  handler: async (ctx, { period }) => {
     const identity = await requireAdmin(ctx);
-    const window = parsePeriodKey(period);
     const snapshots = await ctx.db
       .query("invoicePeriods")
       .withIndex("by_period", (q) => q.eq("period", period))
@@ -1326,44 +1391,7 @@ export const backfillMemberLines = mutation({
       throw new Error(`Period ${period} is not closed.`);
     }
 
-    const rebuilt = await computeLiveBreakdown(ctx, window.endMs);
-    const byGroup = new Map(rebuilt.groups.map((g) => [String(g.groupId), g]));
-
-    let filled = 0;
-    let forced = 0;
-    let skipped = 0;
-    const skippedGroups: string[] = [];
-
-    for (const snapshot of snapshots) {
-      if (snapshot.memberLines !== undefined) continue;
-      const group = byGroup.get(String(snapshot.groupId));
-      const reconciles =
-        group !== undefined &&
-        group.totals.grossCents === snapshot.grossCents &&
-        group.totals.toothlensCents === snapshot.toothlensCents &&
-        group.totals.careingtonCents === snapshot.careingtonCents &&
-        group.totals.processingCents === snapshot.processingCents &&
-        group.totals.partnerVendorCents === snapshot.partnerVendorCents &&
-        group.totals.ryzeKeepCents === snapshot.ryzeKeepCents;
-      if (!group) {
-        skipped++;
-        skippedGroups.push(snapshot.groupCode);
-        continue;
-      }
-      if (!reconciles && !force) {
-        skipped++;
-        skippedGroups.push(snapshot.groupCode);
-        continue;
-      }
-      // Only the detail. Totals, hashes, and close metadata are untouched —
-      // forcing makes names visible, it never moves money.
-      await ctx.db.patch(snapshot._id, {
-        memberLines: group.memberLines ?? [],
-        memberLinesRebuilt: reconciles ? "exact" : "forced",
-      });
-      if (reconciles) filled++;
-      else forced++;
-    }
+    const result = await fillMemberLines(ctx, period);
 
     await ctx.runMutation(internal.admin.adminAudit.record, {
       actorClerkUserId: identity.clerkUserId,
@@ -1371,13 +1399,24 @@ export const backfillMemberLines = mutation({
       targetType: "invoicePeriods",
       targetId: period,
       summary:
-        `Backfilled member detail for ${period}: ${filled} organization(s) matched exactly` +
-        (forced > 0 ? `, ${forced} force-added despite a total mismatch` : "") +
-        (skipped > 0 ? `, ${skipped} skipped` : ""),
-      metadata: { period, filled, forced, skipped, skippedGroups, force: force ?? false },
+        `Broke out members for ${period}: ${result.exact} organization(s) matched the closed totals` +
+        (result.mismatched > 0
+          ? `, ${result.mismatched} named despite a total mismatch`
+          : "") +
+        (result.unavailable > 0
+          ? `, ${result.unavailable} had nothing left to name`
+          : ""),
+      metadata: { period, ...result },
     });
 
-    return { period, filled, forced, skipped, skippedGroups };
+    return {
+      period,
+      filled: result.exact,
+      forced: result.mismatched,
+      skipped: result.unavailable,
+      skippedGroups: [] as string[],
+      ...result,
+    };
   },
 });
 

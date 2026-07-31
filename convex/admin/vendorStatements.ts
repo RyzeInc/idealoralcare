@@ -42,6 +42,7 @@ import { requireAdmin } from "../lib/authGuards";
 import { DispersalSplit, PlanTier } from "../lib/dispersal";
 import { parsePeriodKey } from "../lib/periods";
 import { RepAttribution, RepAttributionResolver } from "../lib/repAttribution";
+import { fillMemberLines } from "./invoiceCalculator";
 
 // ---------------------------------------------------------------------------
 // Recipient disclosure policy — the single source of truth
@@ -1843,6 +1844,11 @@ async function createStatement(
   if (live && !args.replacesId) {
     return { statementId: live._id, created: false };
   }
+
+  // Name everyone we can before cutting the document. Whether the rebuilt
+  // roster still adds up to the closed total affects how the row is stamped,
+  // not whether the members are shown — totals are never rewritten either way.
+  await fillMemberLines(ctx, args.period);
 
   const payload = await buildPayload(ctx, args.period, args.vendor);
   const now = Date.now();

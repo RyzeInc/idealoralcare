@@ -186,14 +186,24 @@ close run the morning after month end:
 Both directions are covered by tests. Before this, a month with post-period
 churn could never reconcile, which meant its members could never be named.
 
-### Forcing a rebuild
+### Reconciling decides the stamp, not whether names appear
 
-Where a rebuild does not reproduce the closed total, `backfillMemberLines`
-accepts `force: true`. The names are added and the row is stamped
-`memberLinesRebuilt: "forced"`; **totals, `payloadHash`, and `closedAt` are
-still never written**. Forcing makes members visible, it does not move money —
-so a forced organization's itemized lines will not sum to its closed total, and
-the statement shows that gap rather than hiding it.
+`fillMemberLines` names **every organization it can reconstruct**. Whether the
+rebuilt roster still adds up to the closed total decides how the row is stamped
+(`memberLinesRebuilt: "exact" | "forced"`), not whether the members are shown.
+
+This is safe because filling never writes a total — only `memberLines`.
+`payloadHash` and `closedAt` are likewise untouched. The only consequence of a
+mismatch is that the listed lines will not sum to the closed figure, which the
+statement states plainly.
+
+Withholding names on a mismatch was backwards: a month whose roster has shifted
+since it closed is precisely the month someone needs to inspect
+member-by-member. The only genuinely unnameable case is an organization whose
+member records are no longer on file at all.
+
+`generateStatement` calls this before cutting the document, so members appear
+without anyone needing to know a "rebuild" step exists.
 
 ### Partial detail is shown, not suppressed
 
