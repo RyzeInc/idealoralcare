@@ -324,6 +324,13 @@ export interface StatementGroupRow {
   groupName: string;
   organizationCode: string | null;
   primaryCount: number;
+  /** Split of that count, so a reader can see the mix without member lines. */
+  individualCount: number;
+  familyCount: number;
+  /** Rep who owns this organization's deal. Only when disclosure allows. */
+  repName?: string;
+  repCode?: string;
+  agencyName?: string;
   amountCents: number;
 }
 
@@ -366,6 +373,15 @@ export interface StatementPayload {
    */
   attributionBasis: AttributionBasis;
   primaryCount: number;
+  /** Mix of the covered primaries. Available even with no member detail. */
+  individualCount: number;
+  familyCount: number;
+  /**
+   * False when every organization sits under the same provider code, which is
+   * the norm — printing "IDEALDO" on every row then costs a column and tells
+   * the reader nothing.
+   */
+  groupCodeVaries: boolean;
   memberLines: StatementMemberLine[];
   /** Empty unless the disclosure names groups. */
   groups: StatementGroupRow[];
@@ -451,10 +467,11 @@ function groupLabelFor(
  * enrollment" row, so the recipient sees the employer business they are paying
  * out on without the internal shape of the self-pay book.
  */
-function buildGroupRows(
+async function buildGroupRows(
+  ctx: QueryCtx | MutationCtx,
   snapshots: Doc<"invoicePeriods">[],
   policy: ResolvedPolicy,
-): StatementGroupRow[] {
+): Promise<StatementGroupRow[]> {
   const visibility = policy.disclosure.groupVisibility;
   if (visibility === "none") return [];
 
@@ -469,13 +486,39 @@ function buildGroupRows(
     const existing = rows.get(label.key);
     if (existing) {
       existing.primaryCount += primaryCount;
+      existing.individualCount += snapshot.individualPrimaryCount;
+      existing.familyCount += snapshot.familyPrimaryCount;
       existing.amountCents += amountCents;
     } else {
+      // The rep who owns this organization's deal — the person a partner pays
+      // for the whole account, distinct from whoever sold each member.
+      let rep: { repName?: string; repCode?: string; agencyName?: string } = {};
+      if (policy.disclosure.repAttribution && label.key !== "DIRECT") {
+        const group = await ctx.db.get(snapshot.groupId);
+        if (group?.brokerId || group?.brokerTrackingCode) {
+          const leader = group.brokerId
+            ? await ctx.db.get(group.brokerId as Id<"partnerLeaders">)
+            : null;
+          const agency = leader
+            ? await ctx.db.get(leader.partnerId)
+            : null;
+          rep = {
+            ...(leader?.name ? { repName: leader.name } : {}),
+            ...(group.brokerTrackingCode
+              ? { repCode: group.brokerTrackingCode }
+              : {}),
+            ...(agency?.name ? { agencyName: agency.name } : {}),
+          };
+        }
+      }
       rows.set(label.key, {
         groupCode: label.groupCode,
         groupName: label.groupName,
         organizationCode: label.organizationCode,
         primaryCount,
+        individualCount: snapshot.individualPrimaryCount,
+        familyCount: snapshot.familyPrimaryCount,
+        ...rep,
         amountCents,
       });
     }
@@ -487,6 +530,14 @@ function buildGroupRows(
     }
     return a.groupName.localeCompare(b.groupName);
   });
+}
+
+/** True only when more than one real provider code appears on the statement. */
+function providerCodeVaries(rows: StatementGroupRow[]): boolean {
+  const codes = new Set(
+    rows.filter((r) => r.groupCode !== "DIRECT").map((r) => r.groupCode),
+  );
+  return codes.size > 1;
 }
 
 function shapeMemberLine(
@@ -667,7 +718,7 @@ async function buildPayload(
     }
   }
 
-  const groups = buildGroupRows(snapshots, policy);
+  const groups = await buildGroupRows(ctx, snapshots, policy);
 
   // Subtotal always comes from the frozen group totals, not from the member
   // lines — legacy closes have authoritative totals but no member detail.
@@ -725,6 +776,9 @@ async function buildPayload(
     showAdjustmentDetail: policy.disclosure.adjustmentDetail,
     attributionBasis,
     primaryCount,
+    individualCount: snapshots.reduce((n, x) => n + x.individualPrimaryCount, 0),
+    familyCount: snapshots.reduce((n, x) => n + x.familyPrimaryCount, 0),
+    groupCodeVaries: providerCodeVaries(groups),
     memberLines: sortMemberLines(memberLines),
     groups,
     adjustments,
@@ -884,8 +938,15 @@ export const getStatement = query({
     const { basis: attributionBasis, fallbackByMember } =
       await hydrateAttribution(ctx, snapshots, policy);
 
+    // Derived from the closes as they stand NOW, not from the flag frozen at
+    // generation. Backfilling member detail into a close must make an existing
+    // statement start showing it without being regenerated.
+    const memberDetailAvailable =
+      snapshots.length > 0 &&
+      snapshots.every((snapshot) => snapshot.memberLines !== undefined);
+
     const memberLines: StatementMemberLine[] = [];
-    if (row.memberDetailAvailable && policy.disclosure.memberDetail) {
+    if (memberDetailAvailable && policy.disclosure.memberDetail) {
       for (const snapshot of snapshots) {
         for (const line of snapshot.memberLines ?? []) {
           if (line.tier === "none") continue;
@@ -902,7 +963,7 @@ export const getStatement = query({
       }
     }
 
-    const groups = buildGroupRows(snapshots, policy);
+    const groups = await buildGroupRows(ctx, snapshots, policy);
 
     const periodAdjustments = await ctx.db
       .query("invoiceAdjustments")
@@ -928,6 +989,19 @@ export const getStatement = query({
       ...row,
       overdue: isOverdue(row),
       basis: policy.basis,
+      memberDetailAvailable,
+      // Counts are derived from the closes rather than read off the frozen
+      // row, so they cannot drift from the group rollup after a backfill.
+      primaryCount: snapshots.reduce(
+        (n, x) => n + x.individualPrimaryCount + x.familyPrimaryCount,
+        0,
+      ),
+      individualCount: snapshots.reduce(
+        (n, x) => n + x.individualPrimaryCount,
+        0,
+      ),
+      familyCount: snapshots.reduce((n, x) => n + x.familyPrimaryCount, 0),
+      groupCodeVaries: providerCodeVaries(groups),
       disclosure: policy.disclosure,
       showMemberDetail: policy.disclosure.memberDetail,
       showGroups: policy.disclosure.groupVisibility !== "none",
@@ -1313,6 +1387,12 @@ export const getStatementVerification = query({
       if (snapshot) snapshots.push(snapshot);
     }
 
+    // Live, for the same reason as getStatement: a backfill must show up here
+    // without regenerating the statement.
+    const memberDetailAvailable =
+      snapshots.length > 0 &&
+      snapshots.every((snapshot) => snapshot.memberLines !== undefined);
+
     const resolver = snapshots.some((s) =>
       (s.memberLines ?? []).some((line) => !line.repSource),
     )
@@ -1396,8 +1476,8 @@ export const getStatementVerification = query({
       },
       {
         label: "Member lines add up to the subtotal",
-        passed: !row.memberDetailAvailable || lineSumForVendor === bucketTotal,
-        detail: !row.memberDetailAvailable
+        passed: !memberDetailAvailable || lineSumForVendor === bucketTotal,
+        detail: !memberDetailAvailable
           ? "Aggregate-only close — no member lines to sum"
           : lineSumForVendor === bucketTotal
             ? `${lines.length} lines totalling ${money(lineSumForVendor)}`
@@ -1433,7 +1513,7 @@ export const getStatementVerification = query({
       period: row.period,
       status: row.status,
       amountField: policy.amountField,
-      memberDetailAvailable: row.memberDetailAvailable,
+      memberDetailAvailable,
       lines: lines.sort(
         (a, b) =>
           a.groupCode.localeCompare(b.groupCode) ||

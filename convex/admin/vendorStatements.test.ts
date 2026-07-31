@@ -1596,3 +1596,211 @@ describe("vendorStatements — activity trail", () => {
     expect(reissue.summary).toMatch(/Retro term for one member/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Readability of the rollup
+// ---------------------------------------------------------------------------
+
+describe("vendorStatements — statement readability", () => {
+  test("reports the Individual/Family mix even with no member detail", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    // Strip member lines: the mix must still be reportable from the close.
+    await t.run(async (ctx) => {
+      const rows = await ctx.db.query("invoicePeriods").collect();
+      for (const row of rows) {
+        if (row.period === period) {
+          await ctx.db.patch(row._id, { memberLines: undefined });
+        }
+      }
+    });
+
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(statement.memberDetailAvailable).toBe(false);
+    expect(statement.memberLines).toHaveLength(0);
+    // Seeded one $14.99 and one $24.99 primary.
+    expect(statement.individualCount).toBe(1);
+    expect(statement.familyCount).toBe(1);
+    expect(statement.primaryCount).toBe(2);
+    expect(statement.groups[0].individualCount).toBe(1);
+    expect(statement.groups[0].familyCount).toBe(1);
+  });
+
+  test("suppresses the provider code when every organization shares one", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const { year, month, period, midMs } = previousMonth();
+    for (const name of ["Apricus", "Soars"]) {
+      const world = await seedWorld(t, { groupCode: "IDEALDO", groupName: name });
+      await t.run(async (ctx) => {
+        await ctx.db.patch(world.groupId, {
+          listBill: { enabled: true, paymentMethod: "ach" as const },
+        });
+      });
+      await seedPrimary(t, world, {
+        customerId: `c-${name}`,
+        memberId: `MEM-${name}`,
+        totalCents: 1499,
+        createdAt: midMs,
+      });
+    }
+    await asAdmin(t).mutation(api.admin.invoiceCalculator.closePeriodManual, {
+      year,
+      month,
+    });
+
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    // Two organizations, one provider code — the code column earns nothing.
+    expect(statement.groups).toHaveLength(2);
+    expect(statement.groupCodeVaries).toBe(false);
+  });
+
+  test("keeps the provider code when it actually distinguishes rows", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const { year, month, period, midMs } = previousMonth();
+    for (const [code, name] of [
+      ["IDEALDO", "Apricus"],
+      ["NEWIDEAL", "Northwind"],
+    ]) {
+      const world = await seedWorld(t, { groupCode: code, groupName: name });
+      await t.run(async (ctx) => {
+        await ctx.db.patch(world.groupId, {
+          listBill: { enabled: true, paymentMethod: "ach" as const },
+        });
+      });
+      await seedPrimary(t, world, {
+        customerId: `c-${name}`,
+        memberId: `MEM-${name}`,
+        totalCents: 1499,
+        createdAt: midMs,
+      });
+    }
+    await asAdmin(t).mutation(api.admin.invoiceCalculator.closePeriodManual, {
+      year,
+      month,
+    });
+
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(statement.groupCodeVaries).toBe(true);
+  });
+
+  test("names the rep on each organization for a recipient that pays them", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const { year, month, period, midMs } = previousMonth();
+    const rep = await seedRep(t, {
+      name: "Dana Reyes",
+      agencyName: "Southeast Benefits Group",
+    });
+    const world = await seedWorld(t, {
+      groupCode: "IDEALDO",
+      groupName: "Apricus",
+    });
+    await t.run(async (ctx) => {
+      await ctx.db.patch(world.groupId, {
+        listBill: { enabled: true, paymentMethod: "ach" as const },
+        brokerId: rep.leaderId,
+        brokerTrackingCode: "BRK-REYES-01",
+      });
+    });
+    await seedPrimary(t, world, {
+      customerId: "c1",
+      memberId: "MEM-1",
+      totalCents: 1499,
+      createdAt: midMs,
+    });
+    await asAdmin(t).mutation(api.admin.invoiceCalculator.closePeriodManual, {
+      year,
+      month,
+    });
+
+    const ideal = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId: ideal.statementId },
+    );
+    expect(statement.groups[0].repName).toBe("Dana Reyes");
+    expect(statement.groups[0].agencyName).toBe("Southeast Benefits Group");
+
+    // A recipient that does not pay reps is never told who they are.
+    const toothlens = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "toothlens" },
+    );
+    const flat: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId: toothlens.statementId },
+    );
+    expect(JSON.stringify(flat)).not.toContain("Dana Reyes");
+  });
+
+  test("backfilling a close makes an existing statement show member detail", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    await t.run(async (ctx) => {
+      const rows = await ctx.db.query("invoicePeriods").collect();
+      for (const row of rows) {
+        if (row.period === period) {
+          await ctx.db.patch(row._id, { memberLines: undefined });
+        }
+      }
+    });
+
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const before: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(before.memberDetailAvailable).toBe(false);
+    expect(before.memberLines).toHaveLength(0);
+
+    await asAdmin(t).mutation(api.admin.invoiceCalculator.backfillMemberLines, {
+      period,
+    });
+
+    // The SAME statement — not regenerated — now carries the detail.
+    const after: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(after.memberDetailAvailable).toBe(true);
+    expect(after.memberLines).toHaveLength(2);
+    expect(after.totalCents).toBe(before.totalCents);
+
+    // And the verification view follows without regeneration too.
+    const audit: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatementVerification,
+      { statementId },
+    );
+    expect(audit.memberDetailAvailable).toBe(true);
+    expect(audit.lines).toHaveLength(2);
+  });
+});

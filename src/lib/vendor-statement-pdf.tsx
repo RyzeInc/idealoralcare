@@ -226,6 +226,12 @@ function StatementSummary({ doc }: { doc: VendorStatementDocument }) {
         <Text style={s.kvValueBold}>{doc.primaryCount}</Text>
       </View>
       <View style={s.kvRow}>
+        <Text style={s.kvLabel}>Individual / Family:</Text>
+        <Text style={s.kvValue}>
+          {doc.individualCount} / {doc.familyCount}
+        </Text>
+      </View>
+      <View style={s.kvRow}>
         <Text style={s.kvLabel}>Remittance Due:</Text>
         <Text style={s.kvValue}>{formatStatementDate(doc.paymentDueDate)}</Text>
       </View>
@@ -247,7 +253,10 @@ function GroupTable({ doc }: { doc: VendorStatementDocument }) {
       <View style={s.table}>
         <View style={s.tHeader}>
           <Text style={[s.cell, s.colGroupName, s.headerText]}>Organization</Text>
-          <Text style={[s.cell, s.colGroupCode, s.headerText]}>Group Code</Text>
+          {doc.showBroker && (
+            <Text style={[s.cell, s.colGroupCode, s.headerText]}>Rep / Agency</Text>
+          )}
+          <Text style={[s.cell, s.colCount, s.headerText]}>Ind / Fam</Text>
           <Text style={[s.cell, s.colCount, s.headerText]}>Primaries</Text>
           <Text style={[s.cellLast, s.colAmount, s.headerText]}>Amount</Text>
         </View>
@@ -256,12 +265,32 @@ function GroupTable({ doc }: { doc: VendorStatementDocument }) {
             <Text style={[s.cell, s.colGroupName]}>
               {row.groupName}
               {row.organizationCode ? ` (${row.organizationCode})` : ""}
+              {doc.groupCodeVaries ? ` · ${row.groupCode}` : ""}
             </Text>
-            <Text style={[s.cell, s.colGroupCode]}>{row.groupCode}</Text>
+            {doc.showBroker && (
+              <Text style={[s.cell, s.colGroupCode]}>
+                {row.repName ?? "—"}
+                {row.agencyName ? `\n${row.agencyName}` : ""}
+              </Text>
+            )}
+            <Text style={[s.cell, s.colCount]}>
+              {row.individualCount} / {row.familyCount}
+            </Text>
             <Text style={[s.cell, s.colCount]}>{row.primaryCount}</Text>
             <Text style={[s.cellLast, s.colAmount]}>{money(row.amountCents)}</Text>
           </View>
         ))}
+        <View style={s.tFooter} wrap={false}>
+          <Text style={[s.cell, s.colGroupName, s.boldText]}>Total</Text>
+          {doc.showBroker && <Text style={[s.cell, s.colGroupCode]}> </Text>}
+          <Text style={[s.cell, s.colCount, s.boldText]}>
+            {doc.individualCount} / {doc.familyCount}
+          </Text>
+          <Text style={[s.cell, s.colCount, s.boldText]}>{doc.primaryCount}</Text>
+          <Text style={[s.cellLast, s.colAmount, s.boldText]}>
+            {money(doc.subtotalCents)}
+          </Text>
+        </View>
       </View>
     </View>
   );

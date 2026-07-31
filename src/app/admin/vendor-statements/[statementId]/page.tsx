@@ -22,6 +22,7 @@ import {
   Table2,
   Trash2,
   Users,
+  Wrench,
 } from 'lucide-react';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
@@ -311,6 +312,103 @@ function EditModal({
         </div>
       </form>
     </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Member detail missing — explain why, and offer the fix in place
+// ---------------------------------------------------------------------------
+
+function MissingMemberDetail({ period }: { period: string }) {
+  const toast = useToast();
+  const preview = useQuery(
+    api.admin.invoiceCalculator.previewMemberLineBackfill,
+    { period },
+  );
+  const backfill = useMutation(api.admin.invoiceCalculator.backfillMemberLines);
+  const [running, setRunning] = useState(false);
+
+  async function handleRun() {
+    setRunning(true);
+    try {
+      const result = await backfill({ period });
+      toast.success(
+        result.filled > 0
+          ? `Member detail added for ${result.filled} organization(s)`
+          : 'Nothing could be filled — see the reasons listed',
+      );
+    } catch (error) {
+      toast.error((error as Error).message ?? 'Backfill failed');
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <div className="px-6 py-5 space-y-4">
+      <div className="flex gap-3">
+        <AlertTriangle size={18} className="text-amber-500 shrink-0 mt-0.5" />
+        <div className="text-sm text-slate-700">
+          <p className="font-semibold text-slate-900">
+            {period} was closed before per-member lines were recorded
+          </p>
+          <p className="mt-0.5">
+            The totals above are authoritative, but this month has no per-member rows
+            to show — so no members, no rate class per member, and no rep per member.
+            This is a gap in the stored data, not a setting you can switch on.
+          </p>
+        </div>
+      </div>
+
+      {preview === undefined ? (
+        <p className="text-sm text-slate-400">Checking whether it can be rebuilt…</p>
+      ) : (
+        <div className="rounded-md border border-slate-200 overflow-hidden">
+          <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 text-xs text-slate-600">
+            Member lines can be rebuilt for{' '}
+            <strong className="text-slate-800">{preview.fillable}</strong> of{' '}
+            {preview.rows.length} organization(s). Figures are never touched — a rebuild
+            is accepted only where it reproduces the closed totals to the cent.
+          </div>
+          <ul className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
+            {preview.rows.map((row) => (
+              <li
+                key={String(row.periodId)}
+                className="px-4 py-2 flex items-start justify-between gap-3 text-xs"
+              >
+                <span className="text-slate-700">
+                  {row.groupName}
+                  <span className="text-slate-400 font-mono"> · {row.groupCode}</span>
+                </span>
+                <span
+                  className={
+                    row.alreadyHasDetail
+                      ? 'text-slate-400'
+                      : row.reconciles
+                        ? 'text-green-700'
+                        : 'text-amber-700'
+                  }
+                >
+                  {row.detail}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <div className="px-4 py-3 bg-slate-50 border-t border-slate-200">
+            <button
+              onClick={handleRun}
+              disabled={running || preview.fillable === 0}
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+            >
+              <Wrench size={14} />
+              {running
+                ? 'Rebuilding…'
+                : `Rebuild member detail for ${period}`}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -682,7 +780,7 @@ export default function VendorStatementDetailPage({
             width="lg"
           >
             <Link
-              href="/admin/vendor-statements/disclosure"
+              href={`/admin/vendor-statements/disclosure?vendor=${statement.vendor}&return=${id}&label=${encodeURIComponent(statement.statementNumberDisplay)}`}
               className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
             >
               <SlidersHorizontal size={14} /> Contents
@@ -788,7 +886,7 @@ export default function VendorStatementDetailPage({
               ))}
             </ul>
             <Link
-              href="/admin/vendor-statements/activity?kind=contents"
+              href={`/admin/vendor-statements/activity?kind=contents&vendor=${statement.vendor}`}
               className="text-xs font-medium text-amber-900 underline hover:text-amber-700"
             >
               See who changed it and when
@@ -849,6 +947,11 @@ export default function VendorStatementDetailPage({
           <p className="text-sm text-slate-700">
             <span className="text-slate-400">Covered primaries:</span>{' '}
             <strong>{statement.primaryCount}</strong>
+          </p>
+          <p className="text-sm text-slate-700">
+            <span className="text-slate-400">Individual / Family:</span>{' '}
+            <strong>{statement.individualCount}</strong> /{' '}
+            <strong>{statement.familyCount}</strong>
           </p>
           {statement.internalMemo && (
             <p className="text-xs text-slate-500 mt-2 italic">{statement.internalMemo}</p>
@@ -997,7 +1100,19 @@ export default function VendorStatementDetailPage({
                 <tr>
                   <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Organization</th>
                   <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Org Code</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Group Code</th>
+                  {statement.groupCodeVaries && (
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Group Code</th>
+                  )}
+                  {statement.showBroker && (
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Rep / Agency</th>
+                  )}
+                  <th className="px-4 py-2 text-right text-xs font-semibold text-slate-500 uppercase">
+                    <Tooltip text="Primaries on an Individual rate versus a Family rate." width="lg">
+                      <span className="cursor-help border-b border-dashed border-slate-400">
+                        Ind / Fam
+                      </span>
+                    </Tooltip>
+                  </th>
                   <th className="px-4 py-2 text-right text-xs font-semibold text-slate-500 uppercase">Primaries</th>
                   <th className="px-4 py-2 text-right text-xs font-semibold text-slate-500 uppercase">Amount</th>
                 </tr>
@@ -1009,13 +1124,41 @@ export default function VendorStatementDetailPage({
                     <td className="px-4 py-2 font-mono text-slate-500">
                       {row.organizationCode ?? '—'}
                     </td>
-                    <td className="px-4 py-2 font-mono text-slate-500">{row.groupCode}</td>
+                    {statement.groupCodeVaries && (
+                      <td className="px-4 py-2 font-mono text-slate-500">{row.groupCode}</td>
+                    )}
+                    {statement.showBroker && (
+                      <td className="px-4 py-2 text-slate-700">
+                        {row.repName ?? <span className="text-slate-400">—</span>}
+                        {row.agencyName && (
+                          <span className="block text-xs text-slate-400">{row.agencyName}</span>
+                        )}
+                      </td>
+                    )}
+                    <td className="px-4 py-2 text-right text-slate-600 font-mono">
+                      {row.individualCount} / {row.familyCount}
+                    </td>
                     <td className="px-4 py-2 text-right text-slate-700">{row.primaryCount}</td>
                     <td className="px-4 py-2 text-right text-slate-800">
                       {formatCurrency(row.amountCents, { fromCents: true })}
                     </td>
                   </tr>
                 ))}
+                <tr className="bg-slate-50 font-semibold">
+                  <td className="px-4 py-2 text-slate-800">Total</td>
+                  <td className="px-4 py-2" />
+                  {statement.groupCodeVaries && <td className="px-4 py-2" />}
+                  {statement.showBroker && <td className="px-4 py-2" />}
+                  <td className="px-4 py-2 text-right text-slate-700 font-mono">
+                    {statement.individualCount} / {statement.familyCount}
+                  </td>
+                  <td className="px-4 py-2 text-right text-slate-800">
+                    {statement.primaryCount}
+                  </td>
+                  <td className="px-4 py-2 text-right text-slate-900">
+                    {formatCurrency(statement.subtotalCents, { fromCents: true })}
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -1039,11 +1182,7 @@ export default function VendorStatementDetailPage({
             </p>
           )}
         {!statement.memberDetailAvailable ? (
-          <p className="px-6 py-6 text-sm text-slate-500">
-            This coverage month was closed before per-primary lines were frozen. Its totals
-            are authoritative and appear above; the detail is not rebuilt from today&apos;s
-            roster.
-          </p>
+          <MissingMemberDetail period={statement.period} />
         ) : statement.memberLines.length === 0 ? (
           <p className="px-6 py-6 text-sm text-slate-500">
             No covered primaries earned this recipient a payment in {statement.period}.

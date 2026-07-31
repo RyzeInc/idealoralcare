@@ -384,18 +384,51 @@ function BackfillModal({
     period ? { period } : 'skip',
   );
 
+  const [progress, setProgress] = useState<string | null>(null);
+
   async function handleRun() {
     setRunning(true);
     try {
       const result = await backfill({ period });
       toast.success(
-        `Filled member detail for ${result.filled} group(s)` +
+        `Filled member detail for ${result.filled} organization(s)` +
           (result.skipped > 0 ? `, skipped ${result.skipped}` : ''),
       );
       onClose();
     } catch (error) {
       toast.error((error as Error).message ?? 'Backfill failed');
       setRunning(false);
+    }
+  }
+
+  /**
+   * One-time repair across every closed month. Run sequentially, one mutation
+   * per month, rather than as a single server-side loop — each month has to
+   * re-read the whole book to rebuild, and batching them into one transaction
+   * would risk hitting read limits on a large roster.
+   */
+  async function handleRunAll() {
+    setRunning(true);
+    let filled = 0;
+    let skipped = 0;
+    try {
+      for (const [index, item] of periods.entries()) {
+        setProgress(`${item} (${index + 1} of ${periods.length})`);
+        const result = await backfill({ period: item });
+        filled += result.filled;
+        skipped += result.skipped;
+      }
+      toast.success(
+        `Filled ${filled} organization-month(s) across ${periods.length} month(s)` +
+          (skipped > 0 ? `, skipped ${skipped}` : ''),
+      );
+      onClose();
+    } catch (error) {
+      toast.error(
+        `${(error as Error).message ?? 'Backfill failed'} — stopped at ${progress}`,
+      );
+      setRunning(false);
+      setProgress(null);
     }
   }
 
@@ -495,11 +528,23 @@ function BackfillModal({
           </button>
           <button
             type="button"
+            onClick={handleRunAll}
+            disabled={running || periods.length === 0}
+            className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-50"
+          >
+            {running && progress
+              ? `Rebuilding ${progress}…`
+              : `Rebuild all ${periods.length} month(s)`}
+          </button>
+          <button
+            type="button"
             onClick={handleRun}
             disabled={running || !preview || preview.fillable === 0}
             className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
           >
-            {running ? 'Filling…' : `Fill ${preview?.fillable ?? 0} group(s)`}
+            {running && !progress
+              ? 'Rebuilding…'
+              : `Rebuild ${period} (${preview?.fillable ?? 0})`}
           </button>
         </div>
       </div>

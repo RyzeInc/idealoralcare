@@ -26,6 +26,7 @@ const BASE = {
   paymentDueDate: Date.UTC(2026, 6, 2),
   sourceClosedAt: Date.UTC(2026, 5, 1, 0, 5),
   memberDetailAvailable: true,
+  groupCodeVaries: false,
   adjustments: [],
   adjustmentCents: 0,
   amountPaidCents: 0,
@@ -48,6 +49,8 @@ const flatFee: VendorStatementDocument = {
   showAdjustmentDetail: true,
   attributionBasis: "none",
   primaryCount: 2,
+  individualCount: 1,
+  familyCount: 1,
   memberLines: [
     { memberId: "M-1", firstName: "Ada", lastName: "Lovelace", amountCents: 100 },
     { memberId: "M-2", firstName: "Alan", lastName: "Turing", amountCents: 100 },
@@ -73,6 +76,8 @@ const internal: VendorStatementDocument = {
   showAdjustmentDetail: true,
   attributionBasis: "frozen",
   primaryCount: 1,
+  individualCount: 0,
+  familyCount: 1,
   memberLines: [
     {
       memberId: "M-1",
@@ -101,6 +106,8 @@ const internal: VendorStatementDocument = {
       groupName: "Acme Manufacturing",
       organizationCode: "ACME-0042",
       primaryCount: 1,
+      individualCount: 0,
+      familyCount: 1,
       amountCents: 1200,
     },
   ],
@@ -124,7 +131,6 @@ describe("vendor statement exports", () => {
       "First Name",
       "Organization",
       "Org Code",
-      "Group Code",
       "Rate Class",
       "Rep / Broker",
       "Rep Code",

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useMutation, useQuery } from 'convex/react';
 import {
@@ -278,9 +279,13 @@ function ContentsHistory({ vendor }: { vendor: VendorId }) {
 
 function RecipientEditor({
   profile,
+  returnTo,
+  returnLabel,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   profile: any;
+  returnTo: string | null;
+  returnLabel: string | null;
 }) {
   const toast = useToast();
   const update = useMutation(api.admin.vendorStatements.updateDisclosureProfile);
@@ -494,6 +499,14 @@ function RecipientEditor({
             </button>
           </Tooltip>
         )}
+        {returnTo && !dirty && (
+          <Link
+            href={`/admin/vendor-statements/${returnTo}`}
+            className="flex items-center gap-2 px-4 py-2 mt-3 text-sm font-medium text-blue-700 hover:text-blue-900"
+          >
+            <ArrowLeft size={14} /> Back to {returnLabel ?? 'the statement'}
+          </Link>
+        )}
         {dirty && (
           <span className="mt-3 text-xs text-amber-700 flex items-center gap-1">
             <AlertTriangle size={12} /> Unsaved changes
@@ -515,12 +528,29 @@ function RecipientEditor({
 
 export default function DisclosureSettingsPage() {
   const profiles = useQuery(api.admin.vendorStatements.listDisclosureProfiles, {});
-  const [selected, setSelected] = useState<VendorId>('toothlens');
+  const params = useSearchParams();
+
+  // Arriving from a statement: open that recipient and keep a way back to the
+  // document being worked on, so changing a column isn't a one-way trip.
+  const returnTo = params.get('return');
+  const returnLabel = params.get('label');
+  const initialVendor = (params.get('vendor') as VendorId | null) ?? 'toothlens';
+  const [selected, setSelected] = useState<VendorId>(initialVendor);
 
   const active = profiles?.find((p) => p.vendor === selected);
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 space-y-6">
+      {returnTo && (
+        <Link
+          href={`/admin/vendor-statements/${returnTo}`}
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100"
+        >
+          <ArrowLeft size={14} />
+          Back to {returnLabel ?? 'the statement'}
+        </Link>
+      )}
+
       <div>
         <Breadcrumbs
           items={[
@@ -595,6 +625,8 @@ export default function DisclosureSettingsPage() {
               <RecipientEditor
                 key={`${active.vendor}-${active.updatedAt ?? 'default'}`}
                 profile={active}
+                returnTo={returnTo}
+                returnLabel={returnLabel}
               />
             ) : (
               <p className="text-sm text-slate-500">Select a recipient.</p>

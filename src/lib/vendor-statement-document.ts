@@ -34,6 +34,11 @@ export interface VendorStatementGroupRow {
   groupName: string;
   organizationCode?: string | null;
   primaryCount: number;
+  individualCount: number;
+  familyCount: number;
+  repName?: string;
+  repCode?: string;
+  agencyName?: string;
   amountCents: number;
 }
 
@@ -73,6 +78,10 @@ export interface VendorStatementDocument {
 
   // Content
   primaryCount: number;
+  individualCount: number;
+  familyCount: number;
+  /** False when every organization shares one provider code (the usual case). */
+  groupCodeVaries: boolean;
   memberLines: VendorStatementMemberLine[];
   groups: VendorStatementGroupRow[];
   adjustments: VendorStatementAdjustmentRow[];
@@ -198,7 +207,10 @@ export interface Table {
  */
 export function memberDetailTable(doc: VendorStatementDocument): Table {
   const header = ["Member ID", "Last Name", "First Name"];
-  if (doc.showGroups) header.push("Organization", "Org Code", "Group Code");
+  if (doc.showGroups) {
+    header.push("Organization", "Org Code");
+    if (doc.groupCodeVaries) header.push("Group Code");
+  }
   if (doc.showTier) header.push("Rate Class");
   // Placed before Amount so a payout run reads member → who sold them → what
   // was earned, left to right.
@@ -220,11 +232,8 @@ export function memberDetailTable(doc: VendorStatementDocument): Table {
   const rows: Row[] = doc.memberLines.map((line) => {
     const row: Row = [line.memberId, line.lastName, line.firstName];
     if (doc.showGroups) {
-      row.push(
-        line.groupName ?? "",
-        line.organizationCode ?? "",
-        line.groupCode ?? "",
-      );
+      row.push(line.groupName ?? "", line.organizationCode ?? "");
+      if (doc.groupCodeVaries) row.push(line.groupCode ?? "");
     }
     if (doc.showTier) row.push(line.rateClass ?? "");
     if (doc.showBroker) {
@@ -254,22 +263,32 @@ export function memberDetailTable(doc: VendorStatementDocument): Table {
 
 /** Group rollup — only ever populated for the internal carrier statement. */
 export function groupTable(doc: VendorStatementDocument): Table {
-  return {
-    header: [
-      "Organization",
-      "Org Code",
-      "Group Code",
-      "Covered Primaries",
-      "Amount",
-    ],
-    rows: doc.groups.map((g) => [
-      g.groupName,
-      g.organizationCode ?? "",
-      g.groupCode,
-      g.primaryCount,
-      g.amountCents / 100,
-    ]),
-  };
+  const header = ["Organization", "Org Code"];
+  if (doc.groupCodeVaries) header.push("Group Code");
+  if (doc.showBroker) header.push("Rep / Broker", "Agency");
+  header.push("Individual", "Family", "Covered Primaries", "Amount");
+
+  const rows: Row[] = doc.groups.map((g) => {
+    const row: Row = [g.groupName, g.organizationCode ?? ""];
+    if (doc.groupCodeVaries) row.push(g.groupCode);
+    if (doc.showBroker) row.push(g.repName ?? "", g.agencyName ?? "");
+    row.push(g.individualCount, g.familyCount, g.primaryCount, g.amountCents / 100);
+    return row;
+  });
+
+  // A total row so the rollup foots on its own.
+  const total: Row = ["Total", ""];
+  if (doc.groupCodeVaries) total.push("");
+  if (doc.showBroker) total.push("", "");
+  total.push(
+    doc.individualCount,
+    doc.familyCount,
+    doc.primaryCount,
+    doc.subtotalCents / 100,
+  );
+  rows.push(total);
+
+  return { header, rows };
 }
 
 /** Cover-sheet facts: what this document is and what it settles. */
@@ -284,6 +303,8 @@ export function summaryTable(doc: VendorStatementDocument): Table {
     ["Remittance Due", formatStatementDate(doc.paymentDueDate)],
     ["Basis of Payment", doc.basis],
     ["Covered Primaries", doc.primaryCount],
+    ["Individual Rate", doc.individualCount],
+    ["Family Rate", doc.familyCount],
     ["Subtotal", doc.subtotalCents / 100],
   ];
   if (doc.showBroker && doc.attributionBasis !== "none") {
