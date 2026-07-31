@@ -253,10 +253,36 @@ async function computeLiveBreakdown(
   const [groups, accounts, allBundles, activeMembers, enrollingMembers, eligibleMembers] = await Promise.all([
     ctx.db.query("groups").collect(),
     ctx.db.query("accounts").collect(),
-    // Only active bundles determine a member's billable tier.
-    ctx.db.query("subscriptionBundles")
-      .withIndex("by_status", (q) => q.eq("status", "active"))
-      .collect(),
+    // Which bundles counted for this period.
+    //
+    // Live mode wants what is active right now. A point-in-time rebuild wants
+    // what was active THEN: a member who cancelled in August was still a
+    // paying member in June, and reading only today's active bundles silently
+    // drops them — which is exactly how a rebuilt month ends up short of the
+    // figures it was closed with.
+    asOfMs === undefined
+      ? ctx.db
+          .query("subscriptionBundles")
+          .withIndex("by_status", (q) => q.eq("status", "active"))
+          .collect()
+      : Promise.all(
+          (["active", "cancel_at_period_end", "cancelled"] as const).map(
+            (status) =>
+              ctx.db
+                .query("subscriptionBundles")
+                .withIndex("by_status", (q) => q.eq("status", status))
+                .collect(),
+          ),
+        ).then((batches) =>
+          batches
+            .flat()
+            // Ended before the period closed out → it would not have been in
+            // the active set at close time either, so leave it out.
+            .filter(
+              (bundle) =>
+                bundle.cancelledAt === undefined || bundle.cancelledAt >= asOfMs,
+            ),
+        ),
     // Active members — on a paying plan or list-bill.
     ctx.db.query("memberProfiles")
       .withIndex("by_member_type", (q) => q.eq("memberType", "active"))
@@ -277,6 +303,25 @@ async function computeLiveBreakdown(
 
   // Merge active + enrolling + eligible into one list (all contribute to billing).
   let allMembers = [...activeMembers, ...enrollingMembers, ...eligibleMembers];
+
+  // Rebuilding a past month also has to consider people who have since gone
+  // inactive or been terminated — they were on the roster at the time. Whether
+  // they actually bill is still decided by the bundle/household gates below,
+  // so someone who genuinely left before the period ends up at tier "none"
+  // and contributes nothing.
+  if (asOfMs !== undefined) {
+    const [inactiveMembers, terminatedMembers] = await Promise.all([
+      ctx.db
+        .query("memberProfiles")
+        .withIndex("by_member_type", (q) => q.eq("memberType", "inactive"))
+        .collect(),
+      ctx.db
+        .query("memberProfiles")
+        .withIndex("by_member_type", (q) => q.eq("memberType", "terminated"))
+        .collect(),
+    ]);
+    allMembers = [...allMembers, ...inactiveMembers, ...terminatedMembers];
+  }
 
   // Point-in-time gate (closePeriod path only — see doc comment above).
   if (asOfMs !== undefined) {

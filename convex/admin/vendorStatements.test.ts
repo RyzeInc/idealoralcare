@@ -2043,3 +2043,147 @@ describe("vendorStatements — naming the primaries", () => {
     expect(entry.summary).toMatch(/Retro term effective the 1st/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Point-in-time fidelity of a rebuild
+// ---------------------------------------------------------------------------
+
+describe("invoiceCalculator — rebuilding a month people have since left", () => {
+  test("a member who cancelled AFTER the month is still rebuilt into it", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const world = await seedWorld(t, {
+      groupCode: "IDEALDO",
+      groupName: "Individual Enrollment",
+    });
+    const { year, month, period, midMs } = previousMonth();
+    const periodEndMs = Date.UTC(year, month, 1);
+
+    // Three self-pay primaries during the month.
+    for (const n of [1, 2, 3]) {
+      await seedPrimary(t, world, {
+        customerId: `self-${n}`,
+        memberId: `MEM-SELF-${n}`,
+        totalCents: 1499,
+        createdAt: midMs,
+      });
+    }
+    await asAdmin(t).mutation(api.admin.invoiceCalculator.closePeriodManual, {
+      year,
+      month,
+    });
+
+    const closedGross = await t.run(async (ctx) => {
+      const rows = await ctx.db.query("invoicePeriods").collect();
+      return rows
+        .filter((r) => r.period === period)
+        .reduce((n, r) => n + r.grossCents, 0);
+    });
+    expect(closedGross).toBe(3 * 1499);
+
+    // Two of them cancel a month later, and the member records go terminated.
+    await t.run(async (ctx) => {
+      const bundles = await ctx.db.query("subscriptionBundles").collect();
+      for (const bundle of bundles) {
+        if (bundle.customerId === "self-2" || bundle.customerId === "self-3") {
+          await ctx.db.patch(bundle._id, {
+            status: "cancelled",
+            cancelledAt: periodEndMs + 20 * 86_400_000,
+          });
+        }
+      }
+      const members = await ctx.db.query("memberProfiles").collect();
+      for (const member of members) {
+        if (member.customerId === "self-2" || member.customerId === "self-3") {
+          await ctx.db.patch(member._id, { memberType: "terminated" });
+        }
+      }
+    });
+
+    // Strip the detail, as a close written before member lines existed.
+    await t.run(async (ctx) => {
+      const rows = await ctx.db.query("invoicePeriods").collect();
+      for (const row of rows) {
+        if (row.period === period) {
+          await ctx.db.patch(row._id, { memberLines: undefined });
+        }
+      }
+    });
+
+    // The rebuild reproduces the month as it actually was, cancellations and
+    // terminations notwithstanding.
+    const preview: any = await asAdmin(t).query(
+      api.admin.invoiceCalculator.previewMemberLineBackfill,
+      { period },
+    );
+    expect(preview.blocked).toBe(0);
+    expect(preview.fillable).toBe(1);
+
+    await asAdmin(t).mutation(api.admin.invoiceCalculator.backfillMemberLines, {
+      period,
+    });
+
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(statement.memberDetailComplete).toBe(true);
+    expect(statement.memberLines).toHaveLength(3);
+    expect(statement.memberLines.map((l: any) => l.memberId).sort()).toEqual([
+      "MEM-SELF-1",
+      "MEM-SELF-2",
+      "MEM-SELF-3",
+    ]);
+  });
+
+  test("a member who cancelled DURING the month is not resurrected into it", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const world = await seedWorld(t, { groupName: "Individual Enrollment" });
+    const { year, month, period, midMs } = previousMonth();
+
+    await seedPrimary(t, world, {
+      customerId: "stayer",
+      memberId: "MEM-STAY",
+      totalCents: 1499,
+      createdAt: midMs,
+    });
+    await seedPrimary(t, world, {
+      customerId: "leaver",
+      memberId: "MEM-LEAVE",
+      totalCents: 1499,
+      createdAt: midMs,
+    });
+    // Cancelled before the month ended — never part of that close.
+    await t.run(async (ctx) => {
+      const bundles = await ctx.db.query("subscriptionBundles").collect();
+      for (const bundle of bundles) {
+        if (bundle.customerId === "leaver") {
+          await ctx.db.patch(bundle._id, {
+            status: "cancelled",
+            cancelledAt: Date.UTC(year, month - 1, 20),
+          });
+        }
+      }
+    });
+
+    await asAdmin(t).mutation(api.admin.invoiceCalculator.closePeriodManual, {
+      year,
+      month,
+    });
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(statement.memberLines).toHaveLength(1);
+    expect(statement.memberLines[0].memberId).toBe("MEM-STAY");
+  });
+});

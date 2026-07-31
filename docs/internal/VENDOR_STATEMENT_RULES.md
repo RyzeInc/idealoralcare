@@ -164,6 +164,49 @@ buckets. If they match, the reconstruction provably yields the figures that
 were closed. If they don't, the group is skipped and named — never patched,
 never hand-reconciled. Totals, `payloadHash`, and `closedAt` are never written.
 
+### The rebuild is point-in-time, not "today"
+
+`computeLiveBreakdown(ctx, asOfMs)` reconstructs the roster as it stood at
+`asOfMs`, which matters far more for a rebuild months later than it does for a
+close run the morning after month end:
+
+- **Bundles.** Live mode reads only `status: "active"`. A rebuild also reads
+  `cancel_at_period_end` and `cancelled`, keeping any bundle whose
+  `cancelledAt` is on or after the period end. Someone who cancelled in August
+  was still a paying member in June; reading only today's active bundles drops
+  them and the month rebuilds short.
+- **Members.** A rebuild additionally reads `inactive` and `terminated`
+  profiles. Whether they actually bill is still decided by the bundle and
+  household gates, so someone who genuinely left before the period lands at
+  tier `none` and contributes nothing.
+- Anyone whose bundle ended *during* the period stays out, because they were
+  not in the active set at close time either.
+
+Both directions are covered by tests. Before this, a month with post-period
+churn could never reconcile, which meant its members could never be named.
+
+### Partial detail is shown, not suppressed
+
+Member detail is resolved **per organization**. One organization whose close
+cannot be rebuilt does not hide the names belonging to every other
+organization on the statement. When the list is partial, the statement, the
+PDF, and the exports all say how many primaries are counted in the totals but
+not itemized, and which organizations they belong to.
+
+## Leaving a primary off a statement
+
+`excludeMemberFromStatement` removes a specific primary — a duplicate, someone
+billed in error, a term that landed after the close. The line disappears and
+its amount comes off the subtotal, the covered-primary count, and the
+Individual/Family mix, so the document still foots.
+
+- A reason is required and is written to the activity trail.
+- The exclusion is stored as a list on the statement, not a deletion, so
+  `restoreMemberToStatement` is lossless.
+- **Draft only.** Once issued, the recipient holds a copy with a total on it;
+  changing that total silently would put the two out of sync. Void and reissue
+  instead — the reissue picks the exclusion up.
+
 ## Rep / broker attribution
 
 `convex/lib/repAttribution.ts` is the shared resolver, used by both the member
