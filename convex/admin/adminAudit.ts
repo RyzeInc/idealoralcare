@@ -28,8 +28,25 @@ export const record = internalMutation({
     metadata: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
+    // Denormalize the actor's name and role at write time when the caller
+    // didn't supply them. An audit trail that reads "user_2abc…" is a lot less
+    // useful six months later than one that reads "Dylan Nelson", and the
+    // adminUsers row can change or disappear after the fact.
+    let { actorName, actorRole } = args;
+    if (!actorName || !actorRole) {
+      const admin = await ctx.db
+        .query("adminUsers")
+        .withIndex("by_clerk_id", (q: any) =>
+          q.eq("clerkUserId", args.actorClerkUserId),
+        )
+        .first();
+      actorName = actorName ?? admin?.name;
+      actorRole = actorRole ?? admin?.role;
+    }
     return await ctx.db.insert("adminAuditLog", {
       ...args,
+      actorName,
+      actorRole,
       createdAt: Date.now(),
     });
   },

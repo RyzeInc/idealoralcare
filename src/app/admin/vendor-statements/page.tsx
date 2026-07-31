@@ -17,8 +17,10 @@ import {
   Filter,
   Layers,
   Plus,
+  ScrollText,
   SlidersHorizontal,
   Table2,
+  Wrench,
 } from 'lucide-react';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
@@ -362,6 +364,150 @@ function GenerateMonthModal({
 }
 
 // ---------------------------------------------------------------------------
+// Member-detail backfill — for months closed before per-member lines existed
+// ---------------------------------------------------------------------------
+
+function BackfillModal({
+  periods,
+  onClose,
+}: {
+  periods: string[];
+  onClose: () => void;
+}) {
+  const toast = useToast();
+  const backfill = useMutation(api.admin.invoiceCalculator.backfillMemberLines);
+  const [period, setPeriod] = useState(periods[0] ?? '');
+  const [running, setRunning] = useState(false);
+
+  const preview = useQuery(
+    api.admin.invoiceCalculator.previewMemberLineBackfill,
+    period ? { period } : 'skip',
+  );
+
+  async function handleRun() {
+    setRunning(true);
+    try {
+      const result = await backfill({ period });
+      toast.success(
+        `Filled member detail for ${result.filled} group(s)` +
+          (result.skipped > 0 ? `, skipped ${result.skipped}` : ''),
+      );
+      onClose();
+    } catch (error) {
+      toast.error((error as Error).message ?? 'Backfill failed');
+      setRunning(false);
+    }
+  }
+
+  return (
+    <Modal
+      open
+      title="Add Member Detail to a Closed Month"
+      description="Rebuilds the per-member lines for a month that was closed before they were recorded."
+      size="max-w-2xl"
+      onClose={onClose}
+    >
+      <div className="space-y-4 p-1">
+        <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
+          <p className="font-semibold">Money is never touched</p>
+          <p>
+            Member lines are attached only where the rebuilt roster reproduces the
+            closed totals to the cent. Any group that does not reconcile is skipped
+            and listed, never adjusted. Totals, hashes, and close metadata are left
+            exactly as they are.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Coverage Month
+          </label>
+          <select
+            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500"
+            value={period}
+            onChange={(event) => setPeriod(event.target.value)}
+          >
+            {periods.map((item) => (
+              <option key={item} value={item}>{item}</option>
+            ))}
+          </select>
+        </div>
+
+        {preview === undefined ? (
+          <p className="text-sm text-slate-400">Checking…</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 gap-3 text-sm">
+              <div className="rounded-md border border-green-200 bg-green-50 px-3 py-2">
+                <p className="text-xs text-green-800">Can be filled</p>
+                <p className="text-xl font-bold text-green-900">{preview.fillable}</p>
+              </div>
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+                <p className="text-xs text-amber-800">Will be skipped</p>
+                <p className="text-xl font-bold text-amber-900">{preview.blocked}</p>
+              </div>
+              <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="text-xs text-slate-600">Already have detail</p>
+                <p className="text-xl font-bold text-slate-800">{preview.untouched}</p>
+              </div>
+            </div>
+            <div className="max-h-64 overflow-y-auto rounded-md border border-slate-200">
+              <table className="min-w-full text-xs">
+                <thead className="bg-slate-50 sticky top-0">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-semibold text-slate-500 uppercase">Organization</th>
+                    <th className="px-3 py-2 text-left font-semibold text-slate-500 uppercase">Outcome</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {preview.rows.map((row) => (
+                    <tr key={String(row.periodId)}>
+                      <td className="px-3 py-1.5 text-slate-700">
+                        {row.groupName}
+                        <span className="text-slate-400 font-mono"> · {row.groupCode}</span>
+                      </td>
+                      <td
+                        className={`px-3 py-1.5 ${
+                          row.alreadyHasDetail
+                            ? 'text-slate-400'
+                            : row.reconciles
+                              ? 'text-green-700'
+                              : 'text-amber-700'
+                        }`}
+                      >
+                        {row.detail}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        <div className="flex justify-end gap-3 pt-1">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleRun}
+            disabled={running || !preview || preview.fillable === 0}
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+          >
+            {running ? 'Filling…' : `Fill ${preview?.fillable ?? 0} group(s)`}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -373,6 +519,7 @@ export default function VendorStatementsPage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [showGenerate, setShowGenerate] = useState(false);
   const [showGenerateMonth, setShowGenerateMonth] = useState(false);
+  const [showBackfill, setShowBackfill] = useState(false);
 
   const periods = useQuery(api.admin.vendorStatements.listStatementPeriods);
   const statements = useQuery(api.admin.vendorStatements.listStatements, {
@@ -447,6 +594,18 @@ export default function VendorStatementsPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Tooltip
+            text="Every change to what partners are shown, sent, and paid — who made it and when."
+            width="lg"
+          >
+            <Link
+              href="/admin/vendor-statements/activity"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
+            >
+              <ScrollText size={14} />
+              Activity
+            </Link>
+          </Tooltip>
+          <Tooltip
             text="Choose what each recipient is shown on their statement — employer group, rate class, rep attribution — and save it as their default."
             width="lg"
           >
@@ -469,6 +628,19 @@ export default function VendorStatementsPage() {
             >
               <Layers size={14} />
               Generate Month
+            </button>
+          </Tooltip>
+          <Tooltip
+            text="Months closed before per-member lines were recorded show totals only. This rebuilds their member and rep detail without touching any figure."
+            width="lg"
+          >
+            <button
+              onClick={() => setShowBackfill(true)}
+              disabled={periodKeys.length === 0}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-50"
+            >
+              <Wrench size={14} />
+              Add Member Detail
             </button>
           </Tooltip>
           <Tooltip text="Cut a draft statement for a single recipient and coverage month." width="lg">
@@ -764,6 +936,9 @@ export default function VendorStatementsPage() {
           periods={periodKeys}
           onClose={() => setShowGenerate(false)}
         />
+      )}
+      {showBackfill && (
+        <BackfillModal periods={periodKeys} onClose={() => setShowBackfill(false)} />
       )}
       {showGenerateMonth && periods && (
         <GenerateMonthModal

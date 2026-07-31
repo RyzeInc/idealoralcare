@@ -18,6 +18,7 @@ import {
   Send,
   Settings2,
   ShieldCheck,
+  SlidersHorizontal,
   Table2,
   Trash2,
   Users,
@@ -676,6 +677,17 @@ export default function VendorStatementDetailPage({
               <CreditCard size={14} /> Record Remittance
             </button>
           )}
+          <Tooltip
+            text="Change what this recipient is shown on their statements — employer group, rate class, rep attribution. Applies to statements generated from now on."
+            width="lg"
+          >
+            <Link
+              href="/admin/vendor-statements/disclosure"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
+            >
+              <SlidersHorizontal size={14} /> Contents
+            </Link>
+          </Tooltip>
           {!isVoided && (
             <button
               onClick={() => setShowEdit(true)}
@@ -755,6 +767,33 @@ export default function VendorStatementDetailPage({
       {statement.replacesNumber && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
           This statement replaces {statement.replacesNumber}.
+        </div>
+      )}
+      {statement.disclosureDrift.length > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 flex gap-3">
+          <SlidersHorizontal className="text-amber-600 shrink-0" size={20} />
+          <div className="text-sm text-amber-900">
+            <p className="font-semibold">
+              Contents changed since this statement was generated
+            </p>
+            <p>
+              It now renders under {statement.vendorName}&apos;s current settings, so a
+              fresh download will not match the copy sent on{' '}
+              {formatDate(statement.statementDate)}. Figures are unaffected — only
+              which columns appear.
+            </p>
+            <ul className="mt-1 space-y-0.5">
+              {statement.disclosureDrift.map((change: string) => (
+                <li key={change} className="text-xs font-mono">{change}</li>
+              ))}
+            </ul>
+            <Link
+              href="/admin/vendor-statements/activity?kind=contents"
+              className="text-xs font-medium text-amber-900 underline hover:text-amber-700"
+            >
+              See who changed it and when
+            </Link>
+          </div>
         </div>
       )}
       {statement.unappliedAdjustments.length > 0 && !isVoided && (
@@ -837,7 +876,7 @@ export default function VendorStatementDetailPage({
           </p>
           <p className="text-sm text-slate-700">
             <Tooltip
-              text="The disclosure settings frozen onto this statement when it was cut. Changing a recipient's settings later shapes future statements and never reshapes this one."
+              text="What this statement currently shows. These follow the recipient's live settings — change them under Contents and this document updates immediately."
               width="lg"
             >
               <span className="cursor-help border-b border-dashed border-slate-400 text-slate-400">
@@ -956,17 +995,21 @@ export default function VendorStatementDetailPage({
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Group</th>
                   <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Organization</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Org Code</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Group Code</th>
                   <th className="px-4 py-2 text-right text-xs font-semibold text-slate-500 uppercase">Primaries</th>
                   <th className="px-4 py-2 text-right text-xs font-semibold text-slate-500 uppercase">Amount</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {statement.groups.map((row) => (
-                  <tr key={`${row.groupCode}-${row.groupName}`}>
-                    <td className="px-4 py-2 font-mono text-slate-700">{row.groupCode}</td>
-                    <td className="px-4 py-2 text-slate-700">{row.groupName}</td>
+                {statement.groups.map((row, index) => (
+                  <tr key={`${row.groupCode}-${row.groupName}-${index}`}>
+                    <td className="px-4 py-2 text-slate-800 font-medium">{row.groupName}</td>
+                    <td className="px-4 py-2 font-mono text-slate-500">
+                      {row.organizationCode ?? '—'}
+                    </td>
+                    <td className="px-4 py-2 font-mono text-slate-500">{row.groupCode}</td>
                     <td className="px-4 py-2 text-right text-slate-700">{row.primaryCount}</td>
                     <td className="px-4 py-2 text-right text-slate-800">
                       {formatCurrency(row.amountCents, { fromCents: true })}
@@ -1013,7 +1056,9 @@ export default function VendorStatementDetailPage({
                   <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Member ID</th>
                   <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Member</th>
                   {statement.showGroups && (
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Group</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">
+                      Organization
+                    </th>
                   )}
                   {statement.showTier && (
                     <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Rate Class</th>
@@ -1034,7 +1079,15 @@ export default function VendorStatementDetailPage({
                       {line.lastName}, {line.firstName}
                     </td>
                     {statement.showGroups && (
-                      <td className="px-4 py-2 font-mono text-slate-600">{line.groupCode}</td>
+                      <td className="px-4 py-2 text-slate-700">
+                        {line.groupName}
+                        {line.groupCode && line.groupCode !== 'DIRECT' && (
+                          <span className="block text-xs text-slate-400 font-mono">
+                            {line.groupCode}
+                            {line.organizationCode ? ` · ${line.organizationCode}` : ''}
+                          </span>
+                        )}
+                      </td>
                     )}
                     {statement.showTier && (
                       <td className="px-4 py-2 text-slate-600">{line.rateClass}</td>

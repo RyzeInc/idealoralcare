@@ -76,16 +76,33 @@ XLSX, or the admin UI — can leak them.
 | Full revenue split | on / off | **Refused for any external recipient** — server-side, not just hidden in the UI. It would disclose what other partners are paid. |
 | Itemized adjustments | on / off | Off still shows the net adjustment in the totals. |
 
-### Two rules that make editing safe
+### Disclosure resolves live
 
-1. **Statements freeze their profile.** Every statement stores the disclosure
-   it was cut under in `vendorStatements.disclosure`, and `getStatement` reads
-   that frozen copy — never today's profile. Changing settings shapes future
-   statements and cannot reshape one already sent. To apply new settings to a
-   month already statemented, reissue it.
-2. **`fullSplit` is refused for external recipients** in
-   `updateDisclosureProfile`, so no amount of configuration can leak one
-   partner's economics to another.
+`getStatement` reads the recipient's **current** profile, so changing a setting
+re-shapes every document for them immediately — existing statements included,
+no reissue needed. A PDF downloaded after a settings change reflects the change.
+
+This is safe because **disclosure is presentation only**. It decides which
+columns appear and nothing else: the member set, every amount, the adjustments,
+and the totals stay pinned to `sourcePeriodIds` and `adjustmentIds` and cannot
+be moved by any setting. There is a test asserting that opening a recipient's
+settings all the way up leaves every figure on an issued statement identical.
+
+What *is* at stake is that a reprint can stop matching the copy a partner was
+sent. So each statement still records the profile it was generated under, and
+`getStatement` returns:
+
+- `generatedUnderDisclosure` — the profile in force when it was cut
+- `disclosureDrift` — a field-by-field list of how today's settings differ
+
+The statement detail page shows an amber banner listing that drift. Nothing
+changes silently.
+
+### One setting is not configurable
+
+**`fullSplit` is refused for external recipients** in
+`updateDisclosureProfile` — server-side, not just disabled in the UI. No amount
+of configuration can leak one partner's economics to another.
 
 Every profile change is written to the admin audit log with a field-by-field
 before → after summary.
@@ -115,6 +132,37 @@ Notes:
   with no payout obligation sees none of this.
 - Documents never announce what was withheld. A field a recipient may not see
   is simply absent — no "hidden", no "not disclosed", no empty column.
+
+## Organizations vs. group codes
+
+`groupCode` is the **provider** code required by Careington/DialCare (e.g.
+`IDEALDO`). It is deliberately shared: many organizations sit under one code.
+The organization itself is the `groups` row — its `name` and optional
+`organizationCode`.
+
+Group rollups therefore key on **`groupId`, never `groupCode`**. Keying on the
+code merges every organization under `IDEALDO` into a single line, which is
+both wrong and silently wrong — the totals still foot, so nothing looks broken.
+`buildGroupRows` has a regression test covering two organizations that share a
+provider code.
+
+Statements lead with the organization; the provider code is a secondary
+column. The one intentional merge is direct enrollments under
+`groupVisibility: "listBillOnly"` — every self-pay group collapses into a
+single "Direct enrollment" row and sorts last.
+
+## Backfilling member detail
+
+Months closed before `memberLines` shipped hold authoritative totals but no
+per-member rows, so their statements can only be aggregate — no members, no
+reps. `previewMemberLineBackfill` (dry run) and `backfillMemberLines` fill that
+gap, reachable from **Add Member Detail** on the vendor statements index.
+
+The safety rule: member lines are attached to a close only where the rebuilt
+roster reproduces that group's frozen totals **to the cent** across all five
+buckets. If they match, the reconstruction provably yields the figures that
+were closed. If they don't, the group is skipped and named — never patched,
+never hand-reconciled. Totals, `payloadHash`, and `closedAt` are never written.
 
 ## Rep / broker attribution
 
@@ -146,6 +194,34 @@ happened is always reported as `attributionBasis`:
 
 The statement, the exports, and the admin screen all state the basis. A payout
 run should treat anything other than `frozen` as needing a second look.
+
+## Activity trail
+
+Fourteen actions are written to `adminAuditLog` and surfaced together at
+`/admin/vendor-statements/activity` via `listStatementActivity`, grouped by
+what the entry affects:
+
+| Kind | Covers |
+|---|---|
+| **Contents** | `disclosure_update`, `disclosure_reset` — with a field-by-field before → after list |
+| **Lifecycle** | generate, generate_period, issue, issue_period, reissue, void, unvoid, edit |
+| **Money** | remittances paid out, adjustments recorded against a closed month |
+| **Underlying data** | coverage month closes, member-detail backfills |
+
+Notes:
+
+- The action list in `STATEMENT_ACTIONS` is explicit rather than a
+  `vendor_statement.*` prefix match, so a newly added action has to be
+  consciously registered. A silent omission would be a hole in the trail.
+- `adminAudit.record` denormalizes the actor's name and role at write time, so
+  the trail reads "Dylan Nelson (owner)" rather than a raw Clerk id, and stays
+  readable if the `adminUsers` row later changes or is removed.
+- Statement-scoped entries resolve back to the recipient and statement number,
+  and link to the statement.
+- The per-recipient slice appears inline on the Contents settings page, so you
+  can see a recipient's change history while editing it.
+- The trail is append-only: entries are written by the system and there is no
+  code path that edits or deletes one.
 
 ## Internal verification
 

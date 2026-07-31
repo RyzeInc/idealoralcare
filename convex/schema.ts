@@ -1964,10 +1964,10 @@ export default defineSchema({
    * What each recipient is shown on their statement. One row per recipient;
    * absent rows fall back to the code defaults in `vendorStatements.ts`.
    *
-   * Editing a profile changes what FUTURE statements contain. Statements
-   * already generated carry their own frozen copy (`vendorStatements.
-   * disclosure`) and are never reshaped by a later settings change — an
-   * already-sent document must keep saying what it said.
+   * Editing a profile takes effect immediately, including on reprints of
+   * statements already generated: disclosure decides which columns appear, not
+   * what anything is worth. Each statement still records the profile it was
+   * cut under (`vendorStatements.disclosure`) so drift can be reported.
    */
   vendorStatementDisclosureProfiles: defineTable({
     vendor: v.union(
@@ -2091,10 +2091,11 @@ export default defineSchema({
     // statements print frozen totals only and are never reconstructed.
     memberDetailAvailable: v.boolean(),
 
-    // The disclosure profile in force when this statement was cut. Frozen so
-    // editing a recipient's settings later cannot reshape a document that has
-    // already gone out. Absent on statements generated before profiles
-    // existed; those fall back to the code defaults.
+    // The disclosure profile in force when this statement was cut. Documents
+    // render from the recipient's CURRENT profile, not this — disclosure is
+    // presentation only and never moves a figure. This is kept as the record
+    // of what the recipient was originally sent, so a later settings change
+    // can be reported as drift instead of passing unnoticed.
     disclosure: v.optional(v.object({
       memberDetail: v.boolean(),
       groupVisibility: v.union(

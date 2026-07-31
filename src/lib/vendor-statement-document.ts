@@ -15,6 +15,7 @@ export interface VendorStatementMemberLine {
   amountCents: number;
   groupCode?: string;
   groupName?: string;
+  organizationCode?: string;
   rateClass?: string;
   repName?: string;
   repCode?: string;
@@ -31,6 +32,7 @@ export interface VendorStatementMemberLine {
 export interface VendorStatementGroupRow {
   groupCode: string;
   groupName: string;
+  organizationCode?: string | null;
   primaryCount: number;
   amountCents: number;
 }
@@ -196,7 +198,7 @@ export interface Table {
  */
 export function memberDetailTable(doc: VendorStatementDocument): Table {
   const header = ["Member ID", "Last Name", "First Name"];
-  if (doc.showGroups) header.push("Group Code", "Group");
+  if (doc.showGroups) header.push("Organization", "Org Code", "Group Code");
   if (doc.showTier) header.push("Rate Class");
   // Placed before Amount so a payout run reads member → who sold them → what
   // was earned, left to right.
@@ -217,7 +219,13 @@ export function memberDetailTable(doc: VendorStatementDocument): Table {
 
   const rows: Row[] = doc.memberLines.map((line) => {
     const row: Row = [line.memberId, line.lastName, line.firstName];
-    if (doc.showGroups) row.push(line.groupCode ?? "", line.groupName ?? "");
+    if (doc.showGroups) {
+      row.push(
+        line.groupName ?? "",
+        line.organizationCode ?? "",
+        line.groupCode ?? "",
+      );
+    }
     if (doc.showTier) row.push(line.rateClass ?? "");
     if (doc.showBroker) {
       row.push(
@@ -247,10 +255,17 @@ export function memberDetailTable(doc: VendorStatementDocument): Table {
 /** Group rollup — only ever populated for the internal carrier statement. */
 export function groupTable(doc: VendorStatementDocument): Table {
   return {
-    header: ["Group Code", "Group", "Covered Primaries", "Amount"],
+    header: [
+      "Organization",
+      "Org Code",
+      "Group Code",
+      "Covered Primaries",
+      "Amount",
+    ],
     rows: doc.groups.map((g) => [
-      g.groupCode,
       g.groupName,
+      g.organizationCode ?? "",
+      g.groupCode,
       g.primaryCount,
       g.amountCents / 100,
     ]),
@@ -370,6 +385,7 @@ export function periodStatementsToCsv(docs: VendorStatementDocument[]): string {
     "Member ID",
     "Last Name",
     "First Name",
+    "Organization",
     "Group Code",
     "Rate Class",
     "Rep / Broker",
@@ -393,6 +409,7 @@ export function periodStatementsToCsv(docs: VendorStatementDocument[]): string {
         "",
         "",
         "",
+        "",
         doc.subtotalCents / 100,
       ]);
       continue;
@@ -406,6 +423,7 @@ export function periodStatementsToCsv(docs: VendorStatementDocument[]): string {
         line.memberId,
         line.lastName,
         line.firstName,
+        doc.showGroups ? (line.groupName ?? "") : "",
         doc.showGroups ? (line.groupCode ?? "") : "",
         doc.showTier ? (line.rateClass ?? "") : "",
         doc.showBroker ? (line.repName ?? "") : "",

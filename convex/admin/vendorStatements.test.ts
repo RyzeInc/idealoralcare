@@ -1039,7 +1039,7 @@ describe("vendorStatements — disclosure profiles", () => {
     expect(toothlens.note).toMatch(/employer book/);
   });
 
-  test("a changed profile shapes the next statement", async () => {
+  test("a changed profile shapes the statements generated after it", async () => {
     const t = convexTest(schema);
     const { period } = await seedClosedMonth(t);
 
@@ -1067,7 +1067,7 @@ describe("vendorStatements — disclosure profiles", () => {
     expect(statement.memberLines[0].rateClass).toBeDefined();
   });
 
-  test("editing a profile never reshapes a statement already issued", async () => {
+  test("a settings change reshapes an existing statement and reports the drift", async () => {
     const t = convexTest(schema);
     const { period } = await seedClosedMonth(t);
     const { statementId } = await asAdmin(t).mutation(
@@ -1078,7 +1078,14 @@ describe("vendorStatements — disclosure profiles", () => {
       statementId,
     });
 
-    // Open the settings all the way up AFTER the document went out.
+    const before: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(before.showGroups).toBe(false);
+    expect(before.disclosureDrift).toEqual([]);
+
+    // Open the settings up AFTER the document went out.
     await asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
       vendor: "toothlens",
       disclosure: {
@@ -1091,14 +1098,29 @@ describe("vendorStatements — disclosure profiles", () => {
       },
     });
 
-    const statement: any = await asAdmin(t).query(
+    const after: any = await asAdmin(t).query(
       api.admin.vendorStatements.getStatement,
       { statementId },
     );
-    expect(statement.showGroups).toBe(false);
-    expect(statement.showTier).toBe(false);
-    expect(statement.showBroker).toBe(false);
-    expect(JSON.stringify(statement)).not.toContain("ACMEMFG");
+    // The document now follows the current settings — no reissue needed.
+    expect(after.showGroups).toBe(true);
+    expect(after.showTier).toBe(true);
+    expect(after.showBroker).toBe(true);
+    expect(after.memberLines[0].groupName).toBe("Acme Manufacturing");
+
+    // Every figure is untouched: disclosure is presentation only.
+    expect(after.subtotalCents).toBe(before.subtotalCents);
+    expect(after.totalCents).toBe(before.totalCents);
+    expect(after.primaryCount).toBe(before.primaryCount);
+    expect(after.memberLines).toHaveLength(before.memberLines.length);
+    expect(after.memberLines.map((l: any) => l.amountCents)).toEqual(
+      before.memberLines.map((l: any) => l.amountCents),
+    );
+
+    // And the change from what was originally sent is reported, not hidden.
+    expect(after.generatedUnderDisclosure.groupVisibility).toBe("none");
+    expect(after.disclosureDrift.length).toBeGreaterThan(0);
+    expect(after.disclosureDrift.join(" ")).toMatch(/Employer group/);
   });
 
   test("the full revenue split cannot be handed to an external recipient", async () => {
@@ -1183,5 +1205,394 @@ describe("vendorStatements — disclosure profiles", () => {
     );
     expect(audit.lines).toHaveLength(2);
     expect(audit.allChecksPassed).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Group rollup
+// ---------------------------------------------------------------------------
+
+describe("vendorStatements — organization rollup", () => {
+  test("organizations sharing a provider group code stay separate rows", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const { year, month, period, midMs } = previousMonth();
+
+    // Two DIFFERENT organizations, both on the "IDEALDO" provider code — the
+    // real shape of the data. Keying a rollup on the code alone would silently
+    // merge them into one line.
+    const apricus = await seedWorld(t, {
+      groupCode: "IDEALDO",
+      groupName: "Apricus",
+    });
+    const northwind = await seedWorld(t, {
+      groupCode: "IDEALDO",
+      groupName: "Northwind Traders",
+    });
+    for (const world of [apricus, northwind]) {
+      await t.run(async (ctx) => {
+        await ctx.db.patch(world.groupId, {
+          listBill: { enabled: true, paymentMethod: "ach" as const },
+        });
+      });
+    }
+    await seedPrimary(t, apricus, {
+      customerId: "apricus-1",
+      memberId: "MEM-AP1",
+      totalCents: 1499,
+      createdAt: midMs,
+    });
+    await seedPrimary(t, apricus, {
+      customerId: "apricus-2",
+      memberId: "MEM-AP2",
+      totalCents: 1499,
+      createdAt: midMs,
+    });
+    await seedPrimary(t, northwind, {
+      customerId: "northwind-1",
+      memberId: "MEM-NW1",
+      totalCents: 2499,
+      createdAt: midMs,
+    });
+    await asAdmin(t).mutation(api.admin.invoiceCalculator.closePeriodManual, {
+      year,
+      month,
+    });
+
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+
+    expect(statement.groups).toHaveLength(2);
+    const byName = Object.fromEntries(
+      statement.groups.map((g: any) => [g.groupName, g]),
+    );
+    expect(byName["Apricus"].primaryCount).toBe(2);
+    expect(byName["Northwind Traders"].primaryCount).toBe(1);
+    // Both still report the shared provider code they belong to.
+    expect(byName["Apricus"].groupCode).toBe("IDEALDO");
+    expect(byName["Northwind Traders"].groupCode).toBe("IDEALDO");
+    // Counts and money add back up to the statement.
+    const summed = statement.groups.reduce(
+      (sum: number, g: any) => sum + g.amountCents,
+      0,
+    );
+    expect(summed).toBe(statement.subtotalCents);
+
+    // Member lines name the organization, not just the shared code.
+    const orgs = new Set(statement.memberLines.map((l: any) => l.groupName));
+    expect(orgs).toEqual(new Set(["Apricus", "Northwind Traders"]));
+  });
+
+  test("direct enrollments collapse into a single row and sort last", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const { year, month, period, midMs } = previousMonth();
+
+    const employer = await seedWorld(t, {
+      groupCode: "IDEALDO",
+      groupName: "Zenith Industries",
+    });
+    await t.run(async (ctx) => {
+      await ctx.db.patch(employer.groupId, {
+        listBill: { enabled: true, paymentMethod: "ach" as const },
+      });
+    });
+    // Two separate self-pay groups — neither should be named.
+    const selfPayA = await seedWorld(t, { groupCode: "DTC-A", groupName: "DTC A" });
+    const selfPayB = await seedWorld(t, { groupCode: "DTC-B", groupName: "DTC B" });
+
+    await seedPrimary(t, employer, {
+      customerId: "emp-1",
+      memberId: "MEM-E1",
+      totalCents: 1499,
+      createdAt: midMs,
+    });
+    await seedPrimary(t, selfPayA, {
+      customerId: "self-a",
+      memberId: "MEM-SA",
+      totalCents: 1499,
+      createdAt: midMs,
+    });
+    await seedPrimary(t, selfPayB, {
+      customerId: "self-b",
+      memberId: "MEM-SB",
+      totalCents: 1499,
+      createdAt: midMs,
+    });
+    await asAdmin(t).mutation(api.admin.invoiceCalculator.closePeriodManual, {
+      year,
+      month,
+    });
+
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+
+    expect(statement.groups.map((g: any) => g.groupName)).toEqual([
+      "Zenith Industries",
+      "Direct enrollment",
+    ]);
+    expect(statement.groups[1].primaryCount).toBe(2);
+    expect(JSON.stringify(statement)).not.toContain("DTC A");
+    expect(JSON.stringify(statement)).not.toContain("DTC B");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Member-detail backfill
+// ---------------------------------------------------------------------------
+
+describe("invoiceCalculator — member line backfill", () => {
+  /** Strip member lines to imitate a close written before they existed. */
+  async function stripMemberLines(
+    t: ReturnType<typeof convexTest>,
+    period: string,
+  ) {
+    await t.run(async (ctx) => {
+      // Filtered in JS rather than by index: this helper takes a loosely typed
+      // `t`, so the schema's named indexes aren't visible here.
+      const rows = await ctx.db.query("invoicePeriods").collect();
+      for (const row of rows) {
+        if (row.period !== period) continue;
+        await ctx.db.patch(row._id, { memberLines: undefined });
+      }
+    });
+  }
+
+  test("fills member detail where the rebuild reproduces the closed totals", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    await stripMemberLines(t, period);
+
+    const before: any = await asAdmin(t).query(
+      api.admin.invoiceCalculator.previewMemberLineBackfill,
+      { period },
+    );
+    expect(before.fillable).toBeGreaterThan(0);
+    expect(before.blocked).toBe(0);
+
+    const result = await asAdmin(t).mutation(
+      api.admin.invoiceCalculator.backfillMemberLines,
+      { period },
+    );
+    expect(result.filled).toBe(before.fillable);
+    expect(result.skipped).toBe(0);
+
+    // The statement now carries member detail.
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(statement.memberDetailAvailable).toBe(true);
+    expect(statement.memberLines).toHaveLength(2);
+  });
+
+  test("refuses to fill a group whose rebuild no longer matches the close", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    await stripMemberLines(t, period);
+
+    // Tamper with the frozen totals so the rebuild cannot reconcile.
+    await t.run(async (ctx) => {
+      const row = await ctx.db
+        .query("invoicePeriods")
+        .withIndex("by_period", (q) => q.eq("period", period))
+        .first();
+      await ctx.db.patch(row!._id, { grossCents: row!.grossCents + 500 });
+    });
+
+    const preview: any = await asAdmin(t).query(
+      api.admin.invoiceCalculator.previewMemberLineBackfill,
+      { period },
+    );
+    expect(preview.blocked).toBe(1);
+
+    const result = await asAdmin(t).mutation(
+      api.admin.invoiceCalculator.backfillMemberLines,
+      { period },
+    );
+    expect(result.skipped).toBe(1);
+    expect(result.filled).toBe(0);
+  });
+
+  test("never rewrites totals, only the absent detail", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    const frozen = await t.run(async (ctx) => {
+      const rows = await ctx.db
+        .query("invoicePeriods")
+        .withIndex("by_period", (q) => q.eq("period", period))
+        .collect();
+      return rows.map((r) => ({
+        id: r._id,
+        grossCents: r.grossCents,
+        payloadHash: r.payloadHash,
+        closedAt: r.closedAt,
+      }));
+    });
+    await stripMemberLines(t, period);
+    await asAdmin(t).mutation(api.admin.invoiceCalculator.backfillMemberLines, {
+      period,
+    });
+
+    await t.run(async (ctx) => {
+      for (const snap of frozen) {
+        const row = await ctx.db.get(snap.id);
+        expect(row!.grossCents).toBe(snap.grossCents);
+        expect(row!.payloadHash).toBe(snap.payloadHash);
+        expect(row!.closedAt).toBe(snap.closedAt);
+      }
+    });
+  });
+
+  test("leaves a close that already has detail alone", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    const preview: any = await asAdmin(t).query(
+      api.admin.invoiceCalculator.previewMemberLineBackfill,
+      { period },
+    );
+    expect(preview.fillable).toBe(0);
+    expect(preview.untouched).toBeGreaterThan(0);
+
+    const result = await asAdmin(t).mutation(
+      api.admin.invoiceCalculator.backfillMemberLines,
+      { period },
+    );
+    expect(result.filled).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Activity trail
+// ---------------------------------------------------------------------------
+
+describe("vendorStatements — activity trail", () => {
+  test("records who changed a recipient's contents, and to what", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    await asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
+      vendor: "toothlens",
+      disclosure: {
+        memberDetail: true,
+        groupVisibility: "listBillOnly",
+        rateClass: true,
+        repAttribution: false,
+        fullSplit: false,
+        adjustmentDetail: true,
+      },
+      note: "They asked for employer names",
+    });
+
+    const trail: any[] = await asAdmin(t).query(
+      api.admin.vendorStatements.listStatementActivity,
+      { kind: "contents" },
+    );
+    expect(trail).toHaveLength(1);
+    const entry = trail[0];
+    expect(entry.label).toBe("Contents changed");
+    expect(entry.vendor).toBe("toothlens");
+    expect(entry.vendorName).toBe("Toothlens");
+    // The actor is named, not a raw Clerk id.
+    expect(entry.actorName).toBe("VS Admin");
+    expect(entry.actorRole).toBe("owner");
+    // Field-by-field, before → after.
+    expect(entry.changes.join(" ")).toMatch(/Employer group: none → listBillOnly/);
+    expect(entry.changes.join(" ")).toMatch(/rate class: false → true/i);
+  });
+
+  test("covers the statement lifecycle, remittances, and adjustments", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "toothlens" },
+    );
+    await asAdmin(t).mutation(api.admin.vendorStatements.issueStatement, {
+      statementId,
+    });
+    await asAdmin(t).mutation(api.admin.vendorStatements.recordRemittance, {
+      statementId,
+      amountCents: 200,
+      paymentMethod: "ach",
+      paymentReference: "TRACE-9",
+    });
+
+    const trail: any[] = await asAdmin(t).query(
+      api.admin.vendorStatements.listStatementActivity,
+      {},
+    );
+    const actions = trail.map((e) => e.action);
+    expect(actions).toContain("vendor_statement.generate");
+    expect(actions).toContain("vendor_statement.issue");
+    expect(actions).toContain("vendor_statement.remittance");
+    expect(actions).toContain("invoice.closePeriod");
+
+    // Statement-scoped entries resolve back to their recipient and number.
+    const issued = trail.find((e) => e.action === "vendor_statement.issue");
+    expect(issued.vendorName).toBe("Toothlens");
+    expect(issued.statementNumber).toMatch(/^VS-\d+$/);
+    expect(issued.statementId).toBe(statementId);
+
+    // Newest first.
+    for (let i = 1; i < trail.length; i++) {
+      expect(trail[i - 1].createdAt).toBeGreaterThanOrEqual(trail[i].createdAt);
+    }
+  });
+
+  test("filters down to one recipient", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatementsForPeriod,
+      { period },
+    );
+
+    const ideal: any[] = await asAdmin(t).query(
+      api.admin.vendorStatements.listStatementActivity,
+      { vendor: "ideal" },
+    );
+    expect(ideal.length).toBeGreaterThan(0);
+    expect(ideal.every((e) => e.vendor === "ideal")).toBe(true);
+    expect(JSON.stringify(ideal)).not.toContain("Careington");
+  });
+
+  test("a void and a reissue both leave a trace with their reason", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "careington" },
+    );
+    await asAdmin(t).mutation(api.admin.vendorStatements.issueStatement, {
+      statementId,
+    });
+    await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateReplacementStatement,
+      { statementId, reason: "Retro term for one member" },
+    );
+
+    const trail: any[] = await asAdmin(t).query(
+      api.admin.vendorStatements.listStatementActivity,
+      { vendor: "careington" },
+    );
+    const reissue = trail.find((e) => e.action === "vendor_statement.reissue");
+    expect(reissue).toBeDefined();
+    expect(reissue.summary).toMatch(/Retro term for one member/);
   });
 });

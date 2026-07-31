@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   Check,
   Eye,
+  History,
   Lock,
   RotateCcw,
   Save,
@@ -212,6 +213,66 @@ function ColumnPreview({ disclosure }: { disclosure: Disclosure }) {
 }
 
 // ---------------------------------------------------------------------------
+// Change history for one recipient
+// ---------------------------------------------------------------------------
+
+function ContentsHistory({ vendor }: { vendor: VendorId }) {
+  const entries = useQuery(api.admin.vendorStatements.listStatementActivity, {
+    vendor,
+    kind: 'contents',
+    limit: 25,
+  });
+
+  return (
+    <div className="rounded-md border border-slate-200 overflow-hidden">
+      <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
+        <History size={13} className="text-slate-400" />
+        <span className="text-xs font-semibold text-slate-600">
+          Change history
+        </span>
+        {entries && (
+          <span className="ml-auto text-xs text-slate-400">
+            {entries.length} change{entries.length !== 1 ? 's' : ''}
+          </span>
+        )}
+      </div>
+      {entries === undefined ? (
+        <p className="px-4 py-4 text-sm text-slate-400">Loading…</p>
+      ) : entries.length === 0 ? (
+        <p className="px-4 py-4 text-sm text-slate-500">
+          Never changed — this recipient is on the built-in default.
+        </p>
+      ) : (
+        <ul className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
+          {entries.map((entry) => (
+            <li key={String(entry.id)} className="px-4 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-sm text-slate-800">{entry.label}</p>
+                <div className="text-xs text-slate-400 text-right shrink-0">
+                  <div>{formatDateTime(entry.createdAt)}</div>
+                  <div>{entry.actorName}</div>
+                </div>
+              </div>
+              {entry.changes.length > 0 ? (
+                <ul className="mt-1 space-y-0.5">
+                  {entry.changes.map((change, index) => (
+                    <li key={index} className="text-xs text-slate-500 font-mono">
+                      {change}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-1 text-xs text-slate-400">{entry.summary}</p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // One recipient's editor
 // ---------------------------------------------------------------------------
 
@@ -302,9 +363,9 @@ function RecipientEditor({
           <Lock size={16} className="shrink-0 mt-0.5 text-blue-700" />
           <p>
             {profile.vendorName} has {counts.issued} statement
-            {counts.issued !== 1 ? 's' : ''} already issued. Those keep the settings
-            they were cut under — changes here apply to statements generated from now
-            on.
+            {counts.issued !== 1 ? 's' : ''} already issued. Saving will change how
+            those reprint too — a partner comparing a fresh download against the copy
+            you sent them will see different columns.
           </p>
         </div>
       )}
@@ -393,6 +454,8 @@ function RecipientEditor({
 
       <ColumnPreview disclosure={draft} />
 
+      <ContentsHistory vendor={profile.vendor as VendorId} />
+
       {/* Rationale */}
       <div>
         <label className="block text-sm font-medium text-slate-800 mb-1">
@@ -478,11 +541,14 @@ export default function DisclosureSettingsPage() {
       <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 flex gap-3">
         <Lock className="text-blue-700 shrink-0" size={20} />
         <div className="text-sm text-blue-950">
-          <p className="font-semibold">These settings shape future statements only</p>
+          <p className="font-semibold">Changes apply immediately, everywhere</p>
           <p>
-            Each statement freezes the settings it was generated under, so a document
-            that has already gone out never changes shape. To apply new settings to a
-            month already statemented, reissue that statement.
+            Saving here re-shapes every document for that recipient the next time it
+            is opened or downloaded — existing statements included, no reissue
+            needed. Only the columns change: amounts, the member list, and
+            adjustments stay pinned to the closed month and cannot move. Where a
+            statement now differs from the copy the recipient was originally sent,
+            that difference is called out on the statement itself.
           </p>
         </div>
       </div>

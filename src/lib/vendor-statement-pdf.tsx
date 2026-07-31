@@ -246,15 +246,18 @@ function GroupTable({ doc }: { doc: VendorStatementDocument }) {
       <Text style={s.sectionH}>Group Summary</Text>
       <View style={s.table}>
         <View style={s.tHeader}>
-          <Text style={[s.cell, s.colGroupCode, s.headerText]}>Group</Text>
           <Text style={[s.cell, s.colGroupName, s.headerText]}>Organization</Text>
+          <Text style={[s.cell, s.colGroupCode, s.headerText]}>Group Code</Text>
           <Text style={[s.cell, s.colCount, s.headerText]}>Primaries</Text>
           <Text style={[s.cellLast, s.colAmount, s.headerText]}>Amount</Text>
         </View>
-        {doc.groups.map((row) => (
-          <View key={`${row.groupCode}-${row.groupName}`} style={s.tRow} wrap={false}>
+        {doc.groups.map((row, index) => (
+          <View key={`${row.groupCode}-${row.groupName}-${index}`} style={s.tRow} wrap={false}>
+            <Text style={[s.cell, s.colGroupName]}>
+              {row.groupName}
+              {row.organizationCode ? ` (${row.organizationCode})` : ""}
+            </Text>
             <Text style={[s.cell, s.colGroupCode]}>{row.groupCode}</Text>
-            <Text style={[s.cell, s.colGroupName]}>{row.groupName}</Text>
             <Text style={[s.cell, s.colCount]}>{row.primaryCount}</Text>
             <Text style={[s.cellLast, s.colAmount]}>{money(row.amountCents)}</Text>
           </View>
@@ -302,7 +305,7 @@ function MemberTable({ doc }: { doc: VendorStatementDocument }) {
           <Text style={[s.cell, idCol, s.headerText]}>Member ID</Text>
           <Text style={[s.cell, nameCol, s.headerText]}>Member</Text>
           {doc.showGroups && (
-            <Text style={[s.cell, s.colGroup, s.headerText]}>Group</Text>
+            <Text style={[s.cell, s.colGroup, s.headerText]}>Organization</Text>
           )}
           {doc.showTier && (
             <Text style={[s.cell, classCol, s.headerText]}>Rate Class</Text>
@@ -322,7 +325,7 @@ function MemberTable({ doc }: { doc: VendorStatementDocument }) {
               {line.lastName}, {line.firstName}
             </Text>
             {doc.showGroups && (
-              <Text style={[s.cell, s.colGroup]}>{line.groupCode ?? ""}</Text>
+              <Text style={[s.cell, s.colGroup]}>{line.groupName ?? ""}</Text>
             )}
             {doc.showTier && (
               <Text style={[s.cell, classCol]}>{line.rateClass ?? ""}</Text>

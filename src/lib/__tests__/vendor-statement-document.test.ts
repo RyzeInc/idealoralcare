@@ -80,6 +80,7 @@ const internal: VendorStatementDocument = {
       lastName: "Lovelace",
       groupCode: "ACMEMFG",
       groupName: "Acme Manufacturing",
+      organizationCode: "ACME-0042",
       rateClass: "Family",
       repName: "Dana Reyes",
       repCode: "BRK-REYES-01",
@@ -98,6 +99,7 @@ const internal: VendorStatementDocument = {
     {
       groupCode: "ACMEMFG",
       groupName: "Acme Manufacturing",
+      organizationCode: "ACME-0042",
       primaryCount: 1,
       amountCents: 1200,
     },
@@ -120,8 +122,9 @@ describe("vendor statement exports", () => {
       "Member ID",
       "Last Name",
       "First Name",
+      "Organization",
+      "Org Code",
       "Group Code",
-      "Group",
       "Rate Class",
       "Rep / Broker",
       "Rep Code",
@@ -188,8 +191,9 @@ describe("vendor statement exports", () => {
     const ryzeRow = lines.find((line) => line.startsWith("VS-10004"))!;
     // Group Code / Rate Class / Rep / Rep Code / Agency are all blank for the
     // flat-fee recipient and populated for the internal one.
-    expect(toothlensRow.split(",").slice(7, 12)).toEqual(["", "", "", "", ""]);
-    expect(ryzeRow.split(",").slice(7, 12)).toEqual([
+    expect(toothlensRow.split(",").slice(7, 13)).toEqual(["", "", "", "", "", ""]);
+    expect(ryzeRow.split(",").slice(7, 13)).toEqual([
+      "Acme Manufacturing",
       "ACMEMFG",
       "Family",
       "Dana Reyes",

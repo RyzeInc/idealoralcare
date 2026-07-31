@@ -1167,6 +1167,160 @@ async function closePeriodInternal(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Member-line backfill for closes written before frozen member detail
+// ---------------------------------------------------------------------------
+
+/**
+ * Periods closed before `memberLines` shipped hold authoritative totals but no
+ * per-member rows, so their vendor statements can only be aggregate. This pair
+ * of functions fills that gap WITHOUT ever touching the money.
+ *
+ * The safety rule: member lines are attached to a close only when the
+ * recomputed group totals match the frozen ones to the cent. If they match,
+ * the reconstructed roster provably produces the figures that were closed, so
+ * the detail is trustworthy. If they don't, the group is skipped and reported
+ * — never patched, never reconciled by hand.
+ */
+async function computeBackfill(
+  ctx: QueryCtx,
+  period: string,
+): Promise<{
+  period: string;
+  rows: Array<{
+    periodId: Id<"invoicePeriods">;
+    groupCode: string;
+    groupName: string;
+    alreadyHasDetail: boolean;
+    reconciles: boolean;
+    memberLineCount: number;
+    frozenGrossCents: number;
+    recomputedGrossCents: number;
+    detail: string;
+  }>;
+}> {
+  const window = parsePeriodKey(period);
+  const snapshots = await ctx.db
+    .query("invoicePeriods")
+    .withIndex("by_period", (q) => q.eq("period", period))
+    .collect();
+  if (snapshots.length === 0) {
+    throw new Error(`Period ${period} is not closed.`);
+  }
+
+  // Reconstruct the period exactly as closePeriod would have.
+  const rebuilt = await computeLiveBreakdown(ctx, window.endMs);
+  const byGroup = new Map(rebuilt.groups.map((g) => [String(g.groupId), g]));
+
+  const rows = snapshots.map((snapshot) => {
+    const group = byGroup.get(String(snapshot.groupId));
+    const alreadyHasDetail = snapshot.memberLines !== undefined;
+    const recomputedGrossCents = group?.totals.grossCents ?? 0;
+    const reconciles =
+      group !== undefined &&
+      group.totals.grossCents === snapshot.grossCents &&
+      group.totals.toothlensCents === snapshot.toothlensCents &&
+      group.totals.careingtonCents === snapshot.careingtonCents &&
+      group.totals.processingCents === snapshot.processingCents &&
+      group.totals.partnerVendorCents === snapshot.partnerVendorCents &&
+      group.totals.ryzeKeepCents === snapshot.ryzeKeepCents;
+    return {
+      periodId: snapshot._id,
+      groupCode: snapshot.groupCode,
+      groupName: snapshot.groupName,
+      alreadyHasDetail,
+      reconciles,
+      memberLineCount: group?.memberLines?.length ?? 0,
+      frozenGrossCents: snapshot.grossCents,
+      recomputedGrossCents,
+      detail: alreadyHasDetail
+        ? "Already has member detail — will be left alone"
+        : !group
+          ? "This group no longer exists; its detail cannot be rebuilt"
+          : reconciles
+            ? `Rebuilt roster reproduces the closed totals exactly (${group.memberLines?.length ?? 0} members)`
+            : `Rebuilt totals differ from the close (${recomputedGrossCents}¢ vs ${snapshot.grossCents}¢) — skipped`,
+    };
+  });
+
+  return { period, rows };
+}
+
+/** Dry run: what a backfill would and would not be able to fill in. */
+export const previewMemberLineBackfill = query({
+  args: { period: v.string() },
+  handler: async (ctx, { period }) => {
+    await requireAdmin(ctx);
+    const { rows } = await computeBackfill(ctx, period);
+    return {
+      period,
+      rows,
+      fillable: rows.filter((r) => !r.alreadyHasDetail && r.reconciles).length,
+      blocked: rows.filter((r) => !r.alreadyHasDetail && !r.reconciles).length,
+      untouched: rows.filter((r) => r.alreadyHasDetail).length,
+    };
+  },
+});
+
+/**
+ * Attach frozen member lines to a closed period. Totals are never written —
+ * only the previously-absent `memberLines` array, and only where the rebuild
+ * reconciles to the cent.
+ */
+export const backfillMemberLines = mutation({
+  args: { period: v.string() },
+  handler: async (ctx, { period }) => {
+    const identity = await requireAdmin(ctx);
+    const window = parsePeriodKey(period);
+    const snapshots = await ctx.db
+      .query("invoicePeriods")
+      .withIndex("by_period", (q) => q.eq("period", period))
+      .collect();
+    if (snapshots.length === 0) {
+      throw new Error(`Period ${period} is not closed.`);
+    }
+
+    const rebuilt = await computeLiveBreakdown(ctx, window.endMs);
+    const byGroup = new Map(rebuilt.groups.map((g) => [String(g.groupId), g]));
+
+    let filled = 0;
+    let skipped = 0;
+    const skippedGroups: string[] = [];
+
+    for (const snapshot of snapshots) {
+      if (snapshot.memberLines !== undefined) continue;
+      const group = byGroup.get(String(snapshot.groupId));
+      const reconciles =
+        group !== undefined &&
+        group.totals.grossCents === snapshot.grossCents &&
+        group.totals.toothlensCents === snapshot.toothlensCents &&
+        group.totals.careingtonCents === snapshot.careingtonCents &&
+        group.totals.processingCents === snapshot.processingCents &&
+        group.totals.partnerVendorCents === snapshot.partnerVendorCents &&
+        group.totals.ryzeKeepCents === snapshot.ryzeKeepCents;
+      if (!reconciles) {
+        skipped++;
+        skippedGroups.push(snapshot.groupCode);
+        continue;
+      }
+      // Only the detail. Totals, hashes, and close metadata are untouched.
+      await ctx.db.patch(snapshot._id, { memberLines: group!.memberLines ?? [] });
+      filled++;
+    }
+
+    await ctx.runMutation(internal.admin.adminAudit.record, {
+      actorClerkUserId: identity.clerkUserId,
+      action: "invoice.backfillMemberLines",
+      targetType: "invoicePeriods",
+      targetId: period,
+      summary: `Backfilled member detail for ${period}: ${filled} group(s) filled, ${skipped} skipped`,
+      metadata: { period, filled, skipped, skippedGroups },
+    });
+
+    return { period, filled, skipped, skippedGroups };
+  },
+});
+
 export const closePeriod = internalMutation({
   args: {
     year: v.number(),

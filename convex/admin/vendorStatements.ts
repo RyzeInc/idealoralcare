@@ -23,9 +23,13 @@
  *      assembled into the payload at all: not hidden downstream, not annotated
  *      as withheld. A document cannot leak a field the server never sent.
  *
- *      Profiles are editable per recipient, but each statement freezes the
- *      profile it was cut under, so changing settings shapes future documents
- *      and never reshapes one already sent.
+ *      Profiles are editable per recipient and resolve LIVE: change a
+ *      recipient's settings and every document for them — including reprints
+ *      — reflects it immediately. That is safe because disclosure governs
+ *      presentation only. Amounts, the member set, and adjustments stay
+ *      pinned to the close and the frozen adjustment ids, so no setting can
+ *      move a figure. The profile a statement was cut under is still recorded,
+ *      and drift from it is surfaced rather than hidden.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -266,15 +270,22 @@ async function resolvePolicy(
   };
 }
 
-/** Build a policy from a disclosure already frozen onto a statement. */
-function policyFromFrozen(
-  vendor: VendorId,
+/**
+ * Human-readable differences between the settings a statement was cut under
+ * and the settings in force now. Used to warn that a reprint will not look
+ * like the copy the recipient already holds.
+ */
+function disclosureDifferences(
   frozen: StatementDisclosure | undefined,
-): ResolvedPolicy {
-  return {
-    ...VENDOR_IDENTITY[vendor],
-    disclosure: frozen ?? DEFAULT_DISCLOSURE[vendor],
-  };
+  current: StatementDisclosure,
+): string[] {
+  if (!frozen) return [];
+  return DISCLOSURE_FIELDS.filter(
+    (field) => frozen[field.key] !== current[field.key],
+  ).map(
+    (field) =>
+      `${field.label}: ${String(frozen[field.key])} → ${String(current[field.key])}`,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -289,6 +300,7 @@ export interface StatementMemberLine {
   /** Present only when disclosure.groupVisibility names this member's group. */
   groupCode?: string;
   groupName?: string;
+  organizationCode?: string;
   /** Present only when disclosure.rateClass. */
   rateClass?: string;
   /** Present only when disclosure.repAttribution — who to pay for this member. */
@@ -306,8 +318,11 @@ export interface StatementMemberLine {
 }
 
 export interface StatementGroupRow {
+  /** Provider code (e.g. "IDEALDO"). Shared across organizations. */
   groupCode: string;
+  /** The organization. One row per organization, not per provider code. */
   groupName: string;
+  organizationCode: string | null;
   primaryCount: number;
   amountCents: number;
 }
@@ -398,14 +413,36 @@ type FrozenLine = NonNullable<Doc<"invoicePeriods">["memberLines"]>[number];
 function groupLabelFor(
   snapshot: Doc<"invoicePeriods">,
   visibility: GroupVisibility,
-): { groupCode: string; groupName: string } | null {
+): {
+  /** Provider code (Careington/DialCare). Shared by many organizations. */
+  groupCode: string;
+  /** The organization itself — this is the row a reader cares about. */
+  groupName: string;
+  organizationCode: string | null;
+  /**
+   * Rollup key. One row per ORGANIZATION, never per provider code: several
+   * organizations share a code like "IDEALDO", and keying on the code would
+   * silently merge them into one line. Direct enrollments are the deliberate
+   * exception — they collapse into a single row by design.
+   */
+  key: string;
+} | null {
   if (visibility === "none") return null;
-  if (visibility === "all") {
-    return { groupCode: snapshot.groupCode, groupName: snapshot.groupName };
-  }
+  const named = {
+    groupCode: snapshot.groupCode,
+    groupName: snapshot.groupName,
+    organizationCode: snapshot.organizationCode ?? null,
+    key: String(snapshot.groupId),
+  };
+  if (visibility === "all") return named;
   return snapshot.isListBill
-    ? { groupCode: snapshot.groupCode, groupName: snapshot.groupName }
-    : { groupCode: "DIRECT", groupName: "Direct enrollment" };
+    ? named
+    : {
+        groupCode: "DIRECT",
+        groupName: "Direct enrollment",
+        organizationCode: null,
+        key: "DIRECT",
+      };
 }
 
 /**
@@ -427,19 +464,29 @@ function buildGroupRows(
     if (amountCents <= 0) continue;
     const label = groupLabelFor(snapshot, visibility);
     if (!label) continue;
-    const existing = rows.get(label.groupCode);
     const primaryCount =
       snapshot.individualPrimaryCount + snapshot.familyPrimaryCount;
+    const existing = rows.get(label.key);
     if (existing) {
       existing.primaryCount += primaryCount;
       existing.amountCents += amountCents;
     } else {
-      rows.set(label.groupCode, { ...label, primaryCount, amountCents });
+      rows.set(label.key, {
+        groupCode: label.groupCode,
+        groupName: label.groupName,
+        organizationCode: label.organizationCode,
+        primaryCount,
+        amountCents,
+      });
     }
   }
-  return Array.from(rows.values()).sort((a, b) =>
-    a.groupName.localeCompare(b.groupName),
-  );
+  // Direct enrollments sort last; organizations read alphabetically above it.
+  return Array.from(rows.values()).sort((a, b) => {
+    if ((a.groupCode === "DIRECT") !== (b.groupCode === "DIRECT")) {
+      return a.groupCode === "DIRECT" ? 1 : -1;
+    }
+    return a.groupName.localeCompare(b.groupName);
+  });
 }
 
 function shapeMemberLine(
@@ -468,7 +515,15 @@ function shapeMemberLine(
     firstName: line.firstName,
     lastName: line.lastName,
     amountCents: line[policy.amountField],
-    ...(group ?? {}),
+    ...(group
+      ? {
+          groupCode: group.groupCode,
+          groupName: group.groupName,
+          ...(group.organizationCode
+            ? { organizationCode: group.organizationCode }
+            : {}),
+        }
+      : {}),
     ...(policy.disclosure.rateClass ? { rateClass: rateClassLabel(line.tier) } : {}),
     ...(policy.disclosure.repAttribution ? rep : {}),
     ...(policy.disclosure.fullSplit
@@ -807,10 +862,16 @@ export const getStatement = query({
     const row = await ctx.db.get(statementId);
     if (!row) return null;
 
-    // The disclosure frozen onto this statement, not today's profile —
-    // editing a recipient's settings must not reshape a document that has
-    // already gone out.
-    const policy = policyFromFrozen(row.vendor as VendorId, row.disclosure);
+    // Disclosure resolves LIVE, so a document reflects the recipient's current
+    // settings the moment you change them — no reissue needed to fix a column.
+    //
+    // This is safe because disclosure governs presentation only: which columns
+    // appear. Every figure — the member set, the amounts, the adjustments —
+    // stays pinned to `sourcePeriodIds` and `adjustmentIds` and cannot move.
+    // The settings the statement was originally cut under are still recorded
+    // on the row, and any drift from them is reported below rather than hidden.
+    const policy = await resolvePolicy(ctx, row.vendor as VendorId);
+    const disclosureDrift = disclosureDifferences(row.disclosure, policy.disclosure);
     const frozen = new Set(row.adjustmentIds.map((id) => String(id)));
 
     // Read the frozen closes once and serve every section from them.
@@ -890,6 +951,10 @@ export const getStatement = query({
         .map(toRow),
       supersededByNumber: supersededBy?.statementNumberDisplay ?? null,
       replacesNumber: replaces?.statementNumberDisplay ?? null,
+      // What this statement was originally generated under, and how today's
+      // settings differ. Empty unless someone changed the profile since.
+      generatedUnderDisclosure: row.disclosure ?? null,
+      disclosureDrift,
     };
   },
 });
@@ -1056,6 +1121,138 @@ export const resetDisclosureProfile = mutation({
       metadata: { vendor: vendorId },
     });
     return { reset: true };
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Activity trail
+// ---------------------------------------------------------------------------
+
+/**
+ * Every audited action that can change what a partner is paid or shown. Kept
+ * as an explicit list rather than a prefix match so a new action has to be
+ * consciously added here — a silent omission would be a hole in the trail.
+ */
+const STATEMENT_ACTIONS: Array<{ action: string; label: string; kind: string }> = [
+  // What recipients are shown
+  { action: "vendor_statement.disclosure_update", label: "Contents changed", kind: "contents" },
+  { action: "vendor_statement.disclosure_reset", label: "Contents reset to default", kind: "contents" },
+  // Statement lifecycle
+  { action: "vendor_statement.generate", label: "Statement generated", kind: "lifecycle" },
+  { action: "vendor_statement.generate_period", label: "Month generated", kind: "lifecycle" },
+  { action: "vendor_statement.issue", label: "Statement issued", kind: "lifecycle" },
+  { action: "vendor_statement.issue_period", label: "Month issued", kind: "lifecycle" },
+  { action: "vendor_statement.reissue", label: "Statement reissued", kind: "lifecycle" },
+  { action: "vendor_statement.void", label: "Statement voided", kind: "lifecycle" },
+  { action: "vendor_statement.unvoid", label: "Statement un-voided", kind: "lifecycle" },
+  { action: "vendor_statement.edit", label: "Statement details edited", kind: "lifecycle" },
+  { action: "vendor_statement.remittance", label: "Remittance recorded", kind: "money" },
+  // Upstream events that move the figures a statement reports
+  { action: "invoice.recordAdjustment", label: "Adjustment recorded", kind: "money" },
+  { action: "invoice.backfillMemberLines", label: "Member detail backfilled", kind: "data" },
+  { action: "invoice.closePeriod", label: "Coverage month closed", kind: "data" },
+];
+
+const ACTION_META = new Map(
+  STATEMENT_ACTIONS.map((a) => [a.action, { label: a.label, kind: a.kind }]),
+);
+
+/**
+ * The vendor statement system's history in one feed: settings changes,
+ * statement lifecycle, remittances, adjustments, and closes.
+ */
+export const listStatementActivity = query({
+  args: {
+    /** Restrict to one recipient's trail. */
+    vendor: v.optional(vendorValidator),
+    /** Restrict to one kind: "contents", "lifecycle", "money", "data". */
+    kind: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { vendor, kind, limit }) => {
+    await requireAdmin(ctx);
+    const cap = Math.min(limit ?? 100, 300);
+
+    const wanted = STATEMENT_ACTIONS.filter(
+      (a) => !kind || a.kind === kind,
+    ).map((a) => a.action);
+
+    // One indexed read per action, merged and re-sorted. Cheaper than scanning
+    // the whole audit table, which holds every admin action in the system.
+    const batches = await Promise.all(
+      wanted.map((action) =>
+        ctx.db
+          .query("adminAuditLog")
+          .withIndex("by_action", (q) => q.eq("action", action))
+          .order("desc")
+          .take(cap),
+      ),
+    );
+
+    // Statement-scoped rows carry a statement id, so resolve those to a
+    // recipient once and reuse it for both display and filtering.
+    const statementCache = new Map<string, Doc<"vendorStatements"> | null>();
+    const resolveStatement = async (targetId: string | undefined) => {
+      if (!targetId) return null;
+      if (statementCache.has(targetId)) return statementCache.get(targetId)!;
+      let row: Doc<"vendorStatements"> | null = null;
+      try {
+        row = await ctx.db.get(targetId as Id<"vendorStatements">);
+      } catch {
+        row = null; // targetId is a period key or a vendor id, not a statement
+      }
+      statementCache.set(targetId, row);
+      return row;
+    };
+
+    const entries = [];
+    for (const row of batches.flat()) {
+      const meta = ACTION_META.get(row.action)!;
+      let entryVendor: string | null = null;
+      let statementNumber: string | null = null;
+      let statementId: Id<"vendorStatements"> | null = null;
+
+      if (row.targetType === "vendorStatementDisclosureProfiles") {
+        entryVendor = row.targetId ?? null;
+      } else if (row.targetType === "vendorStatements") {
+        const statement = await resolveStatement(row.targetId);
+        if (statement) {
+          entryVendor = statement.vendor;
+          statementNumber = statement.statementNumberDisplay;
+          statementId = statement._id;
+        } else {
+          // Period-scoped bulk action; metadata carries what we need.
+          entryVendor = (row.metadata as any)?.vendor ?? null;
+        }
+      }
+
+      if (vendor && entryVendor !== vendor) continue;
+
+      entries.push({
+        id: row._id,
+        action: row.action,
+        label: meta.label,
+        kind: meta.kind,
+        summary: row.summary,
+        vendor: entryVendor,
+        vendorName: entryVendor
+          ? (VENDOR_IDENTITY[entryVendor as VendorId]?.name ?? entryVendor)
+          : null,
+        statementId,
+        statementNumber,
+        period: (row.metadata as any)?.period ?? null,
+        changes: Array.isArray((row.metadata as any)?.changes)
+          ? ((row.metadata as any).changes as string[])
+          : [],
+        actorName: row.actorName ?? row.actorClerkUserId,
+        actorRole: row.actorRole ?? null,
+        createdAt: row.createdAt,
+      });
+    }
+
+    return entries
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, cap);
   },
 });
 
