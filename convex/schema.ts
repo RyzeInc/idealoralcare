@@ -1855,6 +1855,23 @@ export default defineSchema({
     // Lets auditors reproduce the math against historical data.
     memberProfileIds: v.array(v.id("memberProfiles")),
     bundleIds: v.array(v.id("subscriptionBundles")),
+    // Frozen primary-level statement lines. Optional for snapshots created
+    // before vendor statements shipped; those periods remain available as
+    // aggregate-only statements and are never reconstructed from live data.
+    memberLines: v.optional(v.array(v.object({
+      memberProfileId: v.id("memberProfiles"),
+      memberId: v.string(),
+      firstName: v.string(),
+      lastName: v.string(),
+      groupCode: v.string(),
+      tier: v.union(v.literal("individual"), v.literal("family"), v.literal("none")),
+      grossCents: v.number(),
+      toothlensCents: v.number(),
+      careingtonCents: v.number(),
+      processingCents: v.number(),
+      partnerVendorCents: v.number(),
+      ryzeKeepCents: v.number(),
+    }))),
 
     // PRICING TABLE used at close time (period-stamped per spec §10 #6).
     // Ensures historical periods reproduce even if rates change later.
@@ -1922,6 +1939,115 @@ export default defineSchema({
     .index("by_period_group", ["period", "groupId"])
     .index("by_periodId", ["periodId"])
     .index("by_group", ["groupId"]),
+
+  // ============================================
+  // VENDOR REMITTANCE STATEMENTS
+  // See docs/internal/VENDOR_STATEMENT_RULES.md
+  // ============================================
+
+  /**
+   * A numbered, issued remittance statement for one recipient × coverage
+   * month. One row per (recipient, period) unless the prior one was voided.
+   *
+   * Member-level lines are deliberately NOT duplicated here — they live in
+   * the immutable `invoicePeriods` rows referenced by `sourcePeriodIds` and
+   * are hydrated at read time. That keeps a Ryze statement (which spans every
+   * group) far under the document size limit and guarantees the printed
+   * detail can never drift from the close it was drawn from.
+   *
+   * Totals ARE frozen here, along with the exact `invoiceAdjustments` that
+   * were in effect at generation. An adjustment recorded afterwards does not
+   * silently change an issued statement — it surfaces as unapplied and the
+   * admin voids + reissues.
+   */
+  vendorStatements: defineTable({
+    // ── IDENTITY ──────────────────────────────────────────────────────────
+    statementNumber: v.number(),          // sequential from counters["vendorStatementSeq"]
+    statementNumberDisplay: v.string(),   // e.g. "VS-10001"
+
+    // ── RECIPIENT ─────────────────────────────────────────────────────────
+    vendor: v.union(
+      v.literal("toothlens"),
+      v.literal("careington"),
+      v.literal("ideal"),
+      v.literal("ryze"),
+    ),
+    vendorName: v.string(),               // frozen display name at generation
+
+    // ── COVERAGE ──────────────────────────────────────────────────────────
+    period: v.string(),                   // "YYYY-MM"
+    coverageStart: v.number(),            // UTC ms, inclusive (first instant of the month)
+    coverageEnd: v.number(),              // UTC ms, inclusive (23:59:59.999 of the last day)
+
+    // ── DATES ─────────────────────────────────────────────────────────────
+    statementDate: v.number(),            // UTC ms — when generated
+    paymentDueDate: v.number(),           // UTC ms — when remittance is due
+
+    // ── FROZEN TOTALS (integer cents) ─────────────────────────────────────
+    primaryCount: v.number(),             // billable primaries on this statement
+    subtotalCents: v.number(),
+    adjustmentCents: v.number(),          // signed; sum of adjustmentIds below
+    totalCents: v.number(),               // subtotalCents + adjustmentCents
+
+    // ── REMITTANCE TRACKING ───────────────────────────────────────────────
+    status: v.union(
+      v.literal("draft"),
+      v.literal("issued"),
+      v.literal("partial"),
+      v.literal("paid"),
+      v.literal("voided"),
+    ),
+    amountPaidCents: v.number(),
+    balanceCents: v.number(),
+    paymentMethod: v.optional(v.union(
+      v.literal("check"),
+      v.literal("ach"),
+      v.literal("wire"),
+    )),
+    paymentReference: v.optional(v.string()), // check no. / ACH trace / wire ref
+    paidAt: v.optional(v.number()),
+
+    // ── VOID / REPLACEMENT CHAIN ──────────────────────────────────────────
+    voidedAt: v.optional(v.number()),
+    voidedBy: v.optional(v.string()),
+    voidReason: v.optional(v.string()),
+    previousStatus: v.optional(v.union(
+      v.literal("draft"),
+      v.literal("issued"),
+      v.literal("partial"),
+      v.literal("paid"),
+    )),
+    unvoidedAt: v.optional(v.number()),
+    unvoidedBy: v.optional(v.string()),
+    supersededById: v.optional(v.id("vendorStatements")),
+    replacesId: v.optional(v.id("vendorStatements")),
+
+    // ── SOURCE PROVENANCE ─────────────────────────────────────────────────
+    // The immutable close rows this statement was drawn from. Member detail
+    // is hydrated from these, never from the live roster.
+    sourcePeriodIds: v.array(v.id("invoicePeriods")),
+    sourcePayloadHashes: v.array(v.string()),
+    sourceClosedAt: v.number(),           // latest closedAt across sourcePeriodIds
+    adjustmentIds: v.array(v.id("invoiceAdjustments")),
+    // False for legacy closes that predate frozen member lines — those
+    // statements print frozen totals only and are never reconstructed.
+    memberDetailAvailable: v.boolean(),
+
+    // ── INTERNAL MEMO (never printed) ─────────────────────────────────────
+    internalMemo: v.optional(v.string()),
+
+    // ── AUDIT ─────────────────────────────────────────────────────────────
+    generatedBy: v.string(),              // clerkUserId | "cron"
+    sourceGitSha: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    issuedAt: v.optional(v.number()),
+  })
+    .index("by_number", ["statementNumber"])
+    .index("by_period", ["period"])
+    .index("by_vendor", ["vendor"])
+    .index("by_vendor_period", ["vendor", "period"])
+    .index("by_status", ["status"]),
 
   // ============================================
   // LIST-BILL INVOICE GENERATOR

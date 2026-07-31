@@ -77,8 +77,24 @@ export interface GroupBreakdown {
   /** Source provenance (only populated by closePeriod / drill-down). */
   memberProfileIds?: Id<"memberProfiles">[];
   bundleIds?: Id<"subscriptionBundles">[];
+  memberLines?: FrozenMemberLine[];
   /** Closed-snapshot row id (populated only when source === "closed"). */
   periodId?: Id<"invoicePeriods">;
+}
+
+interface FrozenMemberLine {
+  memberProfileId: Id<"memberProfiles">;
+  memberId: string;
+  firstName: string;
+  lastName: string;
+  groupCode: string;
+  tier: PlanTier;
+  grossCents: number;
+  toothlensCents: number;
+  careingtonCents: number;
+  processingCents: number;
+  partnerVendorCents: number;
+  ryzeKeepCents: number;
 }
 
 export interface InvoiceBreakdown {
@@ -142,7 +158,10 @@ function isEffectiveAsOf(effectiveDate: string | undefined, asOfMs: number): boo
   if (!effectiveDate) return true;
   const ms = Date.parse(effectiveDate);
   if (Number.isNaN(ms)) return true;
-  return ms <= asOfMs;
+  // Exclusive: callers pass the period's `endMs`, which is the FIRST instant
+  // of the following month. Coverage effective 2026-06-01 belongs to June, not
+  // to May — an inclusive compare here would bill it in both months.
+  return ms < asOfMs;
 }
 
 /**
@@ -156,7 +175,11 @@ function isEffectiveAsOf(effectiveDate: string | undefined, asOfMs: number): boo
  * "when did Ideal first know this person existed."
  */
 function existedAsOf(createdAt: number, asOfMs: number): boolean {
-  return createdAt <= asOfMs;
+  // Exclusive for the same reason as `isEffectiveAsOf`: `asOfMs` is the first
+  // instant of the next month, so the whole month up to 23:59:59.999 UTC on
+  // its last day counts (a 9:00 PM May 31 signup is May revenue) but midnight
+  // on the 1st does not double-count into the month that just ended.
+  return createdAt < asOfMs;
 }
 
 /**
@@ -310,6 +333,7 @@ async function computeLiveBreakdown(
     let totals: DispersalSplit = ZERO_SPLIT;
     const memberProfileIds: Id<"memberProfiles">[] = [];
     const bundleIds = new Set<Id<"subscriptionBundles">>();
+    const memberLines: FrozenMemberLine[] = [];
 
     for (const member of members) {
       activeMemberCount++;
@@ -345,6 +369,17 @@ async function computeLiveBreakdown(
       } else {
         unbilledPrimaryCount++;
       }
+      const contribution =
+        tier === "none" ? ZERO_SPLIT : getSplitForTier(tier);
+      memberLines.push({
+        memberProfileId: member._id,
+        memberId: member.memberId,
+        firstName: member.firstName,
+        lastName: member.lastName,
+        groupCode: group.groupCode,
+        tier,
+        ...contribution,
+      });
     }
 
     // INV-01 — fail loud rather than silently produce wrong invoices.
@@ -367,6 +402,7 @@ async function computeLiveBreakdown(
       totals,
       memberProfileIds,
       bundleIds: Array.from(bundleIds),
+      memberLines,
     });
   }
 
@@ -488,6 +524,7 @@ export const getInvoiceBreakdownForPeriod = query({
       },
       memberProfileIds: r.memberProfileIds,
       bundleIds: r.bundleIds,
+      memberLines: r.memberLines,
       periodId: r._id,
     }));
 
@@ -894,7 +931,13 @@ export const getVendorPayables = query({
         .query("invoicePeriods")
         .withIndex("by_period", (q) => q.eq("period", period))
         .collect();
-      if (snapRows.length === 0) return computeLiveBreakdown(ctx);
+      // Never answer a historical payable question with today's roster.
+      // The statement workflow requires the period to be closed first.
+      if (snapRows.length === 0) {
+        throw new Error(
+          `Period ${period} is not closed. Close the period before exporting vendor payables.`,
+        );
+      }
       const groups: GroupBreakdown[] = snapRows.map((r) => ({
         groupId: r.groupId,
         groupCode: r.groupCode,
@@ -1056,6 +1099,7 @@ async function closePeriodInternal(
       ryzeKeepCents: g.totals.ryzeKeepCents,
       memberProfileIds: g.memberProfileIds ?? [],
       bundleIds: g.bundleIds ?? [],
+      memberLines: g.memberLines ?? [],
       pricing,
       closedAt,
       closedBy: args.closedBy,

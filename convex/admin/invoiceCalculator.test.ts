@@ -508,9 +508,8 @@ describe("invoiceCalculator — closePeriod", () => {
     const month = prev.getUTCMonth() + 1;
     const midPeriod = Date.UTC(year, month - 1, 15);
 
-    // Created well before period-end, but coverage doesn't start until well
-    // into the month AFTER the one being closed (avoids the exact
-    // period-end instant, which is an inclusive boundary in isEffectiveAsOf).
+    // Created well before period-end, but coverage doesn't start until the
+    // month AFTER the one being closed.
     const nextMonthEffective = new Date(Date.UTC(year, month, 5)).toISOString().slice(0, 10);
     await t.run(async (ctx) => {
       await ctx.db.insert("memberProfiles", {
@@ -540,6 +539,51 @@ describe("invoiceCalculator — closePeriod", () => {
     const r = await asAdmin(t).query(getForPeriod, { period: periodKey });
     expect(r.grand.activeMemberCount).toBe(0);
     expect(r.grand.totals.grossCents).toBe(0);
+  });
+
+  test("the coverage month runs to its very last instant and stops there", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const w = await seedWorld(t);
+
+    const now = new Date();
+    const prev = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+    const year = prev.getUTCFullYear();
+    const month = prev.getUTCMonth() + 1;
+    // 11:59:59.999 PM UTC on the last day of the month being closed — the
+    // latest possible moment someone can buy a plan and still be that month's
+    // revenue. Vendors are paid for them.
+    const lastInstant = Date.UTC(year, month, 1) - 1;
+    // Midnight on the 1st of the NEXT month: the first instant that belongs to
+    // the following period and must not be double-counted here.
+    const nextPeriodStart = Date.UTC(year, month, 1);
+
+    await seedMember(t, w, {
+      customerId: "buzzer-beater",
+      role: "primary",
+      createdAt: lastInstant,
+    });
+    await seedBundle(t, {
+      customerId: "buzzer-beater",
+      totalCents: 1499,
+      createdAt: lastInstant,
+    });
+    await seedMember(t, w, {
+      customerId: "next-month",
+      role: "primary",
+      createdAt: nextPeriodStart,
+    });
+    await seedBundle(t, {
+      customerId: "next-month",
+      totalCents: 1499,
+      createdAt: nextPeriodStart,
+    });
+
+    await asAdmin(t).mutation(closeManual, { year, month });
+    const periodKey = `${year}-${String(month).padStart(2, "0")}`;
+    const r = await asAdmin(t).query(getForPeriod, { period: periodKey });
+    expect(r.grand.activeMemberCount).toBe(1);
+    expect(r.grand.totals.grossCents).toBe(1499);
   });
 
   test("closePeriodManual uses the tier that was in effect during the period, not a later upgrade (bundleTierHistory)", async () => {

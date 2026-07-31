@@ -38,6 +38,7 @@ import type * as admin_teamMembers from "../admin/teamMembers.js";
 import type * as admin_unifiedData from "../admin/unifiedData.js";
 import type * as admin_userAudit from "../admin/userAudit.js";
 import type * as admin_vendorFiles from "../admin/vendorFiles.js";
+import type * as admin_vendorStatements from "../admin/vendorStatements.js";
 import type * as admin_ventures from "../admin/ventures.js";
 import type * as admin_walletPasses from "../admin/walletPasses.js";
 import type * as auth from "../auth.js";
@@ -126,6 +127,7 @@ declare const fullApi: ApiFromModules<{
   "admin/unifiedData": typeof admin_unifiedData;
   "admin/userAudit": typeof admin_userAudit;
   "admin/vendorFiles": typeof admin_vendorFiles;
+  "admin/vendorStatements": typeof admin_vendorStatements;
   "admin/ventures": typeof admin_ventures;
   "admin/walletPasses": typeof admin_walletPasses;
   auth: typeof auth;

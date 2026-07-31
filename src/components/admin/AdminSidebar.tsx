@@ -16,6 +16,7 @@ import {
   Network,
   Tag,
   FileOutput,
+  FileCheck2,
   Settings,
   BarChart3,
   Headphones,
@@ -66,6 +67,7 @@ const ADMIN_NAVIGATION: NavSection[] = [
     items: [
       { label: "Billing", href: "/admin/billing", icon: DollarSign, tooltip: "Subscription billing and group invoices." },
       { label: "List-Bill Invoices", href: "/admin/list-bill-invoices", icon: Receipt, tooltip: "Group-paid roster invoices." },
+      { label: "Vendor Statements", href: "/admin/vendor-statements", icon: FileCheck2, tooltip: "Locked monthly remittance statements for Toothlens, Careington, Ideal, and Ryze." },
       { label: "Invoice Calculator", href: "/admin/invoice-calculator", icon: Calculator, tooltip: "Per-member revenue and dispersal breakdown by group and partner." },
       { label: "Commissions", href: "/admin/commissions", icon: BarChart3, tooltip: "Agent commission calculations and payouts." },
     ],
