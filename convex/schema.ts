@@ -2109,6 +2109,21 @@ export default defineSchema({
       adjustmentDetail: v.boolean(),
     })),
 
+    // ── PER-PRIMARY EXCLUSIONS ────────────────────────────────────────────
+    // Primaries deliberately left off this statement — a duplicate, someone
+    // billed in error, a retro term. The line is removed and its amount comes
+    // off the subtotal, so the document still foots. Kept as a list rather
+    // than a deletion so the omission is always explainable.
+    excludedMembers: v.optional(v.array(v.object({
+      memberId: v.string(),
+      memberName: v.string(),
+      amountCents: v.number(),   // what was removed from the subtotal
+      tier: v.union(v.literal("individual"), v.literal("family")),
+      reason: v.string(),
+      excludedBy: v.string(),
+      excludedAt: v.number(),
+    }))),
+
     // ── INTERNAL MEMO (never printed) ─────────────────────────────────────
     internalMemo: v.optional(v.string()),
 

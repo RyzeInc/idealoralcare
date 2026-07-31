@@ -73,6 +73,9 @@ export interface VendorStatementDocument {
   showFullSplit: boolean;
   showAdjustmentDetail: boolean;
   memberDetailAvailable: boolean;
+  memberDetailComplete: boolean;
+  missingDetailGroups: Array<{ groupName: string; primaryCount: number }>;
+  itemizedCents: number;
   /** Whether rep names were frozen at close or resolved from today's records. */
   attributionBasis: "frozen" | "current" | "mixed" | "none";
 
@@ -303,6 +306,9 @@ export function summaryTable(doc: VendorStatementDocument): Table {
     ["Remittance Due", formatStatementDate(doc.paymentDueDate)],
     ["Basis of Payment", doc.basis],
     ["Covered Primaries", doc.primaryCount],
+    ...(doc.memberDetailAvailable && !doc.memberDetailComplete
+      ? ([["Itemized Below", doc.memberLines.length]] as Row[])
+      : []),
     ["Individual Rate", doc.individualCount],
     ["Family Rate", doc.familyCount],
     ["Subtotal", doc.subtotalCents / 100],
@@ -381,6 +387,22 @@ export function statementToCsv(doc: VendorStatementDocument): string {
   } else if (!doc.memberDetailAvailable) {
     blocks.push(
       `\r\nCovered Primary Detail\r\nThis coverage month was closed before per-primary lines were frozen. Totals above are authoritative; detail is not reconstructed from current data.`,
+    );
+  }
+
+  if (doc.memberDetailAvailable && !doc.memberDetailComplete) {
+    const notItemized = doc.missingDetailGroups.reduce(
+      (n, g) => n + g.primaryCount,
+      0,
+    );
+    blocks.push(
+      `\r\nNot Itemized\r\n${tableToCsv({
+        header: ["Organization", "Primaries Not Itemized"],
+        rows: [
+          ...doc.missingDetailGroups.map((g) => [g.groupName, g.primaryCount]),
+          ["TOTAL", notItemized],
+        ],
+      })}`,
     );
   }
 

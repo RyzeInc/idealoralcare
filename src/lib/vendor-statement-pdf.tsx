@@ -296,6 +296,21 @@ function GroupTable({ doc }: { doc: VendorStatementDocument }) {
   );
 }
 
+function NotItemizedNote({ doc }: { doc: VendorStatementDocument }) {
+  if (doc.memberDetailComplete || doc.missingDetailGroups.length === 0) return null;
+  const total = doc.missingDetailGroups.reduce((n, g) => n + g.primaryCount, 0);
+  return (
+    <Text style={s.note}>
+      {total} covered {total === 1 ? "primary is" : "primaries are"} included in the
+      totals above but not itemized below:{" "}
+      {doc.missingDetailGroups
+        .map((g) => `${g.groupName} (${g.primaryCount})`)
+        .join(", ")}
+      .
+    </Text>
+  );
+}
+
 function MemberTable({ doc }: { doc: VendorStatementDocument }) {
   if (!doc.memberDetailAvailable) {
     return (
@@ -320,6 +335,7 @@ function MemberTable({ doc }: { doc: VendorStatementDocument }) {
   return (
     <View>
       <Text style={s.sectionH}>Covered Primary Detail</Text>
+      <NotItemizedNote doc={doc} />
       {rep && (
         <Text style={s.note}>
           {doc.attributionBasis === "current"
@@ -385,7 +401,7 @@ function MemberTable({ doc }: { doc: VendorStatementDocument }) {
             </>
           )}
           <Text style={[s.cellLast, amountCol, s.boldText]}>
-            {money(doc.subtotalCents)}
+            {money(doc.itemizedCents)}
           </Text>
         </View>
       </View>

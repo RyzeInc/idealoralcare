@@ -26,6 +26,8 @@ const BASE = {
   paymentDueDate: Date.UTC(2026, 6, 2),
   sourceClosedAt: Date.UTC(2026, 5, 1, 0, 5),
   memberDetailAvailable: true,
+  memberDetailComplete: true,
+  missingDetailGroups: [],
   groupCodeVaries: false,
   adjustments: [],
   adjustmentCents: 0,
@@ -51,6 +53,7 @@ const flatFee: VendorStatementDocument = {
   primaryCount: 2,
   individualCount: 1,
   familyCount: 1,
+  itemizedCents: 200,
   memberLines: [
     { memberId: "M-1", firstName: "Ada", lastName: "Lovelace", amountCents: 100 },
     { memberId: "M-2", firstName: "Alan", lastName: "Turing", amountCents: 100 },
@@ -78,6 +81,7 @@ const internal: VendorStatementDocument = {
   primaryCount: 1,
   individualCount: 0,
   familyCount: 1,
+  itemizedCents: 1200,
   memberLines: [
     {
       memberId: "M-1",
@@ -329,5 +333,25 @@ describe("verification export", () => {
       lines: [{ ...audit.lines[0], splitBalances: false }],
     };
     expect(verificationToCsv(broken)).toContain("NO — INVESTIGATE");
+  });
+});
+
+describe("partial member detail", () => {
+  test("a partial list says how many primaries are not itemized", () => {
+    const partial: VendorStatementDocument = {
+      ...flatFee,
+      memberDetailComplete: false,
+      missingDetailGroups: [{ groupName: "Individual Enrollment", primaryCount: 3 }],
+      primaryCount: 5,
+      itemizedCents: 200,
+    };
+    const csv = statementToCsv(partial);
+    // The names it does have are still listed.
+    expect(csv).toContain("Lovelace");
+    expect(csv).toContain("Turing");
+    // And the gap is stated rather than left to be inferred.
+    expect(csv).toContain("Not Itemized");
+    expect(csv).toContain("Individual Enrollment");
+    expect(csv).toContain("Itemized Below");
   });
 });

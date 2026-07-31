@@ -355,7 +355,18 @@ export interface StatementPayload {
   sourceClosedAt: number;
   sourcePeriodIds: Id<"invoicePeriods">[];
   sourcePayloadHashes: string[];
+  /** True when at least one organization has per-member rows to show. */
   memberDetailAvailable: boolean;
+  /** True only when EVERY organization does. */
+  memberDetailComplete: boolean;
+  /**
+   * Organizations whose close has no per-member rows. Reported so a partial
+   * list is never mistaken for a complete one — showing 13 of 16 names
+   * silently would be worse than showing none.
+   */
+  missingDetailGroups: Array<{ groupName: string; primaryCount: number }>;
+  /** Sum of the lines actually itemized. Below subtotal when partial. */
+  itemizedCents: number;
   /** The disclosure this payload was built under. */
   disclosure: StatementDisclosure;
   // Resolved flags, so renderers never re-interpret the profile themselves.
@@ -532,6 +543,62 @@ async function buildGroupRows(
   });
 }
 
+/**
+ * Gather per-member lines from every close that has them, per organization
+ * rather than all-or-nothing. One organization whose detail cannot be rebuilt
+ * must not suppress the names of every other organization on the statement.
+ */
+function collectMemberLines(
+  snapshots: Doc<"invoicePeriods">[],
+  policy: ResolvedPolicy,
+  fallbackByMember: Map<string, RepAttribution>,
+  excluded: Set<string>,
+): {
+  lines: StatementMemberLine[];
+  available: boolean;
+  complete: boolean;
+  missing: Array<{ groupName: string; primaryCount: number }>;
+} {
+  const lines: StatementMemberLine[] = [];
+  const missing: Array<{ groupName: string; primaryCount: number }> = [];
+  let withDetail = 0;
+
+  for (const snapshot of snapshots) {
+    const snapshotPrimaries =
+      snapshot.individualPrimaryCount + snapshot.familyPrimaryCount;
+    if (snapshot.memberLines === undefined) {
+      if (snapshotPrimaries > 0) {
+        missing.push({
+          groupName: snapshot.groupName,
+          primaryCount: snapshotPrimaries,
+        });
+      }
+      continue;
+    }
+    withDetail++;
+    for (const line of snapshot.memberLines) {
+      if (line.tier === "none") continue;
+      if (line[policy.amountField] <= 0) continue;
+      if (excluded.has(line.memberId)) continue;
+      lines.push(
+        shapeMemberLine(
+          line,
+          snapshot,
+          policy,
+          fallbackByMember.get(String(line.memberProfileId)),
+        ),
+      );
+    }
+  }
+
+  return {
+    lines,
+    available: withDetail > 0,
+    complete: missing.length === 0,
+    missing: missing.sort((a, b) => a.groupName.localeCompare(b.groupName)),
+  };
+}
+
 /** True only when more than one real provider code appears on the statement. */
 function providerCodeVaries(rows: StatementGroupRow[]): boolean {
   const codes = new Set(
@@ -700,23 +767,13 @@ async function buildPayload(
     policy,
   );
 
-  const memberLines: StatementMemberLine[] = [];
-  let primaryCount = 0;
-  for (const snapshot of snapshots) {
-    for (const line of snapshot.memberLines ?? []) {
-      if (line.tier === "none") continue;
-      primaryCount++;
-      if (line[policy.amountField] <= 0) continue;
-      memberLines.push(
-        shapeMemberLine(
-          line,
-          snapshot,
-          policy,
-          fallbackByMember.get(String(line.memberProfileId)),
-        ),
-      );
-    }
-  }
+  const collected = collectMemberLines(
+    snapshots,
+    policy,
+    fallbackByMember,
+    new Set<string>(),
+  );
+  const memberLines = policy.disclosure.memberDetail ? collected.lines : [];
 
   const groups = await buildGroupRows(ctx, snapshots, policy);
 
@@ -726,18 +783,11 @@ async function buildPayload(
     (sum, snapshot) => sum + snapshot[policy.amountField],
     0,
   );
-  const memberDetailAvailable = snapshots.every(
-    (snapshot) => snapshot.memberLines !== undefined,
+  const primaryCount = snapshots.reduce(
+    (sum, s) => sum + s.individualPrimaryCount + s.familyPrimaryCount,
+    0,
   );
-  if (!memberDetailAvailable || !policy.disclosure.memberDetail) {
-    // Either the close has no member lines, or this recipient is configured
-    // for a totals-only statement. Totals stand either way.
-    memberLines.length = 0;
-    primaryCount = snapshots.reduce(
-      (sum, s) => sum + s.individualPrimaryCount + s.familyPrimaryCount,
-      0,
-    );
-  }
+  const itemizedCents = memberLines.reduce((sum, l) => sum + l.amountCents, 0);
 
   const allAdjustments = await ctx.db
     .query("invoiceAdjustments")
@@ -766,7 +816,10 @@ async function buildPayload(
     sourceClosedAt: Math.max(...snapshots.map((s) => s.closedAt)),
     sourcePeriodIds: snapshots.map((s) => s._id),
     sourcePayloadHashes: snapshots.map((s) => s.payloadHash).sort(),
-    memberDetailAvailable,
+    memberDetailAvailable: policy.disclosure.memberDetail && collected.available,
+    memberDetailComplete: collected.complete,
+    missingDetailGroups: policy.disclosure.memberDetail ? collected.missing : [],
+    itemizedCents,
     disclosure: policy.disclosure,
     showMemberDetail: policy.disclosure.memberDetail,
     showGroups: policy.disclosure.groupVisibility !== "none",
@@ -939,29 +992,18 @@ export const getStatement = query({
       await hydrateAttribution(ctx, snapshots, policy);
 
     // Derived from the closes as they stand NOW, not from the flag frozen at
-    // generation. Backfilling member detail into a close must make an existing
-    // statement start showing it without being regenerated.
-    const memberDetailAvailable =
-      snapshots.length > 0 &&
-      snapshots.every((snapshot) => snapshot.memberLines !== undefined);
-
-    const memberLines: StatementMemberLine[] = [];
-    if (memberDetailAvailable && policy.disclosure.memberDetail) {
-      for (const snapshot of snapshots) {
-        for (const line of snapshot.memberLines ?? []) {
-          if (line.tier === "none") continue;
-          if (line[policy.amountField] <= 0) continue;
-          memberLines.push(
-            shapeMemberLine(
-              line,
-              snapshot,
-              policy,
-              fallbackByMember.get(String(line.memberProfileId)),
-            ),
-          );
-        }
-      }
-    }
+    // generation, and per organization rather than all-or-nothing: a close
+    // whose detail could not be rebuilt must not hide the names of every
+    // other organization on the statement.
+    const excluded = new Set((row.excludedMembers ?? []).map((e) => e.memberId));
+    const collected = collectMemberLines(
+      snapshots,
+      policy,
+      fallbackByMember,
+      excluded,
+    );
+    const memberLines = policy.disclosure.memberDetail ? collected.lines : [];
+    const itemizedCents = memberLines.reduce((sum, l) => sum + l.amountCents, 0);
 
     const groups = await buildGroupRows(ctx, snapshots, policy);
 
@@ -985,22 +1027,43 @@ export const getStatement = query({
       : null;
     const replaces = row.replacesId ? await ctx.db.get(row.replacesId) : null;
 
+    // Excluded primaries come off the counts and the money, so the document
+    // still foots against the lines it shows.
+    const excludedList = row.excludedMembers ?? [];
+    const excludedCents = excludedList.reduce((n, e) => n + e.amountCents, 0);
+    const excludedIndividual = excludedList.filter(
+      (e) => e.tier === "individual",
+    ).length;
+    const excludedFamily = excludedList.filter((e) => e.tier === "family").length;
+
+    const subtotalCents = row.subtotalCents - excludedCents;
+    const totalCents = subtotalCents + row.adjustmentCents;
+
     return {
       ...row,
       overdue: isOverdue(row),
       basis: policy.basis,
-      memberDetailAvailable,
+      memberDetailAvailable: policy.disclosure.memberDetail && collected.available,
+      memberDetailComplete: collected.complete,
+      missingDetailGroups: policy.disclosure.memberDetail ? collected.missing : [],
+      itemizedCents,
+      excludedMembers: excludedList,
+      excludedCents,
+      subtotalCents,
+      totalCents,
+      balanceCents: totalCents - row.amountPaidCents,
       // Counts are derived from the closes rather than read off the frozen
       // row, so they cannot drift from the group rollup after a backfill.
-      primaryCount: snapshots.reduce(
-        (n, x) => n + x.individualPrimaryCount + x.familyPrimaryCount,
-        0,
-      ),
-      individualCount: snapshots.reduce(
-        (n, x) => n + x.individualPrimaryCount,
-        0,
-      ),
-      familyCount: snapshots.reduce((n, x) => n + x.familyPrimaryCount, 0),
+      primaryCount:
+        snapshots.reduce(
+          (n, x) => n + x.individualPrimaryCount + x.familyPrimaryCount,
+          0,
+        ) - excludedList.length,
+      individualCount:
+        snapshots.reduce((n, x) => n + x.individualPrimaryCount, 0) -
+        excludedIndividual,
+      familyCount:
+        snapshots.reduce((n, x) => n + x.familyPrimaryCount, 0) - excludedFamily,
       groupCodeVaries: providerCodeVaries(groups),
       disclosure: policy.disclosure,
       showMemberDetail: policy.disclosure.memberDetail,
@@ -1199,6 +1262,132 @@ export const resetDisclosureProfile = mutation({
 });
 
 // ---------------------------------------------------------------------------
+// Per-primary exclusions
+// ---------------------------------------------------------------------------
+
+/**
+ * Leave a specific primary off a statement — a duplicate, someone billed in
+ * error, a term that landed after the close. The line disappears and its
+ * amount comes off the subtotal so the document still foots.
+ *
+ * Draft only. Once a statement has been issued, the recipient holds a copy
+ * with a total on it; changing that total silently would make the two
+ * disagree. Void and reissue instead — the reissue picks the exclusion up.
+ */
+export const excludeMemberFromStatement = mutation({
+  args: {
+    statementId: v.id("vendorStatements"),
+    memberId: v.string(),
+    reason: v.string(),
+  },
+  handler: async (ctx, { statementId, memberId, reason }) => {
+    const actor = await requireAdmin(ctx);
+    if (!reason.trim()) {
+      throw new Error("A reason is required to leave a primary off a statement");
+    }
+    const row = await ctx.db.get(statementId);
+    if (!row) throw new Error("Statement not found");
+    if (row.status !== "draft") {
+      throw new Error(
+        `${row.statementNumberDisplay} has already been issued. Reissue it to change which primaries are included.`,
+      );
+    }
+    const already = row.excludedMembers ?? [];
+    if (already.some((e) => e.memberId === memberId)) {
+      throw new Error(`${memberId} is already excluded from this statement`);
+    }
+
+    // Find the frozen line so the amount removed is the one that was closed,
+    // never a recomputed figure.
+    const policy = VENDOR_IDENTITY[row.vendor as VendorId];
+    let found: { amountCents: number; name: string; tier: "individual" | "family" } | null =
+      null;
+    for (const periodId of row.sourcePeriodIds) {
+      const snapshot = await ctx.db.get(periodId);
+      for (const line of snapshot?.memberLines ?? []) {
+        if (line.memberId !== memberId || line.tier === "none") continue;
+        found = {
+          amountCents: line[policy.amountField],
+          name: `${line.lastName}, ${line.firstName}`,
+          tier: line.tier,
+        };
+        break;
+      }
+      if (found) break;
+    }
+    if (!found) {
+      throw new Error(
+        `${memberId} is not a covered primary on this statement, so it cannot be excluded`,
+      );
+    }
+
+    const now = Date.now();
+    const excludedMembers = [
+      ...already,
+      {
+        memberId,
+        memberName: found.name,
+        amountCents: found.amountCents,
+        tier: found.tier,
+        reason: reason.trim(),
+        excludedBy: actor.clerkUserId,
+        excludedAt: now,
+      },
+    ];
+    // Stored totals stay as generated; the effective figures are derived in
+    // `getStatement` from the exclusion list, so a restore is lossless.
+    await ctx.db.patch(statementId, { excludedMembers, updatedAt: now });
+
+    await ctx.runMutation(internal.admin.adminAudit.record, {
+      actorClerkUserId: actor.clerkUserId,
+      action: "vendor_statement.exclude_member",
+      targetType: "vendorStatements",
+      targetId: statementId,
+      summary: `Excluded ${found.name} (${memberId}) from ${row.statementNumberDisplay}: ${reason.trim()}`,
+      metadata: {
+        memberId,
+        amountCents: found.amountCents,
+        reason: reason.trim(),
+      },
+    });
+
+    return { excluded: excludedMembers.length };
+  },
+});
+
+/** Put a previously excluded primary back on the statement. */
+export const restoreMemberToStatement = mutation({
+  args: { statementId: v.id("vendorStatements"), memberId: v.string() },
+  handler: async (ctx, { statementId, memberId }) => {
+    const actor = await requireAdmin(ctx);
+    const row = await ctx.db.get(statementId);
+    if (!row) throw new Error("Statement not found");
+    if (row.status !== "draft") {
+      throw new Error(
+        `${row.statementNumberDisplay} has already been issued. Reissue it to change which primaries are included.`,
+      );
+    }
+    const already = row.excludedMembers ?? [];
+    const entry = already.find((e) => e.memberId === memberId);
+    if (!entry) throw new Error(`${memberId} is not excluded from this statement`);
+
+    await ctx.db.patch(statementId, {
+      excludedMembers: already.filter((e) => e.memberId !== memberId),
+      updatedAt: Date.now(),
+    });
+
+    await ctx.runMutation(internal.admin.adminAudit.record, {
+      actorClerkUserId: actor.clerkUserId,
+      action: "vendor_statement.restore_member",
+      targetType: "vendorStatements",
+      targetId: statementId,
+      summary: `Restored ${entry.memberName} (${memberId}) to ${row.statementNumberDisplay}`,
+      metadata: { memberId, amountCents: entry.amountCents },
+    });
+  },
+});
+
+// ---------------------------------------------------------------------------
 // Activity trail
 // ---------------------------------------------------------------------------
 
@@ -1220,6 +1409,8 @@ const STATEMENT_ACTIONS: Array<{ action: string; label: string; kind: string }> 
   { action: "vendor_statement.void", label: "Statement voided", kind: "lifecycle" },
   { action: "vendor_statement.unvoid", label: "Statement un-voided", kind: "lifecycle" },
   { action: "vendor_statement.edit", label: "Statement details edited", kind: "lifecycle" },
+  { action: "vendor_statement.exclude_member", label: "Primary excluded", kind: "lifecycle" },
+  { action: "vendor_statement.restore_member", label: "Primary restored", kind: "lifecycle" },
   { action: "vendor_statement.remittance", label: "Remittance recorded", kind: "money" },
   // Upstream events that move the figures a statement reports
   { action: "invoice.recordAdjustment", label: "Adjustment recorded", kind: "money" },

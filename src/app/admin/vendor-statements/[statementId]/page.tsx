@@ -21,6 +21,8 @@ import {
   SlidersHorizontal,
   Table2,
   Trash2,
+  Undo2,
+  UserMinus,
   Users,
   Wrench,
 } from 'lucide-react';
@@ -316,10 +318,176 @@ function EditModal({
 }
 
 // ---------------------------------------------------------------------------
+// Primaries deliberately left off
+// ---------------------------------------------------------------------------
+
+function ExcludedPrimaries({
+  statementId,
+  excluded,
+  isDraft,
+}: {
+  statementId: Id<'vendorStatements'>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  excluded: any[];
+  isDraft: boolean;
+}) {
+  const toast = useToast();
+  const restore = useMutation(api.admin.vendorStatements.restoreMemberToStatement);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  if (excluded.length === 0) return null;
+
+  return (
+    <div className="bg-white rounded-lg shadow overflow-hidden border-l-4 border-amber-400">
+      <div className="px-6 py-4 border-b border-slate-200">
+        <h2 className="text-sm font-semibold text-slate-700">
+          Excluded from this statement ({excluded.length})
+        </h2>
+        <p className="text-xs text-slate-500">
+          Left off deliberately. Their amounts are already off the subtotal above.
+        </p>
+      </div>
+      <table className="min-w-full divide-y divide-slate-200 text-sm">
+        <thead className="bg-slate-50">
+          <tr>
+            <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Member</th>
+            <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Reason</th>
+            <th className="px-4 py-2 text-right text-xs font-semibold text-slate-500 uppercase">Removed</th>
+            <th className="px-4 py-2" />
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {excluded.map((entry) => (
+            <tr key={entry.memberId}>
+              <td className="px-4 py-2 text-slate-800">
+                {entry.memberName}
+                <span className="block text-xs text-slate-400 font-mono">
+                  {entry.memberId}
+                </span>
+              </td>
+              <td className="px-4 py-2 text-slate-600">{entry.reason}</td>
+              <td className="px-4 py-2 text-right text-slate-700">
+                −{formatCurrency(entry.amountCents, { fromCents: true })}
+              </td>
+              <td className="px-4 py-2 text-right">
+                {isDraft && (
+                  <button
+                    disabled={busy === entry.memberId}
+                    onClick={async () => {
+                      setBusy(entry.memberId);
+                      try {
+                        await restore({ statementId, memberId: entry.memberId });
+                        toast.success(`${entry.memberName} put back on the statement`);
+                      } catch (error) {
+                        toast.error((error as Error).message ?? 'Could not restore');
+                      } finally {
+                        setBusy(null);
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                  >
+                    <Undo2 size={12} /> Put back
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ExcludeModal({
+  statementId,
+  member,
+  onClose,
+}: {
+  statementId: Id<'vendorStatements'>;
+  member: { memberId: string; name: string; amountCents: number };
+  onClose: () => void;
+}) {
+  const toast = useToast();
+  const exclude = useMutation(api.admin.vendorStatements.excludeMemberFromStatement);
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  return (
+    <Modal
+      open
+      title="Leave this primary off the statement"
+      description="The line is removed and its amount comes off the subtotal."
+      onClose={onClose}
+    >
+      <form
+        className="space-y-4 p-1"
+        onSubmit={async (event) => {
+          event.preventDefault();
+          if (!reason.trim()) return;
+          setSaving(true);
+          try {
+            await exclude({ statementId, memberId: member.memberId, reason });
+            toast.success(`${member.name} excluded`);
+            onClose();
+          } catch (error) {
+            toast.error((error as Error).message ?? 'Could not exclude');
+            setSaving(false);
+          }
+        }}
+      >
+        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+          <p className="font-medium text-slate-800">{member.name}</p>
+          <p className="text-xs text-slate-500 font-mono">{member.memberId}</p>
+          <p className="text-xs text-slate-600 mt-1">
+            Subtotal will drop by{' '}
+            {formatCurrency(member.amountCents, { fromCents: true })}.
+          </p>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Reason</label>
+          <textarea
+            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+            rows={3}
+            placeholder="Duplicate enrollment, billed in error, retro term…"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            required
+          />
+        </div>
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={saving || !reason.trim()}
+            className="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-md hover:bg-amber-700 disabled:opacity-50"
+          >
+            {saving ? 'Excluding…' : 'Exclude'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Member detail missing — explain why, and offer the fix in place
 // ---------------------------------------------------------------------------
 
-function MissingMemberDetail({ period }: { period: string }) {
+function MissingMemberDetail({
+  period,
+  missing,
+  hasSome,
+}: {
+  period: string;
+  missing: Array<{ groupName: string; primaryCount: number }>;
+  hasSome: boolean;
+}) {
   const toast = useToast();
   const preview = useQuery(
     api.admin.invoiceCalculator.previewMemberLineBackfill,
@@ -350,13 +518,26 @@ function MissingMemberDetail({ period }: { period: string }) {
         <AlertTriangle size={18} className="text-amber-500 shrink-0 mt-0.5" />
         <div className="text-sm text-slate-700">
           <p className="font-semibold text-slate-900">
-            {period} was closed before per-member lines were recorded
+            {hasSome
+              ? `${missing.reduce((n, m) => n + m.primaryCount, 0)} primaries are not itemized below`
+              : `${period} was closed before per-member lines were recorded`}
           </p>
           <p className="mt-0.5">
-            The totals above are authoritative, but this month has no per-member rows
-            to show — so no members, no rate class per member, and no rep per member.
-            This is a gap in the stored data, not a setting you can switch on.
+            {hasSome
+              ? 'These organizations were closed before per-member lines were recorded, so their primaries are counted in the totals but cannot be named. Everything else is listed below.'
+              : 'The totals above are authoritative, but this month has no per-member rows to show. This is a gap in the stored data, not a setting you can switch on.'}
           </p>
+          {missing.length > 0 && (
+            <ul className="mt-1.5 space-y-0.5">
+              {missing.map((item) => (
+                <li key={item.groupName} className="text-xs text-slate-600">
+                  <span className="font-medium">{item.groupName}</span> —{' '}
+                  {item.primaryCount} primar{item.primaryCount === 1 ? 'y' : 'ies'} not
+                  itemized
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
 
@@ -687,6 +868,9 @@ export default function VendorStatementDetailPage({
   const [showVoid, setShowVoid] = useState(false);
   const [showReissue, setShowReissue] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [excluding, setExcluding] = useState<
+    { memberId: string; name: string; amountCents: number } | null
+  >(null);
   const [busy, setBusy] = useState(false);
 
   if (statement === undefined) {
@@ -1170,7 +1354,9 @@ export default function VendorStatementDetailPage({
         <div className="px-6 py-4 border-b border-slate-200 flex items-center gap-2">
           <h2 className="text-sm font-semibold text-slate-700">Covered Primary Detail</h2>
           <span className="ml-auto text-xs text-slate-400">
-            {statement.memberLines.length} line{statement.memberLines.length !== 1 ? 's' : ''}
+            {statement.memberLines.length} of {statement.primaryCount} primaries itemized
+            {statement.memberLines.length > 0 &&
+              ` · ${formatCurrency(statement.itemizedCents, { fromCents: true })}`}
           </span>
         </div>
         {statement.showBroker && statement.attributionBasis !== 'frozen' &&
@@ -1181,9 +1367,16 @@ export default function VendorStatementDetailPage({
                 : 'Some rows below carry the rep captured at close; the rest fall back to the current attribution of record.'}
             </p>
           )}
-        {!statement.memberDetailAvailable ? (
-          <MissingMemberDetail period={statement.period} />
-        ) : statement.memberLines.length === 0 ? (
+        {!statement.memberDetailComplete && (
+          <div className="border-b border-amber-200">
+            <MissingMemberDetail
+              period={statement.period}
+              missing={statement.missingDetailGroups}
+              hasSome={statement.memberDetailAvailable}
+            />
+          </div>
+        )}
+        {!statement.memberDetailAvailable ? null : statement.memberLines.length === 0 ? (
           <p className="px-6 py-6 text-sm text-slate-500">
             No covered primaries earned this recipient a payment in {statement.period}.
           </p>
@@ -1208,6 +1401,7 @@ export default function VendorStatementDetailPage({
                     </th>
                   )}
                   <th className="px-4 py-2 text-right text-xs font-semibold text-slate-500 uppercase">Amount</th>
+                  {status === 'draft' && <th className="px-4 py-2" />}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -1247,6 +1441,23 @@ export default function VendorStatementDetailPage({
                     <td className="px-4 py-2 text-right text-slate-800">
                       {formatCurrency(line.amountCents, { fromCents: true })}
                     </td>
+                    {status === 'draft' && (
+                      <td className="px-4 py-2 text-right">
+                        <button
+                          onClick={() =>
+                            setExcluding({
+                              memberId: line.memberId,
+                              name: `${line.lastName}, ${line.firstName}`,
+                              amountCents: line.amountCents,
+                            })
+                          }
+                          className="inline-flex items-center gap-1 text-xs font-medium text-slate-400 hover:text-amber-700"
+                          title="Leave this primary off the statement"
+                        >
+                          <UserMinus size={12} /> Exclude
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -1255,11 +1466,24 @@ export default function VendorStatementDetailPage({
         )}
       </div>
 
+      <ExcludedPrimaries
+        statementId={id}
+        excluded={statement.excludedMembers ?? []}
+        isDraft={status === 'draft'}
+      />
+
       <VerificationPanel statementId={id} />
 
       <StatementAuditLog statementId={id} />
 
       {/* Dialogs */}
+      {excluding && (
+        <ExcludeModal
+          statementId={id}
+          member={excluding}
+          onClose={() => setExcluding(null)}
+        />
+      )}
       {showRemittance && (
         <RemittanceModal
           statementId={id}

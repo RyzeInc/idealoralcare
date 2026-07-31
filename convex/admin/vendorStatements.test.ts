@@ -1804,3 +1804,242 @@ describe("vendorStatements — statement readability", () => {
     expect(audit.lines).toHaveLength(2);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Partial member detail + per-primary exclusions
+// ---------------------------------------------------------------------------
+
+describe("vendorStatements — naming the primaries", () => {
+  /** Two organizations; only one of them has per-member rows. */
+  async function seedPartialMonth(t: ReturnType<typeof convexTest>) {
+    await seedAdmin(t);
+    const { year, month, period, midMs } = previousMonth();
+    const named = await seedWorld(t, { groupCode: "IDEALDO", groupName: "Apricus" });
+    const unnamed = await seedWorld(t, { groupCode: "IDEALDO", groupName: "Soars" });
+    for (const world of [named, unnamed]) {
+      await t.run(async (ctx) => {
+        await ctx.db.patch(world.groupId, {
+          listBill: { enabled: true, paymentMethod: "ach" as const },
+        });
+      });
+    }
+    await seedPrimary(t, named, {
+      customerId: "ap-1",
+      memberId: "MEM-AP1",
+      totalCents: 1499,
+      createdAt: midMs,
+    });
+    await seedPrimary(t, named, {
+      customerId: "ap-2",
+      memberId: "MEM-AP2",
+      totalCents: 2499,
+      createdAt: midMs,
+    });
+    await seedPrimary(t, unnamed, {
+      customerId: "so-1",
+      memberId: "MEM-SO1",
+      totalCents: 1499,
+      createdAt: midMs,
+    });
+    await asAdmin(t).mutation(api.admin.invoiceCalculator.closePeriodManual, {
+      year,
+      month,
+    });
+    // Strip only Soars' detail — imitating a close that cannot be rebuilt.
+    await t.run(async (ctx) => {
+      const rows = await ctx.db.query("invoicePeriods").collect();
+      for (const row of rows) {
+        if (row.period === period && row.groupName === "Soars") {
+          await ctx.db.patch(row._id, { memberLines: undefined });
+        }
+      }
+    });
+    return { period };
+  }
+
+  test("one organization missing detail does not hide the other's names", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedPartialMonth(t);
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+
+    // The names that exist are shown.
+    expect(statement.memberDetailAvailable).toBe(true);
+    expect(statement.memberLines).toHaveLength(2);
+    expect(statement.memberLines.map((l: any) => l.memberId).sort()).toEqual([
+      "MEM-AP1",
+      "MEM-AP2",
+    ]);
+    // And the gap is reported, never passed off as a complete list.
+    expect(statement.memberDetailComplete).toBe(false);
+    expect(statement.missingDetailGroups).toEqual([
+      { groupName: "Soars", primaryCount: 1 },
+    ]);
+    // Totals still cover everyone, including the un-itemized primary.
+    expect(statement.primaryCount).toBe(3);
+    expect(statement.itemizedCents).toBeLessThan(statement.subtotalCents);
+  });
+
+  test("excluding a primary drops the line, the count, and the money", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const before: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(before.memberLines).toHaveLength(2);
+    const victim = before.memberLines[0];
+
+    await asAdmin(t).mutation(
+      api.admin.vendorStatements.excludeMemberFromStatement,
+      {
+        statementId,
+        memberId: victim.memberId,
+        reason: "Duplicate enrollment",
+      },
+    );
+
+    const after: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(after.memberLines).toHaveLength(1);
+    expect(after.memberLines[0].memberId).not.toBe(victim.memberId);
+    expect(after.primaryCount).toBe(before.primaryCount - 1);
+    expect(after.subtotalCents).toBe(before.subtotalCents - victim.amountCents);
+    expect(after.totalCents).toBe(before.totalCents - victim.amountCents);
+    expect(after.excludedMembers).toHaveLength(1);
+    expect(after.excludedMembers[0].reason).toBe("Duplicate enrollment");
+    expect(after.excludedCents).toBe(victim.amountCents);
+
+    // Restoring is lossless.
+    await asAdmin(t).mutation(
+      api.admin.vendorStatements.restoreMemberToStatement,
+      { statementId, memberId: victim.memberId },
+    );
+    const restored: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(restored.memberLines).toHaveLength(2);
+    expect(restored.subtotalCents).toBe(before.subtotalCents);
+    expect(restored.excludedMembers).toHaveLength(0);
+  });
+
+  test("a reason is required, and the same primary cannot be excluded twice", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    const memberId = statement.memberLines[0].memberId;
+
+    await expect(
+      asAdmin(t).mutation(api.admin.vendorStatements.excludeMemberFromStatement, {
+        statementId,
+        memberId,
+        reason: "   ",
+      }),
+    ).rejects.toThrow(/reason is required/i);
+
+    await asAdmin(t).mutation(
+      api.admin.vendorStatements.excludeMemberFromStatement,
+      { statementId, memberId, reason: "Billed in error" },
+    );
+    await expect(
+      asAdmin(t).mutation(api.admin.vendorStatements.excludeMemberFromStatement, {
+        statementId,
+        memberId,
+        reason: "again",
+      }),
+    ).rejects.toThrow(/already excluded/i);
+  });
+
+  test("someone who is not on the statement cannot be excluded", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    await expect(
+      asAdmin(t).mutation(api.admin.vendorStatements.excludeMemberFromStatement, {
+        statementId,
+        memberId: "NOT-A-MEMBER",
+        reason: "typo",
+      }),
+    ).rejects.toThrow(/not a covered primary/i);
+  });
+
+  test("an issued statement's included set is locked until reissue", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    const memberId = statement.memberLines[0].memberId;
+    await asAdmin(t).mutation(api.admin.vendorStatements.issueStatement, {
+      statementId,
+    });
+
+    await expect(
+      asAdmin(t).mutation(api.admin.vendorStatements.excludeMemberFromStatement, {
+        statementId,
+        memberId,
+        reason: "too late",
+      }),
+    ).rejects.toThrow(/already been issued/i);
+  });
+
+  test("an exclusion is written to the activity trail with its reason", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    await asAdmin(t).mutation(
+      api.admin.vendorStatements.excludeMemberFromStatement,
+      {
+        statementId,
+        memberId: statement.memberLines[0].memberId,
+        reason: "Retro term effective the 1st",
+      },
+    );
+
+    const trail: any[] = await asAdmin(t).query(
+      api.admin.vendorStatements.listStatementActivity,
+      { vendor: "ideal" },
+    );
+    const entry = trail.find(
+      (e) => e.action === "vendor_statement.exclude_member",
+    );
+    expect(entry).toBeDefined();
+    expect(entry.label).toBe("Primary excluded");
+    expect(entry.summary).toMatch(/Retro term effective the 1st/);
+  });
+});
