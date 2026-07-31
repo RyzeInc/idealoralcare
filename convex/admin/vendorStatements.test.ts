@@ -1986,7 +1986,7 @@ describe("vendorStatements — naming the primaries", () => {
     ).rejects.toThrow(/not a covered primary/i);
   });
 
-  test("an issued statement's included set is locked until reissue", async () => {
+  test("an issued statement's included set can still be changed", async () => {
     const t = convexTest(schema);
     const { period } = await seedClosedMonth(t);
     const { statementId } = await asAdmin(t).mutation(
@@ -2002,13 +2002,30 @@ describe("vendorStatements — naming the primaries", () => {
       statementId,
     });
 
+    // The owner is not blocked — the change lands and the total moves.
+    await asAdmin(t).mutation(
+      api.admin.vendorStatements.excludeMemberFromStatement,
+      { statementId, memberId, reason: "Termed after issue" },
+    );
+    const after: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(after.excludedMembers).toHaveLength(1);
+    expect(after.totalCents).toBeLessThan(statement.totalCents);
+
+    // A voided statement is the one thing that stays put.
+    await asAdmin(t).mutation(api.admin.vendorStatements.voidStatement, {
+      statementId,
+      reason: "superseded",
+    });
     await expect(
       asAdmin(t).mutation(api.admin.vendorStatements.excludeMemberFromStatement, {
         statementId,
-        memberId,
-        reason: "too late",
+        memberId: after.memberLines[0].memberId,
+        reason: "nope",
       }),
-    ).rejects.toThrow(/already been issued/i);
+    ).rejects.toThrow(/voided/i);
   });
 
   test("an exclusion is written to the activity trail with its reason", async () => {
@@ -2081,7 +2098,9 @@ describe("invoiceCalculator — rebuilding a month people have since left", () =
     });
     expect(closedGross).toBe(3 * 1499);
 
-    // Two of them cancel a month later, and the member records go terminated.
+    // Two of them cancel a month later. Their profiles stay on the roster,
+    // which is the ordinary case — cancelling a subscription does not by
+    // itself terminate the member record.
     await t.run(async (ctx) => {
       const bundles = await ctx.db.query("subscriptionBundles").collect();
       for (const bundle of bundles) {
@@ -2090,12 +2109,6 @@ describe("invoiceCalculator — rebuilding a month people have since left", () =
             status: "cancelled",
             cancelledAt: periodEndMs + 20 * 86_400_000,
           });
-        }
-      }
-      const members = await ctx.db.query("memberProfiles").collect();
-      for (const member of members) {
-        if (member.customerId === "self-2" || member.customerId === "self-3") {
-          await ctx.db.patch(member._id, { memberType: "terminated" });
         }
       }
     });
@@ -2138,6 +2151,73 @@ describe("invoiceCalculator — rebuilding a month people have since left", () =
       "MEM-SELF-2",
       "MEM-SELF-3",
     ]);
+  });
+
+  test("a terminated profile cannot be reconciled, but force still names them", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const world = await seedWorld(t, { groupName: "Individual Enrollment" });
+    const { year, month, period, midMs } = previousMonth();
+
+    for (const n of [1, 2]) {
+      await seedPrimary(t, world, {
+        customerId: `p-${n}`,
+        memberId: `MEM-P${n}`,
+        totalCents: 1499,
+        createdAt: midMs,
+      });
+    }
+    await asAdmin(t).mutation(api.admin.invoiceCalculator.closePeriodManual, {
+      year,
+      month,
+    });
+
+    // One profile is terminated afterwards. `memberProfiles` records no
+    // termination date, so a rebuild cannot tell "left in July" from "left in
+    // April" and deliberately leaves them out — which makes the totals differ.
+    await t.run(async (ctx) => {
+      const members = await ctx.db.query("memberProfiles").collect();
+      for (const member of members) {
+        if (member.customerId === "p-2") {
+          await ctx.db.patch(member._id, { memberType: "terminated" });
+        }
+      }
+      const rows = await ctx.db.query("invoicePeriods").collect();
+      for (const row of rows) {
+        if (row.period === period) {
+          await ctx.db.patch(row._id, { memberLines: undefined });
+        }
+      }
+    });
+
+    const preview: any = await asAdmin(t).query(
+      api.admin.invoiceCalculator.previewMemberLineBackfill,
+      { period },
+    );
+    expect(preview.blocked).toBe(1);
+    expect(preview.rows[0].detail).toMatch(/Rebuilding anyway will name/i);
+
+    // The owner can take it anyway. One name lands; the total stays as closed.
+    const forced = await asAdmin(t).mutation(
+      api.admin.invoiceCalculator.backfillMemberLines,
+      { period, force: true },
+    );
+    expect(forced.forced).toBe(1);
+
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(statement.memberLines).toHaveLength(1);
+    expect(statement.memberLines[0].memberId).toBe("MEM-P1");
+    // Two primaries were closed; only one could be named. The gap is visible
+    // rather than papered over.
+    expect(statement.primaryCount).toBe(2);
+    expect(statement.itemizedCents).toBeLessThan(statement.subtotalCents);
   });
 
   test("a member who cancelled DURING the month is not resurrected into it", async () => {
@@ -2185,5 +2265,165 @@ describe("invoiceCalculator — rebuilding a month people have since left", () =
     );
     expect(statement.memberLines).toHaveLength(1);
     expect(statement.memberLines[0].memberId).toBe("MEM-STAY");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Owner overrides
+// ---------------------------------------------------------------------------
+
+describe("vendorStatements — owner overrides", () => {
+  test("a forced rebuild names the members without moving the money", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    const closedGross = await t.run(async (ctx) => {
+      const rows = await ctx.db.query("invoicePeriods").collect();
+      return rows
+        .filter((r) => r.period === period)
+        .reduce((n, r) => n + r.grossCents, 0);
+    });
+
+    // Strip detail AND make the rebuild disagree with the close.
+    await t.run(async (ctx) => {
+      const rows = await ctx.db.query("invoicePeriods").collect();
+      for (const row of rows) {
+        if (row.period === period) {
+          await ctx.db.patch(row._id, {
+            memberLines: undefined,
+            grossCents: row.grossCents + 1499,
+          });
+        }
+      }
+    });
+
+    // Without force it refuses.
+    const plain = await asAdmin(t).mutation(
+      api.admin.invoiceCalculator.backfillMemberLines,
+      { period },
+    );
+    expect(plain.filled).toBe(0);
+    expect(plain.skipped).toBe(1);
+
+    // With force the names land.
+    const forced = await asAdmin(t).mutation(
+      api.admin.invoiceCalculator.backfillMemberLines,
+      { period, force: true },
+    );
+    expect(forced.forced).toBe(1);
+
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(statement.memberLines).toHaveLength(2);
+
+    // Totals were left exactly as closed — forcing adds names, not money.
+    await t.run(async (ctx) => {
+      const rows = await ctx.db.query("invoicePeriods").collect();
+      const gross = rows
+        .filter((r) => r.period === period)
+        .reduce((n, r) => n + r.grossCents, 0);
+      expect(gross).toBe(closedGross + 1499);
+      for (const row of rows) {
+        if (row.period === period) {
+          expect(row.memberLinesRebuilt).toBe("forced");
+        }
+      }
+    });
+  });
+
+  test("statements can be deleted and regenerated from the same close", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    const first = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatementsForPeriod,
+      { period },
+    );
+    expect(first.generated).toBe(4);
+
+    const before: any[] = await asAdmin(t).query(
+      api.admin.vendorStatements.listStatements,
+      {},
+    );
+    const result = await asAdmin(t).mutation(
+      api.admin.vendorStatements.deleteStatements,
+      { statementIds: before.map((r) => r._id) },
+    );
+    expect(result.deleted).toBe(4);
+
+    const after: any[] = await asAdmin(t).query(
+      api.admin.vendorStatements.listStatements,
+      {},
+    );
+    expect(after).toHaveLength(0);
+
+    // The close is untouched, so the same month regenerates cleanly.
+    const again = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatementsForPeriod,
+      { period },
+    );
+    expect(again.generated).toBe(4);
+
+    // Numbers keep climbing — a number already sent is never reissued.
+    const fresh: any[] = await asAdmin(t).query(
+      api.admin.vendorStatements.listStatements,
+      {},
+    );
+    const lowestNew = Math.min(...fresh.map((r) => r.statementNumber));
+    const highestOld = Math.max(...before.map((r) => r.statementNumber));
+    expect(lowestNew).toBeGreaterThan(highestOld);
+  });
+
+  test("deleting a replacement leaves no dangling pointer on the original", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    await asAdmin(t).mutation(api.admin.vendorStatements.issueStatement, {
+      statementId,
+    });
+    const { replacementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateReplacementStatement,
+      { statementId, reason: "correction" },
+    );
+
+    await asAdmin(t).mutation(api.admin.vendorStatements.deleteStatements, {
+      statementIds: [replacementId],
+    });
+
+    const original: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(original.supersededById).toBeUndefined();
+    expect(original.supersededByNumber).toBeNull();
+    // And it can be un-voided again now that nothing supersedes it.
+    await asAdmin(t).mutation(api.admin.vendorStatements.unvoidStatement, {
+      statementId,
+    });
+  });
+
+  test("bulk deletion by scope needs an explicit confirmation", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatementsForPeriod,
+      { period },
+    );
+    await expect(
+      asAdmin(t).mutation(api.admin.vendorStatements.deleteStatements, { period }),
+    ).rejects.toThrow(/confirmAll/i);
+
+    const ok = await asAdmin(t).mutation(
+      api.admin.vendorStatements.deleteStatements,
+      { period, confirmAll: true },
+    );
+    expect(ok.deleted).toBe(4);
   });
 });

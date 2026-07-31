@@ -495,18 +495,20 @@ function MissingMemberDetail({
   );
   const backfill = useMutation(api.admin.invoiceCalculator.backfillMemberLines);
   const [running, setRunning] = useState(false);
+  const [force, setForce] = useState(false);
 
   async function handleRun() {
     setRunning(true);
     try {
-      const result = await backfill({ period });
+      const result = await backfill({ period, force });
+      const added = result.filled + (result.forced ?? 0);
       toast.success(
-        result.filled > 0
-          ? `Member detail added for ${result.filled} organization(s)`
-          : 'Nothing could be filled — see the reasons listed',
+        added > 0
+          ? `Names added for ${added} organization(s)`
+          : 'Nothing to add — see the notes below',
       );
     } catch (error) {
-      toast.error((error as Error).message ?? 'Backfill failed');
+      toast.error((error as Error).message ?? 'Rebuild failed');
     } finally {
       setRunning(false);
     }
@@ -518,22 +520,22 @@ function MissingMemberDetail({
         <AlertTriangle size={18} className="text-amber-500 shrink-0 mt-0.5" />
         <div className="text-sm text-slate-700">
           <p className="font-semibold text-slate-900">
-            {hasSome
-              ? `${missing.reduce((n, m) => n + m.primaryCount, 0)} primaries are not itemized below`
-              : `${period} was closed before per-member lines were recorded`}
+            {missing.reduce((n, m) => n + m.primaryCount, 0)} member
+            {missing.reduce((n, m) => n + m.primaryCount, 0) === 1 ? '' : 's'} on this
+            statement {missing.reduce((n, m) => n + m.primaryCount, 0) === 1 ? 'has' : 'have'}{' '}
+            no name yet
           </p>
           <p className="mt-0.5">
             {hasSome
-              ? 'These organizations were closed before per-member lines were recorded, so their primaries are counted in the totals but cannot be named. Everything else is listed below.'
-              : 'The totals above are authoritative, but this month has no per-member rows to show. This is a gap in the stored data, not a setting you can switch on.'}
+              ? 'They are counted in the totals, but we never saved their names when this month was closed. Rebuild below to add them.'
+              : 'Everyone on this statement is counted in the totals, but we never saved their names when this month was closed. Rebuild below to add them.'}
           </p>
           {missing.length > 0 && (
             <ul className="mt-1.5 space-y-0.5">
               {missing.map((item) => (
                 <li key={item.groupName} className="text-xs text-slate-600">
-                  <span className="font-medium">{item.groupName}</span> —{' '}
-                  {item.primaryCount} primar{item.primaryCount === 1 ? 'y' : 'ies'} not
-                  itemized
+                  <span className="font-medium">{item.groupName}</span> — {item.primaryCount}{' '}
+                  member{item.primaryCount === 1 ? '' : 's'} without names
                 </li>
               ))}
             </ul>
@@ -546,10 +548,9 @@ function MissingMemberDetail({
       ) : (
         <div className="rounded-md border border-slate-200 overflow-hidden">
           <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 text-xs text-slate-600">
-            Member lines can be rebuilt for{' '}
             <strong className="text-slate-800">{preview.fillable}</strong> of{' '}
-            {preview.rows.length} organization(s). Figures are never touched — a rebuild
-            is accepted only where it reproduces the closed totals to the cent.
+            {preview.rows.length} organization(s) can have names added with no
+            discrepancy. Rebuilding only adds names — it never changes any amount.
           </div>
           <ul className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
             {preview.rows.map((row) => (
@@ -575,16 +576,30 @@ function MissingMemberDetail({
               </li>
             ))}
           </ul>
-          <div className="px-4 py-3 bg-slate-50 border-t border-slate-200">
+          <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 space-y-2.5">
+            {preview.blocked > 0 && (
+              <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={force}
+                  onChange={(event) => setForce(event.target.checked)}
+                />
+                <span>
+                  Add names for the {preview.blocked} organization
+                  {preview.blocked === 1 ? '' : 's'} above that don&apos;t match the
+                  closed total either. The names get added; the totals stay exactly as
+                  closed, so the itemized lines won&apos;t sum to the statement total.
+                </span>
+              </label>
+            )}
             <button
               onClick={handleRun}
-              disabled={running || preview.fillable === 0}
+              disabled={running || (preview.fillable === 0 && !force)}
               className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
             >
               <Wrench size={14} />
-              {running
-                ? 'Rebuilding…'
-                : `Rebuild member detail for ${period}`}
+              {running ? 'Adding names…' : `Add names for ${period}`}
             </button>
           </div>
         </div>

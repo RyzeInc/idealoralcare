@@ -19,6 +19,7 @@ import {
   Plus,
   ScrollText,
   SlidersHorizontal,
+  Trash2,
   Table2,
   Wrench,
 } from 'lucide-react';
@@ -553,6 +554,110 @@ function BackfillModal({
 }
 
 // ---------------------------------------------------------------------------
+// Delete statements — start over without touching the closed months
+// ---------------------------------------------------------------------------
+
+function DeleteStatementsModal({
+  statements,
+  onClose,
+}: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  statements: any[];
+  onClose: () => void;
+}) {
+  const toast = useToast();
+  const remove = useMutation(api.admin.vendorStatements.deleteStatements);
+  const [scope, setScope] = useState<'voided' | 'drafts' | 'all'>('voided');
+  const [running, setRunning] = useState(false);
+
+  const matching = statements.filter((s) =>
+    scope === 'all'
+      ? true
+      : scope === 'voided'
+        ? s.status === 'voided'
+        : s.status === 'draft',
+  );
+
+  async function handleDelete() {
+    setRunning(true);
+    try {
+      const result = await remove({
+        statementIds: matching.map((s) => s._id),
+      });
+      toast.success(`Deleted ${result.deleted} statement(s)`);
+      onClose();
+    } catch (error) {
+      toast.error((error as Error).message ?? 'Delete failed');
+      setRunning(false);
+    }
+  }
+
+  return (
+    <Modal
+      open
+      title="Delete statements"
+      description="Removes the documents. The closed months they came from are untouched, so anything deleted can be generated again."
+      onClose={onClose}
+    >
+      <div className="space-y-4 p-1">
+        <div className="grid gap-2">
+          {([
+            ['voided', 'Voided only', 'Clears out the ones you already voided.'],
+            ['drafts', 'Drafts only', 'Clears anything not yet issued.'],
+            ['all', 'Everything', 'Removes every statement, issued ones included.'],
+          ] as const).map(([value, label, help]) => (
+            <label
+              key={value}
+              className={`flex gap-3 rounded-md border p-3 cursor-pointer ${
+                scope === value
+                  ? 'border-red-300 bg-red-50/60'
+                  : 'border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <input
+                type="radio"
+                name="delete-scope"
+                className="mt-1"
+                checked={scope === value}
+                onChange={() => setScope(value)}
+              />
+              <div>
+                <p className="text-sm font-medium text-slate-800">{label}</p>
+                <p className="text-xs text-slate-500">{help}</p>
+              </div>
+            </label>
+          ))}
+        </div>
+
+        <p className="text-sm text-slate-700">
+          <strong>{matching.length}</strong> statement
+          {matching.length === 1 ? '' : 's'} will be deleted. Statement numbers are not
+          reused — new ones continue from where the sequence left off.
+        </p>
+
+        <div className="flex justify-end gap-3 pt-1">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={running || matching.length === 0}
+            className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50"
+          >
+            {running ? 'Deleting…' : `Delete ${matching.length}`}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -565,6 +670,7 @@ export default function VendorStatementsPage() {
   const [showGenerate, setShowGenerate] = useState(false);
   const [showGenerateMonth, setShowGenerateMonth] = useState(false);
   const [showBackfill, setShowBackfill] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
 
   const periods = useQuery(api.admin.vendorStatements.listStatementPeriods);
   const statements = useQuery(api.admin.vendorStatements.listStatements, {
@@ -686,6 +792,19 @@ export default function VendorStatementsPage() {
             >
               <Wrench size={14} />
               Add Member Detail
+            </button>
+          </Tooltip>
+          <Tooltip
+            text="Delete statements and start over. The closed months are untouched, so anything deleted can be generated again."
+            width="lg"
+          >
+            <button
+              onClick={() => setShowDelete(true)}
+              disabled={!statements || statements.length === 0}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-300 rounded-md hover:bg-red-50 disabled:opacity-50"
+            >
+              <Trash2 size={14} />
+              Delete
             </button>
           </Tooltip>
           <Tooltip text="Cut a draft statement for a single recipient and coverage month." width="lg">
@@ -980,6 +1099,12 @@ export default function VendorStatementsPage() {
         <GenerateStatementModal
           periods={periodKeys}
           onClose={() => setShowGenerate(false)}
+        />
+      )}
+      {showDelete && statements && (
+        <DeleteStatementsModal
+          statements={statements}
+          onClose={() => setShowDelete(false)}
         />
       )}
       {showBackfill && (

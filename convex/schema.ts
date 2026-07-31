@@ -1888,6 +1888,13 @@ export default defineSchema({
       )),
     }))),
 
+    // How this row's `memberLines` got there. Absent = written by the close
+    // itself. "exact" = rebuilt later and reproduced the closed totals to the
+    // cent. "forced" = rebuilt later by an owner who accepted a reconstruction
+    // that does NOT match the closed totals, so the lines are indicative
+    // rather than authoritative. Totals are never rewritten in any case.
+    memberLinesRebuilt: v.optional(v.union(v.literal("exact"), v.literal("forced"))),
+
     // PRICING TABLE used at close time (period-stamped per spec §10 #6).
     // Ensures historical periods reproduce even if rates change later.
     pricing: v.object({

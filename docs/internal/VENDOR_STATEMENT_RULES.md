@@ -175,15 +175,25 @@ close run the morning after month end:
   `cancelledAt` is on or after the period end. Someone who cancelled in August
   was still a paying member in June; reading only today's active bundles drops
   them and the month rebuilds short.
-- **Members.** A rebuild additionally reads `inactive` and `terminated`
-  profiles. Whether they actually bill is still decided by the bundle and
-  household gates, so someone who genuinely left before the period lands at
-  tier `none` and contributes nothing.
 - Anyone whose bundle ended *during* the period stays out, because they were
   not in the active set at close time either.
+- **Members are deliberately NOT widened.** `memberProfiles` records no
+  termination timestamp, so there is no way to tell someone terminated after
+  the period (who belongs in it) from someone terminated before it (who does
+  not). Including them all over-counts, so a member whose profile has since
+  been terminated will not reconcile — use the force option below.
 
 Both directions are covered by tests. Before this, a month with post-period
 churn could never reconcile, which meant its members could never be named.
+
+### Forcing a rebuild
+
+Where a rebuild does not reproduce the closed total, `backfillMemberLines`
+accepts `force: true`. The names are added and the row is stamped
+`memberLinesRebuilt: "forced"`; **totals, `payloadHash`, and `closedAt` are
+still never written**. Forcing makes members visible, it does not move money —
+so a forced organization's itemized lines will not sum to its closed total, and
+the statement shows that gap rather than hiding it.
 
 ### Partial detail is shown, not suppressed
 
@@ -203,9 +213,22 @@ Individual/Family mix, so the document still foots.
 - A reason is required and is written to the activity trail.
 - The exclusion is stored as a list on the statement, not a deletion, so
   `restoreMemberToStatement` is lossless.
-- **Draft only.** Once issued, the recipient holds a copy with a total on it;
-  changing that total silently would put the two out of sync. Void and reissue
-  instead — the reissue picks the exclusion up.
+- Allowed at any status except voided. On an already-issued statement this
+  changes a total the recipient has already been sent — the change is audited
+  and shown on the statement, but it is not blocked. Reissue afterwards to get
+  them a matching copy.
+
+## Deleting statements
+
+`deleteStatements` removes documents outright, by explicit id or by scope
+(period / recipient / status, which additionally requires `confirmAll`).
+Nothing else depends on a statement — the closed months are untouched — so
+anything deleted can be generated again from the same figures.
+
+Two things it does take care of: void/replacement pointers on surviving
+statements are cleared so none is left pointing at a document that no longer
+exists, and the number sequence keeps climbing, so a number once sent to a
+partner never later refers to a different document.
 
 ## Rep / broker attribution
 

@@ -304,24 +304,12 @@ async function computeLiveBreakdown(
   // Merge active + enrolling + eligible into one list (all contribute to billing).
   let allMembers = [...activeMembers, ...enrollingMembers, ...eligibleMembers];
 
-  // Rebuilding a past month also has to consider people who have since gone
-  // inactive or been terminated — they were on the roster at the time. Whether
-  // they actually bill is still decided by the bundle/household gates below,
-  // so someone who genuinely left before the period ends up at tier "none"
-  // and contributes nothing.
-  if (asOfMs !== undefined) {
-    const [inactiveMembers, terminatedMembers] = await Promise.all([
-      ctx.db
-        .query("memberProfiles")
-        .withIndex("by_member_type", (q) => q.eq("memberType", "inactive"))
-        .collect(),
-      ctx.db
-        .query("memberProfiles")
-        .withIndex("by_member_type", (q) => q.eq("memberType", "terminated"))
-        .collect(),
-    ]);
-    allMembers = [...allMembers, ...inactiveMembers, ...terminatedMembers];
-  }
+  // NOTE: deliberately NOT widening to `inactive`/`terminated` profiles on the
+  // rebuild path. `memberProfiles` records no termination timestamp, so there
+  // is no way to tell someone terminated after the period (who belongs in it)
+  // from someone terminated before it (who does not) — including them all
+  // over-counts. Bundles are widened below instead, because `cancelledAt`
+  // gives an exact date to gate on.
 
   // Point-in-time gate (closePeriod path only — see doc comment above).
   if (asOfMs !== undefined) {
@@ -1227,6 +1215,10 @@ async function closePeriodInternal(
  * the detail is trustworthy. If they don't, the group is skipped and reported
  * — never patched, never reconciled by hand.
  */
+function formatCentsForHumans(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
 async function computeBackfill(
   ctx: QueryCtx,
   period: string,
@@ -1278,13 +1270,14 @@ async function computeBackfill(
       memberLineCount: group?.memberLines?.length ?? 0,
       frozenGrossCents: snapshot.grossCents,
       recomputedGrossCents,
+      deltaCents: recomputedGrossCents - snapshot.grossCents,
       detail: alreadyHasDetail
-        ? "Already has member detail — will be left alone"
+        ? "Already has member detail — leaving it as is"
         : !group
-          ? "This group no longer exists; its detail cannot be rebuilt"
+          ? "This organization no longer exists, so its members cannot be rebuilt"
           : reconciles
-            ? `Rebuilt roster reproduces the closed totals exactly (${group.memberLines?.length ?? 0} members)`
-            : `Rebuilt totals differ from the close (${recomputedGrossCents}¢ vs ${snapshot.grossCents}¢) — skipped`,
+            ? `Matches the closed total exactly — ${group.memberLines?.length ?? 0} members ready to add`
+            : `Found ${group.memberLines?.length ?? 0} members worth ${formatCentsForHumans(recomputedGrossCents)}, but this month closed at ${formatCentsForHumans(snapshot.grossCents)}. Rebuilding anyway will name those members without changing the total.`,
     };
   });
 
@@ -1313,8 +1306,16 @@ export const previewMemberLineBackfill = query({
  * reconciles to the cent.
  */
 export const backfillMemberLines = mutation({
-  args: { period: v.string() },
-  handler: async (ctx, { period }) => {
+  args: {
+    period: v.string(),
+    /**
+     * Add member lines even where the rebuild does not reproduce the closed
+     * total. The lines are marked `forced` and the totals are still left
+     * exactly as closed — the names become visible, the money does not move.
+     */
+    force: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { period, force }) => {
     const identity = await requireAdmin(ctx);
     const window = parsePeriodKey(period);
     const snapshots = await ctx.db
@@ -1329,6 +1330,7 @@ export const backfillMemberLines = mutation({
     const byGroup = new Map(rebuilt.groups.map((g) => [String(g.groupId), g]));
 
     let filled = 0;
+    let forced = 0;
     let skipped = 0;
     const skippedGroups: string[] = [];
 
@@ -1343,14 +1345,24 @@ export const backfillMemberLines = mutation({
         group.totals.processingCents === snapshot.processingCents &&
         group.totals.partnerVendorCents === snapshot.partnerVendorCents &&
         group.totals.ryzeKeepCents === snapshot.ryzeKeepCents;
-      if (!reconciles) {
+      if (!group) {
         skipped++;
         skippedGroups.push(snapshot.groupCode);
         continue;
       }
-      // Only the detail. Totals, hashes, and close metadata are untouched.
-      await ctx.db.patch(snapshot._id, { memberLines: group!.memberLines ?? [] });
-      filled++;
+      if (!reconciles && !force) {
+        skipped++;
+        skippedGroups.push(snapshot.groupCode);
+        continue;
+      }
+      // Only the detail. Totals, hashes, and close metadata are untouched —
+      // forcing makes names visible, it never moves money.
+      await ctx.db.patch(snapshot._id, {
+        memberLines: group.memberLines ?? [],
+        memberLinesRebuilt: reconciles ? "exact" : "forced",
+      });
+      if (reconciles) filled++;
+      else forced++;
     }
 
     await ctx.runMutation(internal.admin.adminAudit.record, {
@@ -1358,11 +1370,14 @@ export const backfillMemberLines = mutation({
       action: "invoice.backfillMemberLines",
       targetType: "invoicePeriods",
       targetId: period,
-      summary: `Backfilled member detail for ${period}: ${filled} group(s) filled, ${skipped} skipped`,
-      metadata: { period, filled, skipped, skippedGroups },
+      summary:
+        `Backfilled member detail for ${period}: ${filled} organization(s) matched exactly` +
+        (forced > 0 ? `, ${forced} force-added despite a total mismatch` : "") +
+        (skipped > 0 ? `, ${skipped} skipped` : ""),
+      metadata: { period, filled, forced, skipped, skippedGroups, force: force ?? false },
     });
 
-    return { period, filled, skipped, skippedGroups };
+    return { period, filled, forced, skipped, skippedGroups };
   },
 });
 

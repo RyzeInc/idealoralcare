@@ -1270,9 +1270,10 @@ export const resetDisclosureProfile = mutation({
  * error, a term that landed after the close. The line disappears and its
  * amount comes off the subtotal so the document still foots.
  *
- * Draft only. Once a statement has been issued, the recipient holds a copy
- * with a total on it; changing that total silently would make the two
- * disagree. Void and reissue instead — the reissue picks the exclusion up.
+ * Allowed at any status except voided. On an already-issued statement this
+ * changes a total the recipient has already been sent, so the change is
+ * written to the activity trail and flagged on the statement — but it is not
+ * blocked. Reissuing afterwards is the clean way to get them a matching copy.
  */
 export const excludeMemberFromStatement = mutation({
   args: {
@@ -1287,9 +1288,9 @@ export const excludeMemberFromStatement = mutation({
     }
     const row = await ctx.db.get(statementId);
     if (!row) throw new Error("Statement not found");
-    if (row.status !== "draft") {
+    if (row.status === "voided") {
       throw new Error(
-        `${row.statementNumberDisplay} has already been issued. Reissue it to change which primaries are included.`,
+        `${row.statementNumberDisplay} is voided. Un-void it first if it should change.`,
       );
     }
     const already = row.excludedMembers ?? [];
@@ -1362,9 +1363,9 @@ export const restoreMemberToStatement = mutation({
     const actor = await requireAdmin(ctx);
     const row = await ctx.db.get(statementId);
     if (!row) throw new Error("Statement not found");
-    if (row.status !== "draft") {
+    if (row.status === "voided") {
       throw new Error(
-        `${row.statementNumberDisplay} has already been issued. Reissue it to change which primaries are included.`,
+        `${row.statementNumberDisplay} is voided. Un-void it first if it should change.`,
       );
     }
     const already = row.excludedMembers ?? [];
@@ -1384,6 +1385,80 @@ export const restoreMemberToStatement = mutation({
       summary: `Restored ${entry.memberName} (${memberId}) to ${row.statementNumberDisplay}`,
       metadata: { memberId, amountCents: entry.amountCents },
     });
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Deleting statements
+// ---------------------------------------------------------------------------
+
+/**
+ * Permanently remove statements. Nothing else in the system depends on them —
+ * the closed months they were drawn from are untouched, so anything deleted
+ * here can be generated again from the same figures.
+ *
+ * Statement numbers are not reused: the counter keeps climbing so a number
+ * that was once sent to a partner never points at a different document later.
+ */
+export const deleteStatements = mutation({
+  args: {
+    /** Delete these specific statements. */
+    statementIds: v.optional(v.array(v.id("vendorStatements"))),
+    /** Or everything matching a scope. */
+    period: v.optional(v.string()),
+    vendor: v.optional(vendorValidator),
+    status: v.optional(v.string()),
+    /** Required when deleting by scope rather than by explicit id. */
+    confirmAll: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { statementIds, period, vendor, status, confirmAll }) => {
+    const actor = await requireAdmin(ctx);
+
+    let targets: Doc<"vendorStatements">[] = [];
+    if (statementIds && statementIds.length > 0) {
+      for (const id of statementIds) {
+        const row = await ctx.db.get(id);
+        if (row) targets.push(row);
+      }
+    } else {
+      if (!confirmAll) {
+        throw new Error(
+          "Deleting by scope needs confirmAll — pass explicit statementIds to delete individually.",
+        );
+      }
+      targets = await ctx.db.query("vendorStatements").collect();
+      if (period) targets = targets.filter((r) => r.period === period);
+      if (vendor) targets = targets.filter((r) => r.vendor === vendor);
+      if (status) targets = targets.filter((r) => r.status === status);
+    }
+
+    if (targets.length === 0) return { deleted: 0, numbers: [] };
+
+    // Clear forward/back pointers first so no survivor is left pointing at a
+    // statement that no longer exists.
+    const doomed = new Set(targets.map((t) => String(t._id)));
+    for (const row of targets) {
+      if (row.supersededById && !doomed.has(String(row.supersededById))) {
+        await ctx.db.patch(row.supersededById, { replacesId: undefined });
+      }
+      if (row.replacesId && !doomed.has(String(row.replacesId))) {
+        await ctx.db.patch(row.replacesId, { supersededById: undefined });
+      }
+    }
+
+    const numbers = targets.map((t) => t.statementNumberDisplay);
+    for (const row of targets) await ctx.db.delete(row._id);
+
+    await ctx.runMutation(internal.admin.adminAudit.record, {
+      actorClerkUserId: actor.clerkUserId,
+      action: "vendor_statement.delete",
+      targetType: "vendorStatements",
+      targetId: period ?? "bulk",
+      summary: `Deleted ${targets.length} statement(s): ${numbers.join(", ")}`,
+      metadata: { numbers, period, vendor, status },
+    });
+
+    return { deleted: targets.length, numbers };
   },
 });
 
@@ -1411,6 +1486,7 @@ const STATEMENT_ACTIONS: Array<{ action: string; label: string; kind: string }> 
   { action: "vendor_statement.edit", label: "Statement details edited", kind: "lifecycle" },
   { action: "vendor_statement.exclude_member", label: "Primary excluded", kind: "lifecycle" },
   { action: "vendor_statement.restore_member", label: "Primary restored", kind: "lifecycle" },
+  { action: "vendor_statement.delete", label: "Statements deleted", kind: "lifecycle" },
   { action: "vendor_statement.remittance", label: "Remittance recorded", kind: "money" },
   // Upstream events that move the figures a statement reports
   { action: "invoice.recordAdjustment", label: "Adjustment recorded", kind: "money" },
