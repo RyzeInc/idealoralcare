@@ -19,15 +19,31 @@ import {
   summaryTable,
   adjustmentTable,
   periodSummaryTable,
+  verificationChecksTable,
+  verificationDetailTable,
+  verificationTotalsTable,
   type Table,
   type VendorStatementDocument,
+  type VerificationDocument,
 } from "./vendor-statement-document";
 
 export type DocumentFormat = "pdf" | "csv" | "xlsx";
+/**
+ * "recipient" is the document a partner receives. "verification" is the
+ * internal payables audit — full dispersal across every bucket plus the
+ * reconciliation checks. It is spreadsheet-only on purpose: it is a working
+ * file for finance, not something that should look like a sendable statement.
+ */
+export type DocumentVariant = "recipient" | "verification";
 
 export function parseFormat(value: string | null): DocumentFormat | null {
   if (value === null || value === "") return "pdf";
   return value === "pdf" || value === "csv" || value === "xlsx" ? value : null;
+}
+
+export function parseVariant(value: string | null): DocumentVariant | null {
+  if (value === null || value === "") return "recipient";
+  return value === "recipient" || value === "verification" ? value : null;
 }
 
 /**
@@ -88,8 +104,8 @@ function remitFrom() {
 
 /**
  * Convert the hydrated `getStatement` result into the format-agnostic document
- * shape. The Convex query has already applied VENDOR_POLICY, so this only maps
- * fields — it must never add any.
+ * shape. The Convex query has already applied the statement's frozen
+ * disclosure, so this only maps fields — it must never add any.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function assembleDocument(row: any): VendorStatementDocument {
@@ -109,10 +125,14 @@ export function assembleDocument(row: any): VendorStatementDocument {
     statementDate: row.statementDate,
     paymentDueDate: row.paymentDueDate,
     sourceClosedAt: row.sourceClosedAt,
+    showMemberDetail: row.showMemberDetail ?? true,
     showGroups: row.showGroups,
     showTier: row.showTier,
-    internal: row.internal,
+    showBroker: row.showBroker,
+    showFullSplit: row.showFullSplit ?? false,
+    showAdjustmentDetail: row.showAdjustmentDetail ?? true,
     memberDetailAvailable: row.memberDetailAvailable,
+    attributionBasis: row.attributionBasis ?? "none",
     primaryCount: row.primaryCount,
     memberLines: row.memberLines ?? [],
     groups: row.groups ?? [],
@@ -174,7 +194,7 @@ export function statementSheets(doc: VendorStatementDocument) {
       name: "Statement",
       tables: [
         { title: `${doc.vendorName} — Remittance Statement`, table: summaryTable(doc) },
-        ...(doc.adjustments.length > 0
+        ...(doc.showAdjustmentDetail && doc.adjustments.length > 0
           ? [{ title: "Adjustments", table: adjustmentTable(doc) }]
           : []),
         ...(doc.groups.length > 0
@@ -187,6 +207,32 @@ export function statementSheets(doc: VendorStatementDocument) {
     sheets.push({
       name: "Covered Primaries",
       tables: [{ table: memberDetailTable(doc) }],
+    });
+  }
+  return sheets;
+}
+
+/**
+ * The internal verification workbook. The checks sheet leads so a reviewer
+ * sees PASS/FAIL before any numbers.
+ */
+export function verificationSheets(doc: VerificationDocument) {
+  const sheets: Array<{ name: string; tables: Array<{ title?: string; table: Table }> }> = [
+    {
+      name: "Checks",
+      tables: [
+        {
+          title: `INTERNAL VERIFICATION — ${doc.vendorName} ${doc.period} (${doc.statementNumberDisplay}) — NOT FOR DISTRIBUTION`,
+          table: verificationChecksTable(doc),
+        },
+        { title: "Bucket Totals", table: verificationTotalsTable(doc) },
+      ],
+    },
+  ];
+  if (doc.memberDetailAvailable && doc.lines.length > 0) {
+    sheets.push({
+      name: "Full Dispersal",
+      tables: [{ table: verificationDetailTable(doc) }],
     });
   }
   return sheets;
@@ -212,7 +258,7 @@ export function periodSheets(docs: VendorStatementDocument[], period: string) {
     if (doc.memberDetailAvailable && doc.memberLines.length > 0) {
       tables.push({ title: "Covered Primary Detail", table: memberDetailTable(doc) });
     }
-    if (doc.adjustments.length > 0) {
+    if (doc.showAdjustmentDetail && doc.adjustments.length > 0) {
       tables.push({ title: "Adjustments", table: adjustmentTable(doc) });
     }
     sheets.push({ name: doc.vendorName, tables });

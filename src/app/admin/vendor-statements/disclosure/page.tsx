@@ -1,0 +1,541 @@
+'use client';
+
+import { useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useMutation, useQuery } from 'convex/react';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Check,
+  Eye,
+  Lock,
+  RotateCcw,
+  Save,
+  ShieldAlert,
+  SlidersHorizontal,
+} from 'lucide-react';
+import { api } from '@/convex/_generated/api';
+import { Breadcrumbs, SkeletonCard, Tooltip, useToast } from '@/components/admin/ui';
+import { formatDateTime } from '@/lib/admin-format';
+
+// ---------------------------------------------------------------------------
+// Shape
+// ---------------------------------------------------------------------------
+
+type GroupVisibility = 'none' | 'listBillOnly' | 'all';
+
+interface Disclosure {
+  memberDetail: boolean;
+  groupVisibility: GroupVisibility;
+  rateClass: boolean;
+  repAttribution: boolean;
+  fullSplit: boolean;
+  adjustmentDetail: boolean;
+}
+
+type VendorId = 'toothlens' | 'careington' | 'ideal' | 'ryze';
+
+const GROUP_OPTIONS: Array<{
+  value: GroupVisibility;
+  label: string;
+  help: string;
+}> = [
+  {
+    value: 'none',
+    label: 'Never',
+    help: 'No employer is named anywhere on the statement.',
+  },
+  {
+    value: 'listBillOnly',
+    label: 'List-bill employers only',
+    help: 'Names the employer for members who came in through an employer group. Everyone else reads as "Direct enrollment", so the self-pay book stays private.',
+  },
+  {
+    value: 'all',
+    label: 'Every group',
+    help: 'Names the internal group for every member, including self-pay. Internal use.',
+  },
+];
+
+const TOGGLES: Array<{
+  key: Exclude<keyof Disclosure, 'groupVisibility'>;
+  label: string;
+  help: string;
+  sensitive: boolean;
+}> = [
+  {
+    key: 'memberDetail',
+    label: 'Covered primary detail',
+    help: 'One line per covered primary. Turn off for a totals-only statement.',
+    sensitive: false,
+  },
+  {
+    key: 'rateClass',
+    label: 'Individual / Family rate class',
+    help: 'Discloses household composition. Only meaningful where the recipient’s own rate actually varies by tier.',
+    sensitive: true,
+  },
+  {
+    key: 'repAttribution',
+    label: 'Rep / broker attribution',
+    help: 'Names the rep, their code, email, and agency for each member. Needed by a recipient who pays reps out of this remittance.',
+    sensitive: true,
+  },
+  {
+    key: 'fullSplit',
+    label: 'Full revenue split',
+    help: 'Every vendor’s share plus the retail gross. Internal only — this exposes what other partners are paid.',
+    sensitive: true,
+  },
+  {
+    key: 'adjustmentDetail',
+    label: 'Itemized adjustments',
+    help: 'Each correction with its reason and notes. When off, only the net adjustment shows in the totals.',
+    sensitive: false,
+  },
+];
+
+function sameDisclosure(a: Disclosure, b: Disclosure): boolean {
+  return (
+    a.memberDetail === b.memberDetail &&
+    a.groupVisibility === b.groupVisibility &&
+    a.rateClass === b.rateClass &&
+    a.repAttribution === b.repAttribution &&
+    a.fullSplit === b.fullSplit &&
+    a.adjustmentDetail === b.adjustmentDetail
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Live preview of the resulting statement columns
+// ---------------------------------------------------------------------------
+
+function ColumnPreview({ disclosure }: { disclosure: Disclosure }) {
+  const columns = useMemo(() => {
+    if (!disclosure.memberDetail) return [];
+    const cols = ['Member ID', 'Member'];
+    if (disclosure.groupVisibility !== 'none') cols.push('Group');
+    if (disclosure.rateClass) cols.push('Rate Class');
+    if (disclosure.repAttribution) cols.push('Rep / Broker', 'Rep Code', 'Agency');
+    cols.push('Amount');
+    if (disclosure.fullSplit) {
+      cols.push('Gross', 'Toothlens', 'Careington', 'Processing', 'Ideal', 'Ryze');
+    }
+    return cols;
+  }, [disclosure]);
+
+  const sampleGroup =
+    disclosure.groupVisibility === 'all'
+      ? 'ACMEMFG'
+      : disclosure.groupVisibility === 'listBillOnly'
+        ? 'BIGCORP'
+        : null;
+
+  return (
+    <div className="rounded-md border border-slate-200 bg-white overflow-hidden">
+      <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
+        <Eye size={13} className="text-slate-400" />
+        <span className="text-xs font-semibold text-slate-600">
+          What the recipient&apos;s statement will contain
+        </span>
+      </div>
+      {columns.length === 0 ? (
+        <p className="px-4 py-4 text-sm text-slate-500">
+          Totals only — group summary and statement totals, with no per-member lines.
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-xs">
+            <thead className="bg-white">
+              <tr>
+                {columns.map((col) => (
+                  <th
+                    key={col}
+                    className="px-3 py-2 text-left font-semibold text-slate-500 uppercase whitespace-nowrap border-b border-slate-200"
+                  >
+                    {col}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="text-slate-600">
+                {columns.map((col) => (
+                  <td key={col} className="px-3 py-2 whitespace-nowrap">
+                    {col === 'Member ID'
+                      ? 'MEM-10432'
+                      : col === 'Member'
+                        ? 'Lovelace, Ada'
+                        : col === 'Group'
+                          ? sampleGroup
+                          : col === 'Rate Class'
+                            ? 'Family'
+                            : col === 'Rep / Broker'
+                              ? 'Dana Reyes'
+                              : col === 'Rep Code'
+                                ? 'BRK-REYES-01'
+                                : col === 'Agency'
+                                  ? 'Southeast Benefits'
+                                  : '$1.00'}
+                  </td>
+                ))}
+              </tr>
+              {disclosure.groupVisibility === 'listBillOnly' && (
+                <tr className="text-slate-600 bg-slate-50/60">
+                  {columns.map((col) => (
+                    <td key={col} className="px-3 py-2 whitespace-nowrap">
+                      {col === 'Member ID'
+                        ? 'MEM-10433'
+                        : col === 'Member'
+                          ? 'Turing, Alan'
+                          : col === 'Group'
+                            ? <span className="text-slate-400 italic">Direct enrollment</span>
+                            : col === 'Rate Class'
+                              ? 'Individual'
+                              : col === 'Rep / Broker'
+                                ? 'Dana Reyes'
+                                : col === 'Rep Code'
+                                  ? 'BRK-REYES-01'
+                                  : col === 'Agency'
+                                    ? 'Southeast Benefits'
+                                    : '$1.00'}
+                    </td>
+                  ))}
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// One recipient's editor
+// ---------------------------------------------------------------------------
+
+function RecipientEditor({
+  profile,
+}: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  profile: any;
+}) {
+  const toast = useToast();
+  const update = useMutation(api.admin.vendorStatements.updateDisclosureProfile);
+  const reset = useMutation(api.admin.vendorStatements.resetDisclosureProfile);
+  const counts = useQuery(api.admin.vendorStatements.countStatementsForVendor, {
+    vendor: profile.vendor as VendorId,
+  });
+
+  // Seeded from the server row. The parent remounts this component whenever
+  // that row changes (see the `key` it passes), so a save by another admin or
+  // a reset re-seeds the draft without an effect reaching in to overwrite it.
+  const [draft, setDraft] = useState<Disclosure>(profile.current);
+  const [note, setNote] = useState<string>(profile.note ?? '');
+  const [saving, setSaving] = useState(false);
+
+  const dirty = !sameDisclosure(draft, profile.current) || note !== (profile.note ?? '');
+  const isInternal: boolean = profile.internalRecipient;
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const result = await update({
+        vendor: profile.vendor,
+        disclosure: draft,
+        note: note.trim() || undefined,
+      });
+      toast.success(
+        result.changes.length > 0
+          ? `Saved — ${result.changes.length} change(s) apply to future statements`
+          : 'Saved',
+      );
+    } catch (error) {
+      toast.error((error as Error).message ?? 'Could not save these settings');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleReset() {
+    setSaving(true);
+    try {
+      await reset({ vendor: profile.vendor });
+      toast.success('Restored the default for this recipient');
+    } catch (error) {
+      toast.error((error as Error).message ?? 'Could not reset');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+            {profile.vendorName}
+            {isInternal && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-200 text-slate-700">
+                <Lock size={11} /> Internal
+              </span>
+            )}
+            {profile.customised && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                Customised
+              </span>
+            )}
+          </h2>
+          <p className="text-sm text-slate-500 mt-0.5">{profile.basis}</p>
+        </div>
+        {profile.updatedAt && (
+          <p className="text-xs text-slate-400">
+            Last changed {formatDateTime(profile.updatedAt)}
+          </p>
+        )}
+      </div>
+
+      {/* Already-issued statements are unaffected */}
+      {counts && counts.issued > 0 && (
+        <div className="rounded-md border border-blue-200 bg-blue-50 p-3 flex gap-2.5 text-sm text-blue-950">
+          <Lock size={16} className="shrink-0 mt-0.5 text-blue-700" />
+          <p>
+            {profile.vendorName} has {counts.issued} statement
+            {counts.issued !== 1 ? 's' : ''} already issued. Those keep the settings
+            they were cut under — changes here apply to statements generated from now
+            on.
+          </p>
+        </div>
+      )}
+
+      {/* Employer group */}
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium text-slate-800 flex items-center gap-1.5">
+          Employer group
+          {draft.groupVisibility !== 'none' && (
+            <ShieldAlert size={13} className="text-amber-500" />
+          )}
+        </legend>
+        <div className="grid gap-2">
+          {GROUP_OPTIONS.map((option) => (
+            <label
+              key={option.value}
+              className={`flex gap-3 rounded-md border p-3 cursor-pointer ${
+                draft.groupVisibility === option.value
+                  ? 'border-blue-400 bg-blue-50/60'
+                  : 'border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <input
+                type="radio"
+                name={`group-${profile.vendor}`}
+                className="mt-1"
+                checked={draft.groupVisibility === option.value}
+                onChange={() =>
+                  setDraft((d) => ({ ...d, groupVisibility: option.value }))
+                }
+              />
+              <div>
+                <p className="text-sm font-medium text-slate-800">{option.label}</p>
+                <p className="text-xs text-slate-500">{option.help}</p>
+              </div>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      {/* Toggles */}
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium text-slate-800">Included details</legend>
+        <div className="grid gap-2">
+          {TOGGLES.map((toggle) => {
+            const blocked = toggle.key === 'fullSplit' && !isInternal;
+            const value = draft[toggle.key];
+            return (
+              <label
+                key={toggle.key}
+                className={`flex gap-3 rounded-md border p-3 ${
+                  blocked
+                    ? 'border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed'
+                    : 'border-slate-200 hover:bg-slate-50 cursor-pointer'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  disabled={blocked}
+                  checked={value}
+                  onChange={(event) =>
+                    setDraft((d) => ({ ...d, [toggle.key]: event.target.checked }))
+                  }
+                />
+                <div>
+                  <p className="text-sm font-medium text-slate-800 flex items-center gap-1.5">
+                    {toggle.label}
+                    {toggle.sensitive && value && !blocked && (
+                      <ShieldAlert size={13} className="text-amber-500" />
+                    )}
+                  </p>
+                  <p className="text-xs text-slate-500">{toggle.help}</p>
+                  {blocked && (
+                    <p className="text-xs text-slate-500 mt-1 font-medium">
+                      Not available for an external recipient — it would disclose what
+                      other partners are paid.
+                    </p>
+                  )}
+                </div>
+              </label>
+            );
+          })}
+        </div>
+      </fieldset>
+
+      <ColumnPreview disclosure={draft} />
+
+      {/* Rationale */}
+      <div>
+        <label className="block text-sm font-medium text-slate-800 mb-1">
+          Why these settings{' '}
+          <span className="text-slate-400 font-normal">(optional)</span>
+        </label>
+        <textarea
+          className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+          rows={2}
+          placeholder="e.g. Ideal pays downstream reps and needs the employer for list-bill members."
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+        />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-slate-100">
+        <button
+          onClick={handleSave}
+          disabled={saving || !dirty}
+          className="flex items-center gap-2 px-4 py-2 mt-3 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+        >
+          <Save size={14} />
+          {saving ? 'Saving…' : dirty ? 'Save as the default' : 'Saved'}
+        </button>
+        {profile.customised && (
+          <Tooltip
+            text="Drops the override so this recipient goes back to the built-in default."
+            width="lg"
+          >
+            <button
+              onClick={handleReset}
+              disabled={saving}
+              className="flex items-center gap-2 px-4 py-2 mt-3 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-50"
+            >
+              <RotateCcw size={14} /> Restore default
+            </button>
+          </Tooltip>
+        )}
+        {dirty && (
+          <span className="mt-3 text-xs text-amber-700 flex items-center gap-1">
+            <AlertTriangle size={12} /> Unsaved changes
+          </span>
+        )}
+        {!dirty && !profile.customised && (
+          <span className="mt-3 text-xs text-slate-400 flex items-center gap-1">
+            <Check size={12} /> Using the built-in default
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
+
+export default function DisclosureSettingsPage() {
+  const profiles = useQuery(api.admin.vendorStatements.listDisclosureProfiles, {});
+  const [selected, setSelected] = useState<VendorId>('toothlens');
+
+  const active = profiles?.find((p) => p.vendor === selected);
+
+  return (
+    <div className="min-h-screen bg-slate-50 p-6 space-y-6">
+      <div>
+        <Breadcrumbs
+          items={[
+            { label: 'Admin', href: '/admin' },
+            { label: 'Vendor Statements', href: '/admin/vendor-statements' },
+            { label: 'Statement Contents' },
+          ]}
+        />
+        <h1 className="text-2xl font-bold text-slate-900 mt-1 flex items-center gap-2">
+          <SlidersHorizontal size={22} className="text-blue-600" />
+          Statement Contents
+        </h1>
+        <p className="text-sm text-slate-500 mt-1">
+          What each recipient is shown on their statement, and in every export of it
+        </p>
+      </div>
+
+      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 flex gap-3">
+        <Lock className="text-blue-700 shrink-0" size={20} />
+        <div className="text-sm text-blue-950">
+          <p className="font-semibold">These settings shape future statements only</p>
+          <p>
+            Each statement freezes the settings it was generated under, so a document
+            that has already gone out never changes shape. To apply new settings to a
+            month already statemented, reissue that statement.
+          </p>
+        </div>
+      </div>
+
+      {!profiles ? (
+        <div className="grid gap-4 md:grid-cols-3">
+          <SkeletonCard /><SkeletonCard /><SkeletonCard />
+        </div>
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
+          {/* Recipient picker */}
+          <nav className="bg-white rounded-lg shadow p-2 h-fit">
+            {profiles.map((profile) => (
+              <button
+                key={profile.vendor}
+                onClick={() => setSelected(profile.vendor as VendorId)}
+                className={`w-full text-left px-3 py-2.5 rounded-md text-sm ${
+                  selected === profile.vendor
+                    ? 'bg-blue-50 text-blue-800 font-medium'
+                    : 'text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <span className="flex items-center justify-between gap-2">
+                  {profile.vendorName}
+                  {profile.customised && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  )}
+                </span>
+                <span className="block text-xs text-slate-400 mt-0.5">
+                  {profile.internalRecipient ? 'Internal' : 'External partner'}
+                </span>
+              </button>
+            ))}
+            <Link
+              href="/admin/vendor-statements"
+              className="mt-2 flex items-center gap-1.5 px-3 py-2 text-xs text-slate-500 hover:text-slate-700"
+            >
+              <ArrowLeft size={12} /> Back to statements
+            </Link>
+          </nav>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            {active ? (
+              <RecipientEditor
+                key={`${active.vendor}-${active.updatedAt ?? 'default'}`}
+                profile={active}
+              />
+            ) : (
+              <p className="text-sm text-slate-500">Select a recipient.</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

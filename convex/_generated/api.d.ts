@@ -71,6 +71,7 @@ import type * as lib_gmail from "../lib/gmail.js";
 import type * as lib_hash from "../lib/hash.js";
 import type * as lib_memberCreation from "../lib/memberCreation.js";
 import type * as lib_periods from "../lib/periods.js";
+import type * as lib_repAttribution from "../lib/repAttribution.js";
 import type * as lib_sanitize from "../lib/sanitize.js";
 import type * as newsletter from "../newsletter.js";
 import type * as nexus_categories from "../nexus/categories.js";
@@ -160,6 +161,7 @@ declare const fullApi: ApiFromModules<{
   "lib/hash": typeof lib_hash;
   "lib/memberCreation": typeof lib_memberCreation;
   "lib/periods": typeof lib_periods;
+  "lib/repAttribution": typeof lib_repAttribution;
   "lib/sanitize": typeof lib_sanitize;
   newsletter: typeof newsletter;
   "nexus/categories": typeof nexus_categories;

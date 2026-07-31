@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { requireAdmin, requireAdminAction } from "../lib/authGuards";
 import { recordAdminAction } from "./adminAudit";
 import { createMemberProfile } from "../lib/memberCreation";
+import { resolveRepAttribution } from "../lib/repAttribution";
 import * as unifiedData from "./unifiedData";
 // @ts-ignore - Type instantiation too deep
 import { api as apiOriginal } from "../_generated/api";
@@ -199,37 +200,20 @@ export const getMemberDetail = query({
         null;
     }
 
-    // Rep attribution (Clerk-free): derive from the member's enrollment session.
-    const memberSessions = await ctx.db
-      .query("enrollmentSessions")
-      .withIndex("by_member", (q) => q.eq("memberId", args.memberId))
-      .collect();
-    const attributedSession =
-      memberSessions
-        .filter((s) => s.brokerId || s.brokerTrackingCode)
-        .sort((a, b) => {
-          if ((a.status === "completed") !== (b.status === "completed")) {
-            return a.status === "completed" ? -1 : 1;
-          }
-          return (b.createdAt ?? 0) - (a.createdAt ?? 0);
-        })[0] ?? null;
-
-    let repAttribution: any = null;
-    if (attributedSession) {
-      const leader = attributedSession.brokerId
-        ? await ctx.db.get(attributedSession.brokerId as any)
-        : null;
-      const agencyId =
-        attributedSession.agencyId ?? (leader as any)?.partnerId ?? null;
-      const agency = agencyId ? await ctx.db.get(agencyId as any) : null;
-      repAttribution = {
-        repCode: attributedSession.brokerTrackingCode ?? null,
-        repId: attributedSession.brokerId ?? null,
-        repName: (leader as any)?.name ?? null,
-        agencyId: (agency as any)?._id ?? null,
-        agencyName: (agency as any)?.name ?? null,
-      };
-    }
+    // Rep attribution (Clerk-free). Falls back to the group deal for members
+    // who never ran an enrollment session (eligibility-file / list-bill).
+    const resolved = await resolveRepAttribution(ctx, args.memberId, member.groupId);
+    const repAttribution =
+      resolved.source === "none"
+        ? null
+        : {
+            repCode: resolved.repCode,
+            repId: resolved.repId,
+            repName: resolved.repName,
+            agencyId: resolved.agencyId,
+            agencyName: resolved.agencyName,
+            source: resolved.source,
+          };
 
     return {
       member,

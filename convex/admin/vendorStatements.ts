@@ -17,10 +17,15 @@
  *      close rows themselves (never duplicated into the statement row), so
  *      what prints can never drift from what was closed.
  *
- *   2. RECIPIENTS SEE ONLY THEIR OWN ECONOMICS. `VENDOR_POLICY` below is the
- *      single gate. Fields a recipient may not see are never assembled into
- *      the payload at all — not hidden downstream, not annotated as withheld.
- *      A document cannot leak a field the server never sent.
+ *   2. RECIPIENTS SEE ONLY THEIR OWN ECONOMICS. The resolved disclosure —
+ *      `VENDOR_IDENTITY` (fixed facts) plus the recipient's configurable
+ *      profile — is the single gate. Fields a recipient may not see are never
+ *      assembled into the payload at all: not hidden downstream, not annotated
+ *      as withheld. A document cannot leak a field the server never sent.
+ *
+ *      Profiles are editable per recipient, but each statement freezes the
+ *      profile it was cut under, so changing settings shapes future documents
+ *      and never reshapes one already sent.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -32,6 +37,7 @@ import { mutation, MutationCtx, query, QueryCtx } from "../_generated/server";
 import { requireAdmin } from "../lib/authGuards";
 import { DispersalSplit, PlanTier } from "../lib/dispersal";
 import { parsePeriodKey } from "../lib/periods";
+import { RepAttribution, RepAttributionResolver } from "../lib/repAttribution";
 
 // ---------------------------------------------------------------------------
 // Recipient disclosure policy — the single source of truth
@@ -53,70 +59,223 @@ export const vendorValidator = v.union(
   v.literal("ryze"),
 );
 
-interface VendorPolicy {
+/**
+ * The parts of a recipient's identity that are NOT negotiable: which bucket
+ * pays them, which corrections land on their statement, and what to call them.
+ * These are facts about the revenue model, not preferences.
+ */
+interface VendorIdentity {
   name: string;
   /** Which frozen dispersal bucket this recipient is paid from. */
   amountField: keyof DispersalSplit;
   /** Which `invoiceAdjustments.bucket` corrections land on this statement. */
   adjustmentBucket: "toothlens" | "careington" | "partnerVendor" | "ryzeKeep";
-  /** Internal carrier view — sees the full revenue split. */
-  internal: boolean;
-  /**
-   * Whether employer group / organization identity appears anywhere on the
-   * statement (summary table, member lines, exports). External recipients are
-   * paid per covered primary; which employer sponsors a given member is not
-   * part of what they are owed.
-   */
-  showGroups: boolean;
-  /**
-   * Whether the Individual/Family rate class appears. Only meaningful where
-   * the recipient's own remittance actually varies by tier — a flat-fee
-   * recipient's amount is identical either way, so the tier would disclose
-   * household composition while explaining nothing.
-   */
-  showTier: boolean;
   /** Short line describing what the recipient is being paid for. */
   basis: string;
 }
 
-export const VENDOR_POLICY: Record<VendorId, VendorPolicy> = {
+export const VENDOR_IDENTITY: Record<VendorId, VendorIdentity> = {
   toothlens: {
     name: "Toothlens",
     amountField: "toothlensCents",
     adjustmentBucket: "toothlens",
-    internal: false,
-    showGroups: false,
-    showTier: false,
     basis: "Flat service fee per covered primary",
   },
   careington: {
     name: "Careington",
     amountField: "careingtonCents",
     adjustmentBucket: "careington",
-    internal: false,
-    showGroups: false,
-    showTier: false,
     basis: "Flat service fee per covered primary",
   },
   ideal: {
     name: "Ideal Health",
     amountField: "partnerVendorCents",
     adjustmentBucket: "partnerVendor",
-    internal: false,
-    showGroups: false,
-    showTier: true,
     basis: "Remittance rate per covered primary by rate class",
   },
   ryze: {
     name: "Ryze",
     amountField: "ryzeKeepCents",
     adjustmentBucket: "ryzeKeep",
-    internal: true,
-    showGroups: true,
-    showTier: true,
     basis: "Carrier residual after vendor and processing dispersal",
   },
 };
+
+// ---------------------------------------------------------------------------
+// Disclosure profiles — what each recipient is shown
+// ---------------------------------------------------------------------------
+
+export type GroupVisibility = "none" | "listBillOnly" | "all";
+
+/**
+ * The configurable half of the policy. Every one of these is editable per
+ * recipient in the admin settings; the values below are only the starting
+ * point a recipient gets before anyone touches them.
+ */
+export interface StatementDisclosure {
+  /** Per-primary lines at all, vs. a totals-only statement. */
+  memberDetail: boolean;
+  /** Which employer groups are named. */
+  groupVisibility: GroupVisibility;
+  /** Individual vs. Family rate class. */
+  rateClass: boolean;
+  /** Rep/broker credited with each member. */
+  repAttribution: boolean;
+  /** Every vendor's bucket, not just this recipient's. Internal only. */
+  fullSplit: boolean;
+  /** Itemized adjustment lines vs. a single net figure. */
+  adjustmentDetail: boolean;
+}
+
+export const DISCLOSURE_FIELDS: Array<{
+  key: keyof StatementDisclosure;
+  label: string;
+  help: string;
+  /** Turning this on for an external recipient deserves a second look. */
+  sensitive: boolean;
+}> = [
+  {
+    key: "memberDetail",
+    label: "Covered primary detail",
+    help: "One line per covered primary. Turn off for a totals-only statement.",
+    sensitive: false,
+  },
+  {
+    key: "groupVisibility",
+    label: "Employer group",
+    help: "Names the employer behind each member. \"List-bill only\" names employer groups and shows everyone else as a direct enrollment.",
+    sensitive: true,
+  },
+  {
+    key: "rateClass",
+    label: "Individual / Family rate class",
+    help: "Discloses household composition. Only meaningful where the recipient's own rate actually varies by tier.",
+    sensitive: true,
+  },
+  {
+    key: "repAttribution",
+    label: "Rep / broker attribution",
+    help: "Names the rep and agency credited with each member. Needed by a recipient who pays reps out of this remittance.",
+    sensitive: true,
+  },
+  {
+    key: "fullSplit",
+    label: "Full revenue split",
+    help: "Every vendor's share and the retail gross. Internal use only — this exposes what other partners are paid.",
+    sensitive: true,
+  },
+  {
+    key: "adjustmentDetail",
+    label: "Itemized adjustments",
+    help: "Shows each correction with its reason and notes. When off, only the net adjustment appears in the totals.",
+    sensitive: false,
+  },
+];
+
+/**
+ * Starting defaults. Toothlens and Careington are paid a flat amount per
+ * covered primary, so tier, employer, and rep would all disclose something
+ * without explaining anything about what they are owed. Ideal Health pays its
+ * downstream reps out of its own remittance and needs to know which employer
+ * a list-bill member came from to do it. Ryze is the internal carrier view.
+ */
+export const DEFAULT_DISCLOSURE: Record<VendorId, StatementDisclosure> = {
+  toothlens: {
+    memberDetail: true,
+    groupVisibility: "none",
+    rateClass: false,
+    repAttribution: false,
+    fullSplit: false,
+    adjustmentDetail: true,
+  },
+  careington: {
+    memberDetail: true,
+    groupVisibility: "none",
+    rateClass: false,
+    repAttribution: false,
+    fullSplit: false,
+    adjustmentDetail: true,
+  },
+  ideal: {
+    memberDetail: true,
+    groupVisibility: "listBillOnly",
+    rateClass: true,
+    repAttribution: true,
+    fullSplit: false,
+    adjustmentDetail: true,
+  },
+  ryze: {
+    memberDetail: true,
+    groupVisibility: "all",
+    rateClass: true,
+    repAttribution: true,
+    fullSplit: true,
+    adjustmentDetail: true,
+  },
+};
+
+export const disclosureValidator = v.object({
+  memberDetail: v.boolean(),
+  groupVisibility: v.union(
+    v.literal("none"),
+    v.literal("listBillOnly"),
+    v.literal("all"),
+  ),
+  rateClass: v.boolean(),
+  repAttribution: v.boolean(),
+  fullSplit: v.boolean(),
+  adjustmentDetail: v.boolean(),
+});
+
+/** The saved profile for a recipient, or the code default if none is saved. */
+async function resolveDisclosure(
+  ctx: QueryCtx | MutationCtx,
+  vendor: VendorId,
+): Promise<StatementDisclosure> {
+  const saved = await ctx.db
+    .query("vendorStatementDisclosureProfiles")
+    .withIndex("by_vendor", (q) => q.eq("vendor", vendor))
+    .first();
+  if (!saved) return DEFAULT_DISCLOSURE[vendor];
+  return {
+    memberDetail: saved.memberDetail,
+    groupVisibility: saved.groupVisibility,
+    rateClass: saved.rateClass,
+    repAttribution: saved.repAttribution,
+    fullSplit: saved.fullSplit,
+    adjustmentDetail: saved.adjustmentDetail,
+  };
+}
+
+/**
+ * Identity + the disclosure actually in force. Everything downstream reads
+ * this, so there is still exactly one gate — it just takes its answers from
+ * configuration now instead of from a constant.
+ */
+interface ResolvedPolicy extends VendorIdentity {
+  disclosure: StatementDisclosure;
+}
+
+async function resolvePolicy(
+  ctx: QueryCtx | MutationCtx,
+  vendor: VendorId,
+): Promise<ResolvedPolicy> {
+  return {
+    ...VENDOR_IDENTITY[vendor],
+    disclosure: await resolveDisclosure(ctx, vendor),
+  };
+}
+
+/** Build a policy from a disclosure already frozen onto a statement. */
+function policyFromFrozen(
+  vendor: VendorId,
+  frozen: StatementDisclosure | undefined,
+): ResolvedPolicy {
+  return {
+    ...VENDOR_IDENTITY[vendor],
+    disclosure: frozen ?? DEFAULT_DISCLOSURE[vendor],
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Shapes
@@ -127,12 +286,17 @@ export interface StatementMemberLine {
   firstName: string;
   lastName: string;
   amountCents: number;
-  /** Present only when policy.showGroups. */
+  /** Present only when disclosure.groupVisibility names this member's group. */
   groupCode?: string;
   groupName?: string;
-  /** Present only when policy.showTier. */
+  /** Present only when disclosure.rateClass. */
   rateClass?: string;
-  /** Present only for the internal carrier statement. */
+  /** Present only when disclosure.repAttribution — who to pay for this member. */
+  repName?: string;
+  repCode?: string;
+  repEmail?: string;
+  agencyName?: string;
+  /** Present only when disclosure.fullSplit. */
   grossCents?: number;
   toothlensCents?: number;
   careingtonCents?: number;
@@ -147,6 +311,8 @@ export interface StatementGroupRow {
   primaryCount: number;
   amountCents: number;
 }
+
+export type AttributionBasis = "frozen" | "current" | "mixed" | "none";
 
 export interface StatementAdjustment {
   id: Id<"invoiceAdjustments">;
@@ -168,12 +334,25 @@ export interface StatementPayload {
   sourcePeriodIds: Id<"invoicePeriods">[];
   sourcePayloadHashes: string[];
   memberDetailAvailable: boolean;
+  /** The disclosure this payload was built under. */
+  disclosure: StatementDisclosure;
+  // Resolved flags, so renderers never re-interpret the profile themselves.
+  showMemberDetail: boolean;
   showGroups: boolean;
   showTier: boolean;
-  internal: boolean;
+  showBroker: boolean;
+  showFullSplit: boolean;
+  showAdjustmentDetail: boolean;
+  /**
+   * Where the rep names came from. "frozen" — recorded at close, reproducible
+   * forever. "current" — the close predates frozen attribution, so today's
+   * attribution was resolved instead. "mixed" — some of each. Reported rather
+   * than hidden so a payout run knows which rows are historically exact.
+   */
+  attributionBasis: AttributionBasis;
   primaryCount: number;
   memberLines: StatementMemberLine[];
-  /** Empty unless policy.showGroups. */
+  /** Empty unless the disclosure names groups. */
   groups: StatementGroupRow[];
   adjustments: StatementAdjustment[];
   subtotalCents: number;
@@ -206,21 +385,93 @@ export function coverageWindow(period: string): {
 // Payload assembly (shared by preview, generate, and read)
 // ---------------------------------------------------------------------------
 
-function shapeMemberLine(
-  line: NonNullable<Doc<"invoicePeriods">["memberLines"]>[number],
+type FrozenLine = NonNullable<Doc<"invoicePeriods">["memberLines"]>[number];
+
+/**
+ * Whether this member's employer is named, given the recipient's setting.
+ *
+ * "listBillOnly" is the case a partner paying out on employer business needs:
+ * the employer is named for list-bill members, while direct enrollments are
+ * labelled as such rather than being tied to whatever internal group holds
+ * self-pay members.
+ */
+function groupLabelFor(
   snapshot: Doc<"invoicePeriods">,
-  policy: VendorPolicy,
+  visibility: GroupVisibility,
+): { groupCode: string; groupName: string } | null {
+  if (visibility === "none") return null;
+  if (visibility === "all") {
+    return { groupCode: snapshot.groupCode, groupName: snapshot.groupName };
+  }
+  return snapshot.isListBill
+    ? { groupCode: snapshot.groupCode, groupName: snapshot.groupName }
+    : { groupCode: "DIRECT", groupName: "Direct enrollment" };
+}
+
+/**
+ * Group rollup honouring the recipient's visibility setting. Under
+ * "listBillOnly" every non-list-bill group collapses into one "Direct
+ * enrollment" row, so the recipient sees the employer business they are paying
+ * out on without the internal shape of the self-pay book.
+ */
+function buildGroupRows(
+  snapshots: Doc<"invoicePeriods">[],
+  policy: ResolvedPolicy,
+): StatementGroupRow[] {
+  const visibility = policy.disclosure.groupVisibility;
+  if (visibility === "none") return [];
+
+  const rows = new Map<string, StatementGroupRow>();
+  for (const snapshot of snapshots) {
+    const amountCents = snapshot[policy.amountField];
+    if (amountCents <= 0) continue;
+    const label = groupLabelFor(snapshot, visibility);
+    if (!label) continue;
+    const existing = rows.get(label.groupCode);
+    const primaryCount =
+      snapshot.individualPrimaryCount + snapshot.familyPrimaryCount;
+    if (existing) {
+      existing.primaryCount += primaryCount;
+      existing.amountCents += amountCents;
+    } else {
+      rows.set(label.groupCode, { ...label, primaryCount, amountCents });
+    }
+  }
+  return Array.from(rows.values()).sort((a, b) =>
+    a.groupName.localeCompare(b.groupName),
+  );
+}
+
+function shapeMemberLine(
+  line: FrozenLine,
+  snapshot: Doc<"invoicePeriods">,
+  policy: ResolvedPolicy,
+  /** Live attribution, used only where the close has none frozen. */
+  fallbackRep?: RepAttribution,
 ): StatementMemberLine {
+  const rep = line.repSource
+    ? {
+        repName: line.repName,
+        repCode: line.repCode,
+        repEmail: line.repEmail,
+        agencyName: line.agencyName,
+      }
+    : {
+        repName: fallbackRep?.repName ?? undefined,
+        repCode: fallbackRep?.repCode ?? undefined,
+        repEmail: fallbackRep?.repEmail ?? undefined,
+        agencyName: fallbackRep?.agencyName ?? undefined,
+      };
+  const group = groupLabelFor(snapshot, policy.disclosure.groupVisibility);
   return {
     memberId: line.memberId,
     firstName: line.firstName,
     lastName: line.lastName,
     amountCents: line[policy.amountField],
-    ...(policy.showGroups
-      ? { groupCode: line.groupCode, groupName: snapshot.groupName }
-      : {}),
-    ...(policy.showTier ? { rateClass: rateClassLabel(line.tier) } : {}),
-    ...(policy.internal
+    ...(group ?? {}),
+    ...(policy.disclosure.rateClass ? { rateClass: rateClassLabel(line.tier) } : {}),
+    ...(policy.disclosure.repAttribution ? rep : {}),
+    ...(policy.disclosure.fullSplit
       ? {
           grossCents: line.grossCents,
           toothlensCents: line.toothlensCents,
@@ -230,6 +481,54 @@ function shapeMemberLine(
           ryzeKeepCents: line.ryzeKeepCents,
         }
       : {}),
+  };
+}
+
+/**
+ * Resolve attribution for lines whose close predates the frozen rep fields.
+ *
+ * Rep identity is reference data for routing a payout, not an input to the
+ * statement's arithmetic, so filling it from today's records for a legacy
+ * close is safe in a way that recomputing money never would be. The basis is
+ * returned alongside so the gap is always visible rather than implied.
+ */
+async function hydrateAttribution(
+  ctx: QueryCtx | MutationCtx,
+  snapshots: Doc<"invoicePeriods">[],
+  policy: ResolvedPolicy,
+): Promise<{
+  basis: AttributionBasis;
+  fallbackByMember: Map<string, RepAttribution>;
+}> {
+  const fallbackByMember = new Map<string, RepAttribution>();
+  if (!policy.disclosure.repAttribution) return { basis: "none", fallbackByMember };
+
+  const allLines = snapshots.flatMap((s) => s.memberLines ?? []);
+  if (allLines.length === 0) return { basis: "none", fallbackByMember };
+
+  const stale = allLines.filter((line) => !line.repSource);
+  if (stale.length === 0) return { basis: "frozen", fallbackByMember };
+
+  const resolver = await RepAttributionResolver.create(ctx);
+  const groupCache = new Map<string, Doc<"groups"> | null>();
+  for (const snapshot of snapshots) {
+    const key = String(snapshot.groupId);
+    if (!groupCache.has(key)) groupCache.set(key, await ctx.db.get(snapshot.groupId));
+  }
+  for (const snapshot of snapshots) {
+    const group = groupCache.get(String(snapshot.groupId)) ?? null;
+    for (const line of snapshot.memberLines ?? []) {
+      if (line.repSource) continue;
+      fallbackByMember.set(
+        String(line.memberProfileId),
+        resolver.resolve(line.memberProfileId, group),
+      );
+    }
+  }
+
+  return {
+    basis: stale.length === allLines.length ? "current" : "mixed",
+    fallbackByMember,
   };
 }
 
@@ -285,9 +584,15 @@ async function buildPayload(
   vendor: VendorId,
   adjustmentFilter?: (id: Id<"invoiceAdjustments">) => boolean,
 ): Promise<StatementPayload> {
-  const policy = VENDOR_POLICY[vendor];
+  const policy = await resolvePolicy(ctx, vendor);
   const snapshots = await loadClosedSnapshots(ctx, period);
   const { coverageStart, coverageEnd } = coverageWindow(period);
+
+  const { basis: attributionBasis, fallbackByMember } = await hydrateAttribution(
+    ctx,
+    snapshots,
+    policy,
+  );
 
   const memberLines: StatementMemberLine[] = [];
   let primaryCount = 0;
@@ -296,22 +601,18 @@ async function buildPayload(
       if (line.tier === "none") continue;
       primaryCount++;
       if (line[policy.amountField] <= 0) continue;
-      memberLines.push(shapeMemberLine(line, snapshot, policy));
+      memberLines.push(
+        shapeMemberLine(
+          line,
+          snapshot,
+          policy,
+          fallbackByMember.get(String(line.memberProfileId)),
+        ),
+      );
     }
   }
 
-  const groups: StatementGroupRow[] = policy.showGroups
-    ? snapshots
-        .map((snapshot) => ({
-          groupCode: snapshot.groupCode,
-          groupName: snapshot.groupName,
-          primaryCount:
-            snapshot.individualPrimaryCount + snapshot.familyPrimaryCount,
-          amountCents: snapshot[policy.amountField],
-        }))
-        .filter((row) => row.amountCents > 0)
-        .sort((a, b) => a.groupName.localeCompare(b.groupName))
-    : [];
+  const groups = buildGroupRows(snapshots, policy);
 
   // Subtotal always comes from the frozen group totals, not from the member
   // lines — legacy closes have authoritative totals but no member detail.
@@ -322,8 +623,9 @@ async function buildPayload(
   const memberDetailAvailable = snapshots.every(
     (snapshot) => snapshot.memberLines !== undefined,
   );
-  if (!memberDetailAvailable) {
-    // Aggregate-only statement: totals stand, detail is simply absent.
+  if (!memberDetailAvailable || !policy.disclosure.memberDetail) {
+    // Either the close has no member lines, or this recipient is configured
+    // for a totals-only statement. Totals stand either way.
     memberLines.length = 0;
     primaryCount = snapshots.reduce(
       (sum, s) => sum + s.individualPrimaryCount + s.familyPrimaryCount,
@@ -359,9 +661,14 @@ async function buildPayload(
     sourcePeriodIds: snapshots.map((s) => s._id),
     sourcePayloadHashes: snapshots.map((s) => s.payloadHash).sort(),
     memberDetailAvailable,
-    showGroups: policy.showGroups,
-    showTier: policy.showTier,
-    internal: policy.internal,
+    disclosure: policy.disclosure,
+    showMemberDetail: policy.disclosure.memberDetail,
+    showGroups: policy.disclosure.groupVisibility !== "none",
+    showTier: policy.disclosure.rateClass,
+    showBroker: policy.disclosure.repAttribution,
+    showFullSplit: policy.disclosure.fullSplit,
+    showAdjustmentDetail: policy.disclosure.adjustmentDetail,
+    attributionBasis,
     primaryCount,
     memberLines: sortMemberLines(memberLines),
     groups,
@@ -500,39 +807,41 @@ export const getStatement = query({
     const row = await ctx.db.get(statementId);
     if (!row) return null;
 
-    const policy = VENDOR_POLICY[row.vendor as VendorId];
+    // The disclosure frozen onto this statement, not today's profile —
+    // editing a recipient's settings must not reshape a document that has
+    // already gone out.
+    const policy = policyFromFrozen(row.vendor as VendorId, row.disclosure);
     const frozen = new Set(row.adjustmentIds.map((id) => String(id)));
 
+    // Read the frozen closes once and serve every section from them.
+    const snapshots: Doc<"invoicePeriods">[] = [];
+    for (const periodId of row.sourcePeriodIds) {
+      const snapshot = await ctx.db.get(periodId);
+      if (snapshot) snapshots.push(snapshot);
+    }
+
+    const { basis: attributionBasis, fallbackByMember } =
+      await hydrateAttribution(ctx, snapshots, policy);
+
     const memberLines: StatementMemberLine[] = [];
-    if (row.memberDetailAvailable) {
-      for (const periodId of row.sourcePeriodIds) {
-        const snapshot = await ctx.db.get(periodId);
-        if (!snapshot) continue;
+    if (row.memberDetailAvailable && policy.disclosure.memberDetail) {
+      for (const snapshot of snapshots) {
         for (const line of snapshot.memberLines ?? []) {
           if (line.tier === "none") continue;
           if (line[policy.amountField] <= 0) continue;
-          memberLines.push(shapeMemberLine(line, snapshot, policy));
+          memberLines.push(
+            shapeMemberLine(
+              line,
+              snapshot,
+              policy,
+              fallbackByMember.get(String(line.memberProfileId)),
+            ),
+          );
         }
       }
     }
 
-    const groups: StatementGroupRow[] = [];
-    if (policy.showGroups) {
-      for (const periodId of row.sourcePeriodIds) {
-        const snapshot = await ctx.db.get(periodId);
-        if (!snapshot) continue;
-        const amountCents = snapshot[policy.amountField];
-        if (amountCents <= 0) continue;
-        groups.push({
-          groupCode: snapshot.groupCode,
-          groupName: snapshot.groupName,
-          primaryCount:
-            snapshot.individualPrimaryCount + snapshot.familyPrimaryCount,
-          amountCents,
-        });
-      }
-      groups.sort((a, b) => a.groupName.localeCompare(b.groupName));
-    }
+    const groups = buildGroupRows(snapshots, policy);
 
     const periodAdjustments = await ctx.db
       .query("invoiceAdjustments")
@@ -558,9 +867,14 @@ export const getStatement = query({
       ...row,
       overdue: isOverdue(row),
       basis: policy.basis,
-      showGroups: policy.showGroups,
-      showTier: policy.showTier,
-      internal: policy.internal,
+      disclosure: policy.disclosure,
+      showMemberDetail: policy.disclosure.memberDetail,
+      showGroups: policy.disclosure.groupVisibility !== "none",
+      showTier: policy.disclosure.rateClass,
+      showBroker: policy.disclosure.repAttribution,
+      showFullSplit: policy.disclosure.fullSplit,
+      showAdjustmentDetail: policy.disclosure.adjustmentDetail,
+      attributionBasis,
       memberLines: sortMemberLines(memberLines),
       groups,
       adjustments: mine
@@ -576,6 +890,365 @@ export const getStatement = query({
         .map(toRow),
       supersededByNumber: supersededBy?.statementNumberDisplay ?? null,
       replacesNumber: replaces?.statementNumberDisplay ?? null,
+    };
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Disclosure profile management
+// ---------------------------------------------------------------------------
+
+/**
+ * Every recipient's current profile, plus the default it started from and
+ * whether it has been customised. Drives the settings screen.
+ */
+export const listDisclosureProfiles = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    const saved = await ctx.db.query("vendorStatementDisclosureProfiles").collect();
+    const byVendor = new Map(saved.map((row) => [row.vendor, row]));
+
+    return VENDOR_IDS.map((vendor) => {
+      const row = byVendor.get(vendor);
+      const current = row
+        ? {
+            memberDetail: row.memberDetail,
+            groupVisibility: row.groupVisibility,
+            rateClass: row.rateClass,
+            repAttribution: row.repAttribution,
+            fullSplit: row.fullSplit,
+            adjustmentDetail: row.adjustmentDetail,
+          }
+        : DEFAULT_DISCLOSURE[vendor];
+      const defaults = DEFAULT_DISCLOSURE[vendor];
+      return {
+        vendor,
+        vendorName: VENDOR_IDENTITY[vendor].name,
+        basis: VENDOR_IDENTITY[vendor].basis,
+        internalRecipient: vendor === "ryze",
+        current,
+        defaults,
+        customised: JSON.stringify(current) !== JSON.stringify(defaults),
+        note: row?.note ?? null,
+        updatedAt: row?.updatedAt ?? null,
+        updatedBy: row?.updatedBy ?? null,
+      };
+    });
+  },
+});
+
+/**
+ * How many already-issued statements a recipient has. The settings screen
+ * uses this to say plainly that editing does not touch them.
+ */
+export const countStatementsForVendor = query({
+  args: { vendor: vendorValidator },
+  handler: async (ctx, { vendor }) => {
+    await requireAdmin(ctx);
+    const rows = await ctx.db
+      .query("vendorStatements")
+      .withIndex("by_vendor", (q) => q.eq("vendor", vendor as VendorId))
+      .collect();
+    return {
+      total: rows.length,
+      live: rows.filter((r) => r.status !== "voided").length,
+      issued: rows.filter((r) => r.status !== "draft" && r.status !== "voided")
+        .length,
+    };
+  },
+});
+
+export const updateDisclosureProfile = mutation({
+  args: {
+    vendor: vendorValidator,
+    disclosure: disclosureValidator,
+    note: v.optional(v.string()),
+  },
+  handler: async (ctx, { vendor, disclosure, note }) => {
+    const actor = await requireAdmin(ctx);
+    const vendorId = vendor as VendorId;
+
+    // The full split names what every other partner is paid. Allowing it on an
+    // external recipient would leak the other vendors' economics, which is the
+    // one thing no amount of configuration should be able to do.
+    if (disclosure.fullSplit && vendorId !== "ryze") {
+      throw new Error(
+        `The full revenue split cannot be enabled for ${VENDOR_IDENTITY[vendorId].name} — it would disclose what other partners are paid.`,
+      );
+    }
+
+    const existing = await ctx.db
+      .query("vendorStatementDisclosureProfiles")
+      .withIndex("by_vendor", (q) => q.eq("vendor", vendorId))
+      .first();
+    const before = existing
+      ? {
+          memberDetail: existing.memberDetail,
+          groupVisibility: existing.groupVisibility,
+          rateClass: existing.rateClass,
+          repAttribution: existing.repAttribution,
+          fullSplit: existing.fullSplit,
+          adjustmentDetail: existing.adjustmentDetail,
+        }
+      : DEFAULT_DISCLOSURE[vendorId];
+
+    const changes = DISCLOSURE_FIELDS.filter(
+      (field) => before[field.key] !== disclosure[field.key],
+    ).map(
+      (field) =>
+        `${field.label}: ${String(before[field.key])} → ${String(disclosure[field.key])}`,
+    );
+
+    const now = Date.now();
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        ...disclosure,
+        note: note?.trim() || undefined,
+        updatedBy: actor.clerkUserId,
+        updatedAt: now,
+      });
+    } else {
+      await ctx.db.insert("vendorStatementDisclosureProfiles", {
+        vendor: vendorId,
+        ...disclosure,
+        note: note?.trim() || undefined,
+        updatedBy: actor.clerkUserId,
+        updatedAt: now,
+      });
+    }
+
+    await ctx.runMutation(internal.admin.adminAudit.record, {
+      actorClerkUserId: actor.clerkUserId,
+      action: "vendor_statement.disclosure_update",
+      targetType: "vendorStatementDisclosureProfiles",
+      targetId: vendorId,
+      summary:
+        changes.length > 0
+          ? `Updated what ${VENDOR_IDENTITY[vendorId].name} is shown — ${changes.join("; ")}`
+          : `Saved ${VENDOR_IDENTITY[vendorId].name} disclosure settings with no changes`,
+      metadata: { vendor: vendorId, changes, disclosure, note },
+    });
+
+    return { changes };
+  },
+});
+
+/** Drop the saved profile so the recipient falls back to the code default. */
+export const resetDisclosureProfile = mutation({
+  args: { vendor: vendorValidator },
+  handler: async (ctx, { vendor }) => {
+    const actor = await requireAdmin(ctx);
+    const vendorId = vendor as VendorId;
+    const existing = await ctx.db
+      .query("vendorStatementDisclosureProfiles")
+      .withIndex("by_vendor", (q) => q.eq("vendor", vendorId))
+      .first();
+    if (!existing) return { reset: false };
+
+    await ctx.db.delete(existing._id);
+    await ctx.runMutation(internal.admin.adminAudit.record, {
+      actorClerkUserId: actor.clerkUserId,
+      action: "vendor_statement.disclosure_reset",
+      targetType: "vendorStatementDisclosureProfiles",
+      targetId: vendorId,
+      summary: `Reset ${VENDOR_IDENTITY[vendorId].name} disclosure settings to the default`,
+      metadata: { vendor: vendorId },
+    });
+    return { reset: true };
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Internal verification
+// ---------------------------------------------------------------------------
+
+export interface VerificationLine {
+  memberId: string;
+  memberName: string;
+  groupCode: string;
+  rateClass: string;
+  grossCents: number;
+  toothlensCents: number;
+  careingtonCents: number;
+  processingCents: number;
+  partnerVendorCents: number;
+  ryzeKeepCents: number;
+  /** The bucket this statement actually pays out. */
+  statementCents: number;
+  /** Whole-dollar check: does the split add back up to gross for this member? */
+  splitBalances: boolean;
+  repName: string | null;
+  repCode: string | null;
+  agencyName: string | null;
+  repSource: string;
+}
+
+export interface VerificationCheck {
+  label: string;
+  passed: boolean;
+  detail: string;
+}
+
+/**
+ * The full payable picture behind a statement, for admin eyes only.
+ *
+ * This is the answer to "are these numbers right?" — every member's complete
+ * dispersal, the recipient's own column called out, and the arithmetic checked
+ * three ways. It is deliberately NOT part of `getStatement`: the vendor-facing
+ * documents are built from that query, so nothing here can reach a recipient
+ * no matter how the export routes are called.
+ */
+export const getStatementVerification = query({
+  args: { statementId: v.id("vendorStatements") },
+  handler: async (ctx, { statementId }) => {
+    await requireAdmin(ctx);
+    const row = await ctx.db.get(statementId);
+    if (!row) return null;
+
+    // Identity only: the verification view deliberately ignores disclosure —
+    // an admin checking the books sees every bucket regardless of what the
+    // recipient's document shows.
+    const policy = VENDOR_IDENTITY[row.vendor as VendorId];
+    const snapshots: Doc<"invoicePeriods">[] = [];
+    for (const periodId of row.sourcePeriodIds) {
+      const snapshot = await ctx.db.get(periodId);
+      if (snapshot) snapshots.push(snapshot);
+    }
+
+    const resolver = snapshots.some((s) =>
+      (s.memberLines ?? []).some((line) => !line.repSource),
+    )
+      ? await RepAttributionResolver.create(ctx)
+      : null;
+
+    const lines: VerificationLine[] = [];
+    const totals = {
+      grossCents: 0,
+      toothlensCents: 0,
+      careingtonCents: 0,
+      processingCents: 0,
+      partnerVendorCents: 0,
+      ryzeKeepCents: 0,
+    };
+
+    for (const snapshot of snapshots) {
+      const group = resolver ? await ctx.db.get(snapshot.groupId) : null;
+      for (const line of snapshot.memberLines ?? []) {
+        if (line.tier === "none") continue;
+        const bucketSum =
+          line.toothlensCents +
+          line.careingtonCents +
+          line.processingCents +
+          line.partnerVendorCents +
+          line.ryzeKeepCents;
+        const fallback =
+          !line.repSource && resolver
+            ? resolver.resolve(line.memberProfileId, group)
+            : null;
+        lines.push({
+          memberId: line.memberId,
+          memberName: `${line.lastName}, ${line.firstName}`,
+          groupCode: line.groupCode,
+          rateClass: rateClassLabel(line.tier),
+          grossCents: line.grossCents,
+          toothlensCents: line.toothlensCents,
+          careingtonCents: line.careingtonCents,
+          processingCents: line.processingCents,
+          partnerVendorCents: line.partnerVendorCents,
+          ryzeKeepCents: line.ryzeKeepCents,
+          statementCents: line[policy.amountField],
+          splitBalances: bucketSum === line.grossCents,
+          repName: line.repName ?? fallback?.repName ?? null,
+          repCode: line.repCode ?? fallback?.repCode ?? null,
+          agencyName: line.agencyName ?? fallback?.agencyName ?? null,
+          repSource: line.repSource ?? (fallback ? `${fallback.source} (current)` : "none"),
+        });
+        totals.grossCents += line.grossCents;
+        totals.toothlensCents += line.toothlensCents;
+        totals.careingtonCents += line.careingtonCents;
+        totals.processingCents += line.processingCents;
+        totals.partnerVendorCents += line.partnerVendorCents;
+        totals.ryzeKeepCents += line.ryzeKeepCents;
+      }
+    }
+
+    // Frozen group-level totals — the figures the statement was actually cut
+    // from. Member lines must add back up to these.
+    const snapshotTotals = {
+      grossCents: snapshots.reduce((s, x) => s + x.grossCents, 0),
+      toothlensCents: snapshots.reduce((s, x) => s + x.toothlensCents, 0),
+      careingtonCents: snapshots.reduce((s, x) => s + x.careingtonCents, 0),
+      processingCents: snapshots.reduce((s, x) => s + x.processingCents, 0),
+      partnerVendorCents: snapshots.reduce((s, x) => s + x.partnerVendorCents, 0),
+      ryzeKeepCents: snapshots.reduce((s, x) => s + x.ryzeKeepCents, 0),
+    };
+    const lineSumForVendor = lines.reduce((s, l) => s + l.statementCents, 0);
+    const bucketTotal = snapshotTotals[policy.amountField];
+    const unbalancedLines = lines.filter((l) => !l.splitBalances);
+    const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+
+    const checks: VerificationCheck[] = [
+      {
+        label: "Statement subtotal matches the closed books",
+        passed: row.subtotalCents === bucketTotal,
+        detail:
+          row.subtotalCents === bucketTotal
+            ? `${money(row.subtotalCents)} on both sides`
+            : `Statement says ${money(row.subtotalCents)}; the close says ${money(bucketTotal)}`,
+      },
+      {
+        label: "Member lines add up to the subtotal",
+        passed: !row.memberDetailAvailable || lineSumForVendor === bucketTotal,
+        detail: !row.memberDetailAvailable
+          ? "Aggregate-only close — no member lines to sum"
+          : lineSumForVendor === bucketTotal
+            ? `${lines.length} lines totalling ${money(lineSumForVendor)}`
+            : `Lines total ${money(lineSumForVendor)} against a subtotal of ${money(bucketTotal)}`,
+      },
+      {
+        label: "Every member's split adds back to their gross (INV-01)",
+        passed: unbalancedLines.length === 0,
+        detail:
+          unbalancedLines.length === 0
+            ? `${lines.length} of ${lines.length} lines balance`
+            : `${unbalancedLines.length} line(s) do not balance: ${unbalancedLines
+                .slice(0, 5)
+                .map((l) => l.memberId)
+                .join(", ")}`,
+      },
+      {
+        label: "Total equals subtotal plus adjustments",
+        passed: row.totalCents === row.subtotalCents + row.adjustmentCents,
+        detail: `${money(row.subtotalCents)} + ${money(row.adjustmentCents)} = ${money(row.totalCents)}`,
+      },
+      {
+        label: "Balance equals total less remittances",
+        passed: row.balanceCents === row.totalCents - row.amountPaidCents,
+        detail: `${money(row.totalCents)} - ${money(row.amountPaidCents)} = ${money(row.balanceCents)}`,
+      },
+    ];
+
+    return {
+      statementNumberDisplay: row.statementNumberDisplay,
+      vendor: row.vendor,
+      vendorName: row.vendorName,
+      period: row.period,
+      status: row.status,
+      amountField: policy.amountField,
+      memberDetailAvailable: row.memberDetailAvailable,
+      lines: lines.sort(
+        (a, b) =>
+          a.groupCode.localeCompare(b.groupCode) ||
+          a.memberName.localeCompare(b.memberName),
+      ),
+      totals,
+      snapshotTotals,
+      statementSubtotalCents: row.subtotalCents,
+      statementAdjustmentCents: row.adjustmentCents,
+      statementTotalCents: row.totalCents,
+      checks,
+      allChecksPassed: checks.every((c) => c.passed),
     };
   },
 });
@@ -654,6 +1327,9 @@ async function createStatement(
     sourceClosedAt: payload.sourceClosedAt,
     adjustmentIds: payload.adjustments.map((a) => a.id),
     memberDetailAvailable: payload.memberDetailAvailable,
+    // Freeze the profile in force right now. A later settings change shapes
+    // future statements, never this one.
+    disclosure: payload.disclosure,
     generatedBy: args.actor,
     sourceGitSha:
       process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.GIT_COMMIT_SHA ?? undefined,

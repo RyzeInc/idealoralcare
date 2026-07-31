@@ -6,6 +6,8 @@ import type { Id } from "@/convex/_generated/dataModel";
 import {
   statementToCsv,
   statementFileBase,
+  verificationToCsv,
+  type VerificationDocument,
 } from "@/lib/vendor-statement-document";
 import { VendorStatementPdf } from "@/lib/vendor-statement-pdf";
 import {
@@ -13,19 +15,25 @@ import {
   assembleDocument,
   fileResponse,
   parseFormat,
+  parseVariant,
   pdfBuffer,
   statementSheets,
+  verificationSheets,
   xlsxBuffer,
 } from "@/lib/vendor-statement-server";
 
 export const runtime = "nodejs";
 
 /**
- * GET /api/admin/vendor-statements/[statementId]/document?format=pdf|csv|xlsx
+ * GET /api/admin/vendor-statements/[statementId]/document
+ *   ?format=pdf|csv|xlsx&variant=recipient|verification
  *
- * One issued statement in the requested format. All three are built from the
- * same server-assembled payload, so the spreadsheet a vendor receives contains
- * exactly what their PDF shows — no more.
+ * `recipient` (default) is the document a partner receives — all three formats
+ * are built from the same policy-gated payload, so the spreadsheet contains
+ * exactly what the PDF shows and no more.
+ *
+ * `verification` is the internal payables audit, drawn from a different query
+ * that is never used to build recipient documents. Spreadsheet formats only.
  */
 export async function GET(
   request: NextRequest,
@@ -42,6 +50,19 @@ export async function GET(
       { status: 400 },
     );
   }
+  const variant = parseVariant(request.nextUrl.searchParams.get("variant"));
+  if (!variant) {
+    return NextResponse.json(
+      { error: "variant must be one of: recipient, verification" },
+      { status: 400 },
+    );
+  }
+  if (variant === "verification" && format === "pdf") {
+    return NextResponse.json(
+      { error: "The verification export is available as csv or xlsx" },
+      { status: 400 },
+    );
+  }
 
   const { statementId } = await params;
   try {
@@ -53,8 +74,26 @@ export async function GET(
     }
 
     const doc = assembleDocument(row);
-    const base = statementFileBase(doc);
 
+    if (variant === "verification") {
+      const audit = (await convex.query(
+        api.admin.vendorStatements.getStatementVerification,
+        { statementId: statementId as Id<"vendorStatements"> },
+      )) as VerificationDocument | null;
+      if (!audit) {
+        return NextResponse.json({ error: "Statement not found" }, { status: 404 });
+      }
+      const auditBase = statementFileBase(doc, { variant: "verification" });
+      return format === "csv"
+        ? fileResponse(verificationToCsv(audit), "csv", `${auditBase}.csv`)
+        : fileResponse(
+            await xlsxBuffer(verificationSheets(audit)),
+            "xlsx",
+            `${auditBase}.xlsx`,
+          );
+    }
+
+    const base = statementFileBase(doc);
     if (format === "csv") {
       return fileResponse(statementToCsv(doc), "csv", `${base}.csv`);
     }

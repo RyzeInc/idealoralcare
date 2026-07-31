@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createElement, type ReactElement } from "react";
 import type { DocumentProps } from "@react-pdf/renderer";
 import { api } from "@/convex/_generated/api";
-import { periodStatementsToCsv } from "@/lib/vendor-statement-document";
+import {
+  periodBundleFileBase,
+  periodStatementsToCsv,
+} from "@/lib/vendor-statement-document";
 import { VendorStatementBundlePdf } from "@/lib/vendor-statement-pdf";
 import {
   adminConvexClient,
@@ -72,7 +75,7 @@ export async function GET(
     }
     docs.sort((a, b) => a.vendorName.localeCompare(b.vendorName));
 
-    const base = `Vendor-Statements-${period}`;
+    const base = periodBundleFileBase(docs, period);
     if (format === "csv") {
       return fileResponse(periodStatementsToCsv(docs), "csv", `${base}.csv`);
     }

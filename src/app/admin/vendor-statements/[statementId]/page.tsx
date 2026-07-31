@@ -6,6 +6,9 @@ import { useMutation, useQuery } from 'convex/react';
 import {
   AlertTriangle,
   CalendarRange,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   CreditCard,
   FileSpreadsheet,
   FileText,
@@ -14,6 +17,7 @@ import {
   RefreshCw,
   Send,
   Settings2,
+  ShieldCheck,
   Table2,
   Trash2,
   Users,
@@ -306,6 +310,211 @@ function EditModal({
         </div>
       </form>
     </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Internal payables verification — admin-only, never part of a vendor document
+// ---------------------------------------------------------------------------
+
+function VerificationPanel({ statementId }: { statementId: Id<'vendorStatements'> }) {
+  const audit = useQuery(api.admin.vendorStatements.getStatementVerification, {
+    statementId,
+  });
+  const [open, setOpen] = useState(false);
+
+  if (audit === undefined) {
+    return (
+      <div className="bg-white rounded-lg shadow p-6">
+        <SkeletonCard />
+      </div>
+    );
+  }
+  if (audit === null) return null;
+
+  const docBase = `/api/admin/vendor-statements/${statementId}/document?variant=verification`;
+
+  return (
+    <div className="bg-white rounded-lg shadow overflow-hidden border-l-4 border-slate-400">
+      <div className="px-6 py-4 border-b border-slate-200 flex flex-wrap items-center gap-3">
+        <ShieldCheck size={16} className="text-slate-500" />
+        <div>
+          <h2 className="text-sm font-semibold text-slate-700">
+            Payables Verification
+          </h2>
+          <p className="text-xs text-slate-500">
+            Full dispersal behind this statement. Internal only — never included in
+            any document sent to {audit.vendorName}.
+          </p>
+        </div>
+        <span
+          className={`ml-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+            audit.allChecksPassed
+              ? 'bg-green-100 text-green-700'
+              : 'bg-red-100 text-red-700'
+          }`}
+        >
+          {audit.allChecksPassed ? <CheckCircle2 size={13} /> : <AlertTriangle size={13} />}
+          {audit.allChecksPassed ? 'All checks pass' : 'Check failed'}
+        </span>
+        <a
+          href={`${docBase}&format=xlsx`}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
+        >
+          <FileSpreadsheet size={13} /> XLSX
+        </a>
+        <a
+          href={`${docBase}&format=csv`}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
+        >
+          <Table2 size={13} /> CSV
+        </a>
+      </div>
+
+      {/* Reconciliation checks */}
+      <ul className="divide-y divide-slate-100">
+        {audit.checks.map((check) => (
+          <li key={check.label} className="px-6 py-3 flex items-start gap-3">
+            {check.passed ? (
+              <CheckCircle2 size={16} className="text-green-600 shrink-0 mt-0.5" />
+            ) : (
+              <AlertTriangle size={16} className="text-red-600 shrink-0 mt-0.5" />
+            )}
+            <div className="min-w-0">
+              <p className="text-sm text-slate-800">{check.label}</p>
+              <p className="text-xs text-slate-500 font-mono">{check.detail}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      {/* Bucket totals */}
+      <div className="px-6 py-4 border-t border-slate-200 bg-slate-50">
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+          Bucket totals across the closed month
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-sm">
+          {(
+            [
+              ['Gross', audit.totals.grossCents, 'grossCents'],
+              ['Toothlens', audit.totals.toothlensCents, 'toothlensCents'],
+              ['Careington', audit.totals.careingtonCents, 'careingtonCents'],
+              ['Processing', audit.totals.processingCents, 'processingCents'],
+              ['Ideal Health', audit.totals.partnerVendorCents, 'partnerVendorCents'],
+              ['Ryze Keep', audit.totals.ryzeKeepCents, 'ryzeKeepCents'],
+            ] as const
+          ).map(([label, cents, field]) => (
+            <div
+              key={label}
+              className={`rounded-md px-3 py-2 ${
+                field === audit.amountField
+                  ? 'bg-blue-50 border border-blue-200'
+                  : 'bg-white border border-slate-200'
+              }`}
+            >
+              <p className="text-xs text-slate-500">{label}</p>
+              <p className="font-semibold text-slate-900">
+                {formatCurrency(cents, { fromCents: true })}
+              </p>
+              {field === audit.amountField && (
+                <p className="text-[10px] text-blue-700 font-medium uppercase">
+                  This statement
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Per-member dispersal */}
+      {audit.memberDetailAvailable && audit.lines.length > 0 && (
+        <div className="border-t border-slate-200">
+          <button
+            onClick={() => setOpen((value) => !value)}
+            className="w-full px-6 py-3 flex items-center gap-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+            Full member dispersal ({audit.lines.length} members)
+          </button>
+          {open && (
+            <div className="overflow-x-auto max-h-[520px] border-t border-slate-100">
+              <table className="min-w-full divide-y divide-slate-200 text-xs">
+                <thead className="bg-slate-50 sticky top-0">
+                  <tr>
+                    {[
+                      'Member ID',
+                      'Member',
+                      'Group',
+                      'Class',
+                      'Gross',
+                      'Toothlens',
+                      'Careington',
+                      'Processing',
+                      'Ideal',
+                      'Ryze',
+                      'On Statement',
+                      'Rep / Broker',
+                      'Attribution',
+                    ].map((label) => (
+                      <th
+                        key={label}
+                        className="px-3 py-2 text-left font-semibold text-slate-500 uppercase whitespace-nowrap"
+                      >
+                        {label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {audit.lines.map((line, index) => (
+                    <tr
+                      key={`${line.memberId}-${index}`}
+                      className={line.splitBalances ? 'hover:bg-slate-50' : 'bg-red-50'}
+                    >
+                      <td className="px-3 py-1.5 font-mono text-slate-700">{line.memberId}</td>
+                      <td className="px-3 py-1.5 text-slate-800 whitespace-nowrap">{line.memberName}</td>
+                      <td className="px-3 py-1.5 font-mono text-slate-500">{line.groupCode}</td>
+                      <td className="px-3 py-1.5 text-slate-600">{line.rateClass}</td>
+                      <td className="px-3 py-1.5 text-right text-slate-700">
+                        {formatCurrency(line.grossCents, { fromCents: true })}
+                      </td>
+                      <td className="px-3 py-1.5 text-right text-slate-600">
+                        {formatCurrency(line.toothlensCents, { fromCents: true })}
+                      </td>
+                      <td className="px-3 py-1.5 text-right text-slate-600">
+                        {formatCurrency(line.careingtonCents, { fromCents: true })}
+                      </td>
+                      <td className="px-3 py-1.5 text-right text-slate-600">
+                        {formatCurrency(line.processingCents, { fromCents: true })}
+                      </td>
+                      <td className="px-3 py-1.5 text-right text-slate-600">
+                        {formatCurrency(line.partnerVendorCents, { fromCents: true })}
+                      </td>
+                      <td className="px-3 py-1.5 text-right text-slate-600">
+                        {formatCurrency(line.ryzeKeepCents, { fromCents: true })}
+                      </td>
+                      <td className="px-3 py-1.5 text-right font-semibold text-blue-800 bg-blue-50/50">
+                        {formatCurrency(line.statementCents, { fromCents: true })}
+                      </td>
+                      <td className="px-3 py-1.5 text-slate-700 whitespace-nowrap">
+                        {line.repName ?? <span className="text-slate-400">Unattributed</span>}
+                        {line.repCode && (
+                          <span className="text-slate-400 font-mono"> · {line.repCode}</span>
+                        )}
+                        {line.agencyName && (
+                          <div className="text-slate-400">{line.agencyName}</div>
+                        )}
+                      </td>
+                      <td className="px-3 py-1.5 text-slate-500">{line.repSource}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -626,6 +835,29 @@ export default function VendorStatementDetailPage({
             <span className="text-slate-400">Close records:</span>{' '}
             {statement.sourcePeriodIds.length}
           </p>
+          <p className="text-sm text-slate-700">
+            <Tooltip
+              text="The disclosure settings frozen onto this statement when it was cut. Changing a recipient's settings later shapes future statements and never reshapes this one."
+              width="lg"
+            >
+              <span className="cursor-help border-b border-dashed border-slate-400 text-slate-400">
+                Contents:
+              </span>
+            </Tooltip>{' '}
+            {[
+              statement.showMemberDetail ? 'member detail' : 'totals only',
+              statement.disclosure?.groupVisibility === 'all'
+                ? 'all groups'
+                : statement.disclosure?.groupVisibility === 'listBillOnly'
+                  ? 'list-bill employers'
+                  : null,
+              statement.showTier ? 'rate class' : null,
+              statement.showBroker ? 'rep' : null,
+              statement.showFullSplit ? 'full split' : null,
+            ]
+              .filter(Boolean)
+              .join(', ')}
+          </p>
           <p className="text-xs text-slate-400 font-mono break-all">
             {statement.sourcePayloadHashes[0]?.slice(0, 16)}
             {statement.sourcePayloadHashes.length > 1
@@ -755,6 +987,14 @@ export default function VendorStatementDetailPage({
             {statement.memberLines.length} line{statement.memberLines.length !== 1 ? 's' : ''}
           </span>
         </div>
+        {statement.showBroker && statement.attributionBasis !== 'frozen' &&
+          statement.attributionBasis !== 'none' && (
+            <p className="px-6 py-3 bg-amber-50 border-b border-amber-200 text-xs text-amber-900">
+              {statement.attributionBasis === 'current'
+                ? 'This coverage month was closed before rep attribution was captured, so the reps below are the current attribution of record rather than a frozen historical one.'
+                : 'Some rows below carry the rep captured at close; the rest fall back to the current attribution of record.'}
+            </p>
+          )}
         {!statement.memberDetailAvailable ? (
           <p className="px-6 py-6 text-sm text-slate-500">
             This coverage month was closed before per-primary lines were frozen. Its totals
@@ -778,6 +1018,11 @@ export default function VendorStatementDetailPage({
                   {statement.showTier && (
                     <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Rate Class</th>
                   )}
+                  {statement.showBroker && (
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">
+                      Rep / Broker
+                    </th>
+                  )}
                   <th className="px-4 py-2 text-right text-xs font-semibold text-slate-500 uppercase">Amount</th>
                 </tr>
               </thead>
@@ -794,6 +1039,19 @@ export default function VendorStatementDetailPage({
                     {statement.showTier && (
                       <td className="px-4 py-2 text-slate-600">{line.rateClass}</td>
                     )}
+                    {statement.showBroker && (
+                      <td className="px-4 py-2 text-slate-700">
+                        {line.repName ?? (
+                          <span className="text-slate-400">Unattributed</span>
+                        )}
+                        {line.repCode && (
+                          <span className="text-slate-400 font-mono text-xs"> · {line.repCode}</span>
+                        )}
+                        {line.agencyName && (
+                          <div className="text-xs text-slate-400">{line.agencyName}</div>
+                        )}
+                      </td>
+                    )}
                     <td className="px-4 py-2 text-right text-slate-800">
                       {formatCurrency(line.amountCents, { fromCents: true })}
                     </td>
@@ -804,6 +1062,8 @@ export default function VendorStatementDetailPage({
           </div>
         )}
       </div>
+
+      <VerificationPanel statementId={id} />
 
       <StatementAuditLog statementId={id} />
 

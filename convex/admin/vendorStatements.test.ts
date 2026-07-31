@@ -93,9 +93,9 @@ async function seedPrimary(
   t: ReturnType<typeof convexTest>,
   world: World,
   opts: { customerId: string; memberId: string; totalCents: number; createdAt: number },
-) {
-  await t.run(async (ctx) => {
-    await ctx.db.insert("memberProfiles", {
+): Promise<Id<"memberProfiles">> {
+  return t.run(async (ctx) => {
+    const memberProfileId = await ctx.db.insert("memberProfiles", {
       memberId: opts.memberId,
       barcode: opts.memberId.toUpperCase().padEnd(10, "X").slice(0, 10),
       customerId: opts.customerId,
@@ -129,6 +129,7 @@ async function seedPrimary(
       createdAt: opts.createdAt,
       updatedAt: opts.createdAt,
     });
+    return memberProfileId;
   });
 }
 
@@ -144,6 +145,69 @@ function previousMonth() {
     period: `${year}-${String(month).padStart(2, "0")}`,
     midMs: Date.UTC(year, month - 1, 15),
   };
+}
+
+/**
+ * A rep, their agency, and (optionally) an enrollment session attributing a
+ * member to them. Mirrors the Clerk-free ids the real data model uses.
+ */
+async function seedRep(
+  t: ReturnType<typeof convexTest>,
+  opts: { name: string; agencyName: string; email?: string },
+) {
+  return t.run(async (ctx) => {
+    const now = Date.now();
+    const partnerId = await ctx.db.insert("distributionPartners", {
+      name: opts.agencyName,
+      type: "agency",
+      contactName: opts.name,
+      contactEmail: opts.email ?? "rep@vs.test",
+      status: "active",
+      createdAt: now,
+      updatedAt: now,
+    });
+    const leaderId = await ctx.db.insert("partnerLeaders", {
+      partnerId,
+      name: opts.name,
+      email: opts.email ?? "rep@vs.test",
+      isPrimary: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+    return { partnerId: String(partnerId), leaderId: String(leaderId) };
+  });
+}
+
+async function seedEnrollmentSession(
+  t: ReturnType<typeof convexTest>,
+  world: World,
+  opts: {
+    memberProfileId: Id<"memberProfiles">;
+    brokerId: string;
+    agencyId: string;
+    trackingCode: string;
+  },
+) {
+  await t.run(async (ctx) => {
+    const now = Date.now();
+    await ctx.db.insert("enrollmentSessions", {
+      sessionId: `sess-${Math.random().toString(36).slice(2)}`,
+      memberId: opts.memberProfileId,
+      siteId: world.siteId,
+      accountId: world.accountId,
+      groupId: world.groupId,
+      enrollmentType: "individual",
+      currentStep: "complete",
+      completedSteps: [],
+      status: "completed",
+      brokerId: opts.brokerId,
+      agencyId: opts.agencyId,
+      brokerTrackingCode: opts.trackingCode,
+      createdAt: now,
+      updatedAt: now,
+      expiresAt: now + 86_400_000,
+    });
+  });
 }
 
 /** A closed month with one Individual and one Family primary. */
@@ -270,7 +334,7 @@ describe("vendorStatements — recipient disclosure", () => {
     expect(serialized).not.toContain("grossCents");
   });
 
-  test("Ideal Health sees its own rate class but not the employer", async () => {
+  test("Ideal Health sees its own rate class, and self-pay members show as direct", async () => {
     const t = convexTest(schema);
     const { period } = await seedClosedMonth(t);
     const { statementId } = await asAdmin(t).mutation(
@@ -282,12 +346,17 @@ describe("vendorStatements — recipient disclosure", () => {
       { statementId },
     );
     expect(statement.showTier).toBe(true);
-    expect(statement.showGroups).toBe(false);
-    expect(statement.groups).toHaveLength(0);
     expect(
       statement.memberLines.map((l: any) => l.rateClass).sort(),
     ).toEqual(["Family", "Individual"]);
+    // Ideal defaults to "list-bill only". The seeded group is not a list-bill
+    // group, so its name is withheld and the members read as direct.
+    expect(statement.disclosure.groupVisibility).toBe("listBillOnly");
     expect(JSON.stringify(statement)).not.toContain("ACMEMFG");
+    expect(statement.memberLines[0].groupName).toBe("Direct enrollment");
+    expect(statement.groups.map((g: any) => g.groupName)).toEqual([
+      "Direct enrollment",
+    ]);
   });
 
   test("the internal carrier statement carries the full split and the group rollup", async () => {
@@ -601,5 +670,518 @@ describe("vendorStatements — adjustments", () => {
       { statementId: careington.statementId },
     );
     expect(careingtonStatement.adjustmentCents).toBe(-50);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Rep / broker attribution
+// ---------------------------------------------------------------------------
+
+describe("vendorStatements — rep attribution", () => {
+  test("Ideal Health sees who sold each member; the flat-fee recipients do not", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const world = await seedWorld(t);
+    const { year, month, period, midMs } = previousMonth();
+    const rep = await seedRep(t, {
+      name: "Dana Reyes",
+      agencyName: "Southeast Benefits Group",
+      email: "dana@agency.test",
+    });
+    const memberProfileId = await seedPrimary(t, world, {
+      customerId: "sold-by-dana",
+      memberId: "MEM-SOLD",
+      totalCents: 2499,
+      createdAt: midMs,
+    });
+    await seedEnrollmentSession(t, world, {
+      memberProfileId,
+      brokerId: rep.leaderId,
+      agencyId: rep.partnerId,
+      trackingCode: "BRK-REYES-01",
+    });
+    await asAdmin(t).mutation(api.admin.invoiceCalculator.closePeriodManual, {
+      year,
+      month,
+    });
+
+    const ideal = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const idealStatement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId: ideal.statementId },
+    );
+    expect(idealStatement.showBroker).toBe(true);
+    expect(idealStatement.attributionBasis).toBe("frozen");
+    expect(idealStatement.memberLines[0].repName).toBe("Dana Reyes");
+    expect(idealStatement.memberLines[0].repCode).toBe("BRK-REYES-01");
+    expect(idealStatement.memberLines[0].repEmail).toBe("dana@agency.test");
+    expect(idealStatement.memberLines[0].agencyName).toBe("Southeast Benefits Group");
+    // Ideal can pay the rep, but still cannot see the employer behind them.
+    expect(JSON.stringify(idealStatement.memberLines)).not.toContain("ACMEMFG");
+
+    const toothlens = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "toothlens" },
+    );
+    const toothlensStatement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId: toothlens.statementId },
+    );
+    expect(toothlensStatement.showBroker).toBe(false);
+    expect(toothlensStatement.memberLines[0].repName).toBeUndefined();
+    expect(JSON.stringify(toothlensStatement)).not.toContain("Dana Reyes");
+  });
+
+  test("a member with no enrollment session falls back to the group's rep", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const world = await seedWorld(t);
+    const { year, month, period, midMs } = previousMonth();
+    const rep = await seedRep(t, { name: "Group Rep", agencyName: "Acme Brokers" });
+    await t.run(async (ctx) => {
+      await ctx.db.patch(world.groupId, {
+        brokerId: rep.leaderId,
+        brokerTrackingCode: "GRP-CODE-9",
+      });
+    });
+    // No enrollment session — this is the eligibility-file / list-bill path.
+    await seedPrimary(t, world, {
+      customerId: "listbill-member",
+      memberId: "MEM-LB",
+      totalCents: 1499,
+      createdAt: midMs,
+    });
+    await asAdmin(t).mutation(api.admin.invoiceCalculator.closePeriodManual, {
+      year,
+      month,
+    });
+
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(statement.memberLines[0].repName).toBe("Group Rep");
+    expect(statement.memberLines[0].repCode).toBe("GRP-CODE-9");
+  });
+
+  test("attribution frozen at close survives a later reassignment", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const world = await seedWorld(t);
+    const { year, month, period, midMs } = previousMonth();
+    const original = await seedRep(t, {
+      name: "Original Rep",
+      agencyName: "First Agency",
+    });
+    const memberProfileId = await seedPrimary(t, world, {
+      customerId: "reassigned",
+      memberId: "MEM-REASSIGN",
+      totalCents: 1499,
+      createdAt: midMs,
+    });
+    await seedEnrollmentSession(t, world, {
+      memberProfileId,
+      brokerId: original.leaderId,
+      agencyId: original.partnerId,
+      trackingCode: "ORIG-01",
+    });
+    await asAdmin(t).mutation(api.admin.invoiceCalculator.closePeriodManual, {
+      year,
+      month,
+    });
+
+    // The book of business moves after the month was closed.
+    const replacement = await seedRep(t, {
+      name: "New Rep",
+      agencyName: "Second Agency",
+    });
+    await t.run(async (ctx) => {
+      const session = await ctx.db
+        .query("enrollmentSessions")
+        .withIndex("by_member", (q) => q.eq("memberId", memberProfileId))
+        .first();
+      await ctx.db.patch(session!._id, {
+        brokerId: replacement.leaderId,
+        agencyId: replacement.partnerId,
+        brokerTrackingCode: "NEW-01",
+      });
+    });
+
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    // The rep who earned that month is still the rep on that month's statement.
+    expect(statement.memberLines[0].repName).toBe("Original Rep");
+    expect(statement.attributionBasis).toBe("frozen");
+  });
+
+  test("a close with no frozen attribution reports that it used current records", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    // Strip the frozen rep fields to imitate a close written before they existed.
+    await t.run(async (ctx) => {
+      const rows = await ctx.db
+        .query("invoicePeriods")
+        .withIndex("by_period", (q) => q.eq("period", period))
+        .collect();
+      for (const row of rows) {
+        await ctx.db.patch(row._id, {
+          memberLines: (row.memberLines ?? []).map((line) => ({
+            ...line,
+            repSource: undefined,
+            repId: undefined,
+            repName: undefined,
+            repCode: undefined,
+            repEmail: undefined,
+            agencyId: undefined,
+            agencyName: undefined,
+          })),
+        });
+      }
+    });
+
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(statement.attributionBasis).toBe("current");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Internal verification
+// ---------------------------------------------------------------------------
+
+describe("vendorStatements — payables verification", () => {
+  test("exposes the full dispersal and passes every reconciliation check", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "toothlens" },
+    );
+    const audit: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatementVerification,
+      { statementId },
+    );
+
+    expect(audit.allChecksPassed).toBe(true);
+    expect(audit.checks.every((c: any) => c.passed)).toBe(true);
+    expect(audit.lines).toHaveLength(2);
+    // Every bucket is present regardless of who the statement is for — this is
+    // the admin's verification view, not the recipient's document.
+    const line = audit.lines[0];
+    expect(line.grossCents).toBeGreaterThan(0);
+    expect(line.partnerVendorCents).toBeGreaterThan(0);
+    expect(line.ryzeKeepCents).toBeGreaterThan(0);
+    expect(line.splitBalances).toBe(true);
+    expect(line.statementCents).toBe(100); // the Toothlens flat fee
+    expect(audit.amountField).toBe("toothlensCents");
+    // Individual $14.99 + Family $24.99
+    expect(audit.totals.grossCents).toBe(1499 + 2499);
+    expect(audit.snapshotTotals.toothlensCents).toBe(audit.statementSubtotalCents);
+  });
+
+  test("catches a statement whose subtotal no longer matches the closed books", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "toothlens" },
+    );
+    await t.run(async (ctx) => {
+      await ctx.db.patch(statementId, { subtotalCents: 999_99 });
+    });
+
+    const audit: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatementVerification,
+      { statementId },
+    );
+    expect(audit.allChecksPassed).toBe(false);
+    const failed = audit.checks.find((c: any) => !c.passed);
+    expect(failed.label).toMatch(/subtotal matches the closed books/i);
+  });
+
+  test("verification reflects adjustments in the total check", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    const periodId = await t.run(async (ctx) => {
+      const row = await ctx.db
+        .query("invoicePeriods")
+        .withIndex("by_period", (q) => q.eq("period", period))
+        .first();
+      return row!._id;
+    });
+    await asAdmin(t).mutation(api.admin.invoiceCalculator.recordAdjustment, {
+      periodId,
+      reason: "refund",
+      bucket: "toothlens",
+      deltaCents: -50,
+      notes: "Refund for a mid-month cancellation",
+    });
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "toothlens" },
+    );
+    const audit: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatementVerification,
+      { statementId },
+    );
+    expect(audit.statementAdjustmentCents).toBe(-50);
+    expect(audit.statementTotalCents).toBe(150);
+    expect(audit.allChecksPassed).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Disclosure profiles
+// ---------------------------------------------------------------------------
+
+describe("vendorStatements — disclosure profiles", () => {
+  test("Ideal is shown the employer behind list-bill members", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const world = await seedWorld(t, {
+      groupCode: "BIGCORP",
+      groupName: "Big Corp Manufacturing",
+    });
+    await t.run(async (ctx) => {
+      await ctx.db.patch(world.groupId, {
+        listBill: { enabled: true, paymentMethod: "ach" as const },
+      });
+    });
+    const { year, month, period, midMs } = previousMonth();
+    await seedPrimary(t, world, {
+      customerId: "employee",
+      memberId: "MEM-EMP",
+      totalCents: 1499,
+      createdAt: midMs,
+    });
+    await asAdmin(t).mutation(api.admin.invoiceCalculator.closePeriodManual, {
+      year,
+      month,
+    });
+
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(statement.memberLines[0].groupName).toBe("Big Corp Manufacturing");
+    expect(statement.memberLines[0].groupCode).toBe("BIGCORP");
+    expect(statement.groups[0].groupName).toBe("Big Corp Manufacturing");
+
+    // The flat-fee recipients are untouched by Ideal's setting.
+    const toothlens = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "toothlens" },
+    );
+    const flat: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId: toothlens.statementId },
+    );
+    expect(JSON.stringify(flat)).not.toContain("Big Corp Manufacturing");
+  });
+
+  test("listing profiles reports the defaults and whether they were customised", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const before: any[] = await asAdmin(t).query(
+      api.admin.vendorStatements.listDisclosureProfiles,
+      {},
+    );
+    expect(before).toHaveLength(4);
+    expect(before.every((p) => p.customised === false)).toBe(true);
+    expect(before.find((p) => p.vendor === "ideal").current.groupVisibility).toBe(
+      "listBillOnly",
+    );
+
+    await asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
+      vendor: "toothlens",
+      disclosure: {
+        memberDetail: true,
+        groupVisibility: "listBillOnly",
+        rateClass: false,
+        repAttribution: false,
+        fullSplit: false,
+        adjustmentDetail: true,
+      },
+      note: "They asked for employer names on the employer book",
+    });
+
+    const after: any[] = await asAdmin(t).query(
+      api.admin.vendorStatements.listDisclosureProfiles,
+      {},
+    );
+    const toothlens = after.find((p) => p.vendor === "toothlens");
+    expect(toothlens.customised).toBe(true);
+    expect(toothlens.current.groupVisibility).toBe("listBillOnly");
+    expect(toothlens.defaults.groupVisibility).toBe("none");
+    expect(toothlens.note).toMatch(/employer book/);
+  });
+
+  test("a changed profile shapes the next statement", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+
+    await asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
+      vendor: "toothlens",
+      disclosure: {
+        memberDetail: true,
+        groupVisibility: "none",
+        rateClass: true,
+        repAttribution: false,
+        fullSplit: false,
+        adjustmentDetail: true,
+      },
+    });
+
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "toothlens" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(statement.showTier).toBe(true);
+    expect(statement.memberLines[0].rateClass).toBeDefined();
+  });
+
+  test("editing a profile never reshapes a statement already issued", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "toothlens" },
+    );
+    await asAdmin(t).mutation(api.admin.vendorStatements.issueStatement, {
+      statementId,
+    });
+
+    // Open the settings all the way up AFTER the document went out.
+    await asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
+      vendor: "toothlens",
+      disclosure: {
+        memberDetail: true,
+        groupVisibility: "all",
+        rateClass: true,
+        repAttribution: true,
+        fullSplit: false,
+        adjustmentDetail: true,
+      },
+    });
+
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(statement.showGroups).toBe(false);
+    expect(statement.showTier).toBe(false);
+    expect(statement.showBroker).toBe(false);
+    expect(JSON.stringify(statement)).not.toContain("ACMEMFG");
+  });
+
+  test("the full revenue split cannot be handed to an external recipient", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    for (const vendor of ["toothlens", "careington", "ideal"] as const) {
+      await expect(
+        asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
+          vendor,
+          disclosure: {
+            memberDetail: true,
+            groupVisibility: "none",
+            rateClass: false,
+            repAttribution: false,
+            fullSplit: true,
+            adjustmentDetail: true,
+          },
+        }),
+      ).rejects.toThrow(/other partners are paid/i);
+    }
+  });
+
+  test("resetting drops the override and restores the default", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    await asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
+      vendor: "careington",
+      disclosure: {
+        memberDetail: false,
+        groupVisibility: "all",
+        rateClass: true,
+        repAttribution: true,
+        fullSplit: false,
+        adjustmentDetail: false,
+      },
+    });
+    const reset = await asAdmin(t).mutation(
+      api.admin.vendorStatements.resetDisclosureProfile,
+      { vendor: "careington" },
+    );
+    expect(reset.reset).toBe(true);
+
+    const profiles: any[] = await asAdmin(t).query(
+      api.admin.vendorStatements.listDisclosureProfiles,
+      {},
+    );
+    const careington = profiles.find((p) => p.vendor === "careington");
+    expect(careington.customised).toBe(false);
+    expect(careington.current.groupVisibility).toBe("none");
+  });
+
+  test("turning off member detail yields a totals-only statement that still balances", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    await asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
+      vendor: "toothlens",
+      disclosure: {
+        memberDetail: false,
+        groupVisibility: "none",
+        rateClass: false,
+        repAttribution: false,
+        fullSplit: false,
+        adjustmentDetail: true,
+      },
+    });
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "toothlens" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(statement.memberLines).toHaveLength(0);
+    expect(statement.primaryCount).toBe(2);
+    expect(statement.totalCents).toBe(200);
+
+    // The admin verification view still sees everything.
+    const audit: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatementVerification,
+      { statementId },
+    );
+    expect(audit.lines).toHaveLength(2);
+    expect(audit.allChecksPassed).toBe(true);
   });
 });

@@ -1871,6 +1871,21 @@ export default defineSchema({
       processingCents: v.number(),
       partnerVendorCents: v.number(),
       ryzeKeepCents: v.number(),
+      // Rep/broker attributed to this member at close time, so a statement
+      // reprinted later still names whoever earned the sale. Optional: closes
+      // written before attribution was frozen fall back to today's
+      // attribution at read time, flagged as such.
+      repId: v.optional(v.string()),          // partnerLeaders._id
+      repName: v.optional(v.string()),
+      repCode: v.optional(v.string()),        // broker tracking code
+      repEmail: v.optional(v.string()),
+      agencyId: v.optional(v.string()),       // distributionPartners._id
+      agencyName: v.optional(v.string()),
+      repSource: v.optional(v.union(
+        v.literal("enrollment"),
+        v.literal("group"),
+        v.literal("none"),
+      )),
     }))),
 
     // PRICING TABLE used at close time (period-stamped per spec §10 #6).
@@ -1944,6 +1959,49 @@ export default defineSchema({
   // VENDOR REMITTANCE STATEMENTS
   // See docs/internal/VENDOR_STATEMENT_RULES.md
   // ============================================
+
+  /**
+   * What each recipient is shown on their statement. One row per recipient;
+   * absent rows fall back to the code defaults in `vendorStatements.ts`.
+   *
+   * Editing a profile changes what FUTURE statements contain. Statements
+   * already generated carry their own frozen copy (`vendorStatements.
+   * disclosure`) and are never reshaped by a later settings change — an
+   * already-sent document must keep saying what it said.
+   */
+  vendorStatementDisclosureProfiles: defineTable({
+    vendor: v.union(
+      v.literal("toothlens"),
+      v.literal("careington"),
+      v.literal("ideal"),
+      v.literal("ryze"),
+    ),
+
+    // Per-primary lines at all, vs. totals only.
+    memberDetail: v.boolean(),
+    // Which employer groups are named. "listBillOnly" names the employer for
+    // list-bill members and shows self-pay members as direct enrollments,
+    // which is what a partner paying out on employer business needs without
+    // exposing the whole book.
+    groupVisibility: v.union(
+      v.literal("none"),
+      v.literal("listBillOnly"),
+      v.literal("all"),
+    ),
+    // Individual vs. Family rate class.
+    rateClass: v.boolean(),
+    // Rep/broker credited with each member.
+    repAttribution: v.boolean(),
+    // Every vendor's bucket, not just this recipient's. Internal only.
+    fullSplit: v.boolean(),
+    // Itemized adjustment lines vs. a single net figure in the totals.
+    adjustmentDetail: v.boolean(),
+
+    // Why this profile deviates from the default — shown in the settings UI.
+    note: v.optional(v.string()),
+    updatedBy: v.string(),
+    updatedAt: v.number(),
+  }).index("by_vendor", ["vendor"]),
 
   /**
    * A numbered, issued remittance statement for one recipient × coverage
@@ -2032,6 +2090,23 @@ export default defineSchema({
     // False for legacy closes that predate frozen member lines — those
     // statements print frozen totals only and are never reconstructed.
     memberDetailAvailable: v.boolean(),
+
+    // The disclosure profile in force when this statement was cut. Frozen so
+    // editing a recipient's settings later cannot reshape a document that has
+    // already gone out. Absent on statements generated before profiles
+    // existed; those fall back to the code defaults.
+    disclosure: v.optional(v.object({
+      memberDetail: v.boolean(),
+      groupVisibility: v.union(
+        v.literal("none"),
+        v.literal("listBillOnly"),
+        v.literal("all"),
+      ),
+      rateClass: v.boolean(),
+      repAttribution: v.boolean(),
+      fullSplit: v.boolean(),
+      adjustmentDetail: v.boolean(),
+    })),
 
     // ── INTERNAL MEMO (never printed) ─────────────────────────────────────
     internalMemo: v.optional(v.string()),

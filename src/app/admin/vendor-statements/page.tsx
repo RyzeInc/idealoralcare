@@ -17,6 +17,7 @@ import {
   Filter,
   Layers,
   Plus,
+  SlidersHorizontal,
   Table2,
 } from 'lucide-react';
 import { api } from '@/convex/_generated/api';
@@ -445,6 +446,18 @@ export default function VendorStatementsPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Tooltip
+            text="Choose what each recipient is shown on their statement — employer group, rate class, rep attribution — and save it as their default."
+            width="lg"
+          >
+            <Link
+              href="/admin/vendor-statements/disclosure"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
+            >
+              <SlidersHorizontal size={14} />
+              Statement Contents
+            </Link>
+          </Tooltip>
           <Tooltip
             text="Cut a draft statement for every recipient for one coverage month in a single pass. Recipients that already have a live statement are skipped, so it is safe to re-run."
             width="lg"

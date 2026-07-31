@@ -49,6 +49,10 @@ import {
 } from "../lib/dispersal";
 import { sha256OfCanonicalJson } from "../lib/hash";
 import {
+  AttributionSource,
+  RepAttributionResolver,
+} from "../lib/repAttribution";
+import {
   currentPeriod,
   parsePeriodKey,
   PeriodWindow,
@@ -95,6 +99,18 @@ interface FrozenMemberLine {
   processingCents: number;
   partnerVendorCents: number;
   ryzeKeepCents: number;
+  /**
+   * Rep/broker credited with this member, frozen at close so a reprint names
+   * whoever earned the sale rather than whoever owns the account today.
+   * Only populated on the close path (see `computeLiveBreakdown`).
+   */
+  repId?: string;
+  repName?: string;
+  repCode?: string;
+  repEmail?: string;
+  agencyId?: string;
+  agencyName?: string;
+  repSource?: AttributionSource;
 }
 
 export interface InvoiceBreakdown {
@@ -269,6 +285,12 @@ async function computeLiveBreakdown(
     );
   }
 
+  // Rep attribution is frozen onto each member line so vendor statements can
+  // report who to pay. Built only on the close path — live dashboards don't
+  // read it, and it would add three whole-table reads to every load.
+  const attribution =
+    asOfMs !== undefined ? await RepAttributionResolver.create(ctx) : null;
+
   // customerId → tier of CURRENT active paying bundle. Family wins over
   // Individual if a customer somehow has multiple active bundles.
   const tierByCustomer = new Map<string, PlanTier>();
@@ -371,6 +393,7 @@ async function computeLiveBreakdown(
       }
       const contribution =
         tier === "none" ? ZERO_SPLIT : getSplitForTier(tier);
+      const rep = attribution?.resolve(member._id, group);
       memberLines.push({
         memberProfileId: member._id,
         memberId: member.memberId,
@@ -379,6 +402,17 @@ async function computeLiveBreakdown(
         groupCode: group.groupCode,
         tier,
         ...contribution,
+        ...(rep
+          ? {
+              repSource: rep.source,
+              ...(rep.repId ? { repId: rep.repId } : {}),
+              ...(rep.repName ? { repName: rep.repName } : {}),
+              ...(rep.repCode ? { repCode: rep.repCode } : {}),
+              ...(rep.repEmail ? { repEmail: rep.repEmail } : {}),
+              ...(rep.agencyId ? { agencyId: rep.agencyId } : {}),
+              ...(rep.agencyName ? { agencyName: rep.agencyName } : {}),
+            }
+          : {}),
       });
     }
 

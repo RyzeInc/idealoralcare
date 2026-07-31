@@ -16,6 +16,10 @@ export interface VendorStatementMemberLine {
   groupCode?: string;
   groupName?: string;
   rateClass?: string;
+  repName?: string;
+  repCode?: string;
+  repEmail?: string;
+  agencyName?: string;
   grossCents?: number;
   toothlensCents?: number;
   careingtonCents?: number;
@@ -54,11 +58,16 @@ export interface VendorStatementDocument {
   paymentDueDate: number;
   sourceClosedAt: number;
 
-  // Disclosure flags resolved server-side from VENDOR_POLICY.
+  // Disclosure flags resolved server-side from the recipient's profile.
+  showMemberDetail: boolean;
   showGroups: boolean;
   showTier: boolean;
-  internal: boolean;
+  showBroker: boolean;
+  showFullSplit: boolean;
+  showAdjustmentDetail: boolean;
   memberDetailAvailable: boolean;
+  /** Whether rep names were frozen at close or resolved from today's records. */
+  attributionBasis: "frozen" | "current" | "mixed" | "none";
 
   // Content
   primaryCount: number;
@@ -109,9 +118,66 @@ export function formatCoverageRange(doc: VendorStatementDocument): string {
   return `${formatStatementDate(doc.coverageStart)} – ${formatStatementDate(doc.coverageEnd)}`;
 }
 
-export function statementFileBase(doc: VendorStatementDocument): string {
-  const safeVendor = doc.vendorName.replace(/[^a-z0-9]+/gi, "-");
-  return `${safeVendor}-Statement-${doc.period}-${doc.statementNumberDisplay}`;
+// ---------------------------------------------------------------------------
+// File naming
+// ---------------------------------------------------------------------------
+
+/**
+ * File names answer who / what / why / when without opening the file:
+ *
+ *   Toothlens_Remittance-Statement_Coverage-2026-05_VS-10001_ISSUED_generated-2026-07-30.pdf
+ *   └ who     └ what                 └ why (period + status)          └ when
+ *
+ * `Coverage-YYYY-MM` is the month being paid for; `generated-YYYY-MM-DD` is
+ * when the file was produced. Those two dates differ on every reprint, and
+ * confusing them is exactly the mistake the names are built to prevent.
+ * Status is included because a DRAFT or VOID copy in someone's downloads
+ * folder must never be mistaken for the live document.
+ */
+function fileToken(value: string): string {
+  return value
+    .replace(/[^a-z0-9]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-");
+}
+
+function generatedStamp(ms: number = Date.now()): string {
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
+export function statementFileBase(
+  doc: VendorStatementDocument,
+  opts: { variant?: "recipient" | "verification"; generatedAt?: number } = {},
+): string {
+  const parts = [
+    fileToken(doc.vendorName),
+    opts.variant === "verification"
+      ? "Statement-Verification"
+      : "Remittance-Statement",
+    `Coverage-${doc.period}`,
+    fileToken(doc.statementNumberDisplay),
+    doc.status.toUpperCase(),
+  ];
+  if (opts.variant === "verification") parts.push("INTERNAL-ONLY");
+  parts.push(`generated-${generatedStamp(opts.generatedAt)}`);
+  return parts.join("_");
+}
+
+/** Whole-month bundle: names the payer, the scope, and the recipient count. */
+export function periodBundleFileBase(
+  docs: VendorStatementDocument[],
+  period: string,
+  opts: { generatedAt?: number } = {},
+): string {
+  const payer = fileToken(docs[0]?.brandName ?? "Ryze-LLC");
+  return [
+    payer,
+    "All-Vendor-Remittance-Statements",
+    `Coverage-${period}`,
+    `${docs.length}-recipients`,
+    "INTERNAL-RECONCILIATION",
+    `generated-${generatedStamp(opts.generatedAt)}`,
+  ].join("_");
 }
 
 // ---------------------------------------------------------------------------
@@ -132,8 +198,13 @@ export function memberDetailTable(doc: VendorStatementDocument): Table {
   const header = ["Member ID", "Last Name", "First Name"];
   if (doc.showGroups) header.push("Group Code", "Group");
   if (doc.showTier) header.push("Rate Class");
+  // Placed before Amount so a payout run reads member → who sold them → what
+  // was earned, left to right.
+  if (doc.showBroker) {
+    header.push("Rep / Broker", "Rep Code", "Rep Email", "Agency");
+  }
   header.push("Amount");
-  if (doc.internal) {
+  if (doc.showFullSplit) {
     header.push(
       "Gross",
       "Toothlens",
@@ -148,8 +219,16 @@ export function memberDetailTable(doc: VendorStatementDocument): Table {
     const row: Row = [line.memberId, line.lastName, line.firstName];
     if (doc.showGroups) row.push(line.groupCode ?? "", line.groupName ?? "");
     if (doc.showTier) row.push(line.rateClass ?? "");
+    if (doc.showBroker) {
+      row.push(
+        line.repName ?? "",
+        line.repCode ?? "",
+        line.repEmail ?? "",
+        line.agencyName ?? "",
+      );
+    }
     row.push(line.amountCents / 100);
-    if (doc.internal) {
+    if (doc.showFullSplit) {
       row.push(
         (line.grossCents ?? 0) / 100,
         (line.toothlensCents ?? 0) / 100,
@@ -192,6 +271,16 @@ export function summaryTable(doc: VendorStatementDocument): Table {
     ["Covered Primaries", doc.primaryCount],
     ["Subtotal", doc.subtotalCents / 100],
   ];
+  if (doc.showBroker && doc.attributionBasis !== "none") {
+    rows.splice(8, 0, [
+      "Rep Attribution",
+      doc.attributionBasis === "frozen"
+        ? "Recorded at close of this coverage month"
+        : doc.attributionBasis === "current"
+          ? "Current attribution — this close predates recorded attribution"
+          : "Mixed — some rows recorded at close, some current",
+    ]);
+  }
   if (doc.adjustments.length > 0 || doc.adjustmentCents !== 0) {
     rows.push(["Adjustments", doc.adjustmentCents / 100]);
   }
@@ -259,7 +348,7 @@ export function statementToCsv(doc: VendorStatementDocument): string {
     );
   }
 
-  if (doc.adjustments.length > 0) {
+  if (doc.showAdjustmentDetail && doc.adjustments.length > 0) {
     blocks.push(`\r\nAdjustments\r\n${tableToCsv(adjustmentTable(doc))}`);
   }
 
@@ -283,6 +372,9 @@ export function periodStatementsToCsv(docs: VendorStatementDocument[]): string {
     "First Name",
     "Group Code",
     "Rate Class",
+    "Rep / Broker",
+    "Rep Code",
+    "Agency",
     "Amount",
   ];
   const rows: Row[] = [];
@@ -293,6 +385,9 @@ export function periodStatementsToCsv(docs: VendorStatementDocument[]): string {
         doc.vendorName,
         doc.period,
         doc.status,
+        "",
+        "",
+        "",
         "",
         "",
         "",
@@ -313,11 +408,154 @@ export function periodStatementsToCsv(docs: VendorStatementDocument[]): string {
         line.firstName,
         doc.showGroups ? (line.groupCode ?? "") : "",
         doc.showTier ? (line.rateClass ?? "") : "",
+        doc.showBroker ? (line.repName ?? "") : "",
+        doc.showBroker ? (line.repCode ?? "") : "",
+        doc.showBroker ? (line.agencyName ?? "") : "",
         line.amountCents / 100,
       ]);
     }
   }
   return tableToCsv({ header, rows });
+}
+
+// ---------------------------------------------------------------------------
+// Internal verification (never sent to a recipient)
+// ---------------------------------------------------------------------------
+
+export interface VerificationDocument {
+  statementNumberDisplay: string;
+  vendorName: string;
+  period: string;
+  status: string;
+  amountField: string;
+  memberDetailAvailable: boolean;
+  lines: Array<{
+    memberId: string;
+    memberName: string;
+    groupCode: string;
+    rateClass: string;
+    grossCents: number;
+    toothlensCents: number;
+    careingtonCents: number;
+    processingCents: number;
+    partnerVendorCents: number;
+    ryzeKeepCents: number;
+    statementCents: number;
+    splitBalances: boolean;
+    repName: string | null;
+    repCode: string | null;
+    agencyName: string | null;
+    repSource: string;
+  }>;
+  totals: {
+    grossCents: number;
+    toothlensCents: number;
+    careingtonCents: number;
+    processingCents: number;
+    partnerVendorCents: number;
+    ryzeKeepCents: number;
+  };
+  statementSubtotalCents: number;
+  statementAdjustmentCents: number;
+  statementTotalCents: number;
+  checks: Array<{ label: string; passed: boolean; detail: string }>;
+  allChecksPassed: boolean;
+}
+
+/** Every member's full dispersal, with the paid bucket called out. */
+export function verificationDetailTable(doc: VerificationDocument): Table {
+  return {
+    header: [
+      "Member ID",
+      "Member",
+      "Group Code",
+      "Rate Class",
+      "Gross",
+      "Toothlens",
+      "Careington",
+      "Processing",
+      "Ideal Health",
+      "Ryze Keep",
+      "On This Statement",
+      "Split Balances",
+      "Rep / Broker",
+      "Rep Code",
+      "Agency",
+      "Attribution Source",
+    ],
+    rows: doc.lines.map((line) => [
+      line.memberId,
+      line.memberName,
+      line.groupCode,
+      line.rateClass,
+      line.grossCents / 100,
+      line.toothlensCents / 100,
+      line.careingtonCents / 100,
+      line.processingCents / 100,
+      line.partnerVendorCents / 100,
+      line.ryzeKeepCents / 100,
+      line.statementCents / 100,
+      line.splitBalances ? "YES" : "NO — INVESTIGATE",
+      line.repName ?? "",
+      line.repCode ?? "",
+      line.agencyName ?? "",
+      line.repSource,
+    ]),
+  };
+}
+
+export function verificationChecksTable(doc: VerificationDocument): Table {
+  return {
+    header: ["Check", "Result", "Detail"],
+    rows: doc.checks.map((check) => [
+      check.label,
+      check.passed ? "PASS" : "FAIL",
+      check.detail,
+    ]),
+  };
+}
+
+export function verificationTotalsTable(doc: VerificationDocument): Table {
+  return {
+    header: ["Bucket", "Total"],
+    rows: [
+      ["Gross", doc.totals.grossCents / 100],
+      ["Toothlens", doc.totals.toothlensCents / 100],
+      ["Careington", doc.totals.careingtonCents / 100],
+      ["Processing", doc.totals.processingCents / 100],
+      ["Ideal Health", doc.totals.partnerVendorCents / 100],
+      ["Ryze Keep", doc.totals.ryzeKeepCents / 100],
+      ["— Statement subtotal", doc.statementSubtotalCents / 100],
+      ["— Statement adjustments", doc.statementAdjustmentCents / 100],
+      ["— Statement total", doc.statementTotalCents / 100],
+    ],
+  };
+}
+
+export function verificationToCsv(doc: VerificationDocument): string {
+  const header = tableToCsv({
+    header: ["Field", "Value"],
+    rows: [
+      ["Document", "INTERNAL VERIFICATION — NOT FOR DISTRIBUTION"],
+      ["Statement", doc.statementNumberDisplay],
+      ["Recipient", doc.vendorName],
+      ["Coverage Month", doc.period],
+      ["Status", doc.status.toUpperCase()],
+      ["Paid From Bucket", doc.amountField],
+      ["All Checks Passed", doc.allChecksPassed ? "YES" : "NO"],
+    ],
+  });
+  const blocks = [
+    header,
+    `\r\nReconciliation Checks\r\n${tableToCsv(verificationChecksTable(doc))}`,
+    `\r\nBucket Totals\r\n${tableToCsv(verificationTotalsTable(doc))}`,
+  ];
+  if (doc.memberDetailAvailable && doc.lines.length > 0) {
+    blocks.push(
+      `\r\nFull Member Dispersal\r\n${tableToCsv(verificationDetailTable(doc))}`,
+    );
+  }
+  return blocks.join("\r\n");
 }
 
 /** Recipient-level rollup used as the cover sheet of a bulk export. */

@@ -114,6 +114,13 @@ const s = StyleSheet.create({
   colGroup: { flex: 1 },
   colClass: { width: "16%" },
   colAmount: { width: "18%", textAlign: "right" },
+  // Narrower member columns when the rep columns share the row.
+  colIdWithRep: { width: "17%" },
+  colNameWithRep: { width: "20%" },
+  colClassWithRep: { width: "12%" },
+  colRep: { flex: 1 },
+  colRepCode: { width: "13%" },
+  colAmountWithRep: { width: "15%", textAlign: "right" },
 
   colGroupCode: { width: "18%" },
   colGroupName: { flex: 1 },
@@ -271,44 +278,81 @@ function MemberTable({ doc }: { doc: VendorStatementDocument }) {
   }
   if (doc.memberLines.length === 0) return null;
 
+  // The rep columns need room, so the member columns tighten when they appear.
+  const rep = doc.showBroker;
+  const idCol = rep ? s.colIdWithRep : s.colId;
+  const nameCol = rep ? s.colNameWithRep : s.colName;
+  const classCol = rep ? s.colClassWithRep : s.colClass;
+  const amountCol = rep ? s.colAmountWithRep : s.colAmount;
+
   return (
     <View>
       <Text style={s.sectionH}>Covered Primary Detail</Text>
+      {rep && (
+        <Text style={s.note}>
+          {doc.attributionBasis === "current"
+            ? "Rep and agency shown are the current attribution of record; this coverage month was closed before attribution was captured."
+            : doc.attributionBasis === "mixed"
+              ? "Rep and agency were captured at close for most members; the remainder show the current attribution of record."
+              : "Rep and agency were captured when this coverage month was closed."}
+        </Text>
+      )}
       <View style={s.table}>
         <View style={s.tHeader} fixed>
-          <Text style={[s.cell, s.colId, s.headerText]}>Member ID</Text>
-          <Text style={[s.cell, s.colName, s.headerText]}>Member</Text>
+          <Text style={[s.cell, idCol, s.headerText]}>Member ID</Text>
+          <Text style={[s.cell, nameCol, s.headerText]}>Member</Text>
           {doc.showGroups && (
             <Text style={[s.cell, s.colGroup, s.headerText]}>Group</Text>
           )}
           {doc.showTier && (
-            <Text style={[s.cell, s.colClass, s.headerText]}>Rate Class</Text>
+            <Text style={[s.cell, classCol, s.headerText]}>Rate Class</Text>
           )}
-          <Text style={[s.cellLast, s.colAmount, s.headerText]}>Amount</Text>
+          {rep && (
+            <>
+              <Text style={[s.cell, s.colRep, s.headerText]}>Rep / Agency</Text>
+              <Text style={[s.cell, s.colRepCode, s.headerText]}>Rep Code</Text>
+            </>
+          )}
+          <Text style={[s.cellLast, amountCol, s.headerText]}>Amount</Text>
         </View>
         {doc.memberLines.map((line, index) => (
           <View key={`${line.memberId}-${index}`} style={s.tRow} wrap={false}>
-            <Text style={[s.cell, s.colId]}>{line.memberId}</Text>
-            <Text style={[s.cell, s.colName]}>
+            <Text style={[s.cell, idCol]}>{line.memberId}</Text>
+            <Text style={[s.cell, nameCol]}>
               {line.lastName}, {line.firstName}
             </Text>
             {doc.showGroups && (
               <Text style={[s.cell, s.colGroup]}>{line.groupCode ?? ""}</Text>
             )}
             {doc.showTier && (
-              <Text style={[s.cell, s.colClass]}>{line.rateClass ?? ""}</Text>
+              <Text style={[s.cell, classCol]}>{line.rateClass ?? ""}</Text>
             )}
-            <Text style={[s.cellLast, s.colAmount]}>{money(line.amountCents)}</Text>
+            {rep && (
+              <>
+                <Text style={[s.cell, s.colRep]}>
+                  {line.repName ?? "Unattributed"}
+                  {line.agencyName ? ` · ${line.agencyName}` : ""}
+                </Text>
+                <Text style={[s.cell, s.colRepCode]}>{line.repCode ?? ""}</Text>
+              </>
+            )}
+            <Text style={[s.cellLast, amountCol]}>{money(line.amountCents)}</Text>
           </View>
         ))}
         <View style={s.tFooter} wrap={false}>
-          <Text style={[s.cell, s.colId, s.boldText]}>
+          <Text style={[s.cell, idCol, s.boldText]}>
             {doc.memberLines.length} lines
           </Text>
-          <Text style={[s.cell, s.colName]}> </Text>
+          <Text style={[s.cell, nameCol]}> </Text>
           {doc.showGroups && <Text style={[s.cell, s.colGroup]}> </Text>}
-          {doc.showTier && <Text style={[s.cell, s.colClass]}> </Text>}
-          <Text style={[s.cellLast, s.colAmount, s.boldText]}>
+          {doc.showTier && <Text style={[s.cell, classCol]}> </Text>}
+          {rep && (
+            <>
+              <Text style={[s.cell, s.colRep]}> </Text>
+              <Text style={[s.cell, s.colRepCode]}> </Text>
+            </>
+          )}
+          <Text style={[s.cellLast, amountCol, s.boldText]}>
             {money(doc.subtotalCents)}
           </Text>
         </View>
@@ -318,7 +362,8 @@ function MemberTable({ doc }: { doc: VendorStatementDocument }) {
 }
 
 function AdjustmentTable({ doc }: { doc: VendorStatementDocument }) {
-  if (doc.adjustments.length === 0) return null;
+  // When itemization is off the net figure still appears in the totals block.
+  if (!doc.showAdjustmentDetail || doc.adjustments.length === 0) return null;
   return (
     <View>
       <Text style={s.sectionH}>Adjustments</Text>
