@@ -1359,7 +1359,9 @@ export default function VendorStatementDetailPage({
         <div className="px-6 py-4 border-b border-slate-200 flex items-center gap-2">
           <h2 className="text-sm font-semibold text-slate-700">Covered Primary Detail</h2>
           <span className="ml-auto text-xs text-slate-400">
-            {statement.memberLines.length} of {statement.primaryCount} primaries itemized
+            {statement.memberLines.length === statement.primaryCount
+              ? `${statement.memberLines.length} of ${statement.primaryCount} primaries itemized`
+              : `${statement.memberLines.length} listed · ${statement.primaryCount} counted at close`}
             {statement.memberLines.length > 0 &&
               ` · ${formatCurrency(statement.itemizedCents, { fromCents: true })}`}
           </span>

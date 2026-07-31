@@ -483,23 +483,40 @@ async function buildGroupRows(
   ctx: QueryCtx | MutationCtx,
   snapshots: Doc<"invoicePeriods">[],
   policy: ResolvedPolicy,
+  /** Primaries left off the statement — must come out of the rollup too. */
+  excluded: Set<string> = new Set(),
 ): Promise<StatementGroupRow[]> {
   const visibility = policy.disclosure.groupVisibility;
   if (visibility === "none") return [];
 
   const rows = new Map<string, StatementGroupRow>();
   for (const snapshot of snapshots) {
-    const amountCents = snapshot[policy.amountField];
-    if (amountCents <= 0) continue;
+    const rawAmountCents = snapshot[policy.amountField];
+    if (rawAmountCents <= 0) continue;
     const label = groupLabelFor(snapshot, visibility);
     if (!label) continue;
-    const primaryCount =
-      snapshot.individualPrimaryCount + snapshot.familyPrimaryCount;
+
+    // Take excluded primaries out of THIS organization's figures, so the
+    // rollup foots against the statement total instead of still carrying
+    // someone the statement no longer bills for.
+    let amountCents = rawAmountCents;
+    let individualCount = snapshot.individualPrimaryCount;
+    let familyCount = snapshot.familyPrimaryCount;
+    if (excluded.size > 0) {
+      for (const line of snapshot.memberLines ?? []) {
+        if (line.tier === "none" || !excluded.has(line.memberId)) continue;
+        amountCents -= line[policy.amountField];
+        if (line.tier === "individual") individualCount--;
+        else familyCount--;
+      }
+    }
+
+    const primaryCount = individualCount + familyCount;
     const existing = rows.get(label.key);
     if (existing) {
       existing.primaryCount += primaryCount;
-      existing.individualCount += snapshot.individualPrimaryCount;
-      existing.familyCount += snapshot.familyPrimaryCount;
+      existing.individualCount += individualCount;
+      existing.familyCount += familyCount;
       existing.amountCents += amountCents;
     } else {
       // The rep who owns this organization's deal — the person a partner pays
@@ -528,20 +545,22 @@ async function buildGroupRows(
         groupName: label.groupName,
         organizationCode: label.organizationCode,
         primaryCount,
-        individualCount: snapshot.individualPrimaryCount,
-        familyCount: snapshot.familyPrimaryCount,
+        individualCount,
+        familyCount,
         ...rep,
         amountCents,
       });
     }
   }
   // Direct enrollments sort last; organizations read alphabetically above it.
-  return Array.from(rows.values()).sort((a, b) => {
-    if ((a.groupCode === "DIRECT") !== (b.groupCode === "DIRECT")) {
-      return a.groupCode === "DIRECT" ? 1 : -1;
-    }
-    return a.groupName.localeCompare(b.groupName);
-  });
+  return Array.from(rows.values())
+    .filter((row) => row.primaryCount > 0 || row.amountCents !== 0)
+    .sort((a, b) => {
+      if ((a.groupCode === "DIRECT") !== (b.groupCode === "DIRECT")) {
+        return a.groupCode === "DIRECT" ? 1 : -1;
+      }
+      return a.groupName.localeCompare(b.groupName);
+    });
 }
 
 /**
@@ -1006,7 +1025,7 @@ export const getStatement = query({
     const memberLines = policy.disclosure.memberDetail ? collected.lines : [];
     const itemizedCents = memberLines.reduce((sum, l) => sum + l.amountCents, 0);
 
-    const groups = await buildGroupRows(ctx, snapshots, policy);
+    const groups = await buildGroupRows(ctx, snapshots, policy, excluded);
 
     const periodAdjustments = await ctx.db
       .query("invoiceAdjustments")

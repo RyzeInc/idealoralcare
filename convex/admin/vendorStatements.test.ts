@@ -2521,3 +2521,143 @@ describe("vendorStatements — members appear without being asked for", () => {
     expect(statement.missingDetailGroups.length).toBeGreaterThan(0);
   });
 });
+
+describe("vendorStatements — an exclusion foots everywhere", () => {
+  test("an excluded primary comes out of the group rollup, not just the total", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const { year, month, period, midMs } = previousMonth();
+
+    const employer = await seedWorld(t, {
+      groupCode: "IDEALDO",
+      groupName: "Apricus",
+    });
+    await t.run(async (ctx) => {
+      await ctx.db.patch(employer.groupId, {
+        listBill: { enabled: true, paymentMethod: "ach" as const },
+      });
+    });
+    const direct = await seedWorld(t, {
+      groupCode: "IDEALDO",
+      groupName: "Individual Enrollment",
+    });
+
+    await seedPrimary(t, employer, {
+      customerId: "emp-1",
+      memberId: "MEM-EMP1",
+      totalCents: 1499,
+      createdAt: midMs,
+    });
+    await seedPrimary(t, employer, {
+      customerId: "emp-2",
+      memberId: "MEM-EMP2",
+      totalCents: 2499,
+      createdAt: midMs,
+    });
+    await seedPrimary(t, direct, {
+      customerId: "comp",
+      memberId: "MEM-COMP",
+      totalCents: 1499,
+      createdAt: midMs,
+    });
+    await asAdmin(t).mutation(api.admin.invoiceCalculator.closePeriodManual, {
+      year,
+      month,
+    });
+
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const before: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    // The rollup foots before the exclusion.
+    expect(
+      before.groups.reduce((n: number, g: any) => n + g.amountCents, 0),
+    ).toBe(before.subtotalCents);
+    expect(
+      before.groups.reduce((n: number, g: any) => n + g.primaryCount, 0),
+    ).toBe(before.primaryCount);
+
+    await asAdmin(t).mutation(
+      api.admin.vendorStatements.excludeMemberFromStatement,
+      { statementId, memberId: "MEM-COMP", reason: "Comp membership" },
+    );
+
+    const after: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+
+    // …and still foots afterwards. This is the regression: the rollup used to
+    // keep the excluded member while the total dropped, so the $6 looked as
+    // though it had come off twice.
+    expect(
+      after.groups.reduce((n: number, g: any) => n + g.amountCents, 0),
+    ).toBe(after.subtotalCents);
+    expect(
+      after.groups.reduce((n: number, g: any) => n + g.primaryCount, 0),
+    ).toBe(after.primaryCount);
+    expect(
+      after.groups.reduce((n: number, g: any) => n + g.individualCount, 0),
+    ).toBe(after.individualCount);
+    expect(
+      after.groups.reduce((n: number, g: any) => n + g.familyCount, 0),
+    ).toBe(after.familyCount);
+
+    // Exactly one $6 came off, once.
+    expect(after.subtotalCents).toBe(before.subtotalCents - 600);
+    expect(after.primaryCount).toBe(before.primaryCount - 1);
+
+    // The organization that held only that member drops off the rollup.
+    expect(
+      after.groups.some((g: any) => g.groupName === "Direct enrollment"),
+    ).toBe(false);
+    expect(before.groups.some((g: any) => g.groupName === "Direct enrollment")).toBe(
+      true,
+    );
+
+    // Restoring puts it back, still footing.
+    await asAdmin(t).mutation(
+      api.admin.vendorStatements.restoreMemberToStatement,
+      { statementId, memberId: "MEM-COMP" },
+    );
+    const restored: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(
+      restored.groups.reduce((n: number, g: any) => n + g.amountCents, 0),
+    ).toBe(restored.subtotalCents);
+    expect(restored.subtotalCents).toBe(before.subtotalCents);
+  });
+
+  test("excluding from one organization leaves the others untouched", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const before: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    const victim = before.memberLines[0];
+
+    await asAdmin(t).mutation(
+      api.admin.vendorStatements.excludeMemberFromStatement,
+      { statementId, memberId: victim.memberId, reason: "Billed in error" },
+    );
+    const after: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(
+      after.groups.reduce((n: number, g: any) => n + g.amountCents, 0),
+    ).toBe(after.subtotalCents);
+    expect(after.subtotalCents).toBe(before.subtotalCents - victim.amountCents);
+  });
+});
