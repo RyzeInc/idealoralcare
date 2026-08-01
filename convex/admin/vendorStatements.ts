@@ -157,8 +157,8 @@ export const STATEMENT_COLUMN_REGISTRY: Array<{
   /** Recipients that start with this column on. */
   defaultFor: VendorId[];
 }> = [
-  { key: "memberId", label: "Member ID", group: "Member", fixed: true, defaultFor: VENDOR_IDS },
-  { key: "memberName", label: "Member Name", group: "Member", fixed: true, defaultFor: VENDOR_IDS },
+  { key: "memberId", label: "Member ID", group: "Member", defaultFor: VENDOR_IDS },
+  { key: "memberName", label: "Member Name", group: "Member", defaultFor: VENDOR_IDS },
   { key: "rateClass", label: "Rate Class (Individual / Family)", group: "Member", sensitive: true, defaultFor: ["ideal", "ryze"] },
   { key: "organization", label: "Organization", group: "Organization", sensitive: true, defaultFor: ["ideal", "ryze"] },
   { key: "orgCode", label: "Org Code", group: "Organization", sensitive: true, defaultFor: ["ryze"] },
@@ -1548,6 +1548,11 @@ export const updateDisclosureProfile = mutation({
       const meta = STATEMENT_COLUMN_REGISTRY.find((c) => c.key === column.key);
       return column.enabled && meta?.internalOnly;
     });
+    if (!disclosure.columns.some((c) => c.enabled)) {
+      throw new Error(
+        "A statement needs at least one column. Amount is always kept; pick something to identify the member by.",
+      );
+    }
     if (internalAsked.length > 0 && vendorId !== "ryze") {
       const names = internalAsked
         .map(

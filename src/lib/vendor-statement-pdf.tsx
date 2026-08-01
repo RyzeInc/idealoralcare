@@ -58,6 +58,8 @@ const s = StyleSheet.create({
     paddingBottom: 56,
     paddingHorizontal: 48,
   },
+  // A busy table needs the margins back before it needs landscape.
+  pageWide: { paddingHorizontal: 28 },
   topRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -89,13 +91,22 @@ const s = StyleSheet.create({
   kvValueBold: { flex: 1, fontSize: 10, color: DARK, fontFamily: "Helvetica-Bold" },
 
   table: { marginTop: 4, borderWidth: 1, borderColor: CELL_BORDER },
+  // Border-less wrapper so the table can break across pages without leaving
+  // an empty bordered strip behind.
+  tableFlow: { marginTop: 4 },
+  rowRule: {
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: CELL_BORDER,
+  },
   tHeader: {
     flexDirection: "row",
     backgroundColor: HEADER_BG,
-    borderBottomWidth: 1,
-    borderBottomColor: CELL_BORDER,
+    borderTopWidth: 1,
+    borderTopColor: CELL_BORDER,
   },
-  tRow: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: CELL_BORDER },
+  tRow: { flexDirection: "row" },
   tFooter: { flexDirection: "row", backgroundColor: FOOTER_BG },
   cell: {
     paddingVertical: 5,
@@ -250,8 +261,8 @@ function GroupTable({ doc }: { doc: VendorStatementDocument }) {
   return (
     <View>
       <Text style={s.sectionH}>Group Summary</Text>
-      <View style={s.table}>
-        <View style={s.tHeader}>
+      <View style={s.tableFlow}>
+        <View style={[s.tHeader, s.rowRule]}>
           <Text style={[s.cell, s.colGroupName, s.headerText]}>Organization</Text>
           {doc.showBroker && (
             <Text style={[s.cell, s.colGroupCode, s.headerText]}>Rep / Agency</Text>
@@ -261,7 +272,11 @@ function GroupTable({ doc }: { doc: VendorStatementDocument }) {
           <Text style={[s.cellLast, s.colAmount, s.headerText]}>Amount</Text>
         </View>
         {doc.groups.map((row, index) => (
-          <View key={`${row.groupCode}-${row.groupName}-${index}`} style={s.tRow} wrap={false}>
+          <View
+            key={`${row.groupCode}-${row.groupName}-${index}`}
+            style={[s.tRow, s.rowRule]}
+            wrap={false}
+          >
             <Text style={[s.cell, s.colGroupName]}>
               {row.groupName}
               {row.organizationCode ? ` (${row.organizationCode})` : ""}
@@ -280,7 +295,7 @@ function GroupTable({ doc }: { doc: VendorStatementDocument }) {
             <Text style={[s.cellLast, s.colAmount]}>{money(row.amountCents)}</Text>
           </View>
         ))}
-        <View style={s.tFooter} wrap={false}>
+        <View style={[s.tFooter, s.rowRule]} wrap={false}>
           <Text style={[s.cell, s.colGroupName, s.boldText]}>Total</Text>
           {doc.showBroker && <Text style={[s.cell, s.colGroupCode]}> </Text>}
           <Text style={[s.cell, s.colCount, s.boldText]}>
@@ -311,22 +326,113 @@ function NotItemizedNote({ doc }: { doc: VendorStatementDocument }) {
   );
 }
 
-/** Column widths, so a wide selection still fits the page. */
-function memberColumnStyle(key: string, count: number) {
-  const wide = count > 6;
-  switch (key) {
-    case "memberId": return { width: wide ? "13%" : "22%" };
-    case "memberName": return { flexGrow: 1, flexBasis: 0 };
-    case "amount": return { width: wide ? "11%" : "16%", textAlign: "right" as const };
-    case "grossCents":
-    case "toothlensCents":
-    case "careingtonCents":
-    case "processingCents":
-    case "partnerVendorCents":
-    case "ryzeKeepCents":
-      return { width: "9%", textAlign: "right" as const };
-    default: return { width: wide ? "10%" : "16%" };
-  }
+/**
+ * Relative widths. Columns are laid out by weight and then normalised to
+ * exactly 100%, so adding a column narrows the others instead of pushing the
+ * row off the page. Fixed percentages were what produced the clipped IDs and
+ * names running into the next cell.
+ */
+const COLUMN_WEIGHT: Record<string, number> = {
+  memberId: 15,
+  memberName: 20,
+  firstName: 11,
+  lastName: 11,
+  memberEmail: 20,
+  phone: 11,
+  dob: 9,
+  ssn: 10,
+  gender: 6,
+  memberRole: 8,
+  relationship: 10,
+  primaryMember: 16,
+  dependentCount: 7,
+  memberType: 9,
+  effectiveDate: 10,
+  createdAt: 9,
+  censusMissing: 18,
+  rateClass: 9,
+  addressLine1: 18,
+  city: 10,
+  state: 5,
+  postalCode: 7,
+  organization: 14,
+  orgCode: 9,
+  groupCode: 9,
+  employeeType: 8,
+  location: 10,
+  department: 11,
+  groupMemberId: 9,
+  listBillStatus: 9,
+  repName: 14,
+  repCode: 10,
+  repEmail: 18,
+  agencyName: 14,
+  careingtonId: 13,
+  careingtonSeq: 6,
+  toothlensId: 13,
+  clerkId: 16,
+  systemPresence: 9,
+  subscriptionStatus: 9,
+  entitlementCount: 7,
+  barcode: 12,
+  subscriberId: 12,
+  amount: 10,
+  grossCents: 9,
+  toothlensCents: 9,
+  careingtonCents: 9,
+  processingCents: 9,
+  partnerVendorCents: 9,
+  ryzeKeepCents: 9,
+};
+
+/** Shorter headers so a label never stacks four lines deep. */
+const COLUMN_SHORT_LABEL: Record<string, string> = {
+  rateClass: "Rate Class",
+  censusMissing: "Missing Census",
+  organization: "Organization",
+  subscriptionStatus: "Subscription",
+  entitlementCount: "Entitlements",
+  systemPresence: "Presence",
+  grossCents: "Gross",
+  toothlensCents: "Toothlens",
+  careingtonCents: "Careington",
+  processingCents: "Processing",
+  partnerVendorCents: "Ideal",
+  ryzeKeepCents: "Ryze",
+  dependentCount: "Deps",
+  addressLine1: "Address",
+  groupMemberId: "Employee #",
+  listBillStatus: "List Bill",
+  careingtonId: "Careington ID",
+  careingtonSeq: "Seq #",
+  toothlensId: "Toothlens ID",
+};
+
+const RIGHT_ALIGNED = new Set([
+  "amount",
+  "grossCents",
+  "toothlensCents",
+  "careingtonCents",
+  "processingCents",
+  "partnerVendorCents",
+  "ryzeKeepCents",
+  "dependentCount",
+  "entitlementCount",
+]);
+
+function columnLayout(columns: Array<{ key: string; label: string }>) {
+  const weights = columns.map((c) => COLUMN_WEIGHT[c.key] ?? 11);
+  const total = weights.reduce((n, w) => n + w, 0) || 1;
+  // A tighter type size once the row gets busy, so cells stop wrapping.
+  const fontSize = columns.length <= 6 ? 9 : columns.length <= 9 ? 7.5 : 6.5;
+  return columns.map((column, index) => ({
+    ...column,
+    header: COLUMN_SHORT_LABEL[column.key] ?? column.label,
+    // Percent strings keep react-pdf from rounding a row past 100%.
+    width: `${((weights[index] / total) * 100).toFixed(4)}%`,
+    align: (RIGHT_ALIGNED.has(column.key) ? "right" : "left") as "right" | "left",
+    fontSize,
+  }));
 }
 
 function memberCellText(
@@ -370,9 +476,26 @@ function MemberTable({ doc }: { doc: VendorStatementDocument }) {
   }
   if (doc.memberLines.length === 0) return null;
 
-  const columns = doc.columns ?? [];
-  if (columns.length === 0) return null;
-  const showsRep = columns.some((c) => c.key.startsWith("rep") || c.key === "agencyName");
+  const raw = doc.columns ?? [];
+  if (raw.length === 0) return null;
+  const columns = columnLayout(raw);
+  const showsRep = raw.some((c) => c.key.startsWith("rep") || c.key === "agencyName");
+
+  const cellStyle = (
+    col: ReturnType<typeof columnLayout>[number],
+    last: boolean,
+  ) => [
+    last ? s.cellLast : s.cell,
+    {
+      width: col.width,
+      textAlign: col.align,
+      fontSize: col.fontSize,
+      // Without an explicit basis a long value stretches its own column and
+      // squeezes the neighbour, which is what clipped the Careington IDs.
+      flexGrow: 0,
+      flexShrink: 0,
+    },
+  ];
 
   return (
     <View>
@@ -387,43 +510,48 @@ function MemberTable({ doc }: { doc: VendorStatementDocument }) {
               : "Rep and agency were captured when this coverage month was closed."}
         </Text>
       )}
-      <View style={s.table}>
-        <View style={s.tHeader} fixed>
+      {/*
+        No border on the wrapper: a bordered container that spans a page break
+        leaves an empty boxed strip at the foot of the page. Each row carries
+        its own rules instead, so the table can flow across pages cleanly.
+      */}
+      <View style={s.tableFlow}>
+        <View style={[s.tHeader, s.rowRule]} fixed>
           {columns.map((column, index) => (
             <Text
               key={column.key}
               style={[
-                index === columns.length - 1 ? s.cellLast : s.cell,
-                memberColumnStyle(column.key, columns.length),
+                ...cellStyle(column, index === columns.length - 1),
                 s.headerText,
+                { fontSize: column.fontSize },
               ]}
             >
-              {column.label}
+              {column.header}
             </Text>
           ))}
         </View>
         {doc.memberLines.map((line, rowIndex) => (
-          <View key={`${line.memberId}-${rowIndex}`} style={s.tRow} wrap={false}>
+          <View
+            key={`${line.memberId}-${rowIndex}`}
+            style={[s.tRow, s.rowRule]}
+            wrap={false}
+          >
             {columns.map((column, index) => (
               <Text
                 key={column.key}
-                style={[
-                  index === columns.length - 1 ? s.cellLast : s.cell,
-                  memberColumnStyle(column.key, columns.length),
-                ]}
+                style={cellStyle(column, index === columns.length - 1)}
               >
                 {memberCellText(line, column.key)}
               </Text>
             ))}
           </View>
         ))}
-        <View style={s.tFooter} wrap={false}>
+        <View style={[s.tFooter, s.rowRule]} wrap={false}>
           {columns.map((column, index) => (
             <Text
               key={column.key}
               style={[
-                index === columns.length - 1 ? s.cellLast : s.cell,
-                memberColumnStyle(column.key, columns.length),
+                ...cellStyle(column, index === columns.length - 1),
                 s.boldText,
               ]}
             >
@@ -446,15 +574,15 @@ function AdjustmentTable({ doc }: { doc: VendorStatementDocument }) {
   return (
     <View>
       <Text style={s.sectionH}>Adjustments</Text>
-      <View style={s.table}>
-        <View style={s.tHeader}>
+      <View style={s.tableFlow}>
+        <View style={[s.tHeader, s.rowRule]}>
           <Text style={[s.cell, s.colDate, s.headerText]}>Recorded</Text>
           <Text style={[s.cell, s.colReason, s.headerText]}>Reason</Text>
           <Text style={[s.cell, s.colNotes, s.headerText]}>Notes</Text>
           <Text style={[s.cellLast, s.colAmount, s.headerText]}>Amount</Text>
         </View>
         {doc.adjustments.map((row, index) => (
-          <View key={index} style={s.tRow} wrap={false}>
+          <View key={index} style={[s.tRow, s.rowRule]} wrap={false}>
             <Text style={[s.cell, s.colDate]}>
               {new Date(row.createdAt).toISOString().slice(0, 10)}
             </Text>
@@ -541,6 +669,20 @@ function StatementBody({ doc }: { doc: VendorStatementDocument }) {
 
 // ─── Documents ────────────────────────────────────────────────────────────────
 
+/**
+ * How much page a statement needs. Narrow margins first, then landscape —
+ * a wide column selection should stay readable rather than clip.
+ */
+function pageLayout(doc: VendorStatementDocument) {
+  const count = doc.memberDetailAvailable ? (doc.columns ?? []).length : 0;
+  return {
+    style: count > 7 ? [s.page, s.pageWide] : s.page,
+    orientation: (count > 11 ? "landscape" : "portrait") as
+      | "landscape"
+      | "portrait",
+  };
+}
+
 export function VendorStatementPdf({ doc }: { doc: VendorStatementDocument }) {
   return (
     <Document
@@ -548,7 +690,11 @@ export function VendorStatementPdf({ doc }: { doc: VendorStatementDocument }) {
       author={doc.brandName}
       subject={`Vendor remittance statement for coverage month ${doc.period}`}
     >
-      <Page size="LETTER" style={s.page}>
+      <Page
+        size="LETTER"
+        orientation={pageLayout(doc).orientation}
+        style={pageLayout(doc).style}
+      >
         <StatementBody doc={doc} />
       </Page>
     </Document>
@@ -573,7 +719,12 @@ export function VendorStatementBundlePdf({
       subject={`All vendor remittance statements for coverage month ${period}`}
     >
       {docs.map((doc) => (
-        <Page key={doc.statementNumberDisplay} size="LETTER" style={s.page}>
+        <Page
+          key={doc.statementNumberDisplay}
+          size="LETTER"
+          orientation={pageLayout(doc).orientation}
+          style={pageLayout(doc).style}
+        >
           <StatementBody doc={doc} />
         </Page>
       ))}

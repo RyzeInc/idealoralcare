@@ -2681,7 +2681,7 @@ describe("vendorStatements — column selection", () => {
     ]);
   });
 
-  test("member, name, and amount cannot be switched off", async () => {
+  test("member ID and name can be switched off; amount stays", async () => {
     const t = convexTest(schema);
     await seedAdmin(t);
     await asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
@@ -2690,10 +2690,11 @@ describe("vendorStatements — column selection", () => {
         memberDetail: true,
         groupVisibility: "none",
         adjustmentDetail: true,
-        // Deliberately try to drop the fixed columns.
+        // Identify members by their Careington ID alone.
         columns: [
           { key: "memberId", enabled: false },
           { key: "memberName", enabled: false },
+          { key: "careingtonId", enabled: true },
           { key: "amount", enabled: false },
         ],
       },
@@ -2703,11 +2704,30 @@ describe("vendorStatements — column selection", () => {
       {},
     );
     const careington = profiles.find((p) => p.vendor === "careington");
-    for (const key of ["memberId", "memberName", "amount"]) {
-      expect(
-        careington.current.columns.find((c: any) => c.key === key).enabled,
-      ).toBe(true);
-    }
+    const on = (key: string) =>
+      careington.current.columns.find((c: any) => c.key === key).enabled;
+    // The owner's choice is respected for identity columns…
+    expect(on("memberId")).toBe(false);
+    expect(on("memberName")).toBe(false);
+    expect(on("careingtonId")).toBe(true);
+    // …but a remittance line still has to carry what is owed.
+    expect(on("amount")).toBe(true);
+  });
+
+  test("a statement cannot be left with no columns at all", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    await expect(
+      asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
+        vendor: "careington",
+        disclosure: {
+          memberDetail: true,
+          groupVisibility: "none",
+          adjustmentDetail: true,
+          columns: [{ key: "memberId", enabled: false }],
+        },
+      }),
+    ).rejects.toThrow(/at least one column/i);
   });
 
   test("a column that would expose another partner's pay is refused", async () => {

@@ -96,9 +96,7 @@ function remitFrom() {
     contactPhone:
       process.env.VENDOR_STATEMENT_REMIT_PHONE ?? process.env.LIST_BILL_REMIT_PHONE ?? undefined,
     contactEmail:
-      process.env.VENDOR_STATEMENT_REMIT_EMAIL ??
-      process.env.LIST_BILL_REMIT_EMAIL ??
-      "billing@getidealoh.com",
+      process.env.VENDOR_STATEMENT_REMIT_EMAIL ?? "info@ryzenexus.com",
   };
 }
 
