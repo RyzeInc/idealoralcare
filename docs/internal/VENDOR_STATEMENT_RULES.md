@@ -67,6 +67,24 @@ XLSX, or the admin UI — can leak them.
 
 ### Column picker
 
+Two kinds of column live in `STATEMENT_COLUMN_REGISTRY`:
+
+- **Frozen columns** come from the close: the amount, the rate class, the rep
+  captured at close, and the revenue split. These are figures, and they never
+  move.
+- **Live columns** (`live: true`) are read from the member record at print
+  time: name parts, email, DOB, address, department, Careington and Toothlens
+  ids, subscription status, entitlement count, missing census fields, and the
+  rest of what the User Audit shows. These are descriptive, not financial, so
+  reading them live is safe — correcting a member's department updates the
+  statement without regenerating it, and no amount changes.
+
+Live columns are hydrated only when at least one is switched on, and only the
+tables those columns need are touched. Nothing in `hydrateLiveFields` can
+affect a figure.
+
+
+
 `STATEMENT_COLUMN_REGISTRY` lists every data point the Covered Primary Detail
 table can carry, grouped as Member / Organization / Attribution / Money. The
 settings page presents them as a checkbox picker with **Default / Show all /

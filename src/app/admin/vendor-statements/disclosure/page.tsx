@@ -51,13 +51,51 @@ const COLUMN_META: Record<
   memberId: { label: 'Member ID', group: 'Member', fixed: true },
   memberName: { label: 'Member Name', group: 'Member', fixed: true },
   rateClass: { label: 'Rate Class (Individual / Family)', group: 'Member' },
+  firstName: { label: 'First Name', group: 'Member' },
+  lastName: { label: 'Last Name', group: 'Member' },
+  memberEmail: { label: 'Member Email', group: 'Member' },
+  phone: { label: 'Phone', group: 'Member' },
+  dob: { label: 'DOB', group: 'Member' },
+  ssn: { label: 'SSN', group: 'Member' },
+  gender: { label: 'Gender', group: 'Member' },
+  memberRole: { label: 'Role', group: 'Member' },
+  relationship: { label: 'Relationship', group: 'Member' },
+  primaryMember: { label: 'Primary Member', group: 'Member' },
+  dependentCount: { label: 'Dependents', group: 'Member' },
+  memberType: { label: 'Status', group: 'Member' },
+  effectiveDate: { label: 'Effective Date', group: 'Member' },
+  createdAt: { label: 'Created', group: 'Member' },
+  censusMissing: { label: 'Missing Census Fields', group: 'Member' },
+
+  addressLine1: { label: 'Address Line 1', group: 'Address' },
+  city: { label: 'City', group: 'Address' },
+  state: { label: 'State', group: 'Address' },
+  postalCode: { label: 'Zip', group: 'Address' },
+
   organization: { label: 'Organization', group: 'Organization' },
   orgCode: { label: 'Org Code', group: 'Organization' },
   groupCode: { label: 'Group Code', group: 'Organization' },
+  employeeType: { label: 'Employee Type', group: 'Organization' },
+  location: { label: 'Location', group: 'Organization' },
+  department: { label: 'Department', group: 'Organization' },
+  groupMemberId: { label: 'Employee #', group: 'Organization' },
+  listBillStatus: { label: 'List Bill Status', group: 'Organization' },
+
   repName: { label: 'Rep / Broker', group: 'Attribution' },
   repCode: { label: 'Rep Code', group: 'Attribution' },
   repEmail: { label: 'Rep Email', group: 'Attribution' },
   agencyName: { label: 'Agency', group: 'Attribution' },
+
+  careingtonId: { label: 'Careington ID', group: 'Systems' },
+  careingtonSeq: { label: 'Seq #', group: 'Systems' },
+  toothlensId: { label: 'Toothlens ID', group: 'Systems' },
+  clerkId: { label: 'Clerk ID', group: 'Systems' },
+  systemPresence: { label: 'System Presence', group: 'Systems' },
+  subscriptionStatus: { label: 'Subscription', group: 'Systems' },
+  entitlementCount: { label: 'Entitlements', group: 'Systems' },
+  barcode: { label: 'Barcode', group: 'Systems' },
+  subscriberId: { label: 'Subscriber ID', group: 'Systems' },
+
   amount: { label: 'Amount', group: 'Money', fixed: true },
   grossCents: { label: 'Retail Gross', group: 'Money', internalOnly: true },
   toothlensCents: { label: 'Toothlens Share', group: 'Money', internalOnly: true },
@@ -67,7 +105,14 @@ const COLUMN_META: Record<
   ryzeKeepCents: { label: 'Ryze Keep', group: 'Money', internalOnly: true },
 };
 
-const COLUMN_GROUPS = ['Member', 'Organization', 'Attribution', 'Money'];
+const COLUMN_GROUPS = [
+  'Member',
+  'Address',
+  'Organization',
+  'Attribution',
+  'Systems',
+  'Money',
+];
 
 type VendorId = 'toothlens' | 'careington' | 'ideal' | 'ryze';
 
@@ -321,7 +366,9 @@ function ColumnPreview({ disclosure }: { disclosure: Disclosure }) {
                                 ? 'BRK-REYES-01'
                                 : col === 'Agency'
                                   ? 'Southeast Benefits'
-                                  : '$1.00'}
+                                  : col === 'Amount'
+                                    ? '$1.00'
+                                    : '…'}
                   </td>
                 ))}
               </tr>

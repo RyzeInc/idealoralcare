@@ -28,6 +28,14 @@ function disclosure(opts: {
     "groupCode", "repName", "repCode", "repEmail", "agencyName", "amount",
     "grossCents", "toothlensCents", "careingtonCents", "processingCents",
     "partnerVendorCents", "ryzeKeepCents",
+    "firstName", "lastName", "memberEmail", "phone", "dob", "ssn", "gender",
+    "memberRole", "relationship", "primaryMember", "dependentCount",
+    "memberType", "effectiveDate", "createdAt", "censusMissing",
+    "addressLine1", "city", "state", "postalCode",
+    "employeeType", "location", "department", "groupMemberId", "listBillStatus",
+    "careingtonId", "careingtonSeq", "toothlensId", "clerkId",
+    "systemPresence", "subscriptionStatus", "entitlementCount",
+    "barcode", "subscriberId",
   ];
   const on = new Set([...(opts.on ?? []), "memberId", "memberName", "amount"]);
   return {
@@ -3073,5 +3081,130 @@ describe("invoiceCalculator — syncing a close to its member list", () => {
     expect(entry).toBeDefined();
     expect(entry.kind).toBe("money");
     expect(entry.summary).toMatch(/1 organization\(s\) updated/);
+  });
+});
+
+describe("vendorStatements — live member columns", () => {
+  test("member-record fields can be put on a statement and are read live", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const world = await seedWorld(t, { groupName: "Apricus" });
+    const { year, month, period, midMs } = previousMonth();
+    const memberProfileId = await seedPrimary(t, world, {
+      customerId: "cust-live",
+      memberId: "MBR-LIVE",
+      totalCents: 1499,
+      createdAt: midMs,
+    });
+    await t.run(async (ctx) => {
+      await ctx.db.patch(memberProfileId, {
+        dateOfBirth: "1985-04-02",
+        department: "Operations",
+        location: "Tampa",
+        careingtonUniqueId: "CAR-99",
+        address: {
+          line1: "1 Main St",
+          city: "Tampa",
+          state: "FL",
+          postalCode: "33601",
+          country: "US",
+        },
+      });
+    });
+    await asAdmin(t).mutation(api.admin.invoiceCalculator.closePeriodManual, {
+      year,
+      month,
+    });
+
+    await asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
+      vendor: "ideal",
+      disclosure: disclosure({
+        on: ["memberEmail", "dob", "department", "city", "state", "careingtonId", "censusMissing"],
+      }),
+    });
+
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+
+    const labels = statement.columns.map((c: any) => c.label);
+    expect(labels).toContain("Member Email");
+    expect(labels).toContain("DOB");
+    expect(labels).toContain("Careington ID");
+
+    const line = statement.memberLines[0];
+    expect(line.extra.dob).toBe("1985-04-02");
+    expect(line.extra.department).toBe("Operations");
+    expect(line.extra.city).toBe("Tampa");
+    expect(line.extra.state).toBe("FL");
+    expect(line.extra.careingtonId).toBe("CAR-99");
+    expect(line.extra.memberEmail).toBe("cust-live@vs.test");
+
+    // Descriptive fields are read live, so correcting a record shows up
+    // without regenerating — no figure moves.
+    await t.run(async (ctx) => {
+      await ctx.db.patch(memberProfileId, { department: "Finance" });
+    });
+    const after: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(after.memberLines[0].extra.department).toBe("Finance");
+    expect(after.subtotalCents).toBe(statement.subtotalCents);
+  });
+
+  test("nothing is hydrated when no live column is switched on", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "toothlens" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(statement.memberLines[0].extra).toBeUndefined();
+  });
+
+  test("missing census fields are reported per member", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const world = await seedWorld(t);
+    const { year, month, period, midMs } = previousMonth();
+    const memberProfileId = await seedPrimary(t, world, {
+      customerId: "sparse",
+      memberId: "MBR-SPARSE",
+      totalCents: 1499,
+      createdAt: midMs,
+    });
+    // Strip the email — the exact gap flagged in the User Audit.
+    await t.run(async (ctx) => {
+      await ctx.db.patch(memberProfileId, { email: undefined });
+    });
+    await asAdmin(t).mutation(api.admin.invoiceCalculator.closePeriodManual, {
+      year,
+      month,
+    });
+    await asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
+      vendor: "ryze",
+      disclosure: disclosure({ groupVisibility: "all", on: ["censusMissing"] }),
+    });
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ryze" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(statement.memberLines[0].extra.censusMissing).toContain("Email");
+    // …and the member is still billed regardless.
+    expect(statement.memberLines[0].amountCents).toBeGreaterThan(0);
   });
 });

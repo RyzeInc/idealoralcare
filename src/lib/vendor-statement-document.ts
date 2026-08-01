@@ -21,6 +21,7 @@ export interface VendorStatementMemberLine {
   repCode?: string;
   repEmail?: string;
   agencyName?: string;
+  extra?: Record<string, string | number>;
   grossCents?: number;
   toothlensCents?: number;
   careingtonCents?: number;
@@ -235,7 +236,8 @@ function memberCell(
     case "processingCents": return (line.processingCents ?? 0) / 100;
     case "partnerVendorCents": return (line.partnerVendorCents ?? 0) / 100;
     case "ryzeKeepCents": return (line.ryzeKeepCents ?? 0) / 100;
-    default: return "";
+    // Everything else is a live member attribute the server hydrated.
+    default: return line.extra?.[key] ?? "";
   }
 }
 

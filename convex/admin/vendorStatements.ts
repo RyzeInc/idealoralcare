@@ -148,8 +148,10 @@ export interface StatementColumn {
 export const STATEMENT_COLUMN_REGISTRY: Array<{
   key: string;
   label: string;
-  group: "Member" | "Organization" | "Attribution" | "Money";
+  group: "Member" | "Address" | "Organization" | "Attribution" | "Systems" | "Money";
   fixed?: boolean;
+  /** Read from the member record at print time rather than from the close. */
+  live?: boolean;
   internalOnly?: boolean;
   sensitive?: boolean;
   /** Recipients that start with this column on. */
@@ -165,6 +167,48 @@ export const STATEMENT_COLUMN_REGISTRY: Array<{
   { key: "repCode", label: "Rep Code", group: "Attribution", sensitive: true, defaultFor: ["ideal", "ryze"] },
   { key: "repEmail", label: "Rep Email", group: "Attribution", sensitive: true, defaultFor: [] },
   { key: "agencyName", label: "Agency", group: "Attribution", sensitive: true, defaultFor: ["ideal", "ryze"] },
+  // --- Live member attributes -------------------------------------------
+  // Everything the User Audit can show. These are read from the member record
+  // at print time rather than from the frozen close: they are descriptive
+  // fields, not figures, so they are always current. Anything financial stays
+  // frozen and appears under Money below.
+  { key: "firstName", label: "First Name", group: "Member", live: true, defaultFor: [] },
+  { key: "lastName", label: "Last Name", group: "Member", live: true, defaultFor: [] },
+  { key: "memberEmail", label: "Member Email", group: "Member", live: true, sensitive: true, defaultFor: [] },
+  { key: "phone", label: "Phone", group: "Member", live: true, sensitive: true, defaultFor: [] },
+  { key: "dob", label: "DOB", group: "Member", live: true, sensitive: true, defaultFor: [] },
+  { key: "ssn", label: "SSN", group: "Member", live: true, sensitive: true, defaultFor: [] },
+  { key: "gender", label: "Gender", group: "Member", live: true, sensitive: true, defaultFor: [] },
+  { key: "memberRole", label: "Role", group: "Member", live: true, defaultFor: [] },
+  { key: "relationship", label: "Relationship", group: "Member", live: true, defaultFor: [] },
+  { key: "primaryMember", label: "Primary Member", group: "Member", live: true, defaultFor: [] },
+  { key: "dependentCount", label: "Dependents", group: "Member", live: true, defaultFor: [] },
+  { key: "memberType", label: "Status", group: "Member", live: true, defaultFor: [] },
+  { key: "effectiveDate", label: "Effective Date", group: "Member", live: true, defaultFor: [] },
+  { key: "createdAt", label: "Created", group: "Member", live: true, defaultFor: [] },
+  { key: "censusMissing", label: "Missing Census Fields", group: "Member", live: true, defaultFor: [] },
+
+  { key: "addressLine1", label: "Address Line 1", group: "Address", live: true, sensitive: true, defaultFor: [] },
+  { key: "city", label: "City", group: "Address", live: true, sensitive: true, defaultFor: [] },
+  { key: "state", label: "State", group: "Address", live: true, sensitive: true, defaultFor: [] },
+  { key: "postalCode", label: "Zip", group: "Address", live: true, sensitive: true, defaultFor: [] },
+
+  { key: "employeeType", label: "Employee Type", group: "Organization", live: true, defaultFor: [] },
+  { key: "location", label: "Location", group: "Organization", live: true, defaultFor: [] },
+  { key: "department", label: "Department", group: "Organization", live: true, defaultFor: [] },
+  { key: "groupMemberId", label: "Employee #", group: "Organization", live: true, defaultFor: [] },
+  { key: "listBillStatus", label: "List Bill Status", group: "Organization", live: true, defaultFor: [] },
+
+  { key: "careingtonId", label: "Careington ID", group: "Systems", live: true, defaultFor: [] },
+  { key: "careingtonSeq", label: "Seq #", group: "Systems", live: true, defaultFor: [] },
+  { key: "toothlensId", label: "Toothlens ID", group: "Systems", live: true, defaultFor: [] },
+  { key: "clerkId", label: "Clerk ID", group: "Systems", live: true, sensitive: true, defaultFor: [] },
+  { key: "systemPresence", label: "System Presence", group: "Systems", live: true, defaultFor: [] },
+  { key: "subscriptionStatus", label: "Subscription", group: "Systems", live: true, defaultFor: [] },
+  { key: "entitlementCount", label: "Entitlements", group: "Systems", live: true, defaultFor: [] },
+  { key: "barcode", label: "Barcode", group: "Systems", live: true, defaultFor: [] },
+  { key: "subscriberId", label: "Subscriber ID", group: "Systems", live: true, defaultFor: [] },
+
   { key: "amount", label: "Amount", group: "Money", fixed: true, defaultFor: VENDOR_IDS },
   { key: "grossCents", label: "Retail Gross", group: "Money", internalOnly: true, sensitive: true, defaultFor: ["ryze"] },
   { key: "toothlensCents", label: "Toothlens Share", group: "Money", internalOnly: true, sensitive: true, defaultFor: ["ryze"] },
@@ -366,6 +410,8 @@ function disclosureDifferences(
 // ---------------------------------------------------------------------------
 
 export interface StatementMemberLine {
+  /** Only used server-side to attach live fields; harmless to a renderer. */
+  memberProfileId?: string;
   memberId: string;
   firstName: string;
   lastName: string;
@@ -381,6 +427,8 @@ export interface StatementMemberLine {
   repCode?: string;
   repEmail?: string;
   agencyName?: string;
+  /** Live member attributes, keyed by column. Only the enabled ones. */
+  extra?: Record<string, string | number>;
   /** Present only when disclosure.fullSplit. */
   grossCents?: number;
   toothlensCents?: number;
@@ -636,11 +684,13 @@ function collectMemberLines(
   excluded: Set<string>,
 ): {
   lines: StatementMemberLine[];
+  memberProfileIds: Id<"memberProfiles">[];
   available: boolean;
   complete: boolean;
   missing: Array<{ groupName: string; primaryCount: number }>;
 } {
   const lines: StatementMemberLine[] = [];
+  const memberProfileIds: Id<"memberProfiles">[] = [];
   const missing: Array<{ groupName: string; primaryCount: number }> = [];
   let withDetail = 0;
 
@@ -661,6 +711,7 @@ function collectMemberLines(
       if (line.tier === "none") continue;
       if (line[policy.amountField] <= 0) continue;
       if (excluded.has(line.memberId)) continue;
+      memberProfileIds.push(line.memberProfileId);
       lines.push(
         shapeMemberLine(
           line,
@@ -674,10 +725,139 @@ function collectMemberLines(
 
   return {
     lines,
+    memberProfileIds,
     available: withDetail > 0,
     complete: missing.length === 0,
     missing: missing.sort((a, b) => a.groupName.localeCompare(b.groupName)),
   };
+}
+
+/** Census fields a complete member record is expected to carry. */
+const CENSUS_FIELDS: Array<[string, (m: Doc<"memberProfiles">) => unknown]> = [
+  ["Email", (m) => m.email],
+  ["DOB", (m) => m.dateOfBirth],
+  ["Effective Date", (m) => m.effectiveDate],
+  ["Address", (m) => m.address],
+];
+
+/**
+ * Read the live member attributes for the enabled columns.
+ *
+ * These are descriptive — a name, an address, a Careington id — not figures.
+ * They are read from the member record at print time rather than frozen at
+ * close, so they are always current. Nothing here can move an amount: every
+ * financial field on a statement still comes from the close.
+ *
+ * Only runs when a live column is actually switched on, and only touches the
+ * tables those columns need.
+ */
+async function hydrateLiveFields(
+  ctx: QueryCtx | MutationCtx,
+  memberProfileIds: Id<"memberProfiles">[],
+  enabled: Set<string>,
+): Promise<Map<string, Record<string, string | number>>> {
+  const out = new Map<string, Record<string, string | number>>();
+  if (enabled.size === 0 || memberProfileIds.length === 0) return out;
+
+  const wants = (key: string) => enabled.has(key);
+  const needsGroup = wants("listBillStatus") || wants("employeeType");
+  const needsBilling = wants("subscriptionStatus") || wants("entitlementCount");
+  const needsDependents = wants("dependentCount") || wants("primaryMember");
+
+  const groupCache = new Map<string, Doc<"groups"> | null>();
+  const iso = (ms?: number) =>
+    ms === undefined ? "" : new Date(ms).toISOString().slice(0, 10);
+
+  for (const memberProfileId of memberProfileIds) {
+    const member = await ctx.db.get(memberProfileId);
+    if (!member) continue;
+    const row: Record<string, string | number> = {};
+
+    if (wants("firstName")) row.firstName = member.firstName ?? "";
+    if (wants("lastName")) row.lastName = member.lastName ?? "";
+    if (wants("memberEmail")) row.memberEmail = member.email ?? "";
+    if (wants("phone")) row.phone = member.phone ?? "";
+    if (wants("dob")) row.dob = member.dateOfBirth ?? "";
+    if (wants("ssn")) row.ssn = member.ssn ?? "";
+    if (wants("gender")) row.gender = member.gender ?? "";
+    if (wants("memberRole")) {
+      row.memberRole = member.memberRole === "dependent" ? "Dependent" : "Primary";
+    }
+    if (wants("relationship")) row.relationship = member.relationship ?? "";
+    if (wants("memberType")) row.memberType = member.memberType ?? "";
+    if (wants("effectiveDate")) row.effectiveDate = member.effectiveDate ?? "";
+    if (wants("createdAt")) row.createdAt = iso(member.createdAt);
+    if (wants("groupMemberId")) row.groupMemberId = member.groupMemberId ?? "";
+    if (wants("location")) row.location = member.location ?? "";
+    if (wants("department")) row.department = member.department ?? "";
+    if (wants("listBillStatus")) row.listBillStatus = member.listBillStatus ?? "";
+    if (wants("employeeType")) row.employeeType = member.employeeType ?? "";
+    if (wants("careingtonId")) row.careingtonId = member.careingtonUniqueId ?? "";
+    if (wants("careingtonSeq")) row.careingtonSeq = member.careingtonSeqNum ?? "";
+    if (wants("toothlensId")) row.toothlensId = member.toothlensMemberId ?? "";
+    if (wants("clerkId")) row.clerkId = member.customerId ?? "";
+    if (wants("barcode")) row.barcode = member.barcode ?? "";
+    if (wants("subscriberId")) row.subscriberId = member.subscriberId ?? "";
+    if (wants("systemPresence")) {
+      row.systemPresence = member.customerId ? "Linked" : "Convex only";
+    }
+    if (wants("addressLine1")) row.addressLine1 = member.address?.line1 ?? "";
+    if (wants("city")) row.city = member.address?.city ?? "";
+    if (wants("state")) row.state = member.address?.state ?? "";
+    if (wants("postalCode")) row.postalCode = member.address?.postalCode ?? "";
+    if (wants("censusMissing")) {
+      row.censusMissing = CENSUS_FIELDS.filter(([, get]) => !get(member))
+        .map(([label]) => label)
+        .join("; ");
+    }
+
+    if (needsGroup && !groupCache.has(String(member.groupId))) {
+      groupCache.set(String(member.groupId), await ctx.db.get(member.groupId));
+    }
+
+    if (needsBilling && member.customerId) {
+      if (wants("subscriptionStatus")) {
+        const bundle = await ctx.db
+          .query("subscriptionBundles")
+          .withIndex("by_customer", (q) => q.eq("customerId", member.customerId!))
+          .first();
+        row.subscriptionStatus = bundle?.status ?? "";
+      }
+      if (wants("entitlementCount")) {
+        const entitlements = await ctx.db
+          .query("entitlements")
+          .withIndex("by_customer", (q) => q.eq("customerId", member.customerId!))
+          .collect();
+        row.entitlementCount = entitlements.length;
+      }
+    }
+
+    if (needsDependents) {
+      if (member.memberRole === "dependent") {
+        if (wants("dependentCount")) row.dependentCount = "";
+        if (wants("primaryMember") && member.primaryMemberId) {
+          const primary = await ctx.db.get(member.primaryMemberId);
+          row.primaryMember = primary
+            ? `${primary.lastName}, ${primary.firstName}`
+            : "";
+        }
+      } else {
+        if (wants("dependentCount")) {
+          const deps = await ctx.db
+            .query("memberProfiles")
+            .withIndex("by_primary_member", (q) =>
+              q.eq("primaryMemberId", memberProfileId),
+            )
+            .collect();
+          row.dependentCount = deps.length;
+        }
+        if (wants("primaryMember")) row.primaryMember = "";
+      }
+    }
+
+    out.set(String(memberProfileId), row);
+  }
+  return out;
 }
 
 /**
@@ -739,6 +919,31 @@ function snapshotFigures(
   };
 }
 
+/** Fill each line's `extra` with the live columns this recipient shows. */
+async function attachLiveFields(
+  ctx: QueryCtx | MutationCtx,
+  lines: StatementMemberLine[],
+  policy: ResolvedPolicy,
+  memberProfileIds: Id<"memberProfiles">[],
+): Promise<void> {
+  const keys = enabledLiveKeys(policy);
+  if (keys.size === 0 || lines.length === 0) return;
+  const byMember = await hydrateLiveFields(ctx, memberProfileIds, keys);
+  for (const line of lines) {
+    if (!line.memberProfileId) continue;
+    line.extra = byMember.get(line.memberProfileId) ?? {};
+  }
+}
+
+/** Enabled live-column keys — empty when nothing needs the member record. */
+function enabledLiveKeys(policy: ResolvedPolicy): Set<string> {
+  return new Set(
+    STATEMENT_COLUMN_REGISTRY.filter(
+      (meta) => meta.live && columnEnabled(policy.disclosure.columns, meta.key),
+    ).map((meta) => meta.key),
+  );
+}
+
 /** The enabled columns for a recipient, in registry order, with labels. */
 function visibleColumns(policy: ResolvedPolicy): Array<{ key: string; label: string }> {
   const orgHidden = policy.disclosure.groupVisibility === "none";
@@ -781,6 +986,7 @@ function shapeMemberLine(
       };
   const group = groupLabelFor(snapshot, policy.disclosure.groupVisibility);
   return {
+    memberProfileId: String(line.memberProfileId),
     memberId: line.memberId,
     firstName: line.firstName,
     lastName: line.lastName,
@@ -926,6 +1132,7 @@ async function buildPayload(
     new Set<string>(),
   );
   const memberLines = policy.disclosure.memberDetail ? collected.lines : [];
+  await attachLiveFields(ctx, memberLines, policy, collected.memberProfileIds);
 
   const groups = await buildGroupRows(ctx, snapshots, policy);
 
@@ -1172,6 +1379,7 @@ export const getStatement = query({
       excluded,
     );
     const memberLines = policy.disclosure.memberDetail ? collected.lines : [];
+    await attachLiveFields(ctx, memberLines, policy, collected.memberProfileIds);
     const itemizedCents = memberLines.reduce((sum, l) => sum + l.amountCents, 0);
 
     const groups = await buildGroupRows(ctx, snapshots, policy, excluded);

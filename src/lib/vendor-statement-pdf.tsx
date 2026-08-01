@@ -325,7 +325,7 @@ function memberColumnStyle(key: string, count: number) {
     case "partnerVendorCents":
     case "ryzeKeepCents":
       return { width: "9%", textAlign: "right" as const };
-    default: return { width: wide ? "11%" : "16%" };
+    default: return { width: wide ? "10%" : "16%" };
   }
 }
 
@@ -352,7 +352,7 @@ function memberCellText(
     case "processingCents": return money2(line.processingCents);
     case "partnerVendorCents": return money2(line.partnerVendorCents);
     case "ryzeKeepCents": return money2(line.ryzeKeepCents);
-    default: return "";
+    default: return String(line.extra?.[key] ?? "");
   }
 }
 

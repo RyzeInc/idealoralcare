@@ -1479,7 +1479,7 @@ export default function VendorStatementDetailPage({
                         : column.key === 'processingCents' ? money(line.processingCents)
                         : column.key === 'partnerVendorCents' ? money(line.partnerVendorCents)
                         : column.key === 'ryzeKeepCents' ? money(line.ryzeKeepCents)
-                        : '';
+                        : String(line.extra?.[column.key] ?? '');
                       const numeric =
                         column.key === 'amount' || column.key.endsWith('Cents');
                       return (
