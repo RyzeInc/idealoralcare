@@ -39,80 +39,15 @@ interface Disclosure {
   columns: StatementColumn[];
 }
 
-/**
- * Mirrors STATEMENT_COLUMN_REGISTRY on the server. Kept in sync by the
- * `columns` array the server hands back — unknown keys here simply render
- * with their raw key, and the server is the one that enforces the rules.
- */
-const COLUMN_META: Record<
-  string,
-  { label: string; group: string; fixed?: boolean; internalOnly?: boolean }
-> = {
-  memberId: { label: 'Member ID', group: 'Member', fixed: true },
-  memberName: { label: 'Member Name', group: 'Member', fixed: true },
-  rateClass: { label: 'Rate Class (Individual / Family)', group: 'Member' },
-  firstName: { label: 'First Name', group: 'Member' },
-  lastName: { label: 'Last Name', group: 'Member' },
-  memberEmail: { label: 'Member Email', group: 'Member' },
-  phone: { label: 'Phone', group: 'Member' },
-  dob: { label: 'DOB', group: 'Member' },
-  ssn: { label: 'SSN', group: 'Member' },
-  gender: { label: 'Gender', group: 'Member' },
-  memberRole: { label: 'Role', group: 'Member' },
-  relationship: { label: 'Relationship', group: 'Member' },
-  primaryMember: { label: 'Primary Member', group: 'Member' },
-  dependentCount: { label: 'Dependents', group: 'Member' },
-  memberType: { label: 'Status', group: 'Member' },
-  effectiveDate: { label: 'Effective Date', group: 'Member' },
-  createdAt: { label: 'Created', group: 'Member' },
-  censusMissing: { label: 'Missing Census Fields', group: 'Member' },
-
-  addressLine1: { label: 'Address Line 1', group: 'Address' },
-  city: { label: 'City', group: 'Address' },
-  state: { label: 'State', group: 'Address' },
-  postalCode: { label: 'Zip', group: 'Address' },
-
-  organization: { label: 'Organization', group: 'Organization' },
-  orgCode: { label: 'Org Code', group: 'Organization' },
-  groupCode: { label: 'Group Code', group: 'Organization' },
-  employeeType: { label: 'Employee Type', group: 'Organization' },
-  location: { label: 'Location', group: 'Organization' },
-  department: { label: 'Department', group: 'Organization' },
-  groupMemberId: { label: 'Employee #', group: 'Organization' },
-  listBillStatus: { label: 'List Bill Status', group: 'Organization' },
-
-  repName: { label: 'Rep / Broker', group: 'Attribution' },
-  repCode: { label: 'Rep Code', group: 'Attribution' },
-  repEmail: { label: 'Rep Email', group: 'Attribution' },
-  agencyName: { label: 'Agency', group: 'Attribution' },
-
-  careingtonId: { label: 'Careington ID', group: 'Systems' },
-  careingtonSeq: { label: 'Seq #', group: 'Systems' },
-  toothlensId: { label: 'Toothlens ID', group: 'Systems' },
-  clerkId: { label: 'Clerk ID', group: 'Systems' },
-  systemPresence: { label: 'System Presence', group: 'Systems' },
-  subscriptionStatus: { label: 'Subscription', group: 'Systems' },
-  entitlementCount: { label: 'Entitlements', group: 'Systems' },
-  barcode: { label: 'Barcode', group: 'Systems' },
-  subscriberId: { label: 'Subscriber ID', group: 'Systems' },
-
-  amount: { label: 'Amount', group: 'Money', fixed: true },
-  grossCents: { label: 'Retail Gross', group: 'Money', internalOnly: true },
-  toothlensCents: { label: 'Toothlens Share', group: 'Money', internalOnly: true },
-  careingtonCents: { label: 'Careington Share', group: 'Money', internalOnly: true },
-  processingCents: { label: 'Processing', group: 'Money', internalOnly: true },
-  partnerVendorCents: { label: 'Ideal Health Share', group: 'Money', internalOnly: true },
-  ryzeKeepCents: { label: 'Ryze Keep', group: 'Money', internalOnly: true },
-};
-
-const COLUMN_GROUPS = [
-  'Member',
-  'Address',
-  'Organization',
-  'Attribution',
-  'Systems',
-  'Money',
-];
+/** Column metadata as the server defines it — never duplicated here. */
+interface ColumnMeta {
+  key: string;
+  label: string;
+  group: string;
+  fixed: boolean;
+  internalOnly: boolean;
+  sensitive: boolean;
+}
 
 type VendorId = 'toothlens' | 'careington' | 'ideal' | 'ryze';
 
@@ -171,23 +106,27 @@ function sameDisclosure(a: Disclosure, b: Disclosure): boolean {
 function ColumnPicker({
   columns,
   defaults,
+  registry,
   isInternal,
   onChange,
 }: {
   columns: StatementColumn[];
   defaults: StatementColumn[];
+  registry: ColumnMeta[];
   isInternal: boolean;
   onChange: (next: StatementColumn[]) => void;
 }) {
   const shown = columns.filter((c) => c.enabled).length;
+  const meta = (key: string) => registry.find((m) => m.key === key);
+  const groups = Array.from(new Set(registry.map((m) => m.group)));
 
   function setAll(pick: (key: string) => boolean) {
     onChange(
       columns.map((c) => ({
         key: c.key,
-        enabled: COLUMN_META[c.key]?.fixed
+        enabled: meta(c.key)?.fixed
           ? true
-          : COLUMN_META[c.key]?.internalOnly && !isInternal
+          : meta(c.key)?.internalOnly && !isInternal
             ? false
             : pick(c.key),
       })),
@@ -237,9 +176,9 @@ function ColumnPicker({
       </div>
 
       <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
-        {COLUMN_GROUPS.map((groupName) => {
+        {groups.map((groupName) => {
           const inGroup = columns.filter(
-            (c) => (COLUMN_META[c.key]?.group ?? 'Member') === groupName,
+            (c) => (meta(c.key)?.group ?? 'Member') === groupName,
           );
           if (inGroup.length === 0) return null;
           return (
@@ -249,9 +188,9 @@ function ColumnPicker({
               </p>
               <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
                 {inGroup.map((column) => {
-                  const meta = COLUMN_META[column.key];
-                  const blocked = Boolean(meta?.internalOnly) && !isInternal;
-                  const locked = Boolean(meta?.fixed) || blocked;
+                  const info = meta(column.key);
+                  const blocked = Boolean(info?.internalOnly) && !isInternal;
+                  const locked = Boolean(info?.fixed) || blocked;
                   return (
                     <label
                       key={column.key}
@@ -275,8 +214,8 @@ function ColumnPicker({
                         }
                       />
                       <span>
-                        {meta?.label ?? column.key}
-                        {meta?.fixed && (
+                        {info?.label ?? column.key}
+                        {info?.fixed && (
                           <span className="text-xs text-slate-400"> (always)</span>
                         )}
                         {blocked && (
@@ -301,18 +240,25 @@ function ColumnPicker({
 // Live preview of the resulting statement columns
 // ---------------------------------------------------------------------------
 
-function ColumnPreview({ disclosure }: { disclosure: Disclosure }) {
+function ColumnPreview({
+  disclosure,
+  registry,
+}: {
+  disclosure: Disclosure;
+  registry: ColumnMeta[];
+}) {
   const columns = useMemo(() => {
     if (!disclosure.memberDetail) return [];
+    const meta = (key: string) => registry.find((m) => m.key === key);
     return disclosure.columns
       .filter((c) => c.enabled)
       .filter(
         (c) =>
           disclosure.groupVisibility !== 'none' ||
-          COLUMN_META[c.key]?.group !== 'Organization',
+          meta(c.key)?.group !== 'Organization',
       )
-      .map((c) => COLUMN_META[c.key]?.label ?? c.key);
-  }, [disclosure]);
+      .map((c) => meta(c.key)?.label ?? c.key);
+  }, [disclosure, registry]);
 
   const sampleGroup =
     disclosure.groupVisibility === 'all'
@@ -469,11 +415,13 @@ function ContentsHistory({ vendor }: { vendor: VendorId }) {
 
 function RecipientEditor({
   profile,
+  registry,
   returnTo,
   returnLabel,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   profile: any;
+  registry: ColumnMeta[];
   returnTo: string | null;
   returnLabel: string | null;
 }) {
@@ -631,12 +579,13 @@ function RecipientEditor({
         <ColumnPicker
           columns={draft.columns}
           defaults={profile.defaults.columns}
+          registry={registry}
           isInternal={isInternal}
           onChange={(columns) => setDraft((d) => ({ ...d, columns }))}
         />
       )}
 
-      <ColumnPreview disclosure={draft} />
+      <ColumnPreview disclosure={draft} registry={registry} />
 
       <ContentsHistory vendor={profile.vendor as VendorId} />
 
@@ -706,7 +655,9 @@ function RecipientEditor({
 // ---------------------------------------------------------------------------
 
 export default function DisclosureSettingsPage() {
-  const profiles = useQuery(api.admin.vendorStatements.listDisclosureProfiles, {});
+  const data = useQuery(api.admin.vendorStatements.listDisclosureProfiles, {});
+  const profiles = data?.profiles;
+  const registry = (data?.registry ?? []) as ColumnMeta[];
   const params = useSearchParams();
 
   // Arriving from a statement: open that recipient and keep a way back to the
@@ -804,6 +755,7 @@ export default function DisclosureSettingsPage() {
               <RecipientEditor
                 key={`${active.vendor}-${active.updatedAt ?? 'default'}`}
                 profile={active}
+                registry={registry}
                 returnTo={returnTo}
                 returnLabel={returnLabel}
               />

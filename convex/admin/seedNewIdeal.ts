@@ -169,7 +169,7 @@ export const seedNewIdeal = mutation({
           collectEmployeeId: false,
           collectDependents: false,
           welcomeMessage: "Welcome to New Ideal Health!",
-          supportEmail: "support@newidealhealth.com",
+          supportEmail: "support@getidealoh.com",
         },
         status: "active",
         createdAt: now,
@@ -204,7 +204,7 @@ export const seedNewIdeal = mutation({
         contacts: [
           {
             name: "Support",
-            email: "support@newidealhealth.com",
+            email: "support@getidealoh.com",
             role: "primary",
           },
         ],

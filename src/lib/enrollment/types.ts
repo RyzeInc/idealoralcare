@@ -281,7 +281,7 @@ export const DEFAULT_ENROLLMENT_CONFIG: EnrollmentConfig = {
   collectEmployeeId: false,
   collectDependents: false,
   welcomeMessage: "Welcome to Ideal Health",
-  supportEmail: "support@idealhealth.com",
+  supportEmail: "support@getidealoh.com",
   supportPhone: "1-844-IDEAL-01",
   billingModel: "direct",
   defaultCadence: "monthly",

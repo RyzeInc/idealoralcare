@@ -206,7 +206,7 @@ export const OralCareTermsModal: React.FC<OralCareTermsModalProps> = ({
               <h4 className="font-semibold mb-1">Cancellation</h4>
               <p>
                 You may cancel this membership at any time by contacting Ideal Health at{" "}
-                <strong>info@getidealhealth.com</strong>. To avoid charges for the following month,
+                <strong>support@getidealoh.com</strong>. To avoid charges for the following month,
                 cancellation requests must be received at least <strong>30 days in advance</strong> of
                 your next billing date. You will retain access to your savings through the end of
                 your paid period.

@@ -49,7 +49,7 @@ export const seedDTCData = mutation({
         collectEmployeeId: false,
         collectDependents: true,
         welcomeMessage: "Welcome to Ideal Health!",
-        supportEmail: "support@idealhealth.com",
+        supportEmail: "support@getidealoh.com",
         supportPhone: "1-844-IDEAL-01",
       },
       status: "active",
@@ -68,7 +68,7 @@ export const seedDTCData = mutation({
       contacts: [
         {
           name: "Support Team",
-          email: "support@ryzehealth.com",
+          email: "support@getidealoh.com",
           role: "primary",
         },
       ],

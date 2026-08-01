@@ -57,7 +57,7 @@ export const update = mutation({
         description:
           args.description ??
           "Ideal is a venture studio that builds, launches, and scales trustworthy products.",
-        contactEmail: args.contactEmail ?? "hello@idealhealth.com",
+        contactEmail: args.contactEmail ?? "support@getidealoh.com",
         supportEmail: args.supportEmail,
         socialTwitter: args.socialTwitter,
         socialLinkedin: args.socialLinkedin,
@@ -85,8 +85,8 @@ export const initializeDefaults = mutation({
         tagline: "We launch and scale products people can trust.",
         description:
           "Ideal is a venture studio that builds, launches, and scales trustworthy products.",
-        contactEmail: "hello@idealhealth.com",
-        supportEmail: "support@idealhealth.com",
+        contactEmail: "support@getidealoh.com",
+        supportEmail: "support@getidealoh.com",
         socialTwitter: "https://twitter.com/idealhealth",
         socialLinkedin: "https://linkedin.com/company/idealhealth",
         socialGithub: "https://github.com/idealhealth",

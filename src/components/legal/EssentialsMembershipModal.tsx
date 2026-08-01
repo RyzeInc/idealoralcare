@@ -165,7 +165,7 @@ export const EssentialsMembershipModal: React.FC<EssentialsMembershipModalProps>
               <ul className="list-disc pl-5 space-y-0.5">
                 <li>
                   To cancel, notify Provider via email at{" "}
-                  <strong>info@getidealhealth.com</strong>.
+                  <strong>support@getidealoh.com</strong>.
                 </li>
                 <li>
                   Cancellation requests must be received at least <strong>30 days in advance</strong> to avoid

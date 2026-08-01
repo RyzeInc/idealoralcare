@@ -146,7 +146,7 @@ export const getOralPlan = query({
       // Member Support
       support: {
         phone: "844-679-9367",
-        email: "support@idealoralhealth.com",
+        email: "support@getidealoh.com",
         hours: "24/7",
         availability: "Call, email, or via member app",
       },

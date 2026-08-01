@@ -44,8 +44,8 @@ export const SOCIAL_LINKS = {
 } as const
 
 export const CONTACT_INFO = {
-  email: "hello@idealhealth.com",
-  supportEmail: "support@idealhealth.com",
+  email: "support@getidealoh.com",
+  supportEmail: "support@getidealoh.com",
 } as const
 
 // ============================================

@@ -133,7 +133,7 @@ export async function GET(
       payeeName: process.env.LIST_BILL_REMIT_PAYEE ?? "Ryze LLC",
       addressLines: addressLines.length > 0 ? addressLines : ["1846 Fernando Ln", "Tallahassee, FL 32303 US"],
       contactPhone: process.env.LIST_BILL_REMIT_PHONE ?? undefined,
-      contactEmail: process.env.LIST_BILL_REMIT_EMAIL ?? "billing@getidealoh.com",
+      contactEmail: process.env.LIST_BILL_REMIT_EMAIL ?? "info@ryzenexus.com",
     },
   };
 

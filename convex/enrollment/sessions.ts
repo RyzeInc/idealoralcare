@@ -183,7 +183,7 @@ export const initializeEnrollment = mutation({
           accountType: "individual",
           billingModel: "direct",
           contacts: [
-            { name: "Support Team", email: "support@idealhealth.com", role: "primary" },
+            { name: "Support Team", email: "support@getidealoh.com", role: "primary" },
           ],
           status: "active",
           createdAt: now2,

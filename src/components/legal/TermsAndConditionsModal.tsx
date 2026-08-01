@@ -76,7 +76,7 @@ export const TermsAndConditionsModal: React.FC<TermsAndConditionsModalProps> = (
               <h3 className="font-semibold">Cancellation</h3>
               <p>
                 You may cancel at any time by providing 30 days&apos; written notice to{" "}
-                <strong>info@getidealhealth.com</strong>. You retain access through the end of the
+                <strong>support@getidealoh.com</strong>. You retain access through the end of the
                 paid billing period. To cancel within the first 30 days and receive a full refund,
                 contact us with your name and member ID.
               </p>
@@ -145,7 +145,7 @@ export const TermsAndConditionsModal: React.FC<TermsAndConditionsModalProps> = (
               <h3 className="font-semibold">Cancellation</h3>
               <p>
                 Cancel at any time with 30 days&apos; notice to{" "}
-                <strong>info@getidealhealth.com</strong>. You retain access through the end of your
+                <strong>support@getidealoh.com</strong>. You retain access through the end of your
                 paid billing period.
               </p>
             </div>
@@ -162,7 +162,7 @@ export const TermsAndConditionsModal: React.FC<TermsAndConditionsModalProps> = (
                 <p>
                   <strong>Ideal Health / Ryze LLC</strong><br />
                   1200 E Ridge Rd STE 1, McAllen, TX 78503<br />
-                  Email: info@getidealhealth.com
+                  Email: support@getidealoh.com
                 </p>
               </div>
               <p>

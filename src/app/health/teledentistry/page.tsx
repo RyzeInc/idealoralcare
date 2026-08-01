@@ -328,7 +328,7 @@ export default function TeledentistryPage() {
                 Customer Service line: 844-679-9367
               </p>
               <p style={{ margin: "0.5rem 0 0", fontSize: "1rem", color: "#1f2937" }}>
-                Email: info@getidealhealth.com
+                Email: support@getidealoh.com
               </p>
               <p style={{ margin: "0.5rem 0 0", fontSize: "1rem", color: "#1f2937" }}>
                 Hours of Operation: Mon • Fri: 9am • 6pm

@@ -80,7 +80,7 @@ export const getMemberCardData: any = action({
         },
       },
       supportPhone: "(800) IDEAL-CARE",
-      supportEmail: "support@idealoralcare.com",
+      supportEmail: "support@getidealoh.com",
       memberWebsite: "www.getidealoh.com",
     };
   },

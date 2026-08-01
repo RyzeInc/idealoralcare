@@ -89,7 +89,7 @@ export default function NewIdealSuccessPage() {
               <li>Your monthly billing will continue automatically — cancel anytime.</li>
               <li>
                 Questions? Contact{" "}
-                <a href="mailto:support@newidealhealth.com">support@newidealhealth.com</a>.
+                <a href="mailto:support@getidealoh.com">support@getidealoh.com</a>.
               </li>
             </ul>
           </div>

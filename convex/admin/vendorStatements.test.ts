@@ -1058,10 +1058,11 @@ describe("vendorStatements — disclosure profiles", () => {
   test("listing profiles reports the defaults and whether they were customised", async () => {
     const t = convexTest(schema);
     await seedAdmin(t);
-    const before: any[] = await asAdmin(t).query(
+    const beforeResult: any = await asAdmin(t).query(
       api.admin.vendorStatements.listDisclosureProfiles,
       {},
     );
+    const before: any[] = beforeResult.profiles;
     expect(before).toHaveLength(4);
     expect(before.every((p) => p.customised === false)).toBe(true);
     expect(before.find((p) => p.vendor === "ideal").current.groupVisibility).toBe(
@@ -1074,10 +1075,11 @@ describe("vendorStatements — disclosure profiles", () => {
       note: "They asked for employer names on the employer book",
     });
 
-    const after: any[] = await asAdmin(t).query(
+    const afterResult: any = await asAdmin(t).query(
       api.admin.vendorStatements.listDisclosureProfiles,
       {},
     );
+    const after: any[] = afterResult.profiles;
     const toothlens = after.find((p) => p.vendor === "toothlens");
     expect(toothlens.customised).toBe(true);
     expect(toothlens.current.groupVisibility).toBe("listBillOnly");
@@ -1181,10 +1183,11 @@ describe("vendorStatements — disclosure profiles", () => {
     );
     expect(reset.reset).toBe(true);
 
-    const profiles: any[] = await asAdmin(t).query(
+    const profilesResult: any = await asAdmin(t).query(
       api.admin.vendorStatements.listDisclosureProfiles,
       {},
     );
+    const profiles: any[] = profilesResult.profiles;
     const careington = profiles.find((p) => p.vendor === "careington");
     expect(careington.customised).toBe(false);
     expect(careington.current.groupVisibility).toBe("none");
@@ -2699,10 +2702,11 @@ describe("vendorStatements — column selection", () => {
         ],
       },
     });
-    const profiles: any[] = await asAdmin(t).query(
+    const profilesResult: any = await asAdmin(t).query(
       api.admin.vendorStatements.listDisclosureProfiles,
       {},
     );
+    const profiles: any[] = profilesResult.profiles;
     const careington = profiles.find((p) => p.vendor === "careington");
     const on = (key: string) =>
       careington.current.columns.find((c: any) => c.key === key).enabled;
@@ -2765,10 +2769,11 @@ describe("vendorStatements — column selection", () => {
         ],
       },
     });
-    const profiles: any[] = await asAdmin(t).query(
+    const profilesResult: any = await asAdmin(t).query(
       api.admin.vendorStatements.listDisclosureProfiles,
       {},
     );
+    const profiles: any[] = profilesResult.profiles;
     const ideal = profiles.find((p) => p.vendor === "ideal");
     // Every registry column is represented; the unknown ones default off.
     expect(ideal.current.columns.length).toBeGreaterThan(3);
@@ -3226,5 +3231,77 @@ describe("vendorStatements — live member columns", () => {
     expect(statement.memberLines[0].extra.censusMissing).toContain("Email");
     // …and the member is still billed regardless.
     expect(statement.memberLines[0].amountCents).toBeGreaterThan(0);
+  });
+});
+
+describe("vendorStatements — the picker reads the server's registry", () => {
+  test("the registry travels with the profiles, so the two cannot drift", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const result: any = await asAdmin(t).query(
+      api.admin.vendorStatements.listDisclosureProfiles,
+      {},
+    );
+
+    expect(Array.isArray(result.registry)).toBe(true);
+    expect(result.registry.length).toBeGreaterThan(40);
+
+    // Every column a profile carries is described by the registry, and every
+    // registry entry appears on the profile. A settings screen rendering from
+    // this cannot show a column the server does not know about, or mark one
+    // locked that the server treats as optional.
+    const registryKeys = result.registry.map((m: any) => m.key).sort();
+    for (const profile of result.profiles) {
+      expect(profile.current.columns.map((c: any) => c.key).sort()).toEqual(
+        registryKeys,
+      );
+    }
+
+    const meta = (key: string) =>
+      result.registry.find((m: any) => m.key === key);
+    // Identity columns are optional — this is what regressed when the client
+    // kept its own copy of the registry.
+    expect(meta("memberId").fixed).toBe(false);
+    expect(meta("memberName").fixed).toBe(false);
+    // Amount stays locked, and the internal-only flags are still reported.
+    expect(meta("amount").fixed).toBe(true);
+    expect(meta("ryzeKeepCents").internalOnly).toBe(true);
+    expect(meta("memberEmail").internalOnly).toBe(false);
+    // Groups are present so the picker can section the list.
+    expect(new Set(result.registry.map((m: any) => m.group))).toEqual(
+      new Set(["Member", "Address", "Organization", "Attribution", "Systems", "Money"]),
+    );
+  });
+
+  test("turning off Member ID and Name actually sticks", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    await asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
+      vendor: "ideal",
+      disclosure: {
+        memberDetail: true,
+        groupVisibility: "listBillOnly",
+        adjustmentDetail: true,
+        columns: [
+          { key: "memberId", enabled: false },
+          { key: "memberName", enabled: false },
+          { key: "careingtonId", enabled: true },
+          { key: "amount", enabled: true },
+        ],
+      },
+    });
+
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(statement.columns.map((c: any) => c.key)).toEqual([
+      "careingtonId",
+      "amount",
+    ]);
   });
 });

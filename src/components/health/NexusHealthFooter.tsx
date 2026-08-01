@@ -35,8 +35,8 @@ export function NexusHealthFooter() {
                 844-679-9367
               </a>
               <p style={{ margin: "0 0 0.125rem 0" }}>Email:</p>
-              <a href="mailto:info@getidealhealth.com" style={{ color: "#0066CC", textDecoration: "none", fontWeight: 500 }}>
-                info@getidealhealth.com
+              <a href="mailto:support@getidealoh.com" style={{ color: "#0066CC", textDecoration: "none", fontWeight: 500 }}>
+                support@getidealoh.com
               </a>
             </div>
           </div>

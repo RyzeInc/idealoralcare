@@ -69,7 +69,7 @@ const SAMPLE: ListBillInvoicePdfData = {
       "1846 Fernando Ln",
       "Tallahassee, FL 32303 US",
     ],
-    contactEmail: "billing@getidealoh.com",
+    contactEmail: "info@ryzenexus.com",
   },
 };
 

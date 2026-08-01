@@ -615,7 +615,7 @@ function SignInForm() {
 
               <div style={{ textAlign: "center", marginTop: "1rem" }}>
                 <p style={{ color: "#64748b", fontSize: "0.875rem", marginBottom: "0.5rem" }}>Need help signing in?</p>
-                <a href="mailto:support@idealhealth.com" style={{ color: "#0066CC", textDecoration: "none", fontWeight: 500 }}>
+                <a href="mailto:support@getidealoh.com" style={{ color: "#0066CC", textDecoration: "none", fontWeight: 500 }}>
                   Contact support
                 </a>
               </div>

@@ -1483,7 +1483,19 @@ export const listDisclosureProfiles = query({
     const saved = await ctx.db.query("vendorStatementDisclosureProfiles").collect();
     const byVendor = new Map(saved.map((row) => [row.vendor, row]));
 
-    return VENDOR_IDS.map((vendor) => {
+    // The registry travels with the profiles so the settings screen renders
+    // from the same source the server enforces. A second copy on the client
+    // is exactly how "Member ID (always)" survived being made optional.
+    const registry = STATEMENT_COLUMN_REGISTRY.map((meta) => ({
+      key: meta.key,
+      label: meta.label,
+      group: meta.group,
+      fixed: meta.fixed ?? false,
+      internalOnly: meta.internalOnly ?? false,
+      sensitive: meta.sensitive ?? false,
+    }));
+
+    const profiles = VENDOR_IDS.map((vendor) => {
       const row = byVendor.get(vendor);
       const current = row
         ? {
@@ -1507,6 +1519,8 @@ export const listDisclosureProfiles = query({
         updatedBy: row?.updatedBy ?? null,
       };
     });
+
+    return { registry, profiles };
   },
 });
 

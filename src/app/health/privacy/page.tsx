@@ -118,7 +118,7 @@ export default function IdealHealthPrivacyPage() {
                 <strong>Ideal (Ideal LLC)</strong><br />
                 1846 Fernando Ln<br />
                 Tallahassee, FL 32303<br />
-                Email: hello@idealhealth.com
+                Email: support@getidealoh.com
               </p>
             </div>
 
