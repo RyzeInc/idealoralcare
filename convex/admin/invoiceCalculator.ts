@@ -1350,6 +1350,135 @@ export async function fillMemberLines(
   return { exact, mismatched, unavailable };
 }
 
+/**
+ * Make the member list the system of record for a coverage month.
+ *
+ * `fillMemberLines` only ever adds names; it leaves the month's aggregates
+ * exactly as closed. That is right when the close is trusted, but it leaves a
+ * month whose roster has since been corrected permanently disagreeing with
+ * itself — a Group Summary counting 13 above a member list of 14.
+ *
+ * This rewrites each row's counts and bucket totals from its member lines, so
+ * the close matches the people actually on it. The figures the month first
+ * closed with are preserved in `supersededFigures`, along with the original
+ * `payloadHash`, so the original close stays fully reconstructible.
+ *
+ * Deliberately a separate, explicit action rather than something statement
+ * generation does on its own — rewriting a closed month is a decision, not a
+ * side effect.
+ */
+export const syncClosedTotalsToMemberLines = mutation({
+  args: { period: v.string() },
+  handler: async (ctx, { period }) => {
+    const identity = await requireAdmin(ctx);
+    const snapshots = await ctx.db
+      .query("invoicePeriods")
+      .withIndex("by_period", (q) => q.eq("period", period))
+      .collect();
+    if (snapshots.length === 0) {
+      throw new Error(`Period ${period} is not closed.`);
+    }
+
+    const pricing: PricingSnapshot = currentPricingSnapshot();
+    const now = Date.now();
+    let updated = 0;
+    let unchanged = 0;
+    const changes: string[] = [];
+
+    for (const snapshot of snapshots) {
+      if (snapshot.memberLines === undefined) {
+        unchanged++;
+        continue;
+      }
+      const totals = { ...ZERO_SPLIT };
+      let individualPrimaryCount = 0;
+      let familyPrimaryCount = 0;
+      for (const line of snapshot.memberLines) {
+        if (line.tier === "none") continue;
+        if (line.tier === "individual") individualPrimaryCount++;
+        else familyPrimaryCount++;
+        totals.grossCents += line.grossCents;
+        totals.toothlensCents += line.toothlensCents;
+        totals.careingtonCents += line.careingtonCents;
+        totals.processingCents += line.processingCents;
+        totals.partnerVendorCents += line.partnerVendorCents;
+        totals.ryzeKeepCents += line.ryzeKeepCents;
+      }
+
+      const same =
+        totals.grossCents === snapshot.grossCents &&
+        totals.toothlensCents === snapshot.toothlensCents &&
+        totals.careingtonCents === snapshot.careingtonCents &&
+        totals.processingCents === snapshot.processingCents &&
+        totals.partnerVendorCents === snapshot.partnerVendorCents &&
+        totals.ryzeKeepCents === snapshot.ryzeKeepCents &&
+        individualPrimaryCount === snapshot.individualPrimaryCount &&
+        familyPrimaryCount === snapshot.familyPrimaryCount;
+      if (same) {
+        unchanged++;
+        continue;
+      }
+
+      // The dispersal table must still balance for the rewritten figures.
+      assertSplitInvariant(totals, `sync ${period}/${snapshot.groupCode}`);
+
+      const payloadHash = await sha256OfCanonicalJson({
+        period,
+        groupId: snapshot.groupId,
+        activeMemberCount: snapshot.activeMemberCount,
+        individualPrimaryCount,
+        familyPrimaryCount,
+        dependentCount: snapshot.dependentCount,
+        unbilledPrimaryCount: snapshot.unbilledPrimaryCount,
+        ...totals,
+        pricing,
+      });
+
+      changes.push(
+        `${snapshot.groupName}: ${snapshot.individualPrimaryCount + snapshot.familyPrimaryCount} → ${individualPrimaryCount + familyPrimaryCount} primaries, ` +
+          `$${(snapshot.grossCents / 100).toFixed(2)} → $${(totals.grossCents / 100).toFixed(2)} gross`,
+      );
+
+      await ctx.db.patch(snapshot._id, {
+        // Preserve what the month first closed with, once. A second sync must
+        // not overwrite the original with an already-synced value.
+        supersededFigures: snapshot.supersededFigures ?? {
+          individualPrimaryCount: snapshot.individualPrimaryCount,
+          familyPrimaryCount: snapshot.familyPrimaryCount,
+          grossCents: snapshot.grossCents,
+          toothlensCents: snapshot.toothlensCents,
+          careingtonCents: snapshot.careingtonCents,
+          processingCents: snapshot.processingCents,
+          partnerVendorCents: snapshot.partnerVendorCents,
+          ryzeKeepCents: snapshot.ryzeKeepCents,
+          payloadHash: snapshot.payloadHash,
+          closedAt: snapshot.closedAt,
+          supersededAt: now,
+          supersededBy: identity.clerkUserId,
+        },
+        individualPrimaryCount,
+        familyPrimaryCount,
+        ...totals,
+        payloadHash,
+      });
+      updated++;
+    }
+
+    await ctx.runMutation(internal.admin.adminAudit.record, {
+      actorClerkUserId: identity.clerkUserId,
+      action: "invoice.syncClosedTotals",
+      targetType: "invoicePeriods",
+      targetId: period,
+      summary:
+        `Synced ${period} totals to the member list: ${updated} organization(s) updated` +
+        (unchanged > 0 ? `, ${unchanged} already agreed` : ""),
+      metadata: { period, updated, unchanged, changes },
+    });
+
+    return { period, updated, unchanged, changes };
+  },
+});
+
 /** Dry run: what a backfill would and would not be able to fill in. */
 export const previewMemberLineBackfill = query({
   args: { period: v.string() },

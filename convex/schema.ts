@@ -1895,6 +1895,25 @@ export default defineSchema({
     // rather than authoritative. Totals are never rewritten in any case.
     memberLinesRebuilt: v.optional(v.union(v.literal("exact"), v.literal("forced"))),
 
+    // Set when an owner syncs this row's aggregates to its member list, making
+    // the member list the system of record for the month. The figures the
+    // month first closed with are preserved here in full — nothing is lost,
+    // and the original close remains reproducible from them.
+    supersededFigures: v.optional(v.object({
+      individualPrimaryCount: v.number(),
+      familyPrimaryCount: v.number(),
+      grossCents: v.number(),
+      toothlensCents: v.number(),
+      careingtonCents: v.number(),
+      processingCents: v.number(),
+      partnerVendorCents: v.number(),
+      ryzeKeepCents: v.number(),
+      payloadHash: v.string(),
+      closedAt: v.number(),
+      supersededAt: v.number(),
+      supersededBy: v.string(),
+    })),
+
     // PRICING TABLE used at close time (period-stamped per spec §10 #6).
     // Ensures historical periods reproduce even if rates change later.
     pricing: v.object({
@@ -1995,14 +2014,22 @@ export default defineSchema({
       v.literal("listBillOnly"),
       v.literal("all"),
     ),
-    // Individual vs. Family rate class.
-    rateClass: v.boolean(),
-    // Rep/broker credited with each member.
-    repAttribution: v.boolean(),
-    // Every vendor's bucket, not just this recipient's. Internal only.
-    fullSplit: v.boolean(),
     // Itemized adjustment lines vs. a single net figure in the totals.
     adjustmentDetail: v.boolean(),
+
+    // Which data points appear as columns in the Covered Primary Detail
+    // table, mirroring the picker used elsewhere in the admin. Absent = the
+    // registry defaults for that recipient.
+    columns: v.optional(v.array(v.object({
+      key: v.string(),
+      enabled: v.boolean(),
+    }))),
+
+    // Superseded by `columns` — kept optional so rows written before the
+    // picker existed still validate. Nothing reads them.
+    rateClass: v.optional(v.boolean()),
+    repAttribution: v.optional(v.boolean()),
+    fullSplit: v.optional(v.boolean()),
 
     // Why this profile deviates from the default — shown in the settings UI.
     note: v.optional(v.string()),
@@ -2110,10 +2137,15 @@ export default defineSchema({
         v.literal("listBillOnly"),
         v.literal("all"),
       ),
-      rateClass: v.boolean(),
-      repAttribution: v.boolean(),
-      fullSplit: v.boolean(),
       adjustmentDetail: v.boolean(),
+      columns: v.optional(v.array(v.object({
+        key: v.string(),
+        enabled: v.boolean(),
+      }))),
+      // Superseded by `columns`; optional so older statements still validate.
+      rateClass: v.optional(v.boolean()),
+      repAttribution: v.optional(v.boolean()),
+      fullSplit: v.optional(v.boolean()),
     })),
 
     // ── PER-PRIMARY EXCLUSIONS ────────────────────────────────────────────

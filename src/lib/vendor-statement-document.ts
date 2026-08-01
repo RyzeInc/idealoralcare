@@ -72,10 +72,14 @@ export interface VendorStatementDocument {
   showBroker: boolean;
   showFullSplit: boolean;
   showAdjustmentDetail: boolean;
+  /** Enabled columns for the member detail table, in order. */
+  columns: Array<{ key: string; label: string }>;
   memberDetailAvailable: boolean;
   memberDetailComplete: boolean;
   missingDetailGroups: Array<{ groupName: string; primaryCount: number }>;
   itemizedCents: number;
+  /** What the month originally closed at, before rebuild or exclusions. */
+  closedSubtotalCents: number;
   /** Whether rep names were frozen at close or resolved from today's records. */
   attributionBasis: "frozen" | "current" | "mixed" | "none";
 
@@ -208,60 +212,46 @@ export interface Table {
  * Per-primary detail. Amounts are emitted as numbers in dollars so a
  * spreadsheet can sum them without a parse step.
  */
+/** Read one column's value off a member line. */
+function memberCell(
+  line: VendorStatementMemberLine,
+  key: string,
+): string | number {
+  switch (key) {
+    case "memberId": return line.memberId;
+    case "memberName": return `${line.lastName}, ${line.firstName}`;
+    case "rateClass": return line.rateClass ?? "";
+    case "organization": return line.groupName ?? "";
+    case "orgCode": return line.organizationCode ?? "";
+    case "groupCode": return line.groupCode ?? "";
+    case "repName": return line.repName ?? "";
+    case "repCode": return line.repCode ?? "";
+    case "repEmail": return line.repEmail ?? "";
+    case "agencyName": return line.agencyName ?? "";
+    case "amount": return line.amountCents / 100;
+    case "grossCents": return (line.grossCents ?? 0) / 100;
+    case "toothlensCents": return (line.toothlensCents ?? 0) / 100;
+    case "careingtonCents": return (line.careingtonCents ?? 0) / 100;
+    case "processingCents": return (line.processingCents ?? 0) / 100;
+    case "partnerVendorCents": return (line.partnerVendorCents ?? 0) / 100;
+    case "ryzeKeepCents": return (line.ryzeKeepCents ?? 0) / 100;
+    default: return "";
+  }
+}
+
+/**
+ * Per-primary detail, built from the recipient's chosen columns. Amounts are
+ * emitted as numbers in dollars so a spreadsheet can sum them without a parse
+ * step.
+ */
 export function memberDetailTable(doc: VendorStatementDocument): Table {
-  const header = ["Member ID", "Last Name", "First Name"];
-  if (doc.showGroups) {
-    header.push("Organization", "Org Code");
-    if (doc.groupCodeVaries) header.push("Group Code");
-  }
-  if (doc.showTier) header.push("Rate Class");
-  // Placed before Amount so a payout run reads member → who sold them → what
-  // was earned, left to right.
-  if (doc.showBroker) {
-    header.push("Rep / Broker", "Rep Code", "Rep Email", "Agency");
-  }
-  header.push("Amount");
-  if (doc.showFullSplit) {
-    header.push(
-      "Gross",
-      "Toothlens",
-      "Careington",
-      "Processing",
-      "Ideal Health",
-      "Ryze Keep",
-    );
-  }
-
-  const rows: Row[] = doc.memberLines.map((line) => {
-    const row: Row = [line.memberId, line.lastName, line.firstName];
-    if (doc.showGroups) {
-      row.push(line.groupName ?? "", line.organizationCode ?? "");
-      if (doc.groupCodeVaries) row.push(line.groupCode ?? "");
-    }
-    if (doc.showTier) row.push(line.rateClass ?? "");
-    if (doc.showBroker) {
-      row.push(
-        line.repName ?? "",
-        line.repCode ?? "",
-        line.repEmail ?? "",
-        line.agencyName ?? "",
-      );
-    }
-    row.push(line.amountCents / 100);
-    if (doc.showFullSplit) {
-      row.push(
-        (line.grossCents ?? 0) / 100,
-        (line.toothlensCents ?? 0) / 100,
-        (line.careingtonCents ?? 0) / 100,
-        (line.processingCents ?? 0) / 100,
-        (line.partnerVendorCents ?? 0) / 100,
-        (line.ryzeKeepCents ?? 0) / 100,
-      );
-    }
-    return row;
-  });
-
-  return { header, rows };
+  const columns = doc.columns ?? [];
+  return {
+    header: columns.map((c) => c.label),
+    rows: doc.memberLines.map((line) =>
+      columns.map((c) => memberCell(line, c.key)),
+    ),
+  };
 }
 
 /** Group rollup — only ever populated for the internal carrier statement. */
@@ -375,8 +365,9 @@ export function statementToCsv(doc: VendorStatementDocument): string {
 
   if (doc.memberDetailAvailable && doc.memberLines.length > 0) {
     const detail = memberDetailTable(doc);
+    const amountAt = (doc.columns ?? []).findIndex((c) => c.key === "amount");
     const totalRow: Row = detail.header.map((_, i) =>
-      i === 0 ? "TOTAL" : i === detail.header.indexOf("Amount") ? doc.subtotalCents / 100 : "",
+      i === 0 ? "TOTAL" : i === amountAt ? doc.itemizedCents / 100 : "",
     );
     blocks.push(
       `\r\nCovered Primary Detail\r\n${tableToCsv({

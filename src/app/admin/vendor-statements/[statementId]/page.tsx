@@ -602,7 +602,50 @@ function MissingMemberDetail({
 // Internal payables verification — admin-only, never part of a vendor document
 // ---------------------------------------------------------------------------
 
-function VerificationPanel({ statementId }: { statementId: Id<'vendorStatements'> }) {
+function SyncClosedTotals({ period }: { period: string }) {
+  const toast = useToast();
+  const sync = useMutation(api.admin.invoiceCalculator.syncClosedTotalsToMemberLines);
+  const [running, setRunning] = useState(false);
+
+  return (
+    <div className="mt-2">
+      <button
+        onClick={async () => {
+          setRunning(true);
+          try {
+            const result = await sync({ period });
+            toast.success(
+              result.updated > 0
+                ? `${period} now matches its member list (${result.updated} organization(s) updated)`
+                : 'Already in agreement',
+            );
+          } catch (error) {
+            toast.error((error as Error).message ?? 'Sync failed');
+          } finally {
+            setRunning(false);
+          }
+        }}
+        disabled={running}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+      >
+        <RefreshCw size={12} className={running ? 'animate-spin' : ''} />
+        {running ? 'Syncing…' : `Make the member list the record for ${period}`}
+      </button>
+      <p className="text-xs text-slate-500 mt-1">
+        Rewrites this month&apos;s closed counts and totals to match the members
+        listed. The figures it first closed with are kept and stay reproducible.
+      </p>
+    </div>
+  );
+}
+
+function VerificationPanel({
+  statementId,
+  period,
+}: {
+  statementId: Id<'vendorStatements'>;
+  period: string;
+}) {
   const audit = useQuery(api.admin.vendorStatements.getStatementVerification, {
     statementId,
   });
@@ -658,19 +701,25 @@ function VerificationPanel({ statementId }: { statementId: Id<'vendorStatements'
 
       {/* Reconciliation checks */}
       <ul className="divide-y divide-slate-100">
-        {audit.checks.map((check) => (
-          <li key={check.label} className="px-6 py-3 flex items-start gap-3">
-            {check.passed ? (
-              <CheckCircle2 size={16} className="text-green-600 shrink-0 mt-0.5" />
-            ) : (
-              <AlertTriangle size={16} className="text-red-600 shrink-0 mt-0.5" />
-            )}
-            <div className="min-w-0">
-              <p className="text-sm text-slate-800">{check.label}</p>
-              <p className="text-xs text-slate-500 font-mono">{check.detail}</p>
-            </div>
-          </li>
-        ))}
+        {audit.checks.map((check) => {
+          const isCloseDrift = /matches what the month closed at/i.test(check.label);
+          return (
+            <li key={check.label} className="px-6 py-3 flex items-start gap-3">
+              {check.passed ? (
+                <CheckCircle2 size={16} className="text-green-600 shrink-0 mt-0.5" />
+              ) : (
+                <AlertTriangle size={16} className="text-red-600 shrink-0 mt-0.5" />
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm text-slate-800">{check.label}</p>
+                <p className="text-xs text-slate-500 font-mono">{check.detail}</p>
+                {!check.passed && isCloseDrift && (
+                  <SyncClosedTotals period={period} />
+                )}
+              </div>
+            </li>
+          );
+        })}
       </ul>
 
       {/* Bucket totals */}
@@ -1391,62 +1440,59 @@ export default function VendorStatementDetailPage({
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 sticky top-0">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Member ID</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Member</th>
-                  {statement.showGroups && (
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">
-                      Organization
+                  {statement.columns.map((column: { key: string; label: string }) => (
+                    <th
+                      key={column.key}
+                      className={`px-4 py-2 text-xs font-semibold text-slate-500 uppercase whitespace-nowrap ${
+                        column.key === 'amount' || column.key.endsWith('Cents')
+                          ? 'text-right'
+                          : 'text-left'
+                      }`}
+                    >
+                      {column.label}
                     </th>
-                  )}
-                  {statement.showTier && (
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Rate Class</th>
-                  )}
-                  {statement.showBroker && (
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">
-                      Rep / Broker
-                    </th>
-                  )}
-                  <th className="px-4 py-2 text-right text-xs font-semibold text-slate-500 uppercase">Amount</th>
+                  ))}
                   {status === 'draft' && <th className="px-4 py-2" />}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {statement.memberLines.map((line, index) => (
                   <tr key={`${line.memberId}-${index}`} className="hover:bg-slate-50">
-                    <td className="px-4 py-2 font-mono text-slate-700">{line.memberId}</td>
-                    <td className="px-4 py-2 text-slate-800">
-                      {line.lastName}, {line.firstName}
-                    </td>
-                    {statement.showGroups && (
-                      <td className="px-4 py-2 text-slate-700">
-                        {line.groupName}
-                        {line.groupCode && line.groupCode !== 'DIRECT' && (
-                          <span className="block text-xs text-slate-400 font-mono">
-                            {line.groupCode}
-                            {line.organizationCode ? ` · ${line.organizationCode}` : ''}
-                          </span>
-                        )}
-                      </td>
-                    )}
-                    {statement.showTier && (
-                      <td className="px-4 py-2 text-slate-600">{line.rateClass}</td>
-                    )}
-                    {statement.showBroker && (
-                      <td className="px-4 py-2 text-slate-700">
-                        {line.repName ?? (
-                          <span className="text-slate-400">Unattributed</span>
-                        )}
-                        {line.repCode && (
-                          <span className="text-slate-400 font-mono text-xs"> · {line.repCode}</span>
-                        )}
-                        {line.agencyName && (
-                          <div className="text-xs text-slate-400">{line.agencyName}</div>
-                        )}
-                      </td>
-                    )}
-                    <td className="px-4 py-2 text-right text-slate-800">
-                      {formatCurrency(line.amountCents, { fromCents: true })}
-                    </td>
+                    {statement.columns.map((column: { key: string; label: string }) => {
+                      const money = (cents?: number) =>
+                        formatCurrency(cents ?? 0, { fromCents: true });
+                      const value =
+                        column.key === 'memberId' ? line.memberId
+                        : column.key === 'memberName' ? `${line.lastName}, ${line.firstName}`
+                        : column.key === 'rateClass' ? (line.rateClass ?? '')
+                        : column.key === 'organization' ? (line.groupName ?? '')
+                        : column.key === 'orgCode' ? (line.organizationCode ?? '')
+                        : column.key === 'groupCode' ? (line.groupCode ?? '')
+                        : column.key === 'repName' ? (line.repName ?? 'Unattributed')
+                        : column.key === 'repCode' ? (line.repCode ?? '')
+                        : column.key === 'repEmail' ? (line.repEmail ?? '')
+                        : column.key === 'agencyName' ? (line.agencyName ?? '')
+                        : column.key === 'amount' ? money(line.amountCents)
+                        : column.key === 'grossCents' ? money(line.grossCents)
+                        : column.key === 'toothlensCents' ? money(line.toothlensCents)
+                        : column.key === 'careingtonCents' ? money(line.careingtonCents)
+                        : column.key === 'processingCents' ? money(line.processingCents)
+                        : column.key === 'partnerVendorCents' ? money(line.partnerVendorCents)
+                        : column.key === 'ryzeKeepCents' ? money(line.ryzeKeepCents)
+                        : '';
+                      const numeric =
+                        column.key === 'amount' || column.key.endsWith('Cents');
+                      return (
+                        <td
+                          key={column.key}
+                          className={`px-4 py-2 whitespace-nowrap ${
+                            numeric ? 'text-right text-slate-800' : 'text-slate-700'
+                          } ${column.key === 'memberId' ? 'font-mono' : ''}`}
+                        >
+                          {value || <span className="text-slate-300">—</span>}
+                        </td>
+                      );
+                    })}
                     {status === 'draft' && (
                       <td className="px-4 py-2 text-right">
                         <button
@@ -1478,7 +1524,7 @@ export default function VendorStatementDetailPage({
         isDraft={status === 'draft'}
       />
 
-      <VerificationPanel statementId={id} />
+      <VerificationPanel statementId={id} period={statement.period} />
 
       <StatementAuditLog statementId={id} />
 

@@ -311,6 +311,51 @@ function NotItemizedNote({ doc }: { doc: VendorStatementDocument }) {
   );
 }
 
+/** Column widths, so a wide selection still fits the page. */
+function memberColumnStyle(key: string, count: number) {
+  const wide = count > 6;
+  switch (key) {
+    case "memberId": return { width: wide ? "13%" : "22%" };
+    case "memberName": return { flexGrow: 1, flexBasis: 0 };
+    case "amount": return { width: wide ? "11%" : "16%", textAlign: "right" as const };
+    case "grossCents":
+    case "toothlensCents":
+    case "careingtonCents":
+    case "processingCents":
+    case "partnerVendorCents":
+    case "ryzeKeepCents":
+      return { width: "9%", textAlign: "right" as const };
+    default: return { width: wide ? "11%" : "16%" };
+  }
+}
+
+function memberCellText(
+  line: VendorStatementDocument["memberLines"][number],
+  key: string,
+): string {
+  const money2 = (c?: number) => money(c ?? 0);
+  switch (key) {
+    case "memberId": return line.memberId;
+    case "memberName": return `${line.lastName}, ${line.firstName}`;
+    case "rateClass": return line.rateClass ?? "";
+    case "organization": return line.groupName ?? "";
+    case "orgCode": return line.organizationCode ?? "";
+    case "groupCode": return line.groupCode ?? "";
+    case "repName": return line.repName ?? "Unattributed";
+    case "repCode": return line.repCode ?? "";
+    case "repEmail": return line.repEmail ?? "";
+    case "agencyName": return line.agencyName ?? "";
+    case "amount": return money(line.amountCents);
+    case "grossCents": return money2(line.grossCents);
+    case "toothlensCents": return money2(line.toothlensCents);
+    case "careingtonCents": return money2(line.careingtonCents);
+    case "processingCents": return money2(line.processingCents);
+    case "partnerVendorCents": return money2(line.partnerVendorCents);
+    case "ryzeKeepCents": return money2(line.ryzeKeepCents);
+    default: return "";
+  }
+}
+
 function MemberTable({ doc }: { doc: VendorStatementDocument }) {
   if (!doc.memberDetailAvailable) {
     return (
@@ -325,18 +370,15 @@ function MemberTable({ doc }: { doc: VendorStatementDocument }) {
   }
   if (doc.memberLines.length === 0) return null;
 
-  // The rep columns need room, so the member columns tighten when they appear.
-  const rep = doc.showBroker;
-  const idCol = rep ? s.colIdWithRep : s.colId;
-  const nameCol = rep ? s.colNameWithRep : s.colName;
-  const classCol = rep ? s.colClassWithRep : s.colClass;
-  const amountCol = rep ? s.colAmountWithRep : s.colAmount;
+  const columns = doc.columns ?? [];
+  if (columns.length === 0) return null;
+  const showsRep = columns.some((c) => c.key.startsWith("rep") || c.key === "agencyName");
 
   return (
     <View>
       <Text style={s.sectionH}>Covered Primary Detail</Text>
       <NotItemizedNote doc={doc} />
-      {rep && (
+      {showsRep && (
         <Text style={s.note}>
           {doc.attributionBasis === "current"
             ? "Rep and agency shown are the current attribution of record; this coverage month was closed before attribution was captured."
@@ -347,62 +389,51 @@ function MemberTable({ doc }: { doc: VendorStatementDocument }) {
       )}
       <View style={s.table}>
         <View style={s.tHeader} fixed>
-          <Text style={[s.cell, idCol, s.headerText]}>Member ID</Text>
-          <Text style={[s.cell, nameCol, s.headerText]}>Member</Text>
-          {doc.showGroups && (
-            <Text style={[s.cell, s.colGroup, s.headerText]}>Organization</Text>
-          )}
-          {doc.showTier && (
-            <Text style={[s.cell, classCol, s.headerText]}>Rate Class</Text>
-          )}
-          {rep && (
-            <>
-              <Text style={[s.cell, s.colRep, s.headerText]}>Rep / Agency</Text>
-              <Text style={[s.cell, s.colRepCode, s.headerText]}>Rep Code</Text>
-            </>
-          )}
-          <Text style={[s.cellLast, amountCol, s.headerText]}>Amount</Text>
-        </View>
-        {doc.memberLines.map((line, index) => (
-          <View key={`${line.memberId}-${index}`} style={s.tRow} wrap={false}>
-            <Text style={[s.cell, idCol]}>{line.memberId}</Text>
-            <Text style={[s.cell, nameCol]}>
-              {line.lastName}, {line.firstName}
+          {columns.map((column, index) => (
+            <Text
+              key={column.key}
+              style={[
+                index === columns.length - 1 ? s.cellLast : s.cell,
+                memberColumnStyle(column.key, columns.length),
+                s.headerText,
+              ]}
+            >
+              {column.label}
             </Text>
-            {doc.showGroups && (
-              <Text style={[s.cell, s.colGroup]}>{line.groupName ?? ""}</Text>
-            )}
-            {doc.showTier && (
-              <Text style={[s.cell, classCol]}>{line.rateClass ?? ""}</Text>
-            )}
-            {rep && (
-              <>
-                <Text style={[s.cell, s.colRep]}>
-                  {line.repName ?? "Unattributed"}
-                  {line.agencyName ? ` · ${line.agencyName}` : ""}
-                </Text>
-                <Text style={[s.cell, s.colRepCode]}>{line.repCode ?? ""}</Text>
-              </>
-            )}
-            <Text style={[s.cellLast, amountCol]}>{money(line.amountCents)}</Text>
+          ))}
+        </View>
+        {doc.memberLines.map((line, rowIndex) => (
+          <View key={`${line.memberId}-${rowIndex}`} style={s.tRow} wrap={false}>
+            {columns.map((column, index) => (
+              <Text
+                key={column.key}
+                style={[
+                  index === columns.length - 1 ? s.cellLast : s.cell,
+                  memberColumnStyle(column.key, columns.length),
+                ]}
+              >
+                {memberCellText(line, column.key)}
+              </Text>
+            ))}
           </View>
         ))}
         <View style={s.tFooter} wrap={false}>
-          <Text style={[s.cell, idCol, s.boldText]}>
-            {doc.memberLines.length} lines
-          </Text>
-          <Text style={[s.cell, nameCol]}> </Text>
-          {doc.showGroups && <Text style={[s.cell, s.colGroup]}> </Text>}
-          {doc.showTier && <Text style={[s.cell, classCol]}> </Text>}
-          {rep && (
-            <>
-              <Text style={[s.cell, s.colRep]}> </Text>
-              <Text style={[s.cell, s.colRepCode]}> </Text>
-            </>
-          )}
-          <Text style={[s.cellLast, amountCol, s.boldText]}>
-            {money(doc.itemizedCents)}
-          </Text>
+          {columns.map((column, index) => (
+            <Text
+              key={column.key}
+              style={[
+                index === columns.length - 1 ? s.cellLast : s.cell,
+                memberColumnStyle(column.key, columns.length),
+                s.boldText,
+              ]}
+            >
+              {index === 0
+                ? `${doc.memberLines.length} lines`
+                : column.key === "amount"
+                  ? money(doc.itemizedCents)
+                  : " "}
+            </Text>
+          ))}
         </View>
       </View>
     </View>

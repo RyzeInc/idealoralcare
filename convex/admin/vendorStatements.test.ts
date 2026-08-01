@@ -16,6 +16,28 @@ import type { Id } from "../_generated/dataModel";
 
 const ADMIN_TOKEN = "https://test.clerk.dev|admin_user_vs";
 
+/** Build a disclosure payload with the named columns switched on. */
+function disclosure(opts: {
+  memberDetail?: boolean;
+  groupVisibility?: "none" | "listBillOnly" | "all";
+  adjustmentDetail?: boolean;
+  on?: string[];
+}) {
+  const keys = [
+    "memberId", "memberName", "rateClass", "organization", "orgCode",
+    "groupCode", "repName", "repCode", "repEmail", "agencyName", "amount",
+    "grossCents", "toothlensCents", "careingtonCents", "processingCents",
+    "partnerVendorCents", "ryzeKeepCents",
+  ];
+  const on = new Set([...(opts.on ?? []), "memberId", "memberName", "amount"]);
+  return {
+    memberDetail: opts.memberDetail ?? true,
+    groupVisibility: opts.groupVisibility ?? "none",
+    adjustmentDetail: opts.adjustmentDetail ?? true,
+    columns: keys.map((key) => ({ key, enabled: on.has(key) })),
+  };
+}
+
 async function seedAdmin(t: ReturnType<typeof convexTest>) {
   await t.run(async (ctx) => {
     await ctx.db.insert("adminUsers", {
@@ -344,12 +366,17 @@ describe("vendorStatements — recipient disclosure", () => {
       expect(line.grossCents).toBeUndefined();
     }
 
-    // Nothing anywhere in the payload names the employer or the retail price.
-    const serialized = JSON.stringify(statement);
-    expect(serialized).not.toContain("ACMEMFG");
-    expect(serialized).not.toContain("Acme Manufacturing");
-    expect(serialized).not.toContain("familyPrimaryCount");
-    expect(serialized).not.toContain("grossCents");
+    // Nothing the recipient would see names the employer or the retail price.
+    const lines = JSON.stringify(statement.memberLines);
+    expect(lines).not.toContain("ACMEMFG");
+    expect(lines).not.toContain("Acme Manufacturing");
+    expect(lines).not.toContain("grossCents");
+    expect(lines).not.toContain("2499");
+    // …and no gross/other-vendor column is offered on the document either.
+    const printed = statement.columns.map((c: any) => c.key);
+    expect(printed).not.toContain("grossCents");
+    expect(printed).not.toContain("careingtonCents");
+    expect(printed).not.toContain("organization");
   });
 
   test("Ideal Health sees its own rate class, and self-pay members show as direct", async () => {
@@ -933,7 +960,7 @@ describe("vendorStatements — payables verification", () => {
     );
     expect(audit.allChecksPassed).toBe(false);
     const failed = audit.checks.find((c: any) => !c.passed);
-    expect(failed.label).toMatch(/subtotal matches the closed books/i);
+    expect(failed.label).toMatch(/unchanged since it was generated/i);
   });
 
   test("verification reflects adjustments in the total check", async () => {
@@ -1035,14 +1062,7 @@ describe("vendorStatements — disclosure profiles", () => {
 
     await asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
       vendor: "toothlens",
-      disclosure: {
-        memberDetail: true,
-        groupVisibility: "listBillOnly",
-        rateClass: false,
-        repAttribution: false,
-        fullSplit: false,
-        adjustmentDetail: true,
-      },
+      disclosure: disclosure({ memberDetail: true, groupVisibility: "listBillOnly", adjustmentDetail: true, on: ["organization"] }),
       note: "They asked for employer names on the employer book",
     });
 
@@ -1063,14 +1083,7 @@ describe("vendorStatements — disclosure profiles", () => {
 
     await asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
       vendor: "toothlens",
-      disclosure: {
-        memberDetail: true,
-        groupVisibility: "none",
-        rateClass: true,
-        repAttribution: false,
-        fullSplit: false,
-        adjustmentDetail: true,
-      },
+      disclosure: disclosure({ memberDetail: true, groupVisibility: "none", adjustmentDetail: true, on: ["rateClass"] }),
     });
 
     const { statementId } = await asAdmin(t).mutation(
@@ -1106,14 +1119,7 @@ describe("vendorStatements — disclosure profiles", () => {
     // Open the settings up AFTER the document went out.
     await asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
       vendor: "toothlens",
-      disclosure: {
-        memberDetail: true,
-        groupVisibility: "all",
-        rateClass: true,
-        repAttribution: true,
-        fullSplit: false,
-        adjustmentDetail: true,
-      },
+      disclosure: disclosure({ memberDetail: true, groupVisibility: "all", adjustmentDetail: true, on: ["rateClass", "repName", "repCode", "agencyName", "organization"] }),
     });
 
     const after: any = await asAdmin(t).query(
@@ -1148,14 +1154,7 @@ describe("vendorStatements — disclosure profiles", () => {
       await expect(
         asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
           vendor,
-          disclosure: {
-            memberDetail: true,
-            groupVisibility: "none",
-            rateClass: false,
-            repAttribution: false,
-            fullSplit: true,
-            adjustmentDetail: true,
-          },
+          disclosure: disclosure({ memberDetail: true, groupVisibility: "none", adjustmentDetail: true, on: ["grossCents", "toothlensCents", "careingtonCents", "processingCents", "partnerVendorCents", "ryzeKeepCents"] }),
         }),
       ).rejects.toThrow(/other partners are paid/i);
     }
@@ -1166,14 +1165,7 @@ describe("vendorStatements — disclosure profiles", () => {
     await seedAdmin(t);
     await asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
       vendor: "careington",
-      disclosure: {
-        memberDetail: false,
-        groupVisibility: "all",
-        rateClass: true,
-        repAttribution: true,
-        fullSplit: false,
-        adjustmentDetail: false,
-      },
+      disclosure: disclosure({ memberDetail: false, groupVisibility: "all", adjustmentDetail: false, on: ["rateClass", "repName", "repCode", "agencyName", "organization"] }),
     });
     const reset = await asAdmin(t).mutation(
       api.admin.vendorStatements.resetDisclosureProfile,
@@ -1195,14 +1187,7 @@ describe("vendorStatements — disclosure profiles", () => {
     const { period } = await seedClosedMonth(t);
     await asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
       vendor: "toothlens",
-      disclosure: {
-        memberDetail: false,
-        groupVisibility: "none",
-        rateClass: false,
-        repAttribution: false,
-        fullSplit: false,
-        adjustmentDetail: true,
-      },
+      disclosure: disclosure({ memberDetail: false, groupVisibility: "none", adjustmentDetail: true, on: [] }),
     });
     const { statementId } = await asAdmin(t).mutation(
       api.admin.vendorStatements.generateStatement,
@@ -1530,14 +1515,7 @@ describe("vendorStatements — activity trail", () => {
     await seedAdmin(t);
     await asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
       vendor: "toothlens",
-      disclosure: {
-        memberDetail: true,
-        groupVisibility: "listBillOnly",
-        rateClass: true,
-        repAttribution: false,
-        fullSplit: false,
-        adjustmentDetail: true,
-      },
+      disclosure: disclosure({ memberDetail: true, groupVisibility: "listBillOnly", adjustmentDetail: true, on: ["rateClass", "organization"] }),
       note: "They asked for employer names",
     });
 
@@ -1555,7 +1533,7 @@ describe("vendorStatements — activity trail", () => {
     expect(entry.actorRole).toBe("owner");
     // Field-by-field, before → after.
     expect(entry.changes.join(" ")).toMatch(/Employer group: none → listBillOnly/);
-    expect(entry.changes.join(" ")).toMatch(/rate class: false → true/i);
+    expect(entry.changes.join(" ")).toMatch(/Rate Class.*: added/i);
   });
 
   test("covers the statement lifecycle, remittances, and adjustments", async () => {
@@ -2260,10 +2238,13 @@ describe("invoiceCalculator — rebuilding a month people have since left", () =
     );
     expect(statement.memberLines).toHaveLength(1);
     expect(statement.memberLines[0].memberId).toBe("MEM-P1");
-    // Two primaries were closed; only one could be named. The gap is visible
-    // rather than papered over.
-    expect(statement.primaryCount).toBe(2);
-    expect(statement.itemizedCents).toBeLessThan(statement.subtotalCents);
+    // The statement now bills the one member it can account for, and reports
+    // what the month originally closed at so the gap stays visible.
+    expect(statement.primaryCount).toBe(1);
+    expect(statement.itemizedCents).toBe(statement.subtotalCents);
+    expect(statement.closedSubtotalCents).toBeGreaterThan(
+      statement.subtotalCents,
+    );
   });
 
   test("a member who cancelled DURING the month is not resurrected into it", async () => {
@@ -2659,5 +2640,438 @@ describe("vendorStatements — an exclusion foots everywhere", () => {
       after.groups.reduce((n: number, g: any) => n + g.amountCents, 0),
     ).toBe(after.subtotalCents);
     expect(after.subtotalCents).toBe(before.subtotalCents - victim.amountCents);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Column picker
+// ---------------------------------------------------------------------------
+
+describe("vendorStatements — column selection", () => {
+  test("only the chosen columns reach the generated file", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+
+    await asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
+      vendor: "toothlens",
+      disclosure: disclosure({ on: ["rateClass"] }),
+    });
+
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "toothlens" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(statement.columns.map((c: any) => c.key)).toEqual([
+      "memberId",
+      "memberName",
+      "rateClass",
+      "amount",
+    ]);
+  });
+
+  test("member, name, and amount cannot be switched off", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    await asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
+      vendor: "careington",
+      disclosure: {
+        memberDetail: true,
+        groupVisibility: "none",
+        adjustmentDetail: true,
+        // Deliberately try to drop the fixed columns.
+        columns: [
+          { key: "memberId", enabled: false },
+          { key: "memberName", enabled: false },
+          { key: "amount", enabled: false },
+        ],
+      },
+    });
+    const profiles: any[] = await asAdmin(t).query(
+      api.admin.vendorStatements.listDisclosureProfiles,
+      {},
+    );
+    const careington = profiles.find((p) => p.vendor === "careington");
+    for (const key of ["memberId", "memberName", "amount"]) {
+      expect(
+        careington.current.columns.find((c: any) => c.key === key).enabled,
+      ).toBe(true);
+    }
+  });
+
+  test("a column that would expose another partner's pay is refused", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    for (const vendor of ["toothlens", "careington", "ideal"] as const) {
+      await expect(
+        asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
+          vendor,
+          disclosure: disclosure({ on: ["ryzeKeepCents"] }),
+        }),
+      ).rejects.toThrow(/other partners are paid/i);
+    }
+    // The internal statement may have them.
+    await asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
+      vendor: "ryze",
+      disclosure: disclosure({ on: ["ryzeKeepCents", "grossCents"] }),
+    });
+  });
+
+  test("a new registry column shows up disabled on an older saved profile", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    await asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
+      vendor: "ideal",
+      // A profile saved when only these columns existed.
+      disclosure: {
+        memberDetail: true,
+        groupVisibility: "listBillOnly",
+        adjustmentDetail: true,
+        columns: [
+          { key: "memberId", enabled: true },
+          { key: "memberName", enabled: true },
+          { key: "amount", enabled: true },
+        ],
+      },
+    });
+    const profiles: any[] = await asAdmin(t).query(
+      api.admin.vendorStatements.listDisclosureProfiles,
+      {},
+    );
+    const ideal = profiles.find((p) => p.vendor === "ideal");
+    // Every registry column is represented; the unknown ones default off.
+    expect(ideal.current.columns.length).toBeGreaterThan(3);
+    expect(
+      ideal.current.columns.find((c: any) => c.key === "repName").enabled,
+    ).toBe(false);
+  });
+
+  test("organization columns drop out when the employer is not disclosed", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    await asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
+      vendor: "ideal",
+      // Organization column requested, but employer visibility turned off.
+      disclosure: disclosure({ groupVisibility: "none", on: ["organization", "orgCode"] }),
+    });
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    const keys = statement.columns.map((c: any) => c.key);
+    expect(keys).not.toContain("organization");
+    expect(keys).not.toContain("orgCode");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The rollup and the member list always describe the same people
+// ---------------------------------------------------------------------------
+
+describe("vendorStatements — the Group Summary matches the member list", () => {
+  test("a member added after the close is counted in BOTH, not just the list", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const { year, month, period, midMs } = previousMonth();
+    const soars = await seedWorld(t, {
+      groupCode: "IDEALDO",
+      groupName: "Soars",
+    });
+    await t.run(async (ctx) => {
+      await ctx.db.patch(soars.groupId, {
+        listBill: { enabled: true, paymentMethod: "ach" as const },
+      });
+    });
+
+    for (const n of [1, 2] as const) {
+      await seedPrimary(t, soars, {
+        customerId: `soars-${n}`,
+        memberId: `MBR-SOARS-${n}`,
+        totalCents: 1499,
+        createdAt: midMs,
+      });
+    }
+    await asAdmin(t).mutation(api.admin.invoiceCalculator.closePeriodManual, {
+      year,
+      month,
+    });
+
+    // A third Soars primary turns up afterwards, backdated into the month —
+    // exactly the "eligible member whose record landed late" case.
+    await seedPrimary(t, soars, {
+      customerId: "soars-3",
+      memberId: "MBR-SOARS-3",
+      totalCents: 1499,
+      createdAt: midMs,
+    });
+    // Clear the frozen detail so the statement rebuilds from today's roster.
+    await t.run(async (ctx) => {
+      const rows = await ctx.db.query("invoicePeriods").collect();
+      for (const row of rows) {
+        if (row.period === period) {
+          await ctx.db.patch(row._id, { memberLines: undefined });
+        }
+      }
+    });
+
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+
+    // Three members listed…
+    expect(statement.memberLines).toHaveLength(3);
+    // …and the rollup says three, not the two the month closed with.
+    const soarsRow = statement.groups.find((g: any) => g.groupName === "Soars");
+    expect(soarsRow.primaryCount).toBe(3);
+    expect(soarsRow.individualCount).toBe(3);
+
+    // Everything foots against everything else.
+    expect(
+      statement.groups.reduce((n: number, g: any) => n + g.primaryCount, 0),
+    ).toBe(statement.memberLines.length);
+    expect(
+      statement.groups.reduce((n: number, g: any) => n + g.amountCents, 0),
+    ).toBe(statement.subtotalCents);
+    expect(statement.itemizedCents).toBe(statement.subtotalCents);
+    expect(statement.individualCount + statement.familyCount).toBe(
+      statement.primaryCount,
+    );
+
+    // And the month's original figure is still reported, so the drift is
+    // visible rather than quietly absorbed.
+    expect(statement.closedSubtotalCents).toBeLessThan(statement.subtotalCents);
+
+    const audit: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatementVerification,
+      { statementId },
+    );
+    const closeCheck = audit.checks.find((c: any) =>
+      /matches what the month closed at/i.test(c.label),
+    );
+    expect(closeCheck.passed).toBe(false);
+    expect(closeCheck.detail).toMatch(/roster has moved/i);
+  });
+
+  test("a clean close needs no reconciling — every figure agrees", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ryze" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(
+      statement.groups.reduce((n: number, g: any) => n + g.primaryCount, 0),
+    ).toBe(statement.memberLines.length);
+    expect(statement.subtotalCents).toBe(statement.closedSubtotalCents);
+
+    const audit: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatementVerification,
+      { statementId },
+    );
+    expect(audit.allChecksPassed).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Making the member list the record for a month
+// ---------------------------------------------------------------------------
+
+describe("invoiceCalculator — syncing a close to its member list", () => {
+  async function seedDriftedMonth(t: ReturnType<typeof convexTest>) {
+    await seedAdmin(t);
+    const { year, month, period, midMs } = previousMonth();
+    const world = await seedWorld(t, { groupCode: "IDEALDO", groupName: "Soars" });
+    await t.run(async (ctx) => {
+      await ctx.db.patch(world.groupId, {
+        listBill: { enabled: true, paymentMethod: "ach" as const },
+      });
+    });
+    for (const n of [1, 2] as const) {
+      await seedPrimary(t, world, {
+        customerId: `s-${n}`,
+        memberId: `MBR-S${n}`,
+        totalCents: 1499,
+        createdAt: midMs,
+      });
+    }
+    await asAdmin(t).mutation(api.admin.invoiceCalculator.closePeriodManual, {
+      year,
+      month,
+    });
+    // A third turns up afterwards, backdated into the month.
+    await seedPrimary(t, world, {
+      customerId: "s-3",
+      memberId: "MBR-S3",
+      totalCents: 1499,
+      createdAt: midMs,
+    });
+    await t.run(async (ctx) => {
+      const rows = await ctx.db.query("invoicePeriods").collect();
+      for (const row of rows) {
+        if (row.period === period) {
+          await ctx.db.patch(row._id, { memberLines: undefined });
+        }
+      }
+    });
+    return { period };
+  }
+
+  test("the close is rewritten to the member list, and the original is kept", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedDriftedMonth(t);
+
+    // Generating rebuilds the member list but leaves the close at two.
+    await asAdmin(t).mutation(api.admin.vendorStatements.generateStatement, {
+      period,
+      vendor: "ideal",
+    });
+    const before = await t.run(async (ctx) => {
+      const rows = await ctx.db.query("invoicePeriods").collect();
+      const row = rows.find((r) => r.period === period)!;
+      return {
+        primaries: row.individualPrimaryCount + row.familyPrimaryCount,
+        gross: row.grossCents,
+        hash: row.payloadHash,
+        closedAt: row.closedAt,
+      };
+    });
+    expect(before.primaries).toBe(2);
+    expect(before.gross).toBe(2 * 1499);
+
+    const result = await asAdmin(t).mutation(
+      api.admin.invoiceCalculator.syncClosedTotalsToMemberLines,
+      { period },
+    );
+    expect(result.updated).toBe(1);
+    expect(result.changes[0]).toMatch(/2 → 3 primaries/);
+
+    await t.run(async (ctx) => {
+      const rows = await ctx.db.query("invoicePeriods").collect();
+      const row = rows.find((r) => r.period === period)!;
+      // The close now describes the three people actually on it.
+      expect(row.individualPrimaryCount + row.familyPrimaryCount).toBe(3);
+      expect(row.grossCents).toBe(3 * 1499);
+      // Nothing was destroyed — the original figures and hash are preserved.
+      expect(row.supersededFigures!.grossCents).toBe(before.gross);
+      expect(row.supersededFigures!.payloadHash).toBe(before.hash);
+      expect(row.supersededFigures!.closedAt).toBe(before.closedAt);
+      // And the row's own hash was recomputed for its new figures.
+      expect(row.payloadHash).not.toBe(before.hash);
+    });
+  });
+
+  test("after syncing, the statement reconciles cleanly", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedDriftedMonth(t);
+    await asAdmin(t).mutation(api.admin.vendorStatements.generateStatement, {
+      period,
+      vendor: "ideal",
+    });
+    await asAdmin(t).mutation(
+      api.admin.invoiceCalculator.syncClosedTotalsToMemberLines,
+      { period },
+    );
+
+    const fresh = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ryze" },
+    );
+    const audit: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatementVerification,
+      { statementId: fresh.statementId },
+    );
+    expect(audit.allChecksPassed).toBe(true);
+
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId: fresh.statementId },
+    );
+    expect(statement.subtotalCents).toBe(statement.closedSubtotalCents);
+    expect(statement.memberLines).toHaveLength(3);
+  });
+
+  test("syncing twice keeps the first original, not the second", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedDriftedMonth(t);
+    await asAdmin(t).mutation(api.admin.vendorStatements.generateStatement, {
+      period,
+      vendor: "ideal",
+    });
+    await asAdmin(t).mutation(
+      api.admin.invoiceCalculator.syncClosedTotalsToMemberLines,
+      { period },
+    );
+    const first = await t.run(async (ctx) => {
+      const rows = await ctx.db.query("invoicePeriods").collect();
+      return rows.find((r) => r.period === period)!.supersededFigures!;
+    });
+
+    const second = await asAdmin(t).mutation(
+      api.admin.invoiceCalculator.syncClosedTotalsToMemberLines,
+      { period },
+    );
+    expect(second.updated).toBe(0);
+    expect(second.unchanged).toBe(1);
+
+    await t.run(async (ctx) => {
+      const rows = await ctx.db.query("invoicePeriods").collect();
+      const row = rows.find((r) => r.period === period)!;
+      expect(row.supersededFigures!.grossCents).toBe(first.grossCents);
+    });
+  });
+
+  test("a month already in agreement is left completely alone", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    const result = await asAdmin(t).mutation(
+      api.admin.invoiceCalculator.syncClosedTotalsToMemberLines,
+      { period },
+    );
+    expect(result.updated).toBe(0);
+    await t.run(async (ctx) => {
+      const rows = await ctx.db.query("invoicePeriods").collect();
+      for (const row of rows) {
+        if (row.period === period) {
+          expect(row.supersededFigures).toBeUndefined();
+        }
+      }
+    });
+  });
+
+  test("the sync is written to the activity trail with what moved", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedDriftedMonth(t);
+    await asAdmin(t).mutation(api.admin.vendorStatements.generateStatement, {
+      period,
+      vendor: "ideal",
+    });
+    await asAdmin(t).mutation(
+      api.admin.invoiceCalculator.syncClosedTotalsToMemberLines,
+      { period },
+    );
+    const trail: any[] = await asAdmin(t).query(
+      api.admin.vendorStatements.listStatementActivity,
+      {},
+    );
+    const entry = trail.find((e) => e.action === "invoice.syncClosedTotals");
+    expect(entry).toBeDefined();
+    expect(entry.kind).toBe("money");
+    expect(entry.summary).toMatch(/1 organization\(s\) updated/);
   });
 });

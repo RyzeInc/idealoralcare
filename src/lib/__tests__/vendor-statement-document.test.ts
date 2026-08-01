@@ -49,11 +49,17 @@ const flatFee: VendorStatementDocument = {
   showBroker: false,
   showFullSplit: false,
   showAdjustmentDetail: true,
+  columns: [
+    { key: "memberId", label: "Member ID" },
+    { key: "memberName", label: "Member Name" },
+    { key: "amount", label: "Amount" },
+  ],
   attributionBasis: "none",
   primaryCount: 2,
   individualCount: 1,
   familyCount: 1,
   itemizedCents: 200,
+  closedSubtotalCents: 200,
   memberLines: [
     { memberId: "M-1", firstName: "Ada", lastName: "Lovelace", amountCents: 100 },
     { memberId: "M-2", firstName: "Alan", lastName: "Turing", amountCents: 100 },
@@ -77,11 +83,29 @@ const internal: VendorStatementDocument = {
   showBroker: true,
   showFullSplit: true,
   showAdjustmentDetail: true,
+  columns: [
+    { key: "memberId", label: "Member ID" },
+    { key: "memberName", label: "Member Name" },
+    { key: "rateClass", label: "Rate Class (Individual / Family)" },
+    { key: "organization", label: "Organization" },
+    { key: "orgCode", label: "Org Code" },
+    { key: "repName", label: "Rep / Broker" },
+    { key: "repCode", label: "Rep Code" },
+    { key: "agencyName", label: "Agency" },
+    { key: "amount", label: "Amount" },
+    { key: "grossCents", label: "Retail Gross" },
+    { key: "toothlensCents", label: "Toothlens Share" },
+    { key: "careingtonCents", label: "Careington Share" },
+    { key: "processingCents", label: "Processing" },
+    { key: "partnerVendorCents", label: "Ideal Health Share" },
+    { key: "ryzeKeepCents", label: "Ryze Keep" },
+  ],
   attributionBasis: "frozen",
   primaryCount: 1,
   individualCount: 0,
   familyCount: 1,
   itemizedCents: 1200,
+  closedSubtotalCents: 1200,
   memberLines: [
     {
       memberId: "M-1",
@@ -123,31 +147,15 @@ const internal: VendorStatementDocument = {
 describe("vendor statement exports", () => {
   test("a flat-fee recipient's columns carry no group, tier, or retail figures", () => {
     const table = memberDetailTable(flatFee);
-    expect(table.header).toEqual(["Member ID", "Last Name", "First Name", "Amount"]);
-    expect(table.rows[0]).toEqual(["M-1", "Lovelace", "Ada", 1]);
+    expect(table.header).toEqual(["Member ID", "Member Name", "Amount"]);
+    expect(table.rows[0]).toEqual(["M-1", "Lovelace, Ada", 1]);
   });
 
   test("the internal statement's columns carry the whole split and the rep", () => {
     const table = memberDetailTable(internal);
-    expect(table.header).toEqual([
-      "Member ID",
-      "Last Name",
-      "First Name",
-      "Organization",
-      "Org Code",
-      "Rate Class",
-      "Rep / Broker",
-      "Rep Code",
-      "Rep Email",
-      "Agency",
-      "Amount",
-      "Gross",
-      "Toothlens",
-      "Careington",
-      "Processing",
-      "Ideal Health",
-      "Ryze Keep",
-    ]);
+    expect(table.header).toEqual(internal.columns.map((c) => c.label));
+    expect(table.header).toContain("Retail Gross");
+    expect(table.header).toContain("Ryze Keep");
     expect(table.rows[0]).toContain("Acme Manufacturing");
     expect(table.rows[0]).toContain("Dana Reyes");
     expect(table.rows[0]).toContain("Southeast Benefits Group");
@@ -158,6 +166,7 @@ describe("vendor statement exports", () => {
     const row = table.rows[0];
     expect(row[row.length - 1]).toBe(12); // ryzeKeepCents 1200 → 12
     expect(typeof row[table.header.indexOf("Amount")]).toBe("number");
+    expect(row[table.header.indexOf("Amount")]).toBe(12);
   });
 
   test("a recipient with no payout obligation gets no rep columns at all", () => {

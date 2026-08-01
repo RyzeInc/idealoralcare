@@ -65,16 +65,44 @@ The resolved combination is still the single gate. Fields a recipient may not
 see are never assembled into the payload, so no downstream renderer — PDF, CSV,
 XLSX, or the admin UI — can leak them.
 
-### Configurable settings
+### Column picker
+
+`STATEMENT_COLUMN_REGISTRY` lists every data point the Covered Primary Detail
+table can carry, grouped as Member / Organization / Attribution / Money. The
+settings page presents them as a checkbox picker with **Default / Show all /
+Minimal** presets and a live column count — the same shape as the User Audit
+table picker, with one deliberate difference: the User Audit saves per device,
+these are saved **per recipient on the server**, because they decide what a
+partner receives rather than what one admin likes looking at.
+
+The selection drives the PDF, CSV, XLSX, and the admin table from one list, so
+those four can't disagree about what a recipient sees.
+
+Three rules are enforced server-side in `resolveStatementColumns`, not merely
+in the picker:
+
+1. **Fixed columns** (Member ID, Member Name, Amount) are forced on. A row with
+   no member and no amount is not a statement line.
+2. **Internal-only columns** (retail gross and every other partner's share) are
+   forced off for anyone but Ryze, and `updateDisclosureProfile` rejects the
+   save outright rather than silently dropping them.
+3. **Forward compatibility.** Unknown keys are dropped and new registry columns
+   are appended disabled, so adding a column never breaks a saved profile.
+
+Organization columns additionally drop out when `groupVisibility` is `none` —
+an employer column with nothing disclosable behind it is omitted rather than
+printed empty.
+
+### Section settings
 
 | Setting | Options | Notes |
 |---|---|---|
 | Covered primary detail | on / off | Off yields a totals-only statement; the totals still reconcile. |
-| Employer group | never / list-bill only / every group | "List-bill only" names the employer for employer-group members and renders everyone else as **Direct enrollment**, so a partner sees the employer business without the shape of the self-pay book. |
-| Individual / Family rate class | on / off | Discloses household composition. |
-| Rep / broker attribution | on / off | Rep name, code, email, agency. |
-| Full revenue split | on / off | **Refused for any external recipient** — server-side, not just hidden in the UI. It would disclose what other partners are paid. |
+| Employer group | never / list-bill only / every group | "List-bill only" names the employer for employer-group members and renders everyone else as **Direct enrollment**, so a partner sees the employer business without the shape of the self-pay book. Also gates the Organization columns. |
 | Itemized adjustments | on / off | Off still shows the net adjustment in the totals. |
+
+Everything else — rate class, rep attribution, the revenue split — is a column,
+chosen in the picker above.
 
 ### Disclosure resolves live
 
@@ -98,11 +126,7 @@ sent. So each statement still records the profile it was generated under, and
 The statement detail page shows an amber banner listing that drift. Nothing
 changes silently.
 
-### One setting is not configurable
 
-**`fullSplit` is refused for external recipients** in
-`updateDisclosureProfile` — server-side, not just disabled in the UI. No amount
-of configuration can leak one partner's economics to another.
 
 Every profile change is written to the admin audit log with a field-by-field
 before → after summary.
@@ -150,6 +174,44 @@ Statements lead with the organization; the provider code is a secondary
 column. The one intentional merge is direct enrollments under
 `groupVisibility: "listBillOnly"` — every self-pay group collapses into a
 single "Direct enrollment" row and sorts last.
+
+## The member list is the system of record
+
+Where a close carries member lines, **every figure on the statement is derived
+from those lines** — the Group Summary rows, the primary counts, the
+Individual/Family split, and the subtotal. `snapshotFigures` is the single
+function they all go through, so the rollup and the member list cannot describe
+different rosters.
+
+For a close written by `closePeriod`, the lines and the frozen aggregates agree
+to the cent by construction, so this changes nothing. It matters for a close
+whose detail was rebuilt later: without it, a month whose roster has since been
+corrected shows a Group Summary counting 13 above a member list of 14.
+
+Closes with no member lines still fall back to their frozen aggregates.
+
+### When the close itself disagrees
+
+Deriving from the lines makes the *statement* consistent, but leaves the close
+row still holding its original counts, so verification reports the gap:
+
+> **Statement matches what the month closed at** — the roster has moved since
+> this month closed: $114.00 of members on file now vs $108.00 at close.
+
+`syncClosedTotalsToMemberLines` resolves it by rewriting the row's counts and
+bucket totals from its member lines, making the member list the record for that
+month. It is offered as a button on that failing check.
+
+Safeguards:
+
+- The figures the month first closed with — every count, every bucket, the
+  original `payloadHash` and `closedAt` — are preserved in `supersededFigures`,
+  so the original close stays fully reconstructible.
+- A second sync never overwrites that original with an already-synced value.
+- `assertSplitInvariant` must still hold for the rewritten totals.
+- The row's `payloadHash` is recomputed so it describes its current figures.
+- It is a deliberate, audited action, never a side effect of generating a
+  statement. Statement generation only ever adds names.
 
 ## Backfilling member detail
 

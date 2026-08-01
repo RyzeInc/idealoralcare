@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   Check,
+  Columns3,
   Eye,
   History,
   Lock,
@@ -26,14 +27,47 @@ import { formatDateTime } from '@/lib/admin-format';
 
 type GroupVisibility = 'none' | 'listBillOnly' | 'all';
 
+interface StatementColumn {
+  key: string;
+  enabled: boolean;
+}
+
 interface Disclosure {
   memberDetail: boolean;
   groupVisibility: GroupVisibility;
-  rateClass: boolean;
-  repAttribution: boolean;
-  fullSplit: boolean;
   adjustmentDetail: boolean;
+  columns: StatementColumn[];
 }
+
+/**
+ * Mirrors STATEMENT_COLUMN_REGISTRY on the server. Kept in sync by the
+ * `columns` array the server hands back — unknown keys here simply render
+ * with their raw key, and the server is the one that enforces the rules.
+ */
+const COLUMN_META: Record<
+  string,
+  { label: string; group: string; fixed?: boolean; internalOnly?: boolean }
+> = {
+  memberId: { label: 'Member ID', group: 'Member', fixed: true },
+  memberName: { label: 'Member Name', group: 'Member', fixed: true },
+  rateClass: { label: 'Rate Class (Individual / Family)', group: 'Member' },
+  organization: { label: 'Organization', group: 'Organization' },
+  orgCode: { label: 'Org Code', group: 'Organization' },
+  groupCode: { label: 'Group Code', group: 'Organization' },
+  repName: { label: 'Rep / Broker', group: 'Attribution' },
+  repCode: { label: 'Rep Code', group: 'Attribution' },
+  repEmail: { label: 'Rep Email', group: 'Attribution' },
+  agencyName: { label: 'Agency', group: 'Attribution' },
+  amount: { label: 'Amount', group: 'Money', fixed: true },
+  grossCents: { label: 'Retail Gross', group: 'Money', internalOnly: true },
+  toothlensCents: { label: 'Toothlens Share', group: 'Money', internalOnly: true },
+  careingtonCents: { label: 'Careington Share', group: 'Money', internalOnly: true },
+  processingCents: { label: 'Processing', group: 'Money', internalOnly: true },
+  partnerVendorCents: { label: 'Ideal Health Share', group: 'Money', internalOnly: true },
+  ryzeKeepCents: { label: 'Ryze Keep', group: 'Money', internalOnly: true },
+};
+
+const COLUMN_GROUPS = ['Member', 'Organization', 'Attribution', 'Money'];
 
 type VendorId = 'toothlens' | 'careington' | 'ideal' | 'ryze';
 
@@ -60,40 +94,19 @@ const GROUP_OPTIONS: Array<{
 ];
 
 const TOGGLES: Array<{
-  key: Exclude<keyof Disclosure, 'groupVisibility'>;
+  key: 'memberDetail' | 'adjustmentDetail';
   label: string;
   help: string;
-  sensitive: boolean;
 }> = [
   {
     key: 'memberDetail',
     label: 'Covered primary detail',
-    help: 'One line per covered primary. Turn off for a totals-only statement.',
-    sensitive: false,
-  },
-  {
-    key: 'rateClass',
-    label: 'Individual / Family rate class',
-    help: 'Discloses household composition. Only meaningful where the recipient’s own rate actually varies by tier.',
-    sensitive: true,
-  },
-  {
-    key: 'repAttribution',
-    label: 'Rep / broker attribution',
-    help: 'Names the rep, their code, email, and agency for each member. Needed by a recipient who pays reps out of this remittance.',
-    sensitive: true,
-  },
-  {
-    key: 'fullSplit',
-    label: 'Full revenue split',
-    help: 'Every vendor’s share plus the retail gross. Internal only — this exposes what other partners are paid.',
-    sensitive: true,
+    help: 'The member-by-member table. Turn off for a totals-only statement.',
   },
   {
     key: 'adjustmentDetail',
     label: 'Itemized adjustments',
     help: 'Each correction with its reason and notes. When off, only the net adjustment shows in the totals.',
-    sensitive: false,
   },
 ];
 
@@ -101,10 +114,141 @@ function sameDisclosure(a: Disclosure, b: Disclosure): boolean {
   return (
     a.memberDetail === b.memberDetail &&
     a.groupVisibility === b.groupVisibility &&
-    a.rateClass === b.rateClass &&
-    a.repAttribution === b.repAttribution &&
-    a.fullSplit === b.fullSplit &&
-    a.adjustmentDetail === b.adjustmentDetail
+    a.adjustmentDetail === b.adjustmentDetail &&
+    JSON.stringify(a.columns) === JSON.stringify(b.columns)
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Column picker — which data points land in the generated file
+// ---------------------------------------------------------------------------
+
+function ColumnPicker({
+  columns,
+  defaults,
+  isInternal,
+  onChange,
+}: {
+  columns: StatementColumn[];
+  defaults: StatementColumn[];
+  isInternal: boolean;
+  onChange: (next: StatementColumn[]) => void;
+}) {
+  const shown = columns.filter((c) => c.enabled).length;
+
+  function setAll(pick: (key: string) => boolean) {
+    onChange(
+      columns.map((c) => ({
+        key: c.key,
+        enabled: COLUMN_META[c.key]?.fixed
+          ? true
+          : COLUMN_META[c.key]?.internalOnly && !isInternal
+            ? false
+            : pick(c.key),
+      })),
+    );
+  }
+
+  return (
+    <div className="rounded-md border border-slate-200 overflow-hidden">
+      <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
+        <div className="flex flex-wrap items-center gap-2">
+          <Columns3 size={14} className="text-slate-400" />
+          <span className="text-sm font-medium text-slate-800">
+            Columns in the generated file
+          </span>
+          <span className="ml-auto text-xs text-slate-500">
+            {shown} column{shown === 1 ? '' : 's'} shown
+          </span>
+        </div>
+        <p className="text-xs text-slate-500 mt-1">
+          Choose which data points appear in this recipient&apos;s PDF, CSV, and
+          XLSX. Saved for this recipient — not just for you.
+        </p>
+        <div className="flex flex-wrap items-center gap-2 mt-2.5">
+          <span className="text-xs font-semibold text-slate-500">Presets:</span>
+          <button
+            type="button"
+            onClick={() => onChange(defaults)}
+            className="px-3 py-1 text-xs rounded border border-slate-300 bg-white hover:bg-slate-50"
+          >
+            Default
+          </button>
+          <button
+            type="button"
+            onClick={() => setAll(() => true)}
+            className="px-3 py-1 text-xs rounded border border-slate-300 bg-white hover:bg-slate-50"
+          >
+            Show all
+          </button>
+          <button
+            type="button"
+            onClick={() => setAll(() => false)}
+            className="px-3 py-1 text-xs rounded border border-slate-300 bg-white hover:bg-slate-50"
+          >
+            Minimal
+          </button>
+        </div>
+      </div>
+
+      <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
+        {COLUMN_GROUPS.map((groupName) => {
+          const inGroup = columns.filter(
+            (c) => (COLUMN_META[c.key]?.group ?? 'Member') === groupName,
+          );
+          if (inGroup.length === 0) return null;
+          return (
+            <div key={groupName} className="px-4 py-3">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                {groupName}
+              </p>
+              <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
+                {inGroup.map((column) => {
+                  const meta = COLUMN_META[column.key];
+                  const blocked = Boolean(meta?.internalOnly) && !isInternal;
+                  const locked = Boolean(meta?.fixed) || blocked;
+                  return (
+                    <label
+                      key={column.key}
+                      className={`flex items-start gap-2 text-sm ${
+                        locked ? 'text-slate-400' : 'text-slate-800 cursor-pointer'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={column.enabled}
+                        disabled={locked}
+                        onChange={(event) =>
+                          onChange(
+                            columns.map((c) =>
+                              c.key === column.key
+                                ? { ...c, enabled: event.target.checked }
+                                : c,
+                            ),
+                          )
+                        }
+                      />
+                      <span>
+                        {meta?.label ?? column.key}
+                        {meta?.fixed && (
+                          <span className="text-xs text-slate-400"> (always)</span>
+                        )}
+                        {blocked && (
+                          <span className="block text-xs text-slate-400">
+                            Internal only — would expose other partners&apos; pay
+                          </span>
+                        )}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -115,15 +259,14 @@ function sameDisclosure(a: Disclosure, b: Disclosure): boolean {
 function ColumnPreview({ disclosure }: { disclosure: Disclosure }) {
   const columns = useMemo(() => {
     if (!disclosure.memberDetail) return [];
-    const cols = ['Member ID', 'Member'];
-    if (disclosure.groupVisibility !== 'none') cols.push('Group');
-    if (disclosure.rateClass) cols.push('Rate Class');
-    if (disclosure.repAttribution) cols.push('Rep / Broker', 'Rep Code', 'Agency');
-    cols.push('Amount');
-    if (disclosure.fullSplit) {
-      cols.push('Gross', 'Toothlens', 'Careington', 'Processing', 'Ideal', 'Ryze');
-    }
-    return cols;
+    return disclosure.columns
+      .filter((c) => c.enabled)
+      .filter(
+        (c) =>
+          disclosure.groupVisibility !== 'none' ||
+          COLUMN_META[c.key]?.group !== 'Organization',
+      )
+      .map((c) => COLUMN_META[c.key]?.label ?? c.key);
   }, [disclosure]);
 
   const sampleGroup =
@@ -411,51 +554,40 @@ function RecipientEditor({
         </div>
       </fieldset>
 
-      {/* Toggles */}
+      {/* Sections */}
       <fieldset className="space-y-2">
-        <legend className="text-sm font-medium text-slate-800">Included details</legend>
+        <legend className="text-sm font-medium text-slate-800">Sections</legend>
         <div className="grid gap-2">
-          {TOGGLES.map((toggle) => {
-            const blocked = toggle.key === 'fullSplit' && !isInternal;
-            const value = draft[toggle.key];
-            return (
-              <label
-                key={toggle.key}
-                className={`flex gap-3 rounded-md border p-3 ${
-                  blocked
-                    ? 'border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed'
-                    : 'border-slate-200 hover:bg-slate-50 cursor-pointer'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  className="mt-1"
-                  disabled={blocked}
-                  checked={value}
-                  onChange={(event) =>
-                    setDraft((d) => ({ ...d, [toggle.key]: event.target.checked }))
-                  }
-                />
-                <div>
-                  <p className="text-sm font-medium text-slate-800 flex items-center gap-1.5">
-                    {toggle.label}
-                    {toggle.sensitive && value && !blocked && (
-                      <ShieldAlert size={13} className="text-amber-500" />
-                    )}
-                  </p>
-                  <p className="text-xs text-slate-500">{toggle.help}</p>
-                  {blocked && (
-                    <p className="text-xs text-slate-500 mt-1 font-medium">
-                      Not available for an external recipient — it would disclose what
-                      other partners are paid.
-                    </p>
-                  )}
-                </div>
-              </label>
-            );
-          })}
+          {TOGGLES.map((toggle) => (
+            <label
+              key={toggle.key}
+              className="flex gap-3 rounded-md border border-slate-200 p-3 hover:bg-slate-50 cursor-pointer"
+            >
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={draft[toggle.key]}
+                onChange={(event) =>
+                  setDraft((d) => ({ ...d, [toggle.key]: event.target.checked }))
+                }
+              />
+              <div>
+                <p className="text-sm font-medium text-slate-800">{toggle.label}</p>
+                <p className="text-xs text-slate-500">{toggle.help}</p>
+              </div>
+            </label>
+          ))}
         </div>
       </fieldset>
+
+      {draft.memberDetail && (
+        <ColumnPicker
+          columns={draft.columns}
+          defaults={profile.defaults.columns}
+          isInternal={isInternal}
+          onChange={(columns) => setDraft((d) => ({ ...d, columns }))}
+        />
+      )}
 
       <ColumnPreview disclosure={draft} />
 
