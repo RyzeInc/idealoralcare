@@ -15,10 +15,10 @@ import { v } from "convex/values";
  */
 
 const ESSENTIALS_TIERS = [
-  { suffix: "employee", label: "Employee", cents: 5795 },
-  { suffix: "employee-spouse", label: "Employee + Spouse", cents: 6595 },
-  { suffix: "employee-child", label: "Employee + Child", cents: 7795 },
-  { suffix: "employee-family", label: "Employee + Family", cents: 8295 },
+  { suffix: "employee", label: "Employee", cents: 5895 },
+  { suffix: "employee-spouse", label: "Employee + Spouse", cents: 6695 },
+  { suffix: "employee-child", label: "Employee + Child", cents: 7895 },
+  { suffix: "employee-family", label: "Employee + Family", cents: 8395 },
 ];
 
 const ESSENTIALS_INCLUSIONS = [
