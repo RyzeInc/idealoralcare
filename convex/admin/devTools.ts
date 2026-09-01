@@ -735,3 +735,164 @@ export const _fixFreeAccessReconciliationRegression = internalMutation({
   },
 });
 
+/**
+ * READ-ONLY VERIFICATION (Careington invoice #420211 remediation).
+ *
+ * Dumps every memberProfile in a group (default IDEALDO) with the fields needed
+ * to reconcile against the Careington invoice BEFORE any write: current
+ * effectiveDate, role, primary link, careingtonUniqueId, and the timestamps
+ * that bound "earliest possible access" (createdAt / enrolledAt). Primaries are
+ * grouped with their dependents, and same-name records are flagged as likely
+ * duplicates (e.g. the two "LAGO, KYLE" rows).
+ *
+ * Run against prod, review, THEN run _fixIdealJuneEffectiveDates with the exact
+ * primary IDs this reports:
+ *   npx convex run admin/devTools:_debugIdealCohort '{"groupCode":"IDEALDO"}' --prod
+ */
+export const _debugIdealCohort = internalQuery({
+  args: { groupCode: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const code = (args.groupCode ?? "IDEALDO").trim().toLowerCase();
+    const groups = await ctx.db.query("groups").collect();
+    const group = groups.find((g: any) => (g.groupCode ?? "").toLowerCase() === code);
+    if (!group) {
+      return { error: `No group found with groupCode "${args.groupCode ?? "IDEALDO"}"`, members: [] };
+    }
+
+    const all = await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_group", (q) => q.eq("groupId", group._id))
+      .collect();
+
+    // Flag likely duplicates by normalized first+last name.
+    const nameCount = new Map<string, number>();
+    for (const m of all) {
+      const k = `${m.firstName}|${m.lastName}`.toLowerCase().trim();
+      nameCount.set(k, (nameCount.get(k) ?? 0) + 1);
+    }
+
+    const view = (m: any) => ({
+      _id: m._id,
+      name: `${m.lastName}, ${m.firstName}`.toUpperCase(),
+      role: m.memberRole ?? "primary",
+      primaryMemberId: m.primaryMemberId ?? null,
+      careingtonUniqueId: m.careingtonUniqueId ?? null,
+      effectiveDate: m.effectiveDate ?? null,        // ← what the FULL file will send
+      status: m.status,
+      createdAt: m.createdAt ? new Date(m.createdAt).toISOString().slice(0, 10) : null,
+      enrolledAt: m.enrolledAt ? new Date(m.enrolledAt).toISOString().slice(0, 10) : null,
+      likelyDuplicate: (nameCount.get(`${m.firstName}|${m.lastName}`.toLowerCase().trim()) ?? 0) > 1,
+    });
+
+    const primaries = all
+      .filter((m) => m.memberRole !== "dependent" && !m.primaryMemberId)
+      .sort((a, b) => a.lastName.localeCompare(b.lastName));
+
+    return {
+      groupId: group._id,
+      groupCode: group.groupCode,
+      groupName: group.name,
+      totalMembers: all.length,
+      primaryCount: primaries.length,
+      dependentCount: all.length - primaries.length,
+      duplicateNames: [...nameCount.entries()].filter(([, n]) => n > 1).map(([k]) => k),
+      families: primaries.map((p) => ({
+        primary: view(p),
+        dependents: all.filter((d) => d.primaryMemberId === p._id).map(view),
+      })),
+    };
+  },
+});
+
+/**
+ * ONE-OFF DATA REMEDIATION (Careington invoice #420211).
+ *
+ * Sets effectiveDate to a single ISO date (e.g. "2026-07-01") on an EXPLICIT
+ * list of memberProfile IDs — the primaries whose effective date was wrongly
+ * sent to Careington as 06/01 when their real access began 07/01. Pass only the
+ * IDs surfaced by _debugIdealCohort; DELIBERATELY omit any member whose earlier
+ * date is correct (e.g. Danielle Faircloth, 2026-06-11).
+ *
+ * Dependents are intentionally NOT touched: the outbound Careington file emits
+ * each dependent under its primary using the PRIMARY's effDate
+ * (vendorFiles.ts generateDentalDiscountNetworkFile), so fixing the primary is
+ * sufficient for a correct FULL file.
+ *
+ * Idempotent (skips members already on the target date) and safe by default
+ * (dryRun: true reports the planned changes without writing).
+ *
+ *   # 1) preview
+ *   npx convex run admin/devTools:_fixIdealJuneEffectiveDates \
+ *     '{"effectiveDate":"2026-07-01","memberProfileIds":["...","..."],"dryRun":true}' --prod
+ *   # 2) apply
+ *   npx convex run admin/devTools:_fixIdealJuneEffectiveDates \
+ *     '{"effectiveDate":"2026-07-01","memberProfileIds":["...","..."]}' --prod
+ */
+export const _fixIdealJuneEffectiveDates = internalMutation({
+  args: {
+    effectiveDate: v.string(),
+    memberProfileIds: v.array(v.id("memberProfiles")),
+    dryRun: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(args.effectiveDate)) {
+      throw new Error(`effectiveDate must be ISO YYYY-MM-DD, got "${args.effectiveDate}"`);
+    }
+    const dryRun = args.dryRun ?? false;
+    const now = Date.now();
+    const results: Array<{
+      _id: string;
+      name?: string;
+      from: string | null;
+      to: string;
+      action: "would_change" | "changed" | "skipped_already_correct" | "not_found";
+    }> = [];
+
+    for (const id of args.memberProfileIds) {
+      const m = await ctx.db.get(id);
+      if (!m) {
+        results.push({ _id: id, from: null, to: args.effectiveDate, action: "not_found" });
+        continue;
+      }
+      const name = `${m.lastName}, ${m.firstName}`.toUpperCase();
+      const current = m.effectiveDate ?? null;
+      if (current === args.effectiveDate) {
+        results.push({ _id: id, name, from: current, to: args.effectiveDate, action: "skipped_already_correct" });
+        continue;
+      }
+      if (dryRun) {
+        results.push({ _id: id, name, from: current, to: args.effectiveDate, action: "would_change" });
+        continue;
+      }
+      await ctx.db.patch(id, { effectiveDate: args.effectiveDate, updatedAt: now });
+      results.push({ _id: id, name, from: current, to: args.effectiveDate, action: "changed" });
+    }
+
+    const changed = results.filter((r) => r.action === "changed");
+    if (!dryRun && changed.length > 0) {
+      await recordAdminAction(
+        ctx,
+        { clerkUserId: "system:data-migration" },
+        {
+          action: "member_profile.fix_effective_date",
+          targetType: "memberProfile",
+          targetId: changed[0]._id as any,
+          summary:
+            `Corrected effectiveDate → ${args.effectiveDate} on ${changed.length} member(s) ` +
+            `(Careington invoice #420211: members wrongly sent as 06/01 who had no access until 07/01).`,
+          metadata: { effectiveDate: args.effectiveDate, changed: changed.map((c) => c._id) },
+        },
+      );
+    }
+
+    return {
+      dryRun,
+      requested: args.memberProfileIds.length,
+      changed: changed.length,
+      skippedAlreadyCorrect: results.filter((r) => r.action === "skipped_already_correct").length,
+      notFound: results.filter((r) => r.action === "not_found").length,
+      results,
+    };
+  },
+});
+
