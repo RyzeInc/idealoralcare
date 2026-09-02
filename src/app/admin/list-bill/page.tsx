@@ -283,6 +283,7 @@ export default function ListBillPage() {
                 <div className="px-6 py-4 border-b border-slate-200">
                   <h3 className="font-semibold text-slate-900">Payment History</h3>
                 </div>
+                <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-slate-50 text-sm">
                     <tr>
@@ -311,6 +312,7 @@ export default function ListBillPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
           </>
@@ -329,7 +331,7 @@ export default function ListBillPage() {
                 No termed list-bill members in this group
               </div>
             ) : (
-              <div className="bg-white rounded-lg shadow overflow-hidden">
+              <div className="bg-white rounded-lg shadow overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-slate-50 text-sm">
                     <tr>
@@ -609,6 +611,7 @@ export default function ListBillPage() {
               {paidGroups} of {summary.length} groups paid · Click a row to manage
             </p>
           </div>
+          <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-slate-50 border-b border-slate-200 text-sm">
               <tr>
@@ -668,6 +671,7 @@ export default function ListBillPage() {
               </tr>
             </tfoot>
           </table>
+          </div>
         </div>
       )}
     </div>

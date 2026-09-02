@@ -82,6 +82,7 @@ export default function CommissionsPage() {
           <h2 className="text-lg font-semibold text-slate-900">Distribution Chain Commissions ({currentMonth})</h2>
         </div>
 
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
@@ -129,6 +130,7 @@ export default function CommissionsPage() {
             </tr>
           </tfoot>
         </table>
+        </div>
       </div>
 
       {/* Notes on Tiered Commissions */}

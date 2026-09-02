@@ -445,6 +445,7 @@ export default function PartnerApplicationsPage() {
             No submissions match your filters.
           </div>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left">
@@ -488,6 +489,7 @@ export default function PartnerApplicationsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

@@ -347,6 +347,7 @@ function ExcludedPrimaries({
           Left off deliberately. Their amounts are already off the subtotal above.
         </p>
       </div>
+      <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-slate-200 text-sm">
         <thead className="bg-slate-50">
           <tr>
@@ -394,6 +395,7 @@ function ExcludedPrimaries({
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
@@ -1301,6 +1303,7 @@ export default function VendorStatementDetailPage({
           <div className="px-6 py-4 border-b border-slate-200">
             <h2 className="text-sm font-semibold text-slate-700">Adjustments Included</h2>
           </div>
+          <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50">
               <tr>
@@ -1323,6 +1326,7 @@ export default function VendorStatementDetailPage({
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

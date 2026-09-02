@@ -342,6 +342,7 @@ export default function UsersAdmin() {
             <p className="text-slate-400 text-sm mt-1">Use &quot;Initialize First Admin&quot; to bootstrap your first owner account, or invite someone via email</p>
           </div>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100">
@@ -392,6 +393,7 @@ export default function UsersAdmin() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
@@ -403,6 +405,7 @@ export default function UsersAdmin() {
             <h2 className="font-semibold text-slate-900">Pending Invitations</h2>
             <span className="ml-auto text-sm text-slate-400">{pendingInvites.length} pending</span>
           </div>
+          <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100">
@@ -464,6 +467,7 @@ export default function UsersAdmin() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

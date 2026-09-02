@@ -513,6 +513,7 @@ export default function MembersAdmin() {
       <div className="flex gap-6">
         {/* Members Table */}
         <div className={`bg-white rounded-lg shadow overflow-hidden ${selectedMemberId ? 'flex-1' : 'w-full'}`}>
+          <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
@@ -636,6 +637,7 @@ export default function MembersAdmin() {
               )}
             </tbody>
           </table>
+          </div>
           <div className="px-6 py-3 border-t border-slate-200 flex items-center justify-between text-sm text-slate-600">
             <span>Showing {filteredMembers.length === 0 ? 0 : currentPage * PAGE_SIZE + 1}–{Math.min((currentPage + 1) * PAGE_SIZE, filteredMembers.length)} of {filteredMembers.length} members</span>
             {totalPages > 1 && (

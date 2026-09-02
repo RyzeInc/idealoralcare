@@ -88,6 +88,7 @@ function SitesList({ sites }: { sites: any[] }) {
 
   return (
     <>
+      <div className="overflow-x-auto">
       <table className="w-full">
         <thead className="bg-slate-50 border-b border-slate-200">
           <tr>
@@ -123,6 +124,7 @@ function SitesList({ sites }: { sites: any[] }) {
           )}
         </tbody>
       </table>
+      </div>
       {editingSite && <EditSiteModal site={editingSite} onClose={() => setEditingSite(null)} />}
     </>
   );
@@ -150,6 +152,7 @@ function AccountsList({ accounts, sites }: { accounts: any[]; sites: any[] }) {
           className="w-full max-w-xs px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
         />
       </div>
+      <div className="overflow-x-auto">
       <table className="w-full">
         <thead className="bg-slate-50 border-b border-slate-200">
           <tr>
@@ -186,6 +189,7 @@ function AccountsList({ accounts, sites }: { accounts: any[]; sites: any[] }) {
           )}
         </tbody>
       </table>
+      </div>
       {editingAccount && <EditAccountModal account={editingAccount} onClose={() => setEditingAccount(null)} />}
     </>
   );
@@ -215,6 +219,7 @@ function GroupsList({ groups, accounts, sites }: { groups: any[]; accounts: any[
           className="w-full max-w-xs px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
         />
       </div>
+      <div className="overflow-x-auto">
       <table className="w-full">
         <thead className="bg-slate-50 border-b border-slate-200">
           <tr>
@@ -274,6 +279,7 @@ function GroupsList({ groups, accounts, sites }: { groups: any[]; accounts: any[
           )}
         </tbody>
       </table>
+      </div>
       {editingGroup && <EditGroupModal group={editingGroup} accounts={accounts} onClose={() => setEditingGroup(null)} />}
     </>
   );

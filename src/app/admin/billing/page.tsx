@@ -139,6 +139,7 @@ export default function BillingPage() {
             <div className="px-6 py-4 border-b border-slate-200 bg-green-50">
               <h2 className="text-base font-semibold text-green-800">Paid Members ({paidMembers.length})</h2>
             </div>
+            <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
@@ -164,6 +165,7 @@ export default function BillingPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
 
@@ -174,6 +176,7 @@ export default function BillingPage() {
               <h2 className="text-base font-semibold text-amber-800">List-Bill Members ({listBillMembers.length})</h2>
               <p className="text-xs text-amber-700 mt-0.5">Employer is invoiced directly via list-bill — no Stripe subscription on file.</p>
             </div>
+            <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
@@ -200,6 +203,7 @@ export default function BillingPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
 
@@ -209,6 +213,7 @@ export default function BillingPage() {
             <div className="px-6 py-4 border-b border-slate-200 bg-purple-50">
               <h2 className="text-base font-semibold text-purple-800">Free / Comp Members ({freeMembers.length})</h2>
             </div>
+            <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
@@ -233,6 +238,7 @@ export default function BillingPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
 
@@ -345,7 +351,8 @@ export default function BillingPage() {
           <h2 className="text-lg font-semibold text-slate-900">Organizations & Brokers</h2>
           <p className="text-sm text-slate-500 mt-1">Click an organization to see its members</p>
         </div>
-        
+
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
@@ -450,6 +457,7 @@ export default function BillingPage() {
             </tr>
           </tfoot>
         </table>
+        </div>
       </div>
 
       {/* Notes */}
