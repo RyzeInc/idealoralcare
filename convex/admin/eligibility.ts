@@ -403,9 +403,14 @@ function csvToIsoDate(s: string): string | undefined {
   if (/^\d{8}$/.test(trimmed)) {
     return `${trimmed.slice(4, 8)}-${trimmed.slice(0, 2)}-${trimmed.slice(2, 4)}`;
   }
-  const slash = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  const slash = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
   if (slash) {
-    return `${slash[3]}-${slash[1].padStart(2, "0")}-${slash[2].padStart(2, "0")}`;
+    let year = slash[3];
+    if (year.length === 2) {
+      const yy = parseInt(year, 10);
+      year = String(yy <= 50 ? 2000 + yy : 1900 + yy);
+    }
+    return `${year}-${slash[1].padStart(2, "0")}-${slash[2].padStart(2, "0")}`;
   }
   return undefined;
 }
@@ -591,14 +596,119 @@ function parseCensusCsv(rows: Array<Record<string, string>>): Array<any> {
 }
 
 /**
+ * Detect the HR/benefits-admin employer census CSV layout where each row is a
+ * covered person with a per-row Member ID and "Home Address"-prefixed address
+ * columns — e.g. the "IDEAL Oral Health" (MAFGA) enrollment export. Distinct
+ * from the Soar-style isCensusCsv layout (which needs Employee SSN / Tier /
+ * Covered Member Name columns) by keying on Member ID + Home Address/Elected
+ * Plan instead.
+ */
+function isHrCensusCsv(headers: string[]): boolean {
+  const norm = headers.map(_normHeader);
+  const has = (...names: string[]) => names.some((n) => norm.includes(_normHeader(n)));
+  return (
+    has("Relationship", "Covered Member Relationship") &&
+    has("Member ID", "Employee ID") &&
+    has("Home Address", "Elected Plan")
+  );
+}
+
+/**
+ * Parse the HR/benefits-admin employer census CSV layout (see
+ * isHrCensusCsv) into primary records with embedded dependents. This format
+ * has no shared family/SSN key, so rows are grouped by order: an
+ * "Employee"-relationship row starts a new family, and any Spouse/Child/
+ * Domestic Partner rows immediately following it attach as dependents
+ * (mirrors the Careington .txt convention).
+ */
+function parseHrCensusCsv(rows: Array<Record<string, string>>): Array<any> {
+  type Family = { primary: any; dependents: any[] };
+  const families: Family[] = [];
+  let current: Family | null = null;
+
+  for (const row of rows) {
+    const relRaw = pickCol(row, "Relationship", "Covered Member Relationship");
+    const isPrimary = relRaw === "" || /^(employee|self|subscriber|primary|ee)$/i.test(relRaw.trim());
+
+    const firstName = pickCol(row, "First Name");
+    const lastName = pickCol(row, "Last Name");
+    const middleName = pickCol(row, "MI", "Middle Name") || undefined;
+    const gender = _normalizeGender(pickCol(row, "Gender"));
+    const dateOfBirth = csvToIsoDate(pickCol(row, "Date Of Birth", "DOB", "Date of Birth"));
+    const email = pickCol(row, "Email", "Email Address") || undefined;
+    const line1 = pickCol(row, "Home Address", "Address 1", "Address Line 1");
+    const address = line1
+      ? {
+          line1,
+          line2: pickCol(row, "Home Address 2", "Address 2") || undefined,
+          city: pickCol(row, "Home City", "City"),
+          state: pickCol(row, "Home State", "State"),
+          postalCode: pickCol(row, "Home Zip", "Zip"),
+          country: pickCol(row, "Home Country") || "US",
+        }
+      : undefined;
+    const effectiveDate = csvToIsoDate(pickCol(row, "Effective Date"));
+    const termDate = csvToIsoDate(pickCol(row, "Termination Date"));
+    const coverage = pickCol(row, "Elected Plan") || undefined;
+    const uniqueId = pickCol(row, "Member ID", "Employee ID") || undefined;
+    const location = pickCol(row, "Billing Work Location", "Division") || undefined;
+    const department = pickCol(row, "Class") || undefined;
+
+    if (isPrimary) {
+      current = {
+        primary: {
+          firstName,
+          middleName,
+          lastName,
+          gender,
+          dateOfBirth,
+          email,
+          address,
+          effectiveDate,
+          termDate,
+          coverage,
+          uniqueId,
+          location,
+          department,
+          seqNum: "00",
+        },
+        dependents: [],
+      };
+      families.push(current);
+    } else if (current) {
+      current.dependents.push({
+        firstName,
+        lastName,
+        dateOfBirth,
+        gender,
+        email,
+        address,
+        relationship: _normalizeRelationship(relRaw),
+      });
+    }
+  }
+
+  return families.map((fam) => ({
+    ...fam.primary,
+    dependents:
+      fam.dependents.length > 0
+        ? fam.dependents.map((d, di) => ({ ...d, seqNum: String(di + 1).padStart(2, "0") }))
+        : undefined,
+  }));
+}
+
+/**
  * Parse CSV content (comma-separated with header row).
  *
- * Two layouts are supported automatically:
+ * Three layouts are supported automatically:
  *   1. Employer census / eligibility files where each row is a covered member
  *      (Employee / Spouse / Child) — e.g. the Soar Restaurants format. Rows are
  *      grouped into families by Employee SSN, and SSN / monthly premium /
  *      location / tier are captured for list-bill invoicing.
- *   2. Simple flat files with one row per primary (headers: firstName,
+ *   2. HR/benefits-admin census exports with a per-row Member ID and
+ *      "Home Address"-prefixed columns — e.g. the "IDEAL Oral Health" (MAFGA)
+ *      format. See isHrCensusCsv/parseHrCensusCsv.
+ *   3. Simple flat files with one row per primary (headers: firstName,
  *      lastName, email, phone, dateOfBirth, gender).
  */
 function parseCsvContent(content: string): Array<any> {
@@ -607,6 +717,9 @@ function parseCsvContent(content: string): Array<any> {
 
   if (isCensusCsv(headers)) {
     return parseCensusCsv(rows);
+  }
+  if (isHrCensusCsv(headers)) {
+    return parseHrCensusCsv(rows);
   }
 
   // ── Simple flat layout ──
@@ -1471,9 +1584,10 @@ export const previewEligibilityFile = action({
       primaryRecords = parseCsvContent(content);
       const parsedCsv = parseDelimitedRows(content);
       detectedColumns.push(...parsedCsv.headers.filter(Boolean));
-      const census = isCensusCsv(parsedCsv.headers);
-      // Validate CSV records. Employer census files (Soar-style) carry a
-      // different column set than the Careington census template, so we apply a
+      const census = isCensusCsv(parsedCsv.headers) || isHrCensusCsv(parsedCsv.headers);
+      // Validate CSV records. Employer census files (Soar-style and HR/
+      // benefits-admin exports like IDEAL Oral Health) carry a different
+      // column set than the Careington census template, so we apply a
       // lighter check (name + an identifier) rather than the full template rules.
       primaryRecords.forEach((record, idx) => {
         if (census) {

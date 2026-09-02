@@ -10,9 +10,9 @@ Ideal Oral Health uses **Resend** (v6.9.3) for transactional email fulfillment. 
 ### Location: `.env.local`
 
 ```env
-RESEND_API_KEY=re_QyYUnSqQ_5XfLypAesBXGezP5Tz1TD1oy
+RESEND_API_KEY=re_...              # from resend.com dashboard — never commit the real value
 RESEND_FROM_EMAIL=noreply@getidealoh.com
-INTERNAL_API_SECRET=czY8wkNuZlHGAs78t5Fy2hbUoWoRSQjm08al+tFYFYY=
+INTERNAL_API_SECRET=...            # shared secret, generate with e.g. `openssl rand -base64 32`
 ```
 
 ### Env Vars Explanation:
