@@ -636,7 +636,7 @@ export default function EligibilityUploadPage() {
             {previewResult.sampleRecords?.length > 0 && (
               <div>
                 <p className="text-xs font-semibold text-slate-700 mb-1">Preview (first {previewResult.sampleRecords.length} of {previewResult.primaryCount.toLocaleString()})</p>
-                <div className="border border-slate-200 rounded overflow-hidden">
+                <div className="border border-slate-200 rounded overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead className="bg-slate-50">
                       <tr>
@@ -765,6 +765,7 @@ export default function EligibilityUploadPage() {
         {eligibilityFiles.length === 0 ? (
           <div className="p-6 text-center text-slate-500">No files uploaded yet</div>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
@@ -945,6 +946,7 @@ export default function EligibilityUploadPage() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

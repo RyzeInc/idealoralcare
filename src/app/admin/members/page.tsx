@@ -32,6 +32,20 @@ function getMissingFields(member: any): string[] {
   return CENSUS_FIELDS.filter((f) => !f.get(member)).map((f) => f.label);
 }
 
+// Members who can be sent a Clerk welcome/set-password email: haven't linked
+// a Clerk account yet, aren't a dependent (dependents share the primary's
+// email and are activated when the primary accepts), and are still in an
+// active-ish pre-registration status.
+const UNREGISTERED_STATUSES = new Set(['lead', 'eligible', 'enrolling']);
+function needsWelcomeEmail(member: any): boolean {
+  return (
+    !!member.email &&
+    !member.customerId &&
+    member.memberRole !== 'dependent' &&
+    UNREGISTERED_STATUSES.has(member.memberType)
+  );
+}
+
 function SortIcon({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
   if (!active) return <ChevronsUpDown size={12} className="text-slate-300" />;
   return dir === 'asc'
@@ -95,6 +109,8 @@ export default function MembersAdmin() {
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkStatus, setBulkStatus] = useState('');
+  const [resendingMemberId, setResendingMemberId] = useState<string | null>(null);
+  const [isBulkResending, setIsBulkResending] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState({ groupId: '', firstName: '', lastName: '', email: '', phone: '', dateOfBirth: '', memberType: 'eligible', employeeType: '' });
   const [showMissingOnly, setShowMissingOnly] = useState(false);
@@ -141,6 +157,8 @@ export default function MembersAdmin() {
   const bulkUpdate = useMutation(api.admin.members.bulkUpdateMemberStatus);
   const termListBillMember = useMutation(api.admin.members.termListBillMember);
   const sendReenrollLink = useAction((api as any).admin.members.sendReenrollmentLink);
+  const resendWelcomeEmail = useAction(api.admin.eligibilityProvisioning.resendInvite);
+  const bulkResendWelcomeEmails = useAction(api.admin.eligibilityProvisioning.bulkResendWelcomeEmails);
 
   const filteredMembers = members.filter((member: any) => {
     const memberName = `${member.firstName || ''} ${member.lastName || ''}`.toLowerCase();
@@ -170,6 +188,8 @@ export default function MembersAdmin() {
       return av < bv ? -1 * dir : av > bv ? 1 * dir : 0;
     });
   }
+
+  const unregisteredInView = filteredMembers.filter(needsWelcomeEmail);
 
   // Census validation stats across ALL members (not just filtered)
   const totalMembersCount = (members as any[]).length;
@@ -313,6 +333,49 @@ export default function MembersAdmin() {
     }
   };
 
+  const handleResendWelcome = async (memberId: string, name: string) => {
+    setResendingMemberId(memberId);
+    try {
+      await resendWelcomeEmail({ memberProfileId: memberId as Id<'memberProfiles'> });
+      toast.success('Welcome email sent', `Set-password email sent to ${name}`);
+    } catch (err) {
+      toast.fromError(err, 'Could not send welcome email');
+    } finally {
+      setResendingMemberId(null);
+    }
+  };
+
+  const selectAllUnregistered = () => {
+    setCheckedIds(new Set(filteredMembers.filter(needsWelcomeEmail).map((m: any) => m._id)));
+  };
+
+  const handleBulkResendWelcome = async () => {
+    const targets = members.filter((m: any) => checkedIds.has(m._id) && needsWelcomeEmail(m));
+    if (targets.length === 0) {
+      toast.warning('Nothing to send', 'None of the selected members are pending registration.');
+      return;
+    }
+    setIsBulkResending(true);
+    try {
+      const result = await bulkResendWelcomeEmails({
+        memberIds: targets.map((m: any) => m._id) as Id<'memberProfiles'>[],
+      });
+      setCheckedIds(new Set());
+      if (result.failed === 0) {
+        toast.success('Welcome emails sent', `Resent to ${result.succeeded} of ${result.attempted} member(s).`);
+      } else {
+        toast.warning(
+          `Sent ${result.succeeded} of ${result.attempted}`,
+          `${result.failed} failed — e.g. ${result.errors[0]?.email}: ${result.errors[0]?.message}`
+        );
+      }
+    } catch (err) {
+      toast.fromError(err, 'Bulk resend failed');
+    } finally {
+      setIsBulkResending(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Breadcrumbs items={[{ label: 'Members' }]} />
@@ -415,6 +478,16 @@ export default function MembersAdmin() {
           {showTerminated ? <Eye size={16} /> : <EyeOff size={16} />}
           {showTerminated ? 'Showing terminated' : 'Terminated hidden'}
         </button>
+        {unregisteredInView.length > 0 && (
+          <button
+            onClick={selectAllUnregistered}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm border border-amber-300 bg-amber-50 text-amber-800 rounded-lg hover:bg-amber-100"
+            title="Select every member in the current view who hasn't registered a Clerk account yet"
+          >
+            <Send size={16} />
+            Select all not registered ({unregisteredInView.length})
+          </button>
+        )}
       </div>
 
       {/* Bulk action bar */}
@@ -423,6 +496,13 @@ export default function MembersAdmin() {
           <span className="text-sm font-medium text-blue-800">{checkedIds.size} selected</span>
           <button onClick={() => setShowBulkModal(true)} className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">
             Bulk Status Change
+          </button>
+          <button
+            onClick={handleBulkResendWelcome}
+            disabled={isBulkResending}
+            className="px-3 py-1 text-xs bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-50"
+          >
+            {isBulkResending ? 'Sending…' : 'Resend Welcome Emails'}
           </button>
           <button onClick={() => setCheckedIds(new Set())} className="text-xs text-blue-600 hover:underline">
             Clear selection
@@ -529,6 +609,16 @@ export default function MembersAdmin() {
                         <button onClick={() => { setSelectedMemberId(member._id); setIsEditMode(false); }} className="p-2 hover:bg-blue-100 rounded text-blue-600" title="View">
                           <Eye size={16} />
                         </button>
+                        {needsWelcomeEmail(member) && (
+                          <button
+                            onClick={() => handleResendWelcome(member._id, `${member.firstName} ${member.lastName}`)}
+                            disabled={resendingMemberId === member._id}
+                            className="p-2 hover:bg-emerald-100 rounded text-emerald-600 disabled:opacity-50"
+                            title="Resend welcome / set-password email"
+                          >
+                            <Send size={16} />
+                          </button>
+                        )}
                         <button onClick={() => {
                           setStatusTarget({ id: member._id, name: `${member.firstName} ${member.lastName}`, current: member.memberType });
                           setNewStatus('');
@@ -658,6 +748,17 @@ export default function MembersAdmin() {
                       ? `Download ID Cards (${1 + memberDetail.member.dependents.length})`
                       : 'Download ID Card'}
                   </button>
+
+                  {needsWelcomeEmail(memberDetail.member) && (
+                    <button
+                      onClick={() => handleResendWelcome(selectedMemberId!, `${memberDetail.member.firstName} ${memberDetail.member.lastName}`)}
+                      disabled={resendingMemberId === selectedMemberId}
+                      className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      <Send size={14} />
+                      {resendingMemberId === selectedMemberId ? 'Sending…' : 'Resend Welcome Email'}
+                    </button>
+                  )}
 
                   {/* List-Bill Actions (FT employees) */}
                   {memberDetail.member.employeeType === 'full_time' && (

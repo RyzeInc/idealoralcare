@@ -476,42 +476,38 @@ export const provisionEligibilityFile = action({
             }
             const invitation: any = await inviteRes.json();
             const invitationUrl: string | undefined = invitation?.url;
+            if (!invitationUrl) {
+              throw new Error(
+                `Clerk invitation for ${email} returned no url; cannot send welcome email`
+              );
+            }
 
-            // Invitations don't yield a user_id; member will be linked when
-            // they accept (via the Clerk webhook → linkInvitedMember below).
-            // Record the invitation on the member so we know it's pending.
-            let resendEmailId: string | null = null;
-            if (invitationUrl) {
-              const memberName =
-                [m.firstName, m.lastName].filter(Boolean).join(" ").trim() ||
-                email;
-              const sponsorName: string | undefined =
-                (await ctx.runQuery(
-                  internal.admin.eligibilityProvisioning.getGroupName,
-                  { groupId: m.groupId }
-                )) ?? undefined;
-              try {
-                const emailResult: any = await ctx.runAction(
-                  api.legal.emailFulfillment
-                    .sendEligibilityWelcomeSetPasswordEmail,
-                  {
-                    memberName,
-                    memberEmail: email,
-                    invitationUrl,
-                    sponsorName,
-                  }
-                );
-                // Capture Resend email ID for delivery tracking
-                resendEmailId = emailResult?.emailId ?? null;
-              } catch (emailErr: any) {
-                console.error(
-                  `[provisionEligibilityFile] welcome email failed for ${email}:`,
-                  emailErr?.message ?? emailErr
-                );
+            const memberName =
+              [m.firstName, m.lastName].filter(Boolean).join(" ").trim() ||
+              email;
+            const sponsorName: string | undefined =
+              (await ctx.runQuery(
+                internal.admin.eligibilityProvisioning.getGroupName,
+                { groupId: m.groupId }
+              )) ?? undefined;
+            // Notify: false above means Clerk's own invite email never fires —
+            // this Resend call is the ONLY email the member gets, so a failure
+            // here must fail the whole attempt rather than be swallowed; a
+            // "succeeded" invite with no delivered email leaves the member with
+            // no way to ever find the invitation.
+            const emailResult: any = await ctx.runAction(
+              api.legal.emailFulfillment.sendEligibilityWelcomeSetPasswordEmail,
+              {
+                memberName,
+                memberEmail: email,
+                invitationUrl,
+                sponsorName,
               }
-            } else {
-              console.error(
-                `[provisionEligibilityFile] Clerk invitation for ${email} returned no url; skipping welcome email`
+            );
+            const resendEmailId: string | undefined = emailResult?.emailId ?? undefined;
+            if (!resendEmailId) {
+              throw new Error(
+                `Welcome email for ${email} did not return a Resend email ID — send may have failed`
               );
             }
 
@@ -521,7 +517,7 @@ export const provisionEligibilityFile = action({
             await ctx.runMutation(internal.admin.eligibilityProvisioning.markInvited, {
               memberProfileId: m._id,
               fileId: args.fileId,
-              resendEmailId: resendEmailId ?? undefined,
+              resendEmailId,
             });
             result.succeeded++;
             await new Promise((r) => setTimeout(r, BATCH_DELAY_MS));
@@ -671,7 +667,7 @@ export const getGroupName = internalQuery({
 export const markInvited = internalMutation({
   args: {
     memberProfileId: v.id("memberProfiles"),
-    fileId: v.id("eligibilityFiles"),
+    fileId: v.optional(v.id("eligibilityFiles")),
     resendEmailId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -796,9 +792,104 @@ export const linkInvitedMember = mutation({
 // ─────────────────────────────────────────────────────────────────────
 
 /**
- * Resend a Clerk invitation + set-password welcome email to an `enrolling`
- * member. Revokes any existing pending invitations first so only one link is
- * active at a time.
+ * Revoke any pending Clerk invite, issue a fresh one, send the branded
+ * set-password welcome email via Resend, and record the send as a
+ * memberActivity. Shared by the single-member `resendInvite` and the
+ * `bulkResendWelcomeEmails` mass-resend action below. Throws on any failure
+ * — the caller decides whether that's fatal for the whole request (single
+ * resend) or just one entry in a batch (bulk resend).
+ */
+async function sendWelcomeInviteToMember(
+  ctx: any,
+  secret: string,
+  profile: any,
+  sourceTag: string
+): Promise<{ resendEmailId: string }> {
+  const email: string = profile.email;
+  if (!email) throw new Error("Member has no email address");
+
+  // 1. Revoke any pending Clerk invitations for this email
+  try {
+    const listRes = await fetch(
+      `https://api.clerk.com/v1/invitations?status=pending&limit=10`,
+      { headers: { Authorization: `Bearer ${secret}` } }
+    );
+    if (listRes.ok) {
+      const body: any = await listRes.json();
+      const pending: any[] = Array.isArray(body) ? body : body.data ?? [];
+      for (const inv of pending) {
+        if (inv.email_address?.toLowerCase() === email.toLowerCase()) {
+          await fetch(`https://api.clerk.com/v1/invitations/${inv.id}/revoke`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${secret}` },
+          });
+        }
+      }
+    }
+  } catch (revokeErr: any) {
+    console.warn(`[sendWelcomeInviteToMember] revoke failed (non-fatal) for ${email}:`, revokeErr?.message);
+  }
+
+  // 2. Create a fresh invitation
+  const inviteRes = await fetch("https://api.clerk.com/v1/invitations", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${secret}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      email_address: email,
+      public_metadata: {
+        memberProfileId: profile._id,
+        groupId: profile.groupId,
+        source: sourceTag,
+      },
+      notify: false,
+      ignore_existing: true,
+    }),
+  });
+  if (!inviteRes.ok) {
+    const text = await inviteRes.text();
+    throw new Error(`Clerk invite failed (${inviteRes.status}): ${text.slice(0, 200)}`);
+  }
+  const invitation: any = await inviteRes.json();
+  const invitationUrl: string | undefined = invitation?.url;
+  if (!invitationUrl) throw new Error("Clerk returned no invitation URL");
+
+  // 3. Send branded set-password email
+  const memberName =
+    [profile.firstName, profile.lastName].filter(Boolean).join(" ").trim() || email;
+  const sponsorName: string | undefined =
+    (await ctx.runQuery(
+      internal.admin.eligibilityProvisioning.getGroupName,
+      { groupId: profile.groupId }
+    )) ?? undefined;
+  const emailResult: any = await ctx.runAction(api.legal.emailFulfillment.sendEligibilityWelcomeSetPasswordEmail, {
+    memberName,
+    memberEmail: email,
+    invitationUrl,
+    sponsorName,
+  });
+  const resendEmailId: string | undefined = emailResult?.emailId ?? undefined;
+  if (!resendEmailId) {
+    throw new Error(`Welcome email to ${email} did not return a Resend email ID — send may have failed`);
+  }
+
+  // 4. Record activity
+  await ctx.runMutation(internal.admin.eligibilityProvisioning.markInvited, {
+    memberProfileId: profile._id,
+    fileId: profile.eligibilityFileId ?? undefined,
+    resendEmailId,
+  });
+
+  return { resendEmailId };
+}
+
+/**
+ * Resend a Clerk invitation + set-password welcome email to a single member.
+ * Revokes any existing pending invitation first so only one link is active
+ * at a time. Usable on any not-yet-registered member, any time — not just
+ * right after an eligibility file upload.
  */
 export const resendInvite = action({
   args: { memberProfileId: v.id("memberProfiles") },
@@ -814,87 +905,73 @@ export const resendInvite = action({
       { memberProfileId: args.memberProfileId }
     );
     if (!profile) throw new Error("Member profile not found");
-    const email: string = profile.email;
-    if (!email) throw new Error("Member has no email address");
 
-    // 1. Revoke any pending Clerk invitations for this email
-    try {
-      const listRes = await fetch(
-        `https://api.clerk.com/v1/invitations?status=pending&limit=10`,
-        { headers: { Authorization: `Bearer ${secret}` } }
-      );
-      if (listRes.ok) {
-        const body: any = await listRes.json();
-        const pending: any[] = Array.isArray(body) ? body : body.data ?? [];
-        for (const inv of pending) {
-          if (inv.email_address?.toLowerCase() === email.toLowerCase()) {
-            await fetch(`https://api.clerk.com/v1/invitations/${inv.id}/revoke`, {
-              method: "POST",
-              headers: { Authorization: `Bearer ${secret}` },
-            });
-          }
+    await sendWelcomeInviteToMember(ctx, secret, profile, "eligibility_file_resend");
+
+    return { success: true, message: `Invite resent to ${profile.email}` };
+  },
+});
+
+/**
+ * Mass-resend the Clerk invitation + welcome email to many members at once —
+ * e.g. "everyone who hasn't finished registering their Clerk account yet"
+ * across the whole org, not scoped to a single eligibility file. Runs
+ * sequentially with the same stagger as provisionEligibilityFile to stay
+ * under Clerk/Resend rate limits. A failure on one member is recorded and
+ * does not stop the rest of the batch.
+ */
+export const bulkResendWelcomeEmails = action({
+  args: { memberIds: v.array(v.id("memberProfiles")) },
+  handler: async (
+    ctx,
+    args
+  ): Promise<{
+    attempted: number;
+    succeeded: number;
+    failed: number;
+    errors: Array<{ email: string; message: string }>;
+  }> => {
+    // @ts-ignore
+    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+
+    const secret = process.env.CLERK_SECRET_KEY;
+    if (!secret) throw new ConvexError("CLERK_SECRET_KEY env var is not set on Convex deployment");
+
+    const result = {
+      attempted: args.memberIds.length,
+      succeeded: 0,
+      failed: 0,
+      errors: [] as Array<{ email: string; message: string }>,
+    };
+
+    for (const memberProfileId of args.memberIds) {
+      let profile: any = null;
+      try {
+        profile = await ctx.runQuery(
+          internal.admin.eligibilityProvisioning.getMemberProfileById,
+          { memberProfileId }
+        );
+        if (!profile) throw new Error("Member profile not found");
+        if (profile.memberRole === "dependent") {
+          throw new Error("Dependents share the primary's email — resend to the primary instead");
         }
+        if (profile.customerId) {
+          throw new Error("Member has already registered a Clerk account");
+        }
+
+        await sendWelcomeInviteToMember(ctx, secret, profile, "bulk_resend_welcome");
+        result.succeeded++;
+      } catch (err: any) {
+        result.failed++;
+        result.errors.push({
+          email: profile?.email ?? String(memberProfileId),
+          message: err?.message ?? String(err),
+        });
       }
-    } catch (revokeErr: any) {
-      console.warn("[resendInvite] revoke failed (non-fatal):", revokeErr?.message);
+      await new Promise((r) => setTimeout(r, BATCH_DELAY_MS));
     }
 
-    // 2. Create a fresh invitation
-    const inviteRes = await fetch("https://api.clerk.com/v1/invitations", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${secret}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email_address: email,
-        public_metadata: {
-          memberProfileId: profile._id,
-          groupId: profile.groupId,
-          source: "eligibility_file_resend",
-        },
-        notify: false,
-        ignore_existing: true,
-      }),
-    });
-    if (!inviteRes.ok) {
-      const text = await inviteRes.text();
-      throw new Error(`Clerk invite failed (${inviteRes.status}): ${text.slice(0, 200)}`);
-    }
-    const invitation: any = await inviteRes.json();
-    const invitationUrl: string | undefined = invitation?.url;
-    if (!invitationUrl) throw new Error("Clerk returned no invitation URL");
-
-    // 3. Send branded set-password email
-    const memberName =
-      [profile.firstName, profile.lastName].filter(Boolean).join(" ").trim() || email;
-    const sponsorName: string | undefined =
-      (await ctx.runQuery(
-        internal.admin.eligibilityProvisioning.getGroupName,
-        { groupId: profile.groupId }
-      )) ?? undefined;
-    let resendEmailId: string | undefined;
-    try {
-      const emailResult: any = await ctx.runAction(api.legal.emailFulfillment.sendEligibilityWelcomeSetPasswordEmail, {
-        memberName,
-        memberEmail: email,
-        invitationUrl,
-        sponsorName,
-      });
-      resendEmailId = emailResult?.emailId ?? undefined;
-    } catch (emailErr: any) {
-      // Email failure is non-fatal for resend — keep invitiation alive
-      console.error(`[resendInvite] email send failed for ${email}:`, emailErr?.message ?? emailErr);
-    }
-
-    // 4. Record activity
-    await ctx.runMutation(internal.admin.eligibilityProvisioning.markInvited, {
-      memberProfileId: args.memberProfileId,
-      fileId: (profile.eligibilityFileId ?? profile.groupId) as any,
-      resendEmailId,
-    });
-
-    return { success: true, message: `Invite resent to ${email}` };
+    return result;
   },
 });
 
