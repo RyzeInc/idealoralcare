@@ -1,33 +1,24 @@
-import { action, internalMutation } from "../_generated/server";
+import { action, internalMutation, query } from "../_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
 import { requireAdminAction } from "../lib/authGuards";
-import { sendViaGmail } from "../lib/gmail";
+import { sendViaResend } from "../lib/resend";
+import { EMAIL_TEMPLATES } from "../lib/emailTemplates";
+import { getBaseUrl } from "../lib/env";
 
 /**
  * EMAIL NOTIFICATION SYSTEM
  *
- * Admin/internal emails via Gmail SMTP (through Next.js API route).
- * Member-facing transactional emails with attachments use Resend (see legal/emailFulfillment.ts).
+ * Admin/internal emails. Everything goes through Resend — the same path as the
+ * member-facing emails in legal/emailFulfillment.ts. All HTML lives in
+ * lib/emailTemplates.ts so the debug tester stays in sync.
  *
  * Bulk email: batchSendWelcomeEmails dispatches individual sends via
  * ctx.scheduler to avoid action timeout and respect rate limits.
  */
 
-// Gmail Workspace: 2,000 emails/day on Business Starter
 const EMAIL_BATCH_SIZE = 50;
 const EMAIL_STAGGER_MS = 5000; // 5 seconds between batches of 50
-
-/**
- * Helper: send email via Gmail SMTP
- */
-async function sendEmail(
-  to: string,
-  subject: string,
-  html: string
-): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  return sendViaGmail({ to, subject, html });
-}
 
 /**
  * Welcome email after enrollment
@@ -42,28 +33,19 @@ export const sendWelcomeEmail = action({
   handler: async (ctx, args) => {
     // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
     await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
-    const html = `
-      <html>
-        <body style="font-family: Arial, sans-serif; color: #333;">
-          <h2>Welcome to Ideal Health Oral Care!</h2>
-          <p>Hi ${args.firstName},</p>
-          <p>Welcome! Your enrollment is complete. Here's your welcome details:</p>
-          <ul>
-            <li><strong>Plan:</strong> ${args.planName}</li>
-            <li><strong>Member ID:</strong> ${args.memberId}</li>
-          </ul>
-          <p>You can now access your member portal and view your plan benefits.</p>
-          <p>If you have any questions, please contact our support team.</p>
-          <p>Best regards,<br/>The Ideal Health Team</p>
-        </body>
-      </html>
-    `;
 
-    const result = await sendEmail(
-      args.email,
-      "Welcome to Ideal Health Oral Care",
-      html
-    );
+    const { subject, html } = EMAIL_TEMPLATES["admin-welcome"].render({
+      firstName: args.firstName,
+      planName: args.planName,
+      memberId: args.memberId,
+    });
+
+    const result = await sendViaResend({
+      to: args.email,
+      subject,
+      html,
+      tags: [{ name: "category", value: "admin-welcome" }],
+    });
 
     // Log event
     await ctx.runMutation(api.subscriptions.events.logEvent, {
@@ -96,37 +78,20 @@ export const sendPaymentReceiptEmail = action({
   handler: async (ctx, args) => {
     // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
     await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
-    const html = `
-      <html>
-        <body style="font-family: Arial, sans-serif; color: #333;">
-          <h2>Payment Receipt</h2>
-          <p>Hi ${args.firstName},</p>
-          <p>Thank you for your payment. Here's your receipt:</p>
-          <table style="border-collapse: collapse; width: 100%; margin: 20px 0;">
-            <tr>
-              <td style="padding: 8px; border: 1px solid #ddd;"><strong>Plan</strong></td>
-              <td style="padding: 8px; border: 1px solid #ddd;">${args.planName}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; border: 1px solid #ddd;"><strong>Amount</strong></td>
-              <td style="padding: 8px; border: 1px solid #ddd;">$${(args.amount / 100).toFixed(2)}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; border: 1px solid #ddd;"><strong>Transaction ID</strong></td>
-              <td style="padding: 8px; border: 1px solid #ddd;">${args.transactionId}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; border: 1px solid #ddd;"><strong>Date</strong></td>
-              <td style="padding: 8px; border: 1px solid #ddd;">${new Date().toLocaleDateString()}</td>
-            </tr>
-          </table>
-          <p>If you have questions, contact support.</p>
-          <p>Best regards,<br/>The Ideal Health Team</p>
-        </body>
-      </html>
-    `;
 
-    const result = await sendEmail(args.email, "Payment Receipt", html);
+    const { subject, html } = EMAIL_TEMPLATES["payment-receipt"].render({
+      firstName: args.firstName,
+      amount: args.amount,
+      planName: args.planName,
+      transactionId: args.transactionId,
+    });
+
+    const result = await sendViaResend({
+      to: args.email,
+      subject,
+      html,
+      tags: [{ name: "category", value: "payment-receipt" }],
+    });
 
     // Log event
     await ctx.runMutation(api.subscriptions.events.logEvent, {
@@ -147,8 +112,8 @@ export const sendPaymentReceiptEmail = action({
 });
 
 /**
- * Member ID card email (with PDF attachment)
- * Note: In production, would attach PDF generated by member ID card action
+ * Member ID card email
+ * Note: the card PDF is not attached yet — the email links to the portal.
  */
 export const sendMemberIdCardEmail = action({
   args: {
@@ -159,20 +124,18 @@ export const sendMemberIdCardEmail = action({
   handler: async (ctx, args) => {
     // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
     await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
-    const html = `
-      <html>
-        <body style="font-family: Arial, sans-serif; color: #333;">
-          <h2>Your Ideal Health Member ID Card</h2>
-          <p>Hi ${args.firstName},</p>
-          <p>Your member ID card is attached below. You can also download it from your member portal.</p>
-          <p><strong>Member ID:</strong> ${args.memberId}</p>
-          <p>Keep this card handy when visiting your dentist or accessing other plan benefits.</p>
-          <p>Best regards,<br/>The Ideal Health Team</p>
-        </body>
-      </html>
-    `;
 
-    const result = await sendEmail(args.email, "Your Member ID Card", html);
+    const { subject, html } = EMAIL_TEMPLATES["member-id-card"].render({
+      firstName: args.firstName,
+      memberId: args.memberId,
+    });
+
+    const result = await sendViaResend({
+      to: args.email,
+      subject,
+      html,
+      tags: [{ name: "category", value: "member-id-card" }],
+    });
 
     // Log event
     await ctx.runMutation(api.subscriptions.events.logEvent, {
@@ -203,28 +166,22 @@ export const sendEligibilityReminderEmail = action({
   handler: async (ctx, args) => {
     // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
     await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 5); // 5 days from now (roughly 1st of next month)
 
-    const html = `
-      <html>
-        <body style="font-family: Arial, sans-serif; color: #333;">
-          <h2>Monthly Eligibility File Reminder</h2>
-          <p>Hi ${args.adminName},</p>
-          <p>This is a friendly reminder to submit your eligibility file for <strong>${args.groupName}</strong>.</p>
-          <p><strong>Due Date:</strong> ${dueDate.toLocaleDateString()}</p>
-          <p>Please log into your admin portal to upload the latest member eligibility data.</p>
-          <p><a href="https://idealoralcare.com/admin">Go to Admin Portal</a></p>
-          <p>Thank you!<br/>The Ideal Health Team</p>
-        </body>
-      </html>
-    `;
+    const { subject, html } = EMAIL_TEMPLATES["eligibility-reminder"].render({
+      groupName: args.groupName,
+      adminName: args.adminName,
+      dueDate: dueDate.toLocaleDateString(),
+    });
 
-    const result = await sendEmail(
-      args.email,
-      `Monthly Eligibility File Reminder: ${args.groupName}`,
-      html
-    );
+    const result = await sendViaResend({
+      to: args.email,
+      subject,
+      html,
+      tags: [{ name: "category", value: "eligibility-reminder" }],
+    });
 
     // Log event
     await ctx.runMutation(api.subscriptions.events.logEvent, {
@@ -244,7 +201,7 @@ export const sendEligibilityReminderEmail = action({
 });
 
 /**
- * Bulk email for testing
+ * Connectivity check for the Resend send path
  */
 export const sendTestEmail = action({
   args: {
@@ -253,17 +210,15 @@ export const sendTestEmail = action({
   handler: async (ctx, args) => {
     // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
     await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
-    const html = `
-      <html>
-        <body style="font-family: Arial, sans-serif; color: #333;">
-          <h2>Test Email</h2>
-          <p>This is a test email from Ideal Health Oral Care.</p>
-          <p>If you received this, the email system is working correctly!</p>
-        </body>
-      </html>
-    `;
 
-    return await sendEmail(args.email, "Test Email from Ideal Health", html);
+    const { subject, html } = EMAIL_TEMPLATES["connectivity-test"].render({});
+
+    return await sendViaResend({
+      to: args.email,
+      subject,
+      html,
+      tags: [{ name: "category", value: "connectivity-test" }],
+    });
   },
 });
 
@@ -324,8 +279,6 @@ export const batchSendWelcomeEmails = action({
     };
   },
 });
-
-import { query } from "../_generated/server";
 
 /**
  * Internal query for bulk email member list
@@ -409,115 +362,19 @@ export const sendSingleWelcomeEmailInternal = action({
     planName: v.string(),
     memberId: v.string(),
   },
-  handler: async (ctx, args) => {
-    const memberPortalUrl = `https://getidealoh.com/member/${args.memberId}/card`;
-    const cardDownloadUrl = `https://getidealoh.com/api/card/download/${args.memberId}`;
-    
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="UTF-8">
-          <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #333; line-height: 1.6; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: linear-gradient(90deg, #0066CC, #14b8a6); color: white; padding: 30px; border-radius: 8px 8px 0 0; text-align: center; }
-            .header h1 { margin: 0; font-size: 24px; }
-            .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; border-top: 3px solid #0066CC; }
-            .card-info { background: white; padding: 20px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #0066CC; }
-            .card-field { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
-            .card-field:last-child { border-bottom: none; }
-            .card-label { font-weight: 600; color: #666; }
-            .card-value { font-weight: 700; color: #0f172a; font-family: monospace; }
-            .button-group { margin: 25px 0; text-align: center; }
-            .button { display: inline-block; padding: 12px 24px; margin: 5px; border-radius: 6px; text-decoration: none; font-weight: 600; transition: all 0.3s; }
-            .button-primary { background: #0066CC; color: white; }
-            .button-primary:hover { background: #0052a3; }
-            .button-secondary { background: #e5e7eb; color: #333; }
-            .button-secondary:hover { background: #d1d5db; }
-            .benefits { background: white; padding: 20px; border-radius: 6px; margin: 20px 0; }
-            .benefits h3 { margin-top: 0; color: #0066CC; }
-            .benefits ul { margin: 10px 0; padding-left: 20px; }
-            .benefits li { margin: 8px 0; }
-            .footer { color: #666; font-size: 12px; text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; }
-            .support-info { background: #fff8e1; padding: 15px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #f9a825; }
-            .support-info strong { color: #b8860b; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>🎉 Welcome to Ideal Oral Health!</h1>
-              <p style="margin: 10px 0 0 0;">Your membership is now active</p>
-            </div>
-            
-            <div class="content">
-              <p style="margin-top: 0;">Hi ${args.firstName},</p>
-              <p>Congratulations! You've been successfully enrolled in the <strong>${args.planName}</strong>. Your benefits are now active and ready to use.</p>
-              
-              <div class="card-info">
-                <h3 style="margin-top: 0; color: #0066CC;">Your Member ID Card</h3>
-                <div class="card-field">
-                  <span class="card-label">Member ID</span>
-                  <span class="card-value">${args.memberId}</span>
-                </div>
-                <div class="card-field">
-                  <span class="card-label">Plan Name</span>
-                  <span class="card-value">${args.planName}</span>
-                </div>
-              </div>
+  handler: async (_ctx, args) => {
+    const { subject, html } = EMAIL_TEMPLATES["bulk-welcome-card"].render({
+      firstName: args.firstName,
+      planName: args.planName,
+      memberId: args.memberId,
+    });
 
-              <div class="button-group">
-                <a href="${memberPortalUrl}" class="button button-primary">View Your Card</a>
-                <a href="${cardDownloadUrl}" class="button button-secondary">Download PDF</a>
-              </div>
-
-              <div class="benefits">
-                <h3>What's Included:</h3>
-                <ul>
-                  <li><strong>Dental Discounts:</strong> Save 10-60% on dental services through our Dental Discount Network (140,000+ providers)</li>
-                  <li><strong>Teledentistry:</strong> Access to virtual dental consultations via DialCare</li>
-                  <li><strong>AI Oral Scan:</strong> At-home oral health assessments from your Member Portal</li>
-                  <li><strong>No Insurance Required:</strong> Use your benefits immediately—no claims to file</li>
-                </ul>
-              </div>
-
-              <div class="support-info">
-                <strong>📱 How to Use:</strong> Present your member ID card (digital or printed) at any participating provider. Let them know you're a Careington member to receive your member discount.
-              </div>
-
-              <h3>Getting Started:</h3>
-              <ol>
-                <li><strong>Find a Provider:</strong> Search in your <a href="https://www.getidealoh.com/health/dashboard" style="color: #0066CC;">Member Portal</a> or visit <a href="https://getidealoh.com/health/dashboard" style="color: #0066CC;">getidealoh.com/health/dashboard</a> or email support@getidealoh.com to search for participating providers near you</li>
-                <li><strong>Schedule Your Appointment:</strong> Call ahead and mention your Careington membership</li>
-                <li><strong>Present Your Card:</strong> Show your member ID at the appointment</li>
-                <li><strong>Save Money:</strong> Enjoy your member discounts on the spot</li>
-              </ol>
-
-              <p><strong>Questions?</strong> Our support team is here to help:</p>
-              <p style="margin: 10px 0;">
-                📧 Email: <a href="mailto:support@getidealoh.com" style="color: #0066CC;">support@getidealoh.com</a><br>
-                📞 Phone: <a href="tel:+18003524325" style="color: #0066CC;">(800) IDEAL-CARE</a><br>
-                🌐 Web: <a href="https://getidealoh.com" style="color: #0066CC;">getidealoh.com</a>
-              </p>
-
-              <p style="color: #666; font-style: italic; margin-bottom: 0;">Disclaimer: This plan is not insurance. It is a discount membership program that provides access to negotiated discounts through participating providers.</p>
-            </div>
-
-            <div class="footer">
-              <p>© 2025 Ideal Oral Health. All rights reserved.</p>
-              <p>You're receiving this email because you were enrolled in the Ideal Oral Health program.</p>
-            </div>
-          </div>
-        </body>
-      </html>
-    `;
-
-    return await sendEmail(
-      args.email,
-      "Welcome to Ideal Oral Health - Your Member ID Card",
-      html
-    );
+    return await sendViaResend({
+      to: args.email,
+      subject,
+      html,
+      tags: [{ name: "category", value: "bulk-welcome-card" }],
+    });
   },
 });
 
@@ -537,70 +394,22 @@ export const sendReenrollmentLinkEmail = action({
     // @ts-ignore
     await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://getidealoh.com";
+    const appUrl = getBaseUrl();
     const reenrollUrl = `${appUrl}/health/enroll?token=${args.reenrollmentToken}&source=listbill_term`;
 
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="UTF-8">
-          <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #333; line-height: 1.6; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: linear-gradient(90deg, #0066CC, #14b8a6); color: white; padding: 30px; border-radius: 8px 8px 0 0; text-align: center; }
-            .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; border-top: 3px solid #0066CC; }
-            .highlight { background: white; padding: 20px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #0066CC; }
-            .button { display: inline-block; padding: 14px 28px; background: #0066CC; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; margin: 15px 0; }
-            .footer { color: #666; font-size: 12px; text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>Keep Your Oral Care Coverage</h1>
-              <p style="margin: 10px 0 0 0;">Continue your benefits as an individual member</p>
-            </div>
-            <div class="content">
-              <p>Hi ${args.firstName},</p>
-              <p>Your payroll-deducted dental benefit through <strong>${args.groupName}</strong> has ended.
-                 The good news: you can continue your <strong>Ideal Oral Health</strong> coverage on your own
-                 — billed directly to your credit card or bank account.</p>
+    const { subject, html } = EMAIL_TEMPLATES["reenrollment-link"].render({
+      firstName: args.firstName,
+      memberId: args.memberId,
+      groupName: args.groupName,
+      reenrollUrl,
+    });
 
-              <div class="highlight">
-                <p style="margin:0;"><strong>Your Member ID:</strong> ${args.memberId}</p>
-                <p style="margin:8px 0 0 0;">Your existing member history and discounts carry over when you re-enroll.</p>
-              </div>
-
-              <p style="text-align:center;">
-                <a href="${reenrollUrl}" class="button">Re-Enroll Now (CC or ACH)</a>
-              </p>
-
-              <p>This link is unique to your account and expires in <strong>30 days</strong>.
-                 Once enrolled, your benefits are active immediately — no waiting period.</p>
-
-              <p>Questions? We're here to help:</p>
-              <p>📧 <a href="mailto:support@getidealoh.com">support@getidealoh.com</a><br>
-                 📞 <a href="tel:+18003524325">(800) IDEAL-CARE</a></p>
-
-              <p style="color:#666; font-style:italic;">
-                This plan is not insurance. It is a discount membership program providing access to negotiated discounts.
-              </p>
-            </div>
-            <div class="footer">
-              <p>© 2025 Ideal Oral Health. All rights reserved.</p>
-              <p>You received this because you were previously enrolled through your employer's group plan.</p>
-            </div>
-          </div>
-        </body>
-      </html>
-    `;
-
-    const result = await sendEmail(
-      args.email,
-      `Continue Your Dental Coverage — Re-Enroll Today`,
-      html
-    );
+    const result = await sendViaResend({
+      to: args.email,
+      subject,
+      html,
+      tags: [{ name: "category", value: "reenrollment-link" }],
+    });
 
     await ctx.runMutation(api.subscriptions.events.logEvent, {
       eventType: "notification.reenrollment_link_sent",

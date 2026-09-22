@@ -14,6 +14,8 @@
 
 import { mutation, query, internalMutation, internalAction } from "../_generated/server";
 import { getBaseUrl } from "../lib/env";
+import { sendViaResend } from "../lib/resend";
+import { EMAIL_TEMPLATES } from "../lib/emailTemplates";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { v } from "convex/values";
 import { requireAuth } from "../lib/authGuards";
@@ -54,61 +56,25 @@ export const sendDependentInviteEmail = internalAction({
     const baseUrl = getBaseUrl();
     const claimUrl = `${baseUrl}/health/claim-invite?token=${args.inviteToken}`;
 
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-        <div style="background: linear-gradient(135deg, #0066CC 0%, #14b8a6 100%); color: white; padding: 24px 20px; text-align: center; border-radius: 8px 8px 0 0;">
-          <h1 style="margin: 0; font-size: 24px;">You&apos;re Invited!</h1>
-          <p style="margin: 10px 0 0 0; font-size: 15px; opacity: 0.9;">Family plan access from Ideal Oral Health</p>
-        </div>
-        <div style="padding: 32px; background: #f9fafb; border-radius: 0 0 8px 8px;">
-          <p style="font-size: 16px;">Hi ${args.dependentFirstName},</p>
-          <p style="font-size: 15px; line-height: 1.6;">
-            <strong>${args.primaryMemberName}</strong> has added you to their
-            <strong>${args.planName}</strong> plan. As a family member on this plan, you&apos;ll get
-            full access to all plan benefits &mdash; with no separate billing.
-          </p>
-          <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin: 24px 0; text-align: center;">
-            <p style="font-size: 15px; color: #374151; margin: 0 0 16px 0;">
-              Click the button below to create your account and activate your access.
-            </p>
-            <a href="${claimUrl}"
-              style="display: inline-block; padding: 14px 32px; background: #0066CC; color: white; font-weight: 700; font-size: 16px; text-decoration: none; border-radius: 8px;">
-              Accept &amp; Get Access
-            </a>
-            <p style="font-size: 12px; color: #9ca3af; margin: 16px 0 0 0;">This link expires in 30 days.</p>
-          </div>
-          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-          <p style="font-size: 13px; color: #6b7280; line-height: 1.5;">
-            If you don&apos;t want to be added to this plan, you can simply ignore this email.
-            Questions? Contact us at
-            <a href="mailto:support@getidealoh.com" style="color: #0066CC;">support@getidealoh.com</a>.
-          </p>
-        </div>
-      </div>`;
-
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-      },
-      body: JSON.stringify({
-        from: "Ideal Oral Health <noreply@getidealoh.com>",
-        to: args.dependentEmail,
-        subject: `${args.primaryMemberName} added you to their Ideal Oral Health plan`,
-        html,
-        tags: [{ name: "category", value: "dependent-invite" }],
-      }),
+    const { subject, html } = EMAIL_TEMPLATES["dependent-invite"].render({
+      dependentFirstName: args.dependentFirstName,
+      primaryMemberName: args.primaryMemberName,
+      planName: args.planName,
+      claimUrl,
     });
 
-    const resData = await res.json();
+    const result = await sendViaResend({
+      to: args.dependentEmail,
+      subject,
+      html,
+      tags: [{ name: "category", value: "dependent-invite" }],
+    });
 
-    if (!res.ok) {
-      // resData.message is the Resend error description
-      throw new Error(`Resend error ${res.status}: ${resData.message ?? JSON.stringify(resData)}`);
+    if (!result.success) {
+      throw new Error(`Dependent invite send failed: ${result.error}`);
     }
 
-    console.log(`[dependentInvite] Email sent. Resend ID: ${resData.id} → ${args.dependentEmail}`);
+    console.log(`[dependentInvite] Email sent. Resend ID: ${result.messageId} → ${args.dependentEmail}`);
   },
 });
 

@@ -3,7 +3,8 @@ import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
 import { requireAdmin, requireAuth } from "../lib/authGuards";
 import { getBaseUrl } from "../lib/env";
-import { sendViaGmail } from "../lib/gmail";
+import { sendViaResend } from "../lib/resend";
+import { EMAIL_TEMPLATES } from "../lib/emailTemplates";
 import { autoGrantFreeAccess } from "./grantFreeAccess";
 
 const partnerTypeValidator = v.union(
@@ -360,40 +361,18 @@ async function dispatchInviteEmail(opts: {
   typeLabel: string;
   claimUrl: string;
 }): Promise<{ ok: boolean; error?: string }> {
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-      <div style="background: linear-gradient(135deg, #0066CC 0%, #14b8a6 100%); color: white; padding: 24px 20px; text-align: center; border-radius: 8px 8px 0 0;">
-        <h1 style="margin: 0; font-size: 24px;">Your Ideal Oral Health Access</h1>
-        <p style="margin: 10px 0 0 0; font-size: 15px; opacity: 0.9;">${opts.typeLabel} — ${opts.partnerName}</p>
-      </div>
-      <div style="padding: 32px; background: #f9fafb; border-radius: 0 0 8px 8px;">
-        <p style="font-size: 16px;">Hi ${opts.recipientName},</p>
-        <p style="font-size: 15px; line-height: 1.6;">
-          You've been invited to access the <strong>Ideal Oral Health</strong> member platform as part of your partnership with us.
-          This gives you full access to explore the benefits your clients and prospects will receive.
-        </p>
-        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin: 24px 0; text-align: center;">
-          <p style="font-size: 15px; color: #374151; margin: 0 0 16px 0;">
-            Click below to create your account and activate your complimentary membership.
-          </p>
-          <a href="${opts.claimUrl}"
-            style="display: inline-block; padding: 14px 32px; background: #0066CC; color: white; font-weight: 700; font-size: 16px; text-decoration: none; border-radius: 8px;">
-            Accept Invite &amp; Get Access
-          </a>
-          <p style="font-size: 12px; color: #9ca3af; margin: 16px 0 0 0;">This link expires in 30 days.</p>
-        </div>
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-        <p style="font-size: 13px; color: #6b7280; line-height: 1.5;">
-          Questions? Contact us at
-          <a href="mailto:support@getidealoh.com" style="color: #0066CC;">support@getidealoh.com</a>.
-        </p>
-      </div>
-    </div>`;
+  const { subject, html } = EMAIL_TEMPLATES["partner-invite"].render({
+    recipientName: opts.recipientName,
+    partnerName: opts.partnerName,
+    typeLabel: opts.typeLabel,
+    claimUrl: opts.claimUrl,
+  });
 
-  const result = await sendViaGmail({
+  const result = await sendViaResend({
     to: opts.recipientEmail,
-    subject: `Your complimentary access to Ideal Oral Health — ${opts.partnerName}`,
+    subject,
     html,
+    tags: [{ name: "category", value: "partner-invite" }],
   });
 
   return { ok: result.success, error: result.error };
