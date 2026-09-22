@@ -51,7 +51,8 @@ export default function PdfPreviewPage() {
       <p style={{ color: '#666', marginTop: 0 }}>
         Every document the system generates, rendered from sample data. Nothing here is emailed and no member records are read.
       </p>
-      <p style={{ marginTop: 0 }}>
+      <p style={{ marginTop: 0, display: 'flex', gap: 16 }}>
+        <a href="/debug" style={{ color: '#6b7280', fontSize: 14 }}>← All debug tools</a>
         <a href="/debug/email-test" style={{ color: '#0066CC', fontSize: 14 }}>
           Looking for emails? Open the email tester →
         </a>

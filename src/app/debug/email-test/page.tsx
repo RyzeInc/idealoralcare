@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 
 interface TemplateSummary {
   id: string;
@@ -52,6 +54,7 @@ export default function EmailTestPage() {
   const [progress, setProgress] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, EmailTestResult>>({});
   const [testType, setTestType] = useState<string>('');
+  const sendLog = useQuery(api.debug.emailLog.recentSends, { limit: 50 });
 
   useEffect(() => {
     fetch('/api/test-email')
@@ -121,7 +124,8 @@ export default function EmailTestPage() {
       <p style={{ color: '#666', marginTop: 0 }}>
         Every template the app can send, rendered from the same source production uses. All mail goes out through Resend.
       </p>
-      <p style={{ marginTop: 0 }}>
+      <p style={{ marginTop: 0, display: 'flex', gap: 16 }}>
+        <a href="/debug" style={{ color: '#6b7280', fontSize: 14 }}>← All debug tools</a>
         <a href="/debug/pdf-preview" style={{ color: '#0066CC', fontSize: 14 }}>
           Looking for documents? Open the PDF preview →
         </a>
@@ -266,7 +270,50 @@ export default function EmailTestPage() {
         </div>
       ))}
 
-      <div style={{ marginTop: '30px', padding: '15px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '4px', fontSize: '13px' }}>
+      <div style={{ marginTop: '30px' }}>
+        <h3 style={{ margin: '0 0 4px 0', fontSize: 16 }}>Send Log</h3>
+        <p style={{ margin: '0 0 12px 0', fontSize: 13, color: '#6b7280' }}>
+          This tester has no login gate, so every send made from this page — by anyone — is recorded here.
+        </p>
+        <div style={{ border: '1px solid #e5e7eb', borderRadius: 6, overflow: 'hidden' }}>
+          {sendLog === undefined ? (
+            <p style={{ padding: 12, fontSize: 13, color: '#9ca3af', margin: 0 }}>Loading…</p>
+          ) : sendLog.length === 0 ? (
+            <p style={{ padding: 12, fontSize: 13, color: '#9ca3af', margin: 0 }}>No test emails have been sent yet.</p>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ background: '#f9fafb', textAlign: 'left' }}>
+                  <th style={{ padding: '8px 10px', borderBottom: '1px solid #e5e7eb' }}>When</th>
+                  <th style={{ padding: '8px 10px', borderBottom: '1px solid #e5e7eb' }}>Template</th>
+                  <th style={{ padding: '8px 10px', borderBottom: '1px solid #e5e7eb' }}>To</th>
+                  <th style={{ padding: '8px 10px', borderBottom: '1px solid #e5e7eb' }}>Result</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sendLog.map((entry) => (
+                  <tr key={entry.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                    <td style={{ padding: '8px 10px', whiteSpace: 'nowrap', color: '#374151' }}>
+                      {new Date(entry.createdAt).toLocaleString()}
+                    </td>
+                    <td style={{ padding: '8px 10px', color: '#374151' }}>{byId[entry.templateId]?.label ?? entry.templateId}</td>
+                    <td style={{ padding: '8px 10px', color: '#374151' }}>{entry.to}</td>
+                    <td style={{ padding: '8px 10px' }}>
+                      {entry.success ? (
+                        <span style={{ color: '#059669', fontWeight: 600 }}>✅ Sent</span>
+                      ) : (
+                        <span style={{ color: '#dc2626', fontWeight: 600 }} title={entry.error}>❌ Failed</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      <div style={{ marginTop: '20px', padding: '15px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '4px', fontSize: '13px' }}>
         <h4 style={{ margin: '0 0 10px 0', color: '#1e40af' }}>Troubleshooting</h4>
         <ul style={{ margin: 0, paddingLeft: '20px', color: '#1e40af' }}>
           <li>Use a real email address to test (Gmail, etc.)</li>

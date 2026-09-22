@@ -1,10 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ConvexHttpClient } from 'convex/browser';
+import { api } from '@/convex/_generated/api';
 import {
   EMAIL_TEMPLATES,
   isEmailTemplateId,
   listEmailTemplates,
   renderSampleEmail,
 } from '@/convex/lib/emailTemplates';
+
+async function logSend(entry: {
+  templateId: string;
+  to: string;
+  subject: string;
+  success: boolean;
+  messageId?: string;
+  error?: string;
+  hasAttachments?: boolean;
+}) {
+  try {
+    const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || '');
+    await convex.mutation(api.debug.emailLog.logSend, entry);
+  } catch (err) {
+    // Logging must never block or fail the actual send.
+    console.error('[test-email] failed to record debug log entry:', err);
+  }
+}
 
 /**
  * Debug email tester.
@@ -126,22 +146,36 @@ export async function POST(req: NextRequest) {
     const data = await response.json();
 
     if (!response.ok) {
-      return NextResponse.json(
-        { error: (data as Record<string, string>).message || 'Resend API error' },
-        { status: response.status },
-      );
+      const errorMessage = (data as Record<string, string>).message || 'Resend API error';
+      await logSend({
+        templateId: type,
+        to,
+        subject,
+        success: false,
+        error: errorMessage,
+        hasAttachments: !!attachments,
+      });
+      return NextResponse.json({ error: errorMessage }, { status: response.status });
     }
+
+    const messageId = (data as Record<string, string>).id;
+    await logSend({
+      templateId: type,
+      to,
+      subject,
+      success: true,
+      messageId,
+      hasAttachments: !!attachments,
+    });
 
     return NextResponse.json({
       success: true,
-      messageId: (data as Record<string, string>).id,
+      messageId,
       subject,
       hadAttachment: !!attachments,
     });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 },
-    );
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
