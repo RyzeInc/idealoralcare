@@ -874,6 +874,8 @@ export default defineSchema({
     // ORGANIZATION CODE (account/card-facing org identifier, e.g. "ACME-0042" / "IDC-0001")
     // When set, member.subscriberId is backfilled from this on creation.
     organizationCode: v.optional(v.string()),
+    // ESSENTIALS GROUP NUMBER (6-digit numeric, required by the Essentials vendor files)
+    essentialsGroupNumber: v.optional(v.string()),
     
     // PLAN & PRICING CONSTRAINTS
     allowedPlanIds: v.optional(v.array(v.id("catalogProducts"))), // null = inherit from account/site
@@ -1097,6 +1099,13 @@ export default defineSchema({
     careingtonSeqNum: v.optional(v.string()),
     toothlensMemberId: v.optional(v.string()),
 
+    // ESSENTIALS VENDOR ID (Lyric / QuestSelect)
+    // essentialsMemberNumber = the 9-digit numeric Member Number we assign and submit in
+    // the Essentials eligibility files. Lyric Telehealth and QuestSelect both look members
+    // up by this value, so it must match what the member sees on their ID card and packet.
+    // Derived from memberId when not explicitly set — see convex/lib/essentialsCodes.ts.
+    essentialsMemberNumber: v.optional(v.string()),
+
     // DEPENDENTS
     dependents: v.optional(v.array(v.object({
       firstName: v.string(),
@@ -1166,7 +1175,8 @@ export default defineSchema({
     .index("by_invite_token", ["inviteToken"])
     .index("by_email", ["email"])
     .index("by_group_email", ["groupId", "email"])
-    .index("by_careington_id", ["careingtonUniqueId"]),
+    .index("by_careington_id", ["careingtonUniqueId"])
+    .index("by_essentials_member_number", ["essentialsMemberNumber"]),
 
   // MEMBER ACTIVITIES (Timeline/activity log)
   memberActivities: defineTable({

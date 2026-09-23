@@ -227,7 +227,7 @@ export default function NewIdealLandingPage() {
             { val: "24/7", label: "Telehealth Access" },
             { val: "1,000+", label: "Discounted Medications" },
             { val: "100,000+", label: "Dental Providers" },
-            { val: "$57.95", label: "Starting / Month" },
+            { val: "$58.95", label: "Starting / Month" },
           ].map((s) => (
             <div key={s.label}>
               <div
@@ -671,7 +671,7 @@ export default function NewIdealLandingPage() {
             }}
           >
             Memberships start at{" "}
-            <strong style={{ color: "#0f172a" }}>$57.95/mo</strong> for
+            <strong style={{ color: "#0f172a" }}>$58.95/mo</strong> for
             individuals. Spouse, child, and family tiers available.
           </p>
 

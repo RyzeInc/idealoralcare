@@ -8,6 +8,10 @@ import { query } from "../_generated/server";
 import { v } from "convex/values";
 import type { QueryCtx } from "../_generated/server";
 import { requireAuth, requireAdmin } from "../lib/authGuards";
+import {
+  resolveEssentialsGroupNumber,
+  resolveEssentialsMemberNumber,
+} from "../lib/essentialsCodes";
 
 interface GetCustomerBundleArgs {
   customerId: string;
@@ -643,6 +647,10 @@ export const getMemberCardDataPublic = query({
       productSlug,
       effectiveDate,
       barcode: profile.barcode,
+      // Essentials vendor identifiers. Resolved through the shared helper so the
+      // packet and ID card always show what the eligibility files submitted.
+      essentialsMemberNumber: resolveEssentialsMemberNumber(profile as any),
+      essentialsGroupNumber: resolveEssentialsGroupNumber(group as any),
       networks: {
         careington: { name: "Dental Discount Network", memberUrl: "https://getidealoh.com/health/dashboard" },
         dialCare: { name: "Teledentistry Program", memberUrl: "https://www.dialcare.com" },

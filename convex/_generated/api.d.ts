@@ -10,6 +10,7 @@
 
 import type * as admin_adminAudit from "../admin/adminAudit.js";
 import type * as admin_adminUsers from "../admin/adminUsers.js";
+import type * as admin_backfillEssentialsCodes from "../admin/backfillEssentialsCodes.js";
 import type * as admin_billing from "../admin/billing.js";
 import type * as admin_commissions from "../admin/commissions.js";
 import type * as admin_coreValues from "../admin/coreValues.js";
@@ -69,6 +70,7 @@ import type * as lib_constants from "../lib/constants.js";
 import type * as lib_dispersal from "../lib/dispersal.js";
 import type * as lib_emailTemplates from "../lib/emailTemplates.js";
 import type * as lib_env from "../lib/env.js";
+import type * as lib_essentialsCodes from "../lib/essentialsCodes.js";
 import type * as lib_hash from "../lib/hash.js";
 import type * as lib_memberCreation from "../lib/memberCreation.js";
 import type * as lib_periods from "../lib/periods.js";
@@ -102,6 +104,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   "admin/adminAudit": typeof admin_adminAudit;
   "admin/adminUsers": typeof admin_adminUsers;
+  "admin/backfillEssentialsCodes": typeof admin_backfillEssentialsCodes;
   "admin/billing": typeof admin_billing;
   "admin/commissions": typeof admin_commissions;
   "admin/coreValues": typeof admin_coreValues;
@@ -161,6 +164,7 @@ declare const fullApi: ApiFromModules<{
   "lib/dispersal": typeof lib_dispersal;
   "lib/emailTemplates": typeof lib_emailTemplates;
   "lib/env": typeof lib_env;
+  "lib/essentialsCodes": typeof lib_essentialsCodes;
   "lib/hash": typeof lib_hash;
   "lib/memberCreation": typeof lib_memberCreation;
   "lib/periods": typeof lib_periods;

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
+import { essentialsCoverageLabel, isEssentialsSlug } from "@/lib/essentials-packet-pdf";
+import { PROVIDER_GROUP_CODE } from "@/lib/constants";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error("STRIPE_SECRET_KEY environment variable is required");
@@ -291,6 +293,65 @@ export async function POST(req: NextRequest) {
             });
           } catch (toothlensErr) {
             console.error("[webhook] Toothlens provisioning failed (non-fatal):", toothlensErr);
+          }
+
+          // 8. Email the member their fulfillment packet.
+          //    Which packet depends on the product they bought. We read the
+          //    member card data rather than rebuilding it here so the email,
+          //    the portal download and the vendor eligibility files all quote
+          //    the same identifiers.
+          try {
+            const memberEmail =
+              session.customer_email || session.customer_details?.email || undefined;
+            // @ts-ignore - avoid deep type instantiation
+            const cardData: any = await convex.query(
+              api.subscriptions.queries.getMemberCardDataPublic as any,
+              { customerId: clerkUserId },
+            );
+
+            if (!cardData || !memberEmail) {
+              console.warn(
+                `[webhook] Skipping packet email — ${!memberEmail ? "no email on session" : "no member card data"} for ${clerkUserId}`,
+              );
+            } else {
+              const memberFirstName =
+                (session.customer_details?.name || cardData.memberName || "Member").split(" ")[0];
+
+              if (isEssentialsSlug(cardData.productSlug)) {
+                await convex.action(
+                  (api as any)["legal/emailFulfillment"].sendEssentialsPacketEmail,
+                  {
+                    memberName: cardData.memberName,
+                    memberFirstName,
+                    memberEmail,
+                    essentialsMemberNumber: cardData.essentialsMemberNumber,
+                    essentialsGroupNumber: cardData.essentialsGroupNumber,
+                    planName: cardData.planName,
+                    coverageType: essentialsCoverageLabel(cardData.productSlug),
+                    effectiveDate: cardData.effectiveDate,
+                  },
+                );
+              } else {
+                await convex.action(
+                  (api as any)["legal/emailFulfillment"].sendFulfillmentPacketEmail,
+                  {
+                    memberName: cardData.memberName,
+                    memberFirstName,
+                    memberEmail,
+                    memberId: cardData.memberId,
+                    subscriberId: cardData.subscriberId,
+                    groupCode: PROVIDER_GROUP_CODE,
+                    planName: cardData.planName,
+                    effectiveDate: cardData.effectiveDate,
+                    networks: cardData.networks,
+                  },
+                );
+              }
+            }
+          } catch (packetErr) {
+            // Never fail the webhook over an email — Stripe would retry the
+            // whole handler and we would double-create records.
+            console.error("[webhook] Fulfillment packet email failed (non-fatal):", packetErr);
           }
         } catch (error) {
           console.error("[webhook] Error processing checkout.session.completed:", error);

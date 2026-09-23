@@ -260,7 +260,7 @@ export function LandingCards() {
           "Balance for Life — mental wellness",
         ]}
         bulletColor="#0369a1"
-        startingPrice="$57.95"
+        startingPrice="$58.95"
         priceColor="#0369a1"
         priceBg="linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)"
         priceBorder="#bae6fd"

@@ -2,6 +2,8 @@ import { action } from "../_generated/server";
 import { v } from "convex/values";
 import { api } from "../_generated/api";
 import { requireAdminAction } from "../lib/authGuards";
+import { resolveEssentialsMemberNumber } from "../lib/essentialsCodes";
+import { ESSENTIALS_RX_GROUP } from "../lib/constants";
 
 /**
  * ESSENTIALS ELIGIBILITY FILE GENERATION (CSV)
@@ -152,13 +154,17 @@ async function buildRows(
 
     const orgName: string =
       group?.organizationCode || account?.name || group?.name || group?.slug || "";
-    const groupIdStr: string = group?.groupCode || group?.organizationCode || "";
+    // ARK and RxValet's own spreadsheet template carries GIH1000 in the GroupID
+    // column, so we submit their value rather than our internal group number.
+    const groupIdStr: string = ESSENTIALS_RX_GROUP;
 
     const dependents: any[] = member.dependents ?? [];
     const cov = coverageType(dependents);
 
-    const memberIdNumeric: string =
-      member.careingtonUniqueId || digitsOnly(member.memberId) || (member.memberId ?? "");
+    // Lyric and QuestSelect key on the 9-digit Essentials member number. This is
+    // the same resolver the member packet and ID card use, so the number the
+    // member is holding always matches the number the vendor was sent.
+    const memberIdNumeric: string = resolveEssentialsMemberNumber(member);
 
     const addr = member.address ?? {};
     const phone = digitsOnly(member.phone);

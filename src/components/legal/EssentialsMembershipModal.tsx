@@ -114,10 +114,10 @@ export const EssentialsMembershipModal: React.FC<EssentialsMembershipModalProps>
                 The Ideal Health Essentials Plan Membership offers several options:
               </p>
               <ul className="list-disc pl-5 space-y-0.5">
-                <li>Individual Plan: $57.95 per month</li>
-                <li>Member and Spouse: $65.95 per month</li>
-                <li>Member and Child: $77.95 per month</li>
-                <li>Family Plan: $82.95 per month</li>
+                <li>Individual Plan: $58.95 per month</li>
+                <li>Member and Spouse: $66.95 per month</li>
+                <li>Member and Child: $78.95 per month</li>
+                <li>Family Plan: $83.95 per month</li>
               </ul>
               <p className="mt-1">
                 <strong>This Membership Plan is NOT insurance</strong> and does not satisfy ACA minimum essential

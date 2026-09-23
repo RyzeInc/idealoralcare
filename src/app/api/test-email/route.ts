@@ -86,6 +86,57 @@ async function buildFulfillmentAttachments(
   }
 }
 
+async function buildEssentialsAttachments(
+  to: string,
+  memberName: string,
+  memberFirstName: string,
+): Promise<{ filename: string; content: string }[] | undefined> {
+  const serverUrl = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${process.env.PORT || 3000}`;
+  const sample = EMAIL_TEMPLATES['essentials-fulfillment-packet'].sample({
+    firstName: memberFirstName,
+    lastName: '',
+    email: to,
+  });
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const internalSecret = process.env.INTERNAL_API_SECRET;
+  if (internalSecret) headers['Authorization'] = `Bearer ${internalSecret}`;
+
+  try {
+    const res = await fetch(`${serverUrl}/api/generate-essentials-pdf`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        memberName,
+        memberFirstName,
+        memberEmail: to,
+        essentialsMemberNumber: sample.essentialsMemberNumber,
+        essentialsGroupNumber: sample.essentialsGroupNumber,
+        planName: sample.planName,
+        coverageType: sample.coverageType,
+        effectiveDate: sample.effectiveDate,
+      }),
+    });
+    if (!res.ok) return undefined;
+
+    const data = await res.json();
+    const attachments: { filename: string; content: string }[] = [];
+    if (data.pdf) {
+      attachments.push({ filename: 'Ideal_Health_Essentials_Welcome_Packet.pdf', content: data.pdf });
+    }
+    if (data.agreementPdf) {
+      attachments.push({
+        filename: 'Ideal_Health_Essentials_Membership_Agreement.pdf',
+        content: data.agreementPdf,
+      });
+    }
+    return attachments.length ? attachments : undefined;
+  } catch {
+    // PDF generation failed — still send the email body so the template is testable.
+    return undefined;
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -118,10 +169,13 @@ export async function POST(req: NextRequest) {
       email: to,
     });
 
+    const attachmentKind = EMAIL_TEMPLATES[type].attachments;
     const attachments =
-      EMAIL_TEMPLATES[type].attachments === 'fulfillment-pdfs'
+      attachmentKind === 'fulfillment-pdfs'
         ? await buildFulfillmentAttachments(to, `${memberFirst} ${memberLast}`, memberFirst)
-        : undefined;
+        : attachmentKind === 'essentials-pdfs'
+          ? await buildEssentialsAttachments(to, `${memberFirst} ${memberLast}`, memberFirst)
+          : undefined;
 
     const emailPayload: Record<string, unknown> = {
       from: process.env.RESEND_FROM_EMAIL

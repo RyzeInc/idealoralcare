@@ -23,6 +23,7 @@
 
 import type { MutationCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
+import { generateEssentialsMemberNumber } from "./essentialsCodes";
 
 /* ------------------------------------------------------------------ */
 /* ID generation                                                      */
@@ -132,6 +133,8 @@ export interface CreateMemberProfileInput {
   /** Vendor IDs. If not provided, derived deterministically from memberId. */
   careingtonUniqueId?: string;
   careingtonSeqNum?: string; // defaults to "00" (primary)
+  /** Essentials (Lyric/QuestSelect) member number. Derived from memberId if omitted. */
+  essentialsMemberNumber?: string;
 
   /** Lifecycle / classification. */
   memberType?:
@@ -191,6 +194,7 @@ export interface CreateMemberProfileResult {
   subscriberId: string;
   careingtonUniqueId: string;
   toothlensMemberId: string;
+  essentialsMemberNumber: string;
 }
 
 /**
@@ -231,6 +235,27 @@ export async function createMemberProfile(
   const careingtonSeqNum = input.careingtonSeqNum ?? "00";
   const toothlensMemberId = careingtonUniqueId + careingtonSeqNum;
 
+  // Essentials member number must be unique — Lyric and QuestSelect key on it.
+  // Derivation is collision-free in practice, but a duplicate would silently
+  // merge two people's records at the vendor, so we check and re-derive.
+  let essentialsMemberNumber =
+    input.essentialsMemberNumber ?? generateEssentialsMemberNumber(memberId);
+  for (let attempt = 1; attempt <= 10; attempt++) {
+    const clash = await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_essentials_member_number", (q) =>
+        q.eq("essentialsMemberNumber", essentialsMemberNumber),
+      )
+      .first();
+    if (!clash) break;
+    essentialsMemberNumber = generateEssentialsMemberNumber(`${memberId}#${attempt}`);
+    if (attempt === 10) {
+      throw new Error(
+        `createMemberProfile: could not find a free essentialsMemberNumber for ${memberId}`,
+      );
+    }
+  }
+
   // ── List-bill inference (FT in list-bill group → active) ────────────
   let listBillStatus = input.listBillStatus;
   if (!listBillStatus) {
@@ -264,6 +289,7 @@ export async function createMemberProfile(
     careingtonUniqueId,
     careingtonSeqNum,
     toothlensMemberId,
+    essentialsMemberNumber,
     memberType: input.memberType ?? "eligible",
     memberRole: input.memberRole ?? "primary",
     primaryMemberId: input.primaryMemberId,
@@ -294,5 +320,5 @@ export async function createMemberProfile(
     updatedAt: now,
   } as any);
 
-  return { _id, memberId, subscriberId, careingtonUniqueId, toothlensMemberId };
+  return { _id, memberId, subscriberId, careingtonUniqueId, toothlensMemberId, essentialsMemberNumber };
 }

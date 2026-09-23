@@ -5,6 +5,7 @@ import { requireAdminAction } from "../lib/authGuards";
 import { sendViaResend } from "../lib/resend";
 import { EMAIL_TEMPLATES } from "../lib/emailTemplates";
 import { getBaseUrl } from "../lib/env";
+import { PROVIDER_GROUP_CODE } from "../lib/constants";
 
 /**
  * EMAIL NOTIFICATION SYSTEM
@@ -19,6 +20,84 @@ import { getBaseUrl } from "../lib/env";
 
 const EMAIL_BATCH_SIZE = 50;
 const EMAIL_STAGGER_MS = 5000; // 5 seconds between batches of 50
+
+/**
+ * Re-send a member their fulfillment packet.
+ *
+ * Support-facing counterpart to the automatic send in the Stripe webhook, for
+ * members who lost the email or enrolled before the send was wired up. Picks
+ * the packet that matches the product the member actually bought.
+ */
+export const resendMemberPacket = action({
+  args: { memberId: v.id("memberProfiles") },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ sent: boolean; program: "essentials" | "oral-care"; to: string }> => {
+    // @ts-ignore - avoid deep type instantiation
+    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+
+    const detail: any = await ctx.runQuery(api.admin.members.getMemberDetail, {
+      memberId: args.memberId,
+    });
+    const member = detail?.member;
+    if (!member) throw new Error("Member not found");
+    if (!member.email) throw new Error("Member has no email address on file");
+    if (!member.customerId) {
+      throw new Error(
+        "Member has no linked account yet, so their plan cannot be resolved. Send the set-password invite first.",
+      );
+    }
+
+    const cardData: any = await ctx.runQuery(
+      api.subscriptions.queries.getMemberCardDataPublic,
+      { customerId: member.customerId },
+    );
+    if (!cardData) throw new Error("No active membership found for this member");
+
+    const isEssentials = String(cardData.productSlug ?? "").startsWith("essentials-");
+
+    if (isEssentials) {
+      const suffix = String(cardData.productSlug).slice("essentials-".length);
+      const coverageType =
+        ({
+          employee: "Employee",
+          "employee-spouse": "Employee + Spouse",
+          "employee-child": "Employee + Child",
+          "employee-family": "Employee + Family",
+        } as Record<string, string>)[suffix] ?? "Employee";
+
+      await ctx.runAction((api as any)["legal/emailFulfillment"].sendEssentialsPacketEmail, {
+        memberName: cardData.memberName,
+        memberFirstName: member.firstName ?? "Member",
+        memberEmail: member.email,
+        essentialsMemberNumber: cardData.essentialsMemberNumber,
+        essentialsGroupNumber: cardData.essentialsGroupNumber,
+        planName: cardData.planName,
+        coverageType,
+        effectiveDate: cardData.effectiveDate,
+      });
+    } else {
+      await ctx.runAction((api as any)["legal/emailFulfillment"].sendFulfillmentPacketEmail, {
+        memberName: cardData.memberName,
+        memberFirstName: member.firstName ?? "Member",
+        memberEmail: member.email,
+        memberId: cardData.memberId,
+        subscriberId: cardData.subscriberId,
+        groupCode: PROVIDER_GROUP_CODE,
+        planName: cardData.planName,
+        effectiveDate: cardData.effectiveDate,
+        networks: cardData.networks,
+      });
+    }
+
+    return {
+      sent: true,
+      program: isEssentials ? "essentials" : "oral-care",
+      to: member.email,
+    };
+  },
+});
 
 /**
  * Welcome email after enrollment

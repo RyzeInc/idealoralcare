@@ -10,6 +10,13 @@
  */
 
 import { getBaseUrl } from "./env";
+import {
+  ESSENTIALS_BFL_GROUP_NUMBER,
+  ESSENTIALS_BFL_MEMBER_CODE,
+  ESSENTIALS_RX_BIN,
+  ESSENTIALS_RX_GROUP,
+  ESSENTIALS_RX_PCN,
+} from "./constants";
 
 export type EmailCategory = "member" | "employer" | "admin" | "diagnostic";
 
@@ -39,7 +46,7 @@ interface TemplateConfig<TData> {
   /** Where this email is sent from in production — shown in the debug tester. */
   trigger: string;
   /** Extra documents the sender attaches. The tester generates them too. */
-  attachments?: "fulfillment-pdfs";
+  attachments?: "fulfillment-pdfs" | "essentials-pdfs";
   render: (data: TData) => RenderedEmail;
   sample: (overrides: SampleOverrides) => TData;
 }
@@ -237,6 +244,153 @@ function fulfillmentHtml(data: FulfillmentEmailData): string {
           This plan is not insurance. Members are responsible for payment at the time of service
           and receive access to negotiated discounts through participating providers.
           The range of discounts varies by provider and service.
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+export interface EssentialsFulfillmentEmailData {
+  memberFirstName: string;
+  essentialsMemberNumber: string;
+  essentialsGroupNumber: string;
+  planName: string;
+  coverageType: string;
+  effectiveDate: string;
+  memberServicesPhone: string;
+  portalUrl: string;
+}
+
+function essentialsFulfillmentHtml(data: EssentialsFulfillmentEmailData): string {
+  const BLUE = "#1E88E5";
+  const GREEN = "#35C48A";
+
+  const benefit = (
+    title: string,
+    color: string,
+    steps: string[],
+    bestFor: string,
+    note?: string,
+  ) => `
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px;">
+          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${color};">${title}</h3>
+          <ol style="margin: 0; padding: 0 0 0 20px; font-size: 13px; line-height: 2.0; color: #374151;">
+            ${steps.map((step) => `<li>${step}</li>`).join("")}
+          </ol>
+          <p style="font-size: 12px; color: #6b7280; margin: 10px 0 0; line-height: 1.5;">
+            <strong>Best for:</strong> ${bestFor}
+          </p>
+          ${note ? `<p style="font-size: 11px; color: #9ca3af; margin: 6px 0 0;">${note}</p>` : ""}
+        </div>`;
+
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; color: #333; background: #f9fafb;">
+      <div style="background: linear-gradient(135deg, #1E88E5 0%, #35C48A 100%); color: white; padding: 28px 24px; text-align: center; border-radius: 8px 8px 0 0;">
+        <h1 style="margin: 0; font-size: 22px;">Your Essentials Welcome Packet</h1>
+        <p style="margin: 8px 0 0; font-size: 14px; opacity: 0.9;">Ideal Health Essentials &mdash; Virtual Care &middot; Pharmacy &middot; Labs &middot; Behavioral Health</p>
+      </div>
+
+      <div style="padding: 28px 24px;">
+        <p style="font-size: 16px; margin-bottom: 8px;">Hi ${data.memberFirstName},</p>
+
+        <p style="font-size: 14px; line-height: 1.7;">
+          Your enrollment is confirmed and your membership is <strong>active as of ${data.effectiveDate}</strong>.
+          Your complete welcome packet and your membership agreement are both attached to this email as PDFs.
+        </p>
+
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 18px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: ${BLUE}; font-size: 14px;">Your Membership Snapshot</h3>
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <tr style="border-bottom: 1px solid #f0f0f0;">
+              <td style="padding: 8px 0; color: #666;">Member Number</td>
+              <td style="padding: 8px 0; font-weight: bold; text-align: right;">${data.essentialsMemberNumber}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f0f0f0;">
+              <td style="padding: 8px 0; color: #666;">Group Number</td>
+              <td style="padding: 8px 0; font-weight: bold; text-align: right;">${data.essentialsGroupNumber}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f0f0f0;">
+              <td style="padding: 8px 0; color: #666;">Plan</td>
+              <td style="padding: 8px 0; font-weight: bold; text-align: right;">${data.planName}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f0f0f0;">
+              <td style="padding: 8px 0; color: #666;">Coverage</td>
+              <td style="padding: 8px 0; font-weight: bold; text-align: right;">${data.coverageType}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #666;">Effective Date</td>
+              <td style="padding: 8px 0; font-weight: bold; text-align: right;">${data.effectiveDate}</td>
+            </tr>
+          </table>
+          <p style="font-size: 12px; color: #6b7280; margin: 12px 0 0; line-height: 1.5;">
+            Keep your <strong>Member Number</strong> handy &mdash; Lyric Telehealth and QuestSelect both identify you by it.
+          </p>
+        </div>
+
+        <div style="border-top: 2px solid #e2e8f0; margin: 28px 0 20px; padding-top: 24px;">
+          <h2 style="margin: 0 0 6px; font-size: 18px; color: #0f172a;">How to Use Your Benefits</h2>
+          <p style="margin: 0 0 16px; font-size: 13px; color: #6b7280;">Each benefit has its own contact &mdash; here is who to call for what.</p>
+        </div>
+
+        ${benefit(
+          "Virtual Care &mdash; Lyric Health",
+          BLUE,
+          [
+            "Call <strong>1.866.223.8831</strong>, use the Lyric Health App, or visit <a href=\"https://www.getlyric.com\" style=\"color: #1E88E5; text-decoration: none;\">getlyric.com</a>.",
+            "Give your Member Number when you are asked to identify yourself.",
+            "Urgent Care is available 24/7/365; Primary Care is scheduled; Dermatology responds within 72 hours.",
+          ],
+          "Cold and flu, sinus problems, infections, rashes, ongoing primary care, and skin conditions.",
+        )}
+
+        ${benefit(
+          "Pharmacy &mdash; RxValet",
+          GREEN,
+          [
+            `Register at <a href="https://www.myrxvalet.com" style="color: #35C48A; text-decoration: none;">myrxvalet.com</a> using your Member Number and Rx Group <strong>${ESSENTIALS_RX_GROUP}</strong>.`,
+            "Review your card, then always present it at the pharmacy first.",
+            "Questions? Call RxValet at <strong>(855) 798-2538</strong>.",
+          ],
+          "1,000+ generics at $0, insulin from under $95/month, and mail order.",
+          `Rx Group ${ESSENTIALS_RX_GROUP} &middot; BIN ${ESSENTIALS_RX_BIN} &middot; PCN ${ESSENTIALS_RX_PCN} &mdash; these are the same for every member.`,
+        )}
+
+        ${benefit(
+          "Laboratory Testing &mdash; QuestSelect",
+          BLUE,
+          [
+            "When your doctor orders lab work, say you are a QuestSelect member and give your Member Number.",
+            "With a written lab order, call the Lab Line at <strong>1.800.646.7788</strong> to schedule.",
+            "If your doctor's office does not use Quest, ask them to call the Lab Line for a sample pickup.",
+          ],
+          "$0 copay on 1,200+ blood, urine, cytology, pathology and culture tests.",
+        )}
+
+        ${benefit(
+          "Behavioral Health &mdash; Balance for Life",
+          GREEN,
+          [
+            "Call <strong>833-354-2691</strong> (TTD/TTY same number) any time, day or night.",
+            `Or visit <a href="https://balanceforlifebh.com" style="color: #35C48A; text-decoration: none;">balanceforlifebh.com</a> and give Group Number <strong>${ESSENTIALS_BFL_GROUP_NUMBER}</strong> or Member Code <strong>${ESSENTIALS_BFL_MEMBER_CODE}</strong>.`,
+            "Text ZENN, the 24/7 AI wellbeing companion, at 1-561-559-ZENN.",
+          ],
+          "Up to 10 no-cost counseling sessions per incident, life coaching, and mindfulness support.",
+        )}
+
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 18px; margin: 20px 0;">
+          <p style="font-size: 13px; color: #374151; margin: 0; line-height: 1.7;">
+            Need help getting started? Call Member Services at <strong>${data.memberServicesPhone}</strong>
+            or email <a href="mailto:info@getidealhealth.com" style="color: ${BLUE}; text-decoration: none;">info@getidealhealth.com</a>,
+            Mon&ndash;Fri 9am&ndash;6pm.
+          </p>
+        </div>
+      </div>
+
+      <div style="background: #f3f4f6; padding: 20px 24px; border-radius: 0 0 8px 8px;">
+        <p style="font-size: 11px; color: #9ca3af; line-height: 1.5; margin: 0;">
+          This is a membership program and is NOT insurance. It does not satisfy the Affordable Care Act
+          minimum essential coverage requirement and does not cover basic medical needs. Telehealth and
+          discount programs are provided through third-party organizations.
         </p>
       </div>
     </div>
@@ -1121,8 +1275,9 @@ export const EMAIL_TEMPLATES = {
     label: "Fulfillment Packet (PDF + Program Guide)",
     description: "Full welcome packet with the membership packet and agreement PDFs attached.",
     category: "member",
-    status: "not-wired",
-    trigger: "convex/legal/emailFulfillment.ts → sendFulfillmentPacketEmail (no production caller)",
+    status: "live",
+    trigger:
+      "src/app/api/stripe/webhook/route.ts → checkout.session.completed (non-essentials products)",
     attachments: "fulfillment-pdfs",
     render: (data) => ({
       subject: "Your Ideal Oral Health Membership Packet & Program Guide",
@@ -1135,6 +1290,31 @@ export const EMAIL_TEMPLATES = {
       effectiveDate: sampleDate(),
       groupCode: "IOH-DTC",
       memberServicesPhone: MEMBER_SERVICES_PHONE,
+      portalUrl: getBaseUrl(),
+    }),
+  }),
+
+  "essentials-fulfillment-packet": defineTemplate<EssentialsFulfillmentEmailData>({
+    label: "Essentials Welcome Packet (PDF + Program Guide)",
+    description:
+      "Ideal Health Essentials welcome email with the welcome packet and membership agreement PDFs attached.",
+    category: "member",
+    status: "live",
+    trigger:
+      "src/app/api/stripe/webhook/route.ts \u2192 checkout.session.completed (essentials-* products)",
+    attachments: "essentials-pdfs",
+    render: (data) => ({
+      subject: "Your Ideal Health Essentials Welcome Packet & Program Guide",
+      html: essentialsFulfillmentHtml(data),
+    }),
+    sample: (o) => ({
+      memberFirstName: o.firstName,
+      essentialsMemberNumber: "841716653",
+      essentialsGroupNumber: "895794",
+      planName: "Essentials Plan \u2014 Employee",
+      coverageType: "Employee",
+      effectiveDate: sampleDate(),
+      memberServicesPhone: "844-433-2502",
       portalUrl: getBaseUrl(),
     }),
   }),
@@ -1422,7 +1602,7 @@ export function listEmailTemplates(): EmailTemplateSummary[] {
       category: template.category,
       status: template.status,
       trigger: template.trigger,
-      hasAttachments: template.attachments === "fulfillment-pdfs",
+      hasAttachments: template.attachments !== undefined,
     };
   });
 }

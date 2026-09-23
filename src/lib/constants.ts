@@ -63,6 +63,30 @@ export const CONTACT_INFO = {
  */
 export const PROVIDER_GROUP_CODE = "IDEALDO" as const
 
+/**
+ * Essentials RxValet Rx Group.
+ *
+ * This is also the value ARK and RxValet expect in the `GroupID` column of the
+ * Essentials eligibility file — their own spreadsheet template ships with
+ * GIH1000 there, so we submit it as-is rather than substituting an identifier
+ * of our own. Not to be confused with the 6-digit Essentials group number,
+ * which is Benefits Horizon's internal tracking value.
+ */
+export const ESSENTIALS_RX_GROUP = "GIH1000" as const
+
+/** Essentials RxValet pharmacy BIN. */
+export const ESSENTIALS_RX_BIN = "006053" as const
+
+/** Essentials RxValet pharmacy PCN. */
+export const ESSENTIALS_RX_PCN = "MSC" as const
+
+/** Balance for Life group number — the same for every enrolling member. */
+export const ESSENTIALS_BFL_GROUP_NUMBER = "CMG" as const
+
+/** Balance for Life member code, as printed on the BFL welcome letter. */
+export const ESSENTIALS_BFL_MEMBER_CODE = "Ideal" as const
+
+
 /** Display name of the carrier (top of the hierarchy). */
 export const CARRIER_NAME = "Ryze Nexus" as const
 

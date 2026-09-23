@@ -110,6 +110,7 @@ export default function MembersAdmin() {
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkStatus, setBulkStatus] = useState('');
   const [resendingMemberId, setResendingMemberId] = useState<string | null>(null);
+  const [resendingPacketId, setResendingPacketId] = useState<string | null>(null);
   const [isBulkResending, setIsBulkResending] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState({ groupId: '', firstName: '', lastName: '', email: '', phone: '', dateOfBirth: '', memberType: 'eligible', employeeType: '' });
@@ -159,6 +160,7 @@ export default function MembersAdmin() {
   const sendReenrollLink = useAction((api as any).admin.members.sendReenrollmentLink);
   const resendWelcomeEmail = useAction(api.admin.eligibilityProvisioning.resendInvite);
   const bulkResendWelcomeEmails = useAction(api.admin.eligibilityProvisioning.bulkResendWelcomeEmails);
+  const resendMemberPacket = useAction((api as any).admin.notifications.resendMemberPacket);
 
   const filteredMembers = members.filter((member: any) => {
     const memberName = `${member.firstName || ''} ${member.lastName || ''}`.toLowerCase();
@@ -342,6 +344,19 @@ export default function MembersAdmin() {
       toast.fromError(err, 'Could not send welcome email');
     } finally {
       setResendingMemberId(null);
+    }
+  };
+
+  const handleResendPacket = async (memberId: string, name: string) => {
+    setResendingPacketId(memberId);
+    try {
+      const result = await resendMemberPacket({ memberId: memberId as Id<'memberProfiles'> });
+      const programLabel = result.program === 'essentials' ? 'Essentials' : 'Oral Care';
+      toast.success('Packet sent', `${programLabel} packet re-sent to ${result.to}`);
+    } catch (err) {
+      toast.fromError(err, `Could not re-send packet to ${name}`);
+    } finally {
+      setResendingPacketId(null);
     }
   };
 
@@ -749,6 +764,15 @@ export default function MembersAdmin() {
                     {memberDetail.member.dependents?.length
                       ? `Download ID Cards (${1 + memberDetail.member.dependents.length})`
                       : 'Download ID Card'}
+                  </button>
+
+                  <button
+                    onClick={() => handleResendPacket(selectedMemberId!, `${memberDetail.member.firstName} ${memberDetail.member.lastName}`)}
+                    disabled={resendingPacketId === selectedMemberId}
+                    className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-2 text-sm bg-slate-700 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50"
+                  >
+                    <Send size={14} />
+                    {resendingPacketId === selectedMemberId ? 'Sending…' : 'Re-send Fulfillment Packet'}
                   </button>
 
                   {needsWelcomeEmail(memberDetail.member) && (

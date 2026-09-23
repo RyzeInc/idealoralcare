@@ -15,20 +15,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { pdf } from "@react-pdf/renderer";
 import { Readable } from "stream";
 import { PDF_DOCUMENTS, isPdfDocumentId, listPdfDocuments } from "@/lib/pdf-registry";
+import { mergePdfs } from "@/lib/pdf-merge";
 
 export const runtime = "nodejs";
 
 async function renderToBuffer(docId: keyof typeof PDF_DOCUMENTS): Promise<Buffer> {
-  const instance = pdf(PDF_DOCUMENTS[docId].build());
+  const entry = PDF_DOCUMENTS[docId];
+  const instance = pdf(entry.build());
   const stream = await instance.toBuffer();
 
-  return await new Promise<Buffer>((resolve, reject) => {
+  const rendered = await new Promise<Buffer>((resolve, reject) => {
     const chunks: Buffer[] = [];
     const nodeStream = stream as unknown as Readable;
     nodeStream.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
     nodeStream.on("end", () => resolve(Buffer.concat(chunks)));
     nodeStream.on("error", reject);
   });
+
+  // Preview the document members actually receive, appended brochures included.
+  const appendAssets = (entry as { appendAssets?: () => string[] }).appendAssets;
+  return appendAssets ? await mergePdfs(rendered, appendAssets()) : rendered;
 }
 
 export async function GET(req: NextRequest) {

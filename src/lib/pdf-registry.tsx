@@ -17,6 +17,13 @@ import {
   MemberCardsPdf,
   type FulfillmentPacketData,
 } from "./fulfillment-pdf";
+import {
+  EssentialsPacketPdf,
+  EssentialsMembershipAgreementPdf,
+  EssentialsMemberCardPdf,
+  type EssentialsPacketData,
+} from "./essentials-packet-pdf";
+import { essentialsAppendPaths } from "./essentials-packet-assets";
 import { ListBillInvoicePdf, type ListBillInvoicePdfData } from "./list-bill-invoice-pdf";
 import { VendorStatementPdf, VendorStatementBundlePdf } from "./vendor-statement-pdf";
 import type { VendorStatementDocument } from "./vendor-statement-document";
@@ -61,6 +68,20 @@ const SAMPLE_FAMILY: FulfillmentPacketData[] = [
     subscriberId: "100-10001-03",
   },
 ];
+
+const SAMPLE_ESSENTIALS_MEMBER: EssentialsPacketData = {
+  memberName: "Test Member",
+  memberFirstName: "Test",
+  memberEmail: "test.member@example.com",
+  essentialsMemberNumber: "841716653",
+  essentialsGroupNumber: "895794",
+  planName: "Essentials Plan — Employee",
+  coverageType: "Employee",
+  effectiveDate: "October 1, 2026",
+  term: "Monthly",
+  memberAddress: "123 Any Street\nTallahassee, FL 32303",
+  periodicCharge: "$58.95",
+};
 
 export const SAMPLE_LIST_BILL_INVOICE: ListBillInvoicePdfData = {
   invoiceNumberDisplay: "INV-2026-0042",
@@ -212,6 +233,12 @@ export interface PdfDocumentEntry {
   /** Download filename for the preview. */
   filename: string;
   build: () => ReactElement<DocumentProps>;
+  /**
+   * Absolute paths to PDFs appended after the rendered pages. The preview
+   * merges these too — otherwise it would quietly show a shorter document than
+   * the one members actually receive.
+   */
+  appendAssets?: () => string[];
 }
 
 function element(node: React.ReactElement): ReactElement<DocumentProps> {
@@ -250,6 +277,33 @@ export const PDF_DOCUMENTS = {
     source: "GET /api/admin/members/[memberId]/id-card (when the member has dependents)",
     filename: "sample-member-cards-family.pdf",
     build: () => element(createElement(MemberCardsPdf, { people: SAMPLE_FAMILY })),
+  },
+  "essentials-packet": {
+    label: "Essentials Welcome Packet",
+    description:
+      "Welcome letter, benefit router, Lyric virtual care, RxValet pharmacy, QuestSelect labs and Balance for Life, plus the member ID card. The BFL welcome letter is appended after the generated pages.",
+    category: "member",
+    source: "POST /api/generate-essentials-pdf · GET /api/documents?type=essentials-packet",
+    filename: "sample-essentials-packet.pdf",
+    build: () => element(createElement(EssentialsPacketPdf, { data: SAMPLE_ESSENTIALS_MEMBER })),
+    appendAssets: essentialsAppendPaths,
+  },
+  "essentials-agreement": {
+    label: "Essentials Membership Agreement",
+    description: "Standalone Essentials membership agreement attached alongside the packet.",
+    category: "member",
+    source: "POST /api/generate-essentials-pdf · GET /api/documents?type=essentials-agreement",
+    filename: "sample-essentials-agreement.pdf",
+    build: () =>
+      element(createElement(EssentialsMembershipAgreementPdf, { data: SAMPLE_ESSENTIALS_MEMBER })),
+  },
+  "essentials-card": {
+    label: "Essentials Member ID Card",
+    description: "Title page plus front and back of an Essentials member ID card.",
+    category: "member",
+    source: "GET /api/documents?type=essentials-card",
+    filename: "sample-essentials-card.pdf",
+    build: () => element(createElement(EssentialsMemberCardPdf, { data: SAMPLE_ESSENTIALS_MEMBER })),
   },
   "list-bill-invoice": {
     label: "List-Bill Invoice",

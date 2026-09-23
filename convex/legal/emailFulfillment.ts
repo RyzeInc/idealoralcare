@@ -133,6 +133,104 @@ export const sendFulfillmentPacketEmail = action({
   },
 });
 
+/**
+ * Send Ideal Health Essentials Welcome Packet Email
+ *
+ * Generates the Essentials welcome packet (with the Balance for Life letter
+ * appended) and the membership agreement, then sends both to the member.
+ *
+ * Mirrors sendFulfillmentPacketEmail — the PDFs are rendered by the Next.js
+ * route so @react-pdf/renderer runs in Node.
+ *
+ * Required env vars:
+ *   RESEND_API_KEY
+ *   NEXT_PUBLIC_APP_URL  (e.g. https://getidealoh.com)
+ *   INTERNAL_API_SECRET  (shared secret with Next.js – omit in dev to skip auth)
+ */
+export const sendEssentialsPacketEmail = action({
+  args: {
+    memberName: v.string(),
+    memberFirstName: v.string(),
+    memberEmail: v.string(),
+    essentialsMemberNumber: v.string(),
+    essentialsGroupNumber: v.string(),
+    planName: v.string(),
+    effectiveDate: v.string(),
+    // Optional fields
+    coverageType: v.optional(v.string()),
+    term: v.optional(v.string()),
+    memberAddress: v.optional(v.string()),
+    periodicCharge: v.optional(v.string()),
+    appUrl: v.optional(v.string()),
+  },
+  handler: async (_ctx: any, args: any) => {
+    const baseUrl = args.appUrl ?? getBaseUrl();
+
+    // ── Step 1: generate the PDFs ─────────────────────────────────────────────
+    const pdfPayload = {
+      memberName: args.memberName,
+      memberFirstName: args.memberFirstName,
+      memberEmail: args.memberEmail,
+      essentialsMemberNumber: args.essentialsMemberNumber,
+      essentialsGroupNumber: args.essentialsGroupNumber,
+      planName: args.planName,
+      coverageType: args.coverageType,
+      effectiveDate: args.effectiveDate,
+      term: args.term,
+      memberAddress: args.memberAddress,
+      periodicCharge: args.periodicCharge,
+    };
+
+    const pdfHeaders: Record<string, string> = { "Content-Type": "application/json" };
+    const internalSecret = process.env.INTERNAL_API_SECRET;
+    if (internalSecret) {
+      pdfHeaders["Authorization"] = `Bearer ${internalSecret}`;
+    }
+
+    const pdfResponse = await fetch(`${baseUrl}/api/generate-essentials-pdf`, {
+      method: "POST",
+      headers: pdfHeaders,
+      body: JSON.stringify(pdfPayload),
+    });
+
+    if (!pdfResponse.ok) {
+      const errText = await pdfResponse.text();
+      throw new Error(`Essentials PDF generation failed (${pdfResponse.status}): ${errText}`);
+    }
+
+    const { pdf: pdfBase64, agreementPdf: agreementPdfBase64 } = await pdfResponse.json();
+
+    // ── Step 2: send via Resend with both PDFs attached ───────────────────────
+    const { subject, html } = EMAIL_TEMPLATES["essentials-fulfillment-packet"].render({
+      memberFirstName: args.memberFirstName,
+      essentialsMemberNumber: args.essentialsMemberNumber,
+      essentialsGroupNumber: args.essentialsGroupNumber,
+      planName: args.planName,
+      coverageType: args.coverageType ?? "Employee",
+      effectiveDate: args.effectiveDate,
+      memberServicesPhone: "844-433-2502",
+      portalUrl: baseUrl,
+    });
+
+    return await sendViaResendOrThrow({
+      to: args.memberEmail,
+      subject,
+      html,
+      attachments: [
+        {
+          filename: "Ideal_Health_Essentials_Welcome_Packet.pdf",
+          content: pdfBase64,
+        },
+        {
+          filename: "Ideal_Health_Essentials_Membership_Agreement.pdf",
+          content: agreementPdfBase64,
+        },
+      ],
+      tags: [{ name: "category", value: "essentials-packet" }],
+    });
+  },
+});
+
 export const sendMembershipWelcomeEmail = action({
   args: {
     memberName: v.string(),
