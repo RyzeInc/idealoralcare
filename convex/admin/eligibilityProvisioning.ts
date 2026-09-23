@@ -975,6 +975,34 @@ export const bulkResendWelcomeEmails = action({
   },
 });
 
+/**
+ * Unauthenticated counterpart to resendInvite, for callers that already ran
+ * their own admin check and may run without an identity — notably the
+ * scheduler-driven mass sends in admin/memberEmail.ts. Returns the Resend
+ * email ID so the caller can log the send and correlate delivery events.
+ */
+export const sendWelcomeInviteInternal = internalAction({
+  args: { memberProfileId: v.id("memberProfiles"), sourceTag: v.optional(v.string()) },
+  handler: async (ctx, args): Promise<{ resendEmailId: string; to: string }> => {
+    const secret = process.env.CLERK_SECRET_KEY;
+    if (!secret) throw new Error("CLERK_SECRET_KEY not set");
+
+    const profile: any = await ctx.runQuery(
+      internal.admin.eligibilityProvisioning.getMemberProfileById,
+      { memberProfileId: args.memberProfileId }
+    );
+    if (!profile) throw new Error("Member profile not found");
+
+    const { resendEmailId } = await sendWelcomeInviteToMember(
+      ctx,
+      secret,
+      profile,
+      args.sourceTag ?? "member_email_resend"
+    );
+    return { resendEmailId, to: profile.email };
+  },
+});
+
 /** Internal helper to load a single memberProfile by ID (used from actions). */
 export const getMemberProfileById = internalQuery({
   args: { memberProfileId: v.id("memberProfiles") },
@@ -1025,6 +1053,12 @@ export const recordEmailDeliveryEvent = mutation({
 
     // Update the original email_sent activity with latest event status
     await ctx.db.patch(activity._id, { emailEvent: args.eventType });
+
+    // Keep the Communications log in step with the timeline.
+    await ctx.runMutation(internal.admin.memberEmail.applyDeliveryEvent, {
+      resendEmailId: args.resendEmailId,
+      eventType: args.eventType,
+    });
 
     // Insert a new activity record for the event
     const profile = activity.memberProfileId

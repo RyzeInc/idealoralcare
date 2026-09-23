@@ -27,6 +27,7 @@ import type * as admin_index from "../admin/index.js";
 import type * as admin_invoiceCalculator from "../admin/invoiceCalculator.js";
 import type * as admin_listBillInvoices from "../admin/listBillInvoices.js";
 import type * as admin_memberCards from "../admin/memberCards.js";
+import type * as admin_memberEmail from "../admin/memberEmail.js";
 import type * as admin_members from "../admin/members.js";
 import type * as admin_navigation from "../admin/navigation.js";
 import type * as admin_notifications from "../admin/notifications.js";
@@ -121,6 +122,7 @@ declare const fullApi: ApiFromModules<{
   "admin/invoiceCalculator": typeof admin_invoiceCalculator;
   "admin/listBillInvoices": typeof admin_listBillInvoices;
   "admin/memberCards": typeof admin_memberCards;
+  "admin/memberEmail": typeof admin_memberEmail;
   "admin/members": typeof admin_members;
   "admin/navigation": typeof admin_navigation;
   "admin/notifications": typeof admin_notifications;

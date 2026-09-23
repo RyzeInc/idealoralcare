@@ -1279,6 +1279,100 @@ export default defineSchema({
     .index("by_member", ["memberProfileId"])
     .index("by_pinned", ["isPinned"]),
 
+  // ── MEMBER COMMUNICATIONS ────────────────────────────────────────────
+  //
+  // emailSends is the authoritative log of every email we deliberately send
+  // to a member — from the member detail page, from a mass send, or from a
+  // production code path that routes through admin/memberEmail.ts. It is the
+  // record the Communications screens read, and the Resend webhook patches
+  // its status by resendEmailId as delivery events arrive.
+  //
+  // memberActivities still gets its own email_sent row so the member timeline
+  // and the existing bounce handling keep working; emailSends is the richer,
+  // queryable record (subject, body, campaign, who sent it, re-send lineage).
+  emailSends: defineTable({
+    // RECIPIENT
+    memberProfileId: v.optional(v.id("memberProfiles")), // absent for ad-hoc addresses
+    memberName: v.string(),
+    memberIdCode: v.optional(v.string()), // memberProfiles.memberId, for display
+    to: v.string(),
+    siteId: v.optional(v.id("sites")),
+    groupId: v.optional(v.id("groups")),
+
+    // WHAT WAS SENT
+    /** Registry id from lib/emailTemplates.ts, or "custom" for a one-off compose. */
+    templateId: v.string(),
+    templateLabel: v.string(),
+    subject: v.string(),
+    /** Stored only for custom sends — template sends are re-rendered on demand. */
+    html: v.optional(v.string()),
+    hasAttachments: v.boolean(),
+
+    mode: v.union(
+      v.literal("template"), // rendered from the registry with real member data
+      v.literal("custom"), // one-off subject + body written by an admin
+      v.literal("resend") // re-send of a prior emailSends row
+    ),
+    /** Set when mode === "resend" — the original send this one duplicates. */
+    sourceSendId: v.optional(v.id("emailSends")),
+    campaignId: v.optional(v.id("emailCampaigns")),
+
+    // DELIVERY
+    status: v.union(
+      v.literal("queued"),
+      v.literal("sent"),
+      v.literal("failed"),
+      v.literal("delivered"),
+      v.literal("bounced"),
+      v.literal("complained"),
+      v.literal("opened"),
+      v.literal("clicked")
+    ),
+    resendEmailId: v.optional(v.string()),
+    error: v.optional(v.string()),
+
+    // AUDIT
+    sentBy: v.optional(v.string()), // Clerk user ID of the admin, or "system"
+    sentByName: v.optional(v.string()),
+    createdAt: v.number(),
+    sentAt: v.optional(v.number()),
+    lastEventAt: v.optional(v.number()),
+  })
+    .index("by_member", ["memberProfileId"])
+    .index("by_campaign", ["campaignId"])
+    .index("by_resend_email_id", ["resendEmailId"])
+    .index("by_created", ["createdAt"])
+    .index("by_status", ["status"])
+    .index("by_template", ["templateId"]),
+
+  // One mass-send. Individual recipients are emailSends rows pointing here.
+  emailCampaigns: defineTable({
+    name: v.string(),
+    templateId: v.string(),
+    templateLabel: v.string(),
+    subject: v.string(),
+    html: v.optional(v.string()), // custom-compose body, so the campaign can be re-run
+    mode: v.union(v.literal("template"), v.literal("custom"), v.literal("resend")),
+
+    recipientCount: v.number(),
+    sentCount: v.number(),
+    failedCount: v.number(),
+
+    status: v.union(
+      v.literal("queued"),
+      v.literal("sending"),
+      v.literal("completed"),
+      v.literal("completed_with_errors")
+    ),
+
+    createdBy: v.optional(v.string()),
+    createdByName: v.optional(v.string()),
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_created", ["createdAt"])
+    .index("by_status", ["status"]),
+
   // ENROLLMENT SESSIONS (Temporary state during checkout)
   enrollmentSessions: defineTable({
     // SESSION IDENTITY

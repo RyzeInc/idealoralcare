@@ -28,6 +28,7 @@ function fmtFull(ts: number | null | undefined) {
   });
 }
 import { StatusBadge } from '@/components/admin/ui';
+import { MemberCommunications } from '@/components/admin/MemberCommunications';
 
 function cents(c: number | null | undefined) {
   if (!c) return '—';
@@ -474,6 +475,12 @@ export default function MemberInspectorPage({
               <p className="text-sm text-slate-500 italic">No active subscription.</p>
             )}
           </Card>
+
+          {/* Communications */}
+          <MemberCommunications
+            memberProfileId={id as Id<'memberProfiles'>}
+            memberName={`${member.firstName ?? ''} ${member.lastName ?? ''}`.trim() || member.memberId}
+          />
 
           {/* Toothlens */}
           <Card>

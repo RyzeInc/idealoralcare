@@ -27,6 +27,7 @@ import {
   HelpCircle,
   Inbox,
   Library,
+  Mail,
 } from "lucide-react";
 
 type NavItem = {
@@ -76,6 +77,7 @@ const ADMIN_NAVIGATION: NavSection[] = [
     section: "Support",
     items: [
       { label: "Customer Service", href: "/admin/customer-service", icon: Headphones, tooltip: "Look up members and resolve member issues." },
+      { label: "Communications", href: "/admin/communications", icon: Mail, tooltip: "Resend documents and email members one at a time or en masse, with a full send log." },
     ],
   },
   {
