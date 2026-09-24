@@ -37,28 +37,20 @@ export const resendMemberPacket = action({
     // @ts-ignore - avoid deep type instantiation
     await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
 
-    const detail: any = await ctx.runQuery(api.admin.members.getMemberDetail, {
-      memberId: args.memberId,
-    });
-    const member = detail?.member;
-    if (!member) throw new Error("Member not found");
-    if (!member.email) throw new Error("Member has no email address on file");
-    if (!member.customerId) {
-      throw new Error(
-        "Member has no linked account yet, so their plan cannot be resolved. Send the set-password invite first.",
-      );
-    }
-
-    const cardData: any = await ctx.runQuery(
-      api.subscriptions.queries.getMemberCardDataPublic,
-      { customerId: member.customerId },
+    // Resolved from the member profile, not from a Clerk account: benefits are
+    // live at enrollment whether or not the member ever registers a login, so
+    // the packet must not be gated on one.
+    const data: any = await ctx.runQuery(
+      api.subscriptions.queries.getPacketDataForProfileInternal,
+      { memberProfileId: args.memberId },
     );
-    if (!cardData) throw new Error("No active membership found for this member");
+    if (!data) throw new Error("Member not found");
+    if (!data.memberEmail) throw new Error("Member has no email address on file");
 
-    const isEssentials = String(cardData.productSlug ?? "").startsWith("essentials-");
+    const isEssentials = String(data.productSlug ?? "").startsWith("essentials-");
 
     if (isEssentials) {
-      const suffix = String(cardData.productSlug).slice("essentials-".length);
+      const suffix = String(data.productSlug).slice("essentials-".length);
       const coverageType =
         ({
           employee: "Employee",
@@ -68,33 +60,33 @@ export const resendMemberPacket = action({
         } as Record<string, string>)[suffix] ?? "Employee";
 
       await ctx.runAction((api as any)["legal/emailFulfillment"].sendEssentialsPacketEmail, {
-        memberName: cardData.memberName,
-        memberFirstName: member.firstName ?? "Member",
-        memberEmail: member.email,
-        essentialsMemberNumber: cardData.essentialsMemberNumber,
-        essentialsGroupNumber: cardData.essentialsGroupNumber,
-        planName: cardData.planName,
+        memberName: data.memberName,
+        memberFirstName: data.memberFirstName,
+        memberEmail: data.memberEmail,
+        essentialsMemberNumber: data.essentialsMemberNumber,
+        essentialsGroupNumber: data.essentialsGroupNumber,
+        planName: data.planName,
         coverageType,
-        effectiveDate: cardData.effectiveDate,
+        effectiveDate: data.effectiveDate,
       });
     } else {
       await ctx.runAction((api as any)["legal/emailFulfillment"].sendFulfillmentPacketEmail, {
-        memberName: cardData.memberName,
-        memberFirstName: member.firstName ?? "Member",
-        memberEmail: member.email,
-        memberId: cardData.memberId,
-        subscriberId: cardData.subscriberId,
+        memberName: data.memberName,
+        memberFirstName: data.memberFirstName,
+        memberEmail: data.memberEmail,
+        memberId: data.memberId,
+        subscriberId: data.subscriberId,
         groupCode: PROVIDER_GROUP_CODE,
-        planName: cardData.planName,
-        effectiveDate: cardData.effectiveDate,
-        networks: cardData.networks,
+        planName: data.planName,
+        effectiveDate: data.effectiveDate,
+        networks: data.networks,
       });
     }
 
     return {
       sent: true,
       program: isEssentials ? "essentials" : "oral-care",
-      to: member.email,
+      to: data.memberEmail,
     };
   },
 });

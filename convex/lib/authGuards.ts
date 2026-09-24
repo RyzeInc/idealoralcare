@@ -10,6 +10,7 @@
  *   await requireSelf(ctx, customerId);            // Must match the authenticated user
  */
 
+import { ConvexError } from "convex/values";
 import type { QueryCtx, MutationCtx, ActionCtx } from "../_generated/server";
 
 type AnyCtx = QueryCtx | MutationCtx;
@@ -43,7 +44,7 @@ export async function requireAuth(ctx: AnyCtx): Promise<AuthIdentity> {
   if (!identity) {
     // Log to help diagnose auth issues — visible in `npx convex logs`
     console.error("[requireAuth] getUserIdentity() returned null — JWT was not sent or could not be verified against auth.config.ts");
-    throw new Error("Unauthorized: Authentication required");
+    throw new ConvexError("Unauthorized: Authentication required");
   }
 
   return {
@@ -74,7 +75,7 @@ export async function requireAdmin(ctx: AnyCtx): Promise<AuthIdentity> {
       .withIndex("by_clerk_id", (q: any) => q.eq("clerkUserId", identity.clerkUserId))
       .first();
     if (!partner || partner.status !== "active") {
-      throw new Error("Unauthorized: Admin role required");
+      throw new ConvexError("Unauthorized: Admin role required");
     }
   }
 
@@ -102,7 +103,7 @@ export async function requireSelf(ctx: AnyCtx, customerId: string): Promise<Auth
         .withIndex("by_clerk_id", (q: any) => q.eq("clerkUserId", identity.clerkUserId))
         .first();
       if (!partner || partner.status !== "active") {
-        throw new Error("Unauthorized: You can only access your own data");
+        throw new ConvexError("Unauthorized: You can only access your own data");
       }
     }
   }
@@ -127,7 +128,7 @@ export async function getAuthenticatedUserId(ctx: AnyCtx): Promise<string | null
 export async function requireAuthAction(ctx: ActionCtx): Promise<AuthIdentity> {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) {
-    throw new Error("Unauthorized: Authentication required");
+    throw new ConvexError("Unauthorized: Authentication required");
   }
 
   return {
@@ -154,7 +155,7 @@ export async function requireAdminAction(
   })) as boolean;
 
   if (!isAdmin) {
-    throw new Error("Unauthorized: Admin role required");
+    throw new ConvexError("Unauthorized: Admin role required");
   }
 
   return identity;

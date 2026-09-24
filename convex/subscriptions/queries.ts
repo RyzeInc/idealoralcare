@@ -662,6 +662,124 @@ export const getMemberCardDataPublic = query({
   },
 });
 
+/**
+ * Packet/card data resolved from the member PROFILE rather than a Clerk account.
+ *
+ * getMemberCardDataPublic keys off customerId, which only exists once a member
+ * has registered. Eligibility-file and list-bill members often never do — and
+ * their Careington/DialCare benefits are live regardless, so they still need
+ * their packet and ID. Everything the packet needs (member-facing ID,
+ * subscriber ID, effective date, Essentials numbers) comes from the profile and
+ * its group; the bundle and entitlement only sharpen the plan name and dates
+ * when the member does have an account.
+ *
+ * Returns null only when the profile itself is missing.
+ */
+export const getPacketDataForProfile = query({
+  args: { memberProfileId: v.id("memberProfiles") },
+  handler: async (ctx: QueryCtx, args) => {
+    await requireAdmin(ctx);
+    return await resolvePacketData(ctx, args.memberProfileId);
+  },
+});
+
+/** Unauthenticated variant for server-side senders that already checked access. */
+export const getPacketDataForProfileInternal = query({
+  args: { memberProfileId: v.id("memberProfiles") },
+  handler: async (ctx: QueryCtx, args) => {
+    return await resolvePacketData(ctx, args.memberProfileId);
+  },
+});
+
+async function resolvePacketData(ctx: QueryCtx, memberProfileId: any) {
+  const profile: any = await ctx.db.get(memberProfileId);
+  if (!profile) return null;
+
+  const group: any = profile.groupId ? await ctx.db.get(profile.groupId) : null;
+
+  // Bundle and entitlement are best-effort — absent for members who have not
+  // registered, which is exactly the case this resolver exists for.
+  let bundle: any = null;
+  let planName = "Ideal Oral Savings Plan";
+  let productSlug: string | null = null;
+
+  if (profile.customerId) {
+    const bundles = await ctx.db
+      .query("subscriptionBundles")
+      .withIndex("by_customer", (q) => q.eq("customerId", profile.customerId))
+      .filter((q) => q.neq(q.field("status"), "cancelled"))
+      .collect();
+    bundle =
+      bundles.find((b: any) => b.status === "active") ??
+      bundles.find((b: any) => b.status === "cancel_at_period_end") ??
+      bundles[0] ??
+      null;
+
+    const entitlement: any = await ctx.db
+      .query("entitlements")
+      .withIndex("by_customer", (q) => q.eq("customerId", profile.customerId))
+      .filter((q) =>
+        q.or(
+          q.eq(q.field("status"), "active"),
+          q.eq(q.field("status"), "cancel_at_period_end")
+        )
+      )
+      .first();
+    if (entitlement) {
+      const product: any = await ctx.db.get(entitlement.productId as any);
+      if (product?.name) planName = product.name;
+      if (product?.slug) productSlug = product.slug;
+    }
+  }
+
+  const subscriberId =
+    profile.subscriberId || group?.organizationCode || profile.memberId;
+
+  // Prefer the coverage effective date the group gave us; fall back to the
+  // billing period, then to when the record was created.
+  let effectiveDate: string;
+  if (profile.effectiveDate) {
+    const d = new Date(profile.effectiveDate);
+    effectiveDate = Number.isNaN(d.getTime())
+      ? String(profile.effectiveDate)
+      : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  } else {
+    const effectiveTs = bundle?.currentPeriodStart ?? profile.enrolledAt ?? profile._creationTime;
+    const base = new Date(effectiveTs);
+    effectiveDate = new Date(base.getFullYear(), base.getMonth() + 1, 1).toLocaleDateString(
+      "en-US",
+      { month: "short", day: "numeric", year: "numeric" }
+    );
+  }
+
+  // Must match toUniqueId() in admin/vendorFiles.ts — this is the ID we submit
+  // to Careington and DialCare, and the one the member presents at a provider.
+  const memberFacingId: string =
+    profile.careingtonUniqueId ?? profile.memberId.replace(/[^0-9]/g, "").slice(0, 12);
+
+  return {
+    memberName: `${profile.firstName} ${profile.lastName}`.trim(),
+    memberFirstName: profile.firstName ?? "Member",
+    memberEmail: profile.email ?? null,
+    memberId: memberFacingId,
+    subscriberId,
+    planName,
+    productSlug,
+    effectiveDate,
+    barcode: profile.barcode,
+    hasAccount: !!profile.customerId,
+    essentialsMemberNumber: resolveEssentialsMemberNumber(profile),
+    essentialsGroupNumber: resolveEssentialsGroupNumber(group),
+    networks: {
+      careington: { name: "Dental Discount Network", memberUrl: "https://getidealoh.com/health/dashboard" },
+      dialCare: { name: "Teledentistry Program", memberUrl: "https://www.dialcare.com" },
+      toothlens: { name: "AI Oral Scanning", memberUrl: "https://toothlens.com" },
+    },
+    supportPhone: "(844) 679-9367",
+    supportEmail: "support@getidealoh.com",
+  };
+}
+
 export const getCustomerDashboard = query({
   args: {
     customerId: v.string(),

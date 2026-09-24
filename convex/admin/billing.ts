@@ -67,16 +67,12 @@ export const getGroupMembersWithBillingStatus = query({
     const group = await ctx.db.get(args.groupId);
     const isListBillGroup = group?.listBill?.enabled === true;
 
-    const members = await ctx.db
-      .query("memberProfiles")
-      .filter(
-        (q) =>
-          q.and(
-            q.eq(q.field("groupId"), args.groupId),
-            q.eq(q.field("memberType"), "active")
-          )
-      )
-      .collect();
+    const members = (
+      await ctx.db
+        .query("memberProfiles")
+        .withIndex("by_group", (q) => q.eq("groupId", args.groupId))
+        .collect()
+    ).filter((m) => m.memberType === "active");
 
     const result = [];
     for (const member of members) {
@@ -86,11 +82,16 @@ export const getGroupMembersWithBillingStatus = query({
       let subscriptionStatus: string | null = null;
 
       if (member.customerId) {
-        const bundle = (await ctx.db.query("subscriptionBundles").collect()).find(
-          (b) =>
-            b.customerId === member.customerId &&
-            b.status === "active"
-        );
+        // Indexed lookup — a full `.collect()` per member blew the read limit
+        // once a group had more than a handful of members.
+        const bundle = (
+          await ctx.db
+            .query("subscriptionBundles")
+            .withIndex("by_customer", (q) =>
+              q.eq("customerId", member.customerId as string)
+            )
+            .collect()
+        ).find((b) => b.status === "active");
         if (bundle) {
           subscriptionStatus = bundle.status;
           if (bundle.pricingSnapshot?.totalCents > 0) {
@@ -152,16 +153,12 @@ export const getGroupBillingSummary = query({
     if (!group) throw new Error("Group not found");
 
     // Get all active members
-    const members = await ctx.db
-      .query("memberProfiles")
-      .filter(
-        (q) =>
-          q.and(
-            q.eq(q.field("groupId"), args.groupId),
-            q.eq(q.field("memberType"), "active")
-          )
-      )
-      .collect();
+    const members = (
+      await ctx.db
+        .query("memberProfiles")
+        .withIndex("by_group", (q) => q.eq("groupId", args.groupId))
+        .collect()
+    ).filter((m) => m.memberType === "active");
 
     // Assume standard plan price of $15/month (or get from plan pricing)
     const memberPrice = 15.0; // Default; could look up actual plan price

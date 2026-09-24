@@ -437,6 +437,7 @@ function Stat({ label, value, tone = 'text-slate-900' }: { label: string; value:
 function Campaigns({ onOpenLog }: { onOpenLog: () => void }) {
   const campaigns = useQuery(api.admin.memberEmail.listCampaigns, { limit: 100 });
   const [openCampaign, setOpenCampaign] = useState<Id<'emailCampaigns'> | null>(null);
+  const [retryCampaign, setRetryCampaign] = useState<Id<'emailCampaigns'> | null>(null);
 
   if (openCampaign) {
     return (
@@ -514,7 +515,16 @@ function Campaigns({ onOpenLog }: { onOpenLog: () => void }) {
                       </p>
                     </td>
                     <td className="px-2 py-3 text-xs text-slate-500">{c.createdByName}</td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      {c.failedCount > 0 && c.status !== 'sending' && (
+                        <button
+                          type="button"
+                          onClick={() => setRetryCampaign(c.id as Id<'emailCampaigns'>)}
+                          className="text-amber-700 hover:text-amber-900 text-xs mr-3"
+                        >
+                          Retry {c.failedCount} failed
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => setOpenCampaign(c.id as Id<'emailCampaigns'>)}
@@ -530,6 +540,43 @@ function Campaigns({ onOpenLog }: { onOpenLog: () => void }) {
           </table>
         </div>
       )}
+
+      <RetryFailed
+        campaignId={retryCampaign}
+        onClose={() => setRetryCampaign(null)}
+      />
     </div>
+  );
+}
+
+/**
+ * Re-send to exactly the recipients a campaign could not reach — the common
+ * case after fixing whatever caused the failures.
+ */
+function RetryFailed({
+  campaignId,
+  onClose,
+}: {
+  campaignId: Id<'emailCampaigns'> | null;
+  onClose: () => void;
+}) {
+  const failed = useQuery(
+    api.admin.memberEmail.campaignFailedRecipients,
+    campaignId ? { campaignId } : 'skip',
+  );
+
+  if (!campaignId || failed === undefined || failed.length === 0) {
+    return (
+      <EmailSendDialog open={false} onClose={onClose} recipientIds={[]} />
+    );
+  }
+
+  return (
+    <EmailSendDialog
+      open
+      onClose={onClose}
+      recipientIds={failed.map((f) => f.memberProfileId as Id<'memberProfiles'>)}
+      onSent={onClose}
+    />
   );
 }

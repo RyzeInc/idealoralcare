@@ -250,6 +250,122 @@ function fulfillmentHtml(data: FulfillmentEmailData): string {
   `;
 }
 
+/**
+ * For members who enrolled but have never signed in.
+ *
+ * The point of the email is that their Careington and DialCare benefits are
+ * already live and usable with the member ID below — the portal account is a
+ * convenience, not a gate. The packet PDFs ride along so they have the ID card
+ * and program details in hand even if they never set a password.
+ */
+export interface BenefitsReadyEmailData {
+  memberFirstName: string;
+  memberId: string;
+  planName: string;
+  effectiveDate: string;
+  groupCode: string;
+  memberServicesPhone: string;
+  portalUrl: string;
+  /** Live set-password link when one was just issued; otherwise the sign-in page. */
+  activationUrl?: string;
+}
+
+function benefitsReadyHtml(data: BenefitsReadyEmailData): string {
+  const BLUE = "#0066CC";
+  const TEAL = "#14b8a6";
+  const CYAN = "#0d9de0";
+  const activationUrl = data.activationUrl ?? `${data.portalUrl}/health/sign-in`;
+  const activationLabel = data.activationUrl ? "Set Your Password" : "Sign In to Your Portal";
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; color: #333; background: #f9fafb;">
+      <div style="background: linear-gradient(135deg, #1E88E5 0%, #35C48A 100%); color: white; padding: 28px 24px; text-align: center; border-radius: 8px 8px 0 0;">
+        <h1 style="margin: 0; font-size: 22px;">Your Benefits Are Ready to Use</h1>
+        <p style="margin: 8px 0 0; font-size: 14px; opacity: 0.9;">Ideal Oral Health &mdash; AI Dental Scan &middot; Teledentistry &middot; Dental Savings</p>
+      </div>
+
+      <div style="padding: 28px 24px;">
+        <p style="font-size: 16px; margin-bottom: 8px;">Hi ${data.memberFirstName},</p>
+
+        <p style="font-size: 14px; line-height: 1.7;">
+          Your membership has been <strong>active since ${data.effectiveDate}</strong>, and your full
+          member packet is attached to this email. We noticed you haven&rsquo;t set up your online
+          portal yet &mdash; that&rsquo;s completely fine. <strong>You do not need an online account to
+          use your benefits.</strong> Your member ID below is all a dentist or the teledentistry line
+          needs.
+        </p>
+
+        <div style="background: white; border: 2px solid ${BLUE}; border-radius: 8px; padding: 18px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: ${BLUE}; font-size: 14px;">Use This Today</h3>
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <tr style="border-bottom: 1px solid #f0f0f0;">
+              <td style="padding: 8px 0; color: #666;">Member ID</td>
+              <td style="padding: 8px 0; font-weight: bold; text-align: right; font-size: 16px;">${data.memberId}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f0f0f0;">
+              <td style="padding: 8px 0; color: #666;">Plan</td>
+              <td style="padding: 8px 0; font-weight: bold; text-align: right;">${data.planName}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f0f0f0;">
+              <td style="padding: 8px 0; color: #666;">Group Code</td>
+              <td style="padding: 8px 0; font-weight: bold; text-align: right;">${data.groupCode}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #666;">Effective Date</td>
+              <td style="padding: 8px 0; font-weight: bold; text-align: right;">${data.effectiveDate}</td>
+            </tr>
+          </table>
+        </div>
+
+        <h3 style="color: #0f172a; font-size: 16px; margin-bottom: 4px;">Two things you can do right now</h3>
+        <p style="font-size: 13px; color: #6b7280; margin: 0 0 16px;">Neither one requires a password.</p>
+
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px;">
+          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${CYAN};">1. Talk to a dentist by phone or video</h3>
+          <p style="font-size: 13px; line-height: 1.7; color: #374151; margin: 0;">
+            Your DialCare teledentistry benefit is available 24/7. Register at
+            <a href="https://www.dialcare.com/verify" style="color: ${CYAN}; text-decoration: none;">dialcare.com/verify</a>
+            using member ID <strong>${data.memberId}</strong>, or call
+            <strong>(855) 335-2255</strong>.
+          </p>
+        </div>
+
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px;">
+          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${TEAL};">2. Save at the dentist</h3>
+          <p style="font-size: 13px; line-height: 1.7; color: #374151; margin: 0;">
+            Present the member ID card in your attached packet at a participating provider and pay the
+            discounted member rate at the time of service. Confirm the provider participates before
+            your visit &mdash; Member Services can look one up for you at ${data.memberServicesPhone}.
+          </p>
+        </div>
+
+        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 20px; margin-bottom: 20px;">
+          <h3 style="margin: 0 0 8px; font-size: 14px; color: ${BLUE};">When you want the extras</h3>
+          <p style="font-size: 13px; line-height: 1.7; color: #374151; margin: 0 0 14px;">
+            Setting up your portal adds the AI oral scan, your digital ID card, and provider search in
+            one place. It takes about a minute.
+          </p>
+          <div style="text-align: center;">
+            <a href="${activationUrl}" style="display: inline-block; padding: 13px 32px; background: ${BLUE}; color: white; font-weight: 700; font-size: 15px; text-decoration: none; border-radius: 8px;">
+              ${activationLabel}
+            </a>
+          </div>
+        </div>
+
+        <div style="background: #EAF4FD; border-radius: 6px; padding: 14px; margin-bottom: 12px; font-size: 13px;">
+          Questions? Member Services is at <strong>${data.memberServicesPhone}</strong> or
+          <a href="mailto:${SUPPORT_EMAIL}" style="color: #1E88E5; text-decoration: none;">${SUPPORT_EMAIL}</a>.
+        </div>
+
+        <p style="font-size: 11px; color: #9ca3af; line-height: 1.5; margin: 0;">
+          This plan is not insurance. Members are responsible for payment at the time of service
+          and receive access to negotiated discounts through participating providers.
+          The range of discounts varies by provider and service.
+        </p>
+      </div>
+    </div>
+  `;
+}
+
 export interface EssentialsFulfillmentEmailData {
   memberFirstName: string;
   essentialsMemberNumber: string;
@@ -1315,6 +1431,30 @@ export const EMAIL_TEMPLATES = {
       coverageType: "Employee",
       effectiveDate: sampleDate(),
       memberServicesPhone: "844-433-2502",
+      portalUrl: getBaseUrl(),
+    }),
+  }),
+
+  "benefits-ready": defineTemplate<BenefitsReadyEmailData>({
+    label: "Benefits Ready \u2014 Packet + Portal Activation",
+    description:
+      "For enrolled members who have never signed in: their benefits are already usable with the member ID, the packet PDFs are attached, and a portal activation link is offered as an extra.",
+    category: "member",
+    status: "live",
+    trigger:
+      "convex/admin/memberEmail.ts \u2192 member Communications screens (single or mass send)",
+    attachments: "fulfillment-pdfs",
+    render: (data) => ({
+      subject: "Your Ideal Oral Health benefits are ready to use",
+      html: benefitsReadyHtml(data),
+    }),
+    sample: (o) => ({
+      memberFirstName: o.firstName,
+      memberId: "IOH-TEST-001",
+      planName: "Ideal Oral Savings Plan",
+      effectiveDate: sampleDate(),
+      groupCode: "IOH-DTC",
+      memberServicesPhone: MEMBER_SERVICES_PHONE,
       portalUrl: getBaseUrl(),
     }),
   }),

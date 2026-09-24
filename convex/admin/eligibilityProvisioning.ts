@@ -519,6 +519,14 @@ export const provisionEligibilityFile = action({
               fileId: args.fileId,
               resendEmailId,
             });
+
+            // Their Careington/DialCare benefits are live now, whether or not
+            // they ever set a password — so the packet goes out alongside the
+            // invite. Non-fatal: a member with an invite but no packet can be
+            // topped up from the Communications screen, whereas failing here
+            // would strand a member who already has a live Clerk invitation.
+            await sendPacketWithInvite(ctx, m._id, email);
+
             result.succeeded++;
             await new Promise((r) => setTimeout(r, BATCH_DELAY_MS));
             continue;
@@ -562,6 +570,11 @@ export const provisionEligibilityFile = action({
           clerkUserId,
           fileId: args.fileId,
         });
+
+        // These members reach an active account without passing through the
+        // invite branch above, so this is where their packet goes out.
+        await sendPacketWithInvite(ctx, m._id, email);
+
         result.succeeded++;
       } catch (err: any) {
         result.failed++;
@@ -882,7 +895,32 @@ async function sendWelcomeInviteToMember(
     resendEmailId,
   });
 
+  // 5. Send the packet too — same reasoning as at provisioning time.
+  await sendPacketWithInvite(ctx, profile._id, email);
+
   return { resendEmailId };
+}
+
+/**
+ * Send the fulfillment packet next to a set-password invite, and never let a
+ * packet failure take down the invite that already succeeded. The send is
+ * logged either way, so a missing packet is visible in the Communications log
+ * rather than silent.
+ */
+async function sendPacketWithInvite(ctx: any, memberProfileId: any, email: string): Promise<void> {
+  try {
+    await ctx.runAction(internal.admin.memberEmail.deliverToMember, {
+      memberProfileId,
+      payload: { mode: "template", templateId: "fulfillment-packet" },
+      sentBy: "system",
+      sentByName: "Enrollment",
+    });
+  } catch (err: any) {
+    console.error(
+      `[sendPacketWithInvite] packet send failed for ${email} (invite already sent):`,
+      err?.message ?? err
+    );
+  }
 }
 
 /**

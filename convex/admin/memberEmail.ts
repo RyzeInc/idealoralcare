@@ -82,11 +82,15 @@ const SENDABLE: Record<
 > = {
   "fulfillment-packet": {
     kind: "delegate",
-    note: "Sends through resendMemberPacket so the real membership PDFs are attached.",
+    note: "Generates and attaches the real membership PDFs at send time.",
   },
   "essentials-fulfillment-packet": {
     kind: "delegate",
-    note: "Sends through resendMemberPacket so the real Essentials PDFs are attached.",
+    note: "Generates and attaches the real Essentials PDFs at send time.",
+  },
+  "benefits-ready": {
+    kind: "delegate",
+    note: "Attaches the real membership PDFs, and works for members who have never signed in.",
   },
   "eligibility-set-password": {
     kind: "delegate",
@@ -490,6 +494,8 @@ interface ResolvedEmail {
   hasAttachments: boolean;
   /** Set when the send must run through another module's flow. */
   delegate: "packet" | "invite" | null;
+  /** Which packet body to send, when delegate === "packet". */
+  packetVariant?: "fulfillment-packet" | "essentials-fulfillment-packet" | "benefits-ready";
 }
 
 /**
@@ -553,7 +559,12 @@ export const deliverToMember = internalAction({
 
     try {
       if (resolved.delegate === "packet") {
-        resendEmailId = await sendPacket(ctx, args.memberProfileId, context);
+        resendEmailId = await sendPacket(
+          ctx,
+          args.memberProfileId,
+          context,
+          resolved.packetVariant ?? "fulfillment-packet"
+        );
         success = true;
       } else if (resolved.delegate === "invite") {
         const res: any = await ctx.runAction(
@@ -671,6 +682,13 @@ function renderTemplate(templateId: string, context: MemberEmailContext): Resolv
       html: preview.html,
       hasAttachments: template.attachments !== undefined,
       delegate: templateId === "eligibility-set-password" ? "invite" : "packet",
+      packetVariant:
+        templateId === "eligibility-set-password"
+          ? undefined
+          : (templateId as
+              | "fulfillment-packet"
+              | "essentials-fulfillment-packet"
+              | "benefits-ready"),
     };
   }
 
@@ -688,36 +706,40 @@ function renderTemplate(templateId: string, context: MemberEmailContext): Resolv
 }
 
 /**
- * Re-send the fulfillment packet with freshly generated PDFs, picking the
- * packet that matches the product the member actually bought. Mirrors
- * notifications.resendMemberPacket, but callable without an identity and
- * returning the Resend email ID so the send can be logged.
+ * Send the packet with freshly generated PDFs.
+ *
+ * Deliberately does NOT require a Clerk account. Careington and DialCare
+ * benefits go live at enrollment whether or not the member ever registers a
+ * portal login, so the packet — which carries their ID card and the phone
+ * numbers they need — must not be gated on it. Everything the PDFs need comes
+ * from the member profile; a bundle only sharpens the plan name when one exists.
+ *
+ * `variant` picks the body: the standard packet, the Essentials packet, or the
+ * benefits-ready message for members who enrolled but never signed in. The
+ * caller's template choice wins over auto-detection — an admin who picked the
+ * oral-care packet gets the oral-care packet.
  */
 async function sendPacket(
   ctx: any,
   memberProfileId: any,
-  context: MemberEmailContext
+  context: MemberEmailContext,
+  variant: "fulfillment-packet" | "essentials-fulfillment-packet" | "benefits-ready"
 ): Promise<string | undefined> {
-  const profile: any = await ctx.runQuery(
-    internal.admin.eligibilityProvisioning.getMemberProfileById,
+  const data: any = await ctx.runQuery(
+    api.subscriptions.queries.getPacketDataForProfileInternal,
     { memberProfileId }
   );
-  if (!profile?.customerId) {
-    throw new Error(
-      "Member has no linked account yet, so their plan cannot be resolved. Send the set-password invite first."
-    );
-  }
+  if (!data) throw new Error("Member profile not found");
 
-  const cardData: any = await ctx.runQuery(
-    api.subscriptions.queries.getMemberCardDataPublic,
-    { customerId: profile.customerId }
-  );
-  if (!cardData) throw new Error("No active membership found for this member");
-
-  const isEssentials = String(cardData.productSlug ?? "").startsWith("essentials-");
-
-  if (isEssentials) {
-    const suffix = String(cardData.productSlug).slice("essentials-".length);
+  if (variant === "essentials-fulfillment-packet") {
+    if (!data.essentialsMemberNumber || !data.essentialsGroupNumber) {
+      throw new Error(
+        "This member has no Essentials member/group number, so the Essentials packet cannot be built. Send the standard packet instead."
+      );
+    }
+    const suffix = String(data.productSlug ?? "").startsWith("essentials-")
+      ? String(data.productSlug).slice("essentials-".length)
+      : "employee";
     const coverageType =
       ({
         employee: "Employee",
@@ -727,28 +749,32 @@ async function sendPacket(
       } as Record<string, string>)[suffix] ?? "Employee";
 
     const res: any = await ctx.runAction(api.legal.emailFulfillment.sendEssentialsPacketEmail, {
-      memberName: cardData.memberName,
-      memberFirstName: context.firstName,
+      memberName: data.memberName,
+      memberFirstName: data.memberFirstName,
       memberEmail: context.email!,
-      essentialsMemberNumber: cardData.essentialsMemberNumber,
-      essentialsGroupNumber: cardData.essentialsGroupNumber,
-      planName: cardData.planName,
+      essentialsMemberNumber: data.essentialsMemberNumber,
+      essentialsGroupNumber: data.essentialsGroupNumber,
+      planName: data.planName,
       coverageType,
-      effectiveDate: cardData.effectiveDate,
+      effectiveDate: data.effectiveDate,
     });
     return res?.emailId;
   }
 
+  // A member who has never registered has no live set-password link to hand
+  // out here; the benefits-ready body then points at the sign-in page, and the
+  // separate invite send is what carries a fresh link.
   const res: any = await ctx.runAction(api.legal.emailFulfillment.sendFulfillmentPacketEmail, {
-    memberName: cardData.memberName,
-    memberFirstName: context.firstName,
+    memberName: data.memberName,
+    memberFirstName: data.memberFirstName,
     memberEmail: context.email!,
-    memberId: cardData.memberId,
-    subscriberId: cardData.subscriberId,
+    memberId: data.memberId,
+    subscriberId: data.subscriberId,
     groupCode: PROVIDER_GROUP_CODE,
-    planName: cardData.planName,
-    effectiveDate: cardData.effectiveDate,
-    networks: cardData.networks,
+    planName: data.planName,
+    effectiveDate: data.effectiveDate,
+    networks: data.networks,
+    templateId: variant === "benefits-ready" ? "benefits-ready" : "fulfillment-packet",
   });
   return res?.emailId;
 }
@@ -1164,6 +1190,41 @@ export const listRecipients = query({
         emailable: !!m.email,
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
+  },
+});
+
+/**
+ * The members a campaign could not reach, so a fixed problem can be retried
+ * against exactly that set instead of rebuilding the selection by hand.
+ */
+export const campaignFailedRecipients = query({
+  args: { campaignId: v.id("emailCampaigns") },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const rows = await ctx.db
+      .query("emailSends")
+      .withIndex("by_campaign", (q) => q.eq("campaignId", args.campaignId))
+      .collect();
+
+    const failedStatuses = new Set(["failed", "bounced"]);
+    const seen = new Set<string>();
+    const out: Array<{ memberProfileId: any; memberName: string; to: string; error: string | null }> = [];
+
+    for (const r of rows) {
+      if (!failedStatuses.has(r.status) || !r.memberProfileId) continue;
+      const key = String(r.memberProfileId);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        memberProfileId: r.memberProfileId,
+        memberName: r.memberName,
+        to: r.to,
+        error: r.error ?? null,
+      });
+    }
+
+    return out;
   },
 });
 

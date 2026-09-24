@@ -54,6 +54,12 @@ export const sendFulfillmentPacketEmail = action({
     })),
     // Allows callers to override the app base URL (useful in tests / staging)
     appUrl: v.optional(v.string()),
+    // Which body to wrap the packet PDFs in. The attachments are identical —
+    // only the message differs, e.g. the benefits-ready nudge for members who
+    // enrolled but never signed in.
+    templateId: v.optional(v.union(v.literal("fulfillment-packet"), v.literal("benefits-ready"))),
+    // Live set-password link, for the benefits-ready body.
+    activationUrl: v.optional(v.string()),
   },
   handler: async (_ctx: any, args: any) => {
     const baseUrl = args.appUrl ?? getBaseUrl();
@@ -104,7 +110,8 @@ export const sendFulfillmentPacketEmail = action({
     const { pdf: pdfBase64, agreementPdf: agreementPdfBase64 } = await pdfResponse.json();
 
     // ── Step 2: send via Resend with both PDFs attached ───────────────────────
-    const { subject, html } = EMAIL_TEMPLATES["fulfillment-packet"].render({
+    const templateId = args.templateId ?? "fulfillment-packet";
+    const body = {
       memberFirstName: args.memberFirstName,
       memberId: args.memberId,
       planName: args.planName,
@@ -112,7 +119,11 @@ export const sendFulfillmentPacketEmail = action({
       groupCode: args.groupCode,
       memberServicesPhone: args.memberServicesPhone ?? "(844) 679-9367",
       portalUrl: baseUrl,
-    });
+    };
+    const { subject, html } =
+      templateId === "benefits-ready"
+        ? EMAIL_TEMPLATES["benefits-ready"].render({ ...body, activationUrl: args.activationUrl })
+        : EMAIL_TEMPLATES["fulfillment-packet"].render(body);
 
     return await sendViaResendOrThrow({
       to: args.memberEmail,
@@ -128,7 +139,7 @@ export const sendFulfillmentPacketEmail = action({
           content: agreementPdfBase64,
         },
       ],
-      tags: [{ name: "category", value: "fulfillment-packet" }],
+      tags: [{ name: "category", value: templateId }],
     });
   },
 });
