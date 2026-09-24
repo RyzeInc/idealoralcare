@@ -4,7 +4,7 @@ import { Heart } from "lucide-react";
 export const metadata = {
   title: "Ideal Health — Choose Your Plan",
   description:
-    "Explore Ideal Health's Oral Savings Plans or our comprehensive Essentials health membership. Affordable coverage starting at $14.99/mo.",
+    "Explore Ideal Health's Oral Savings Plans starting at $14.99/mo, or our comprehensive Essentials health membership starting at $58.95/mo.",
 };
 
 export default function RootPage() {
@@ -119,8 +119,8 @@ export default function RootPage() {
             marginBottom: "3rem",
           }}
         >
-          Choose the plan family that fits your needs — dental savings or a full
-          wellness bundle starting at $14.99/mo.
+          Choose the plan family that fits your needs — dental savings from
+          $14.99/mo, or a full wellness bundle from $58.95/mo.
         </p>
 
         {/* Interactive cards (client component) */}
