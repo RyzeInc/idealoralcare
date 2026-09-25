@@ -46,26 +46,44 @@ The **Member Workspace** (`/admin/members/[id]`) now provides an overview and de
 
 This is the **sales/commission chain**: Program Managers → FMOs/Agencies → their Leader contacts. It is *not* the Site/Account/Group hierarchy (that's [Hierarchy](02-operations.md#hierarchy-adminhierarchy)) — even though the Hierarchy tree has its own middle tier. The two are separate systems that both involve partners: **Brokers** here = the commission chain; **Accounts** in Hierarchy = who owns which Group. Backend table: `distributionPartners`.
 
-> Note for anyone reading the source: `src/components/admin/BrokersAdmin.tsx` exists in the repo but is **not** imported anywhere — the live page renders `DistributionAdmin.tsx` instead. Don't document screenshots from the unused file.
+> Note for anyone reading the source: `src/components/admin/BrokersAdmin.tsx` is an older, unused screen. The live pages are in `src/components/admin/brokers/`.
 
 ### What's on the page
 
-- Two tabs: **Program Managers**, **FMOs & Agencies**.
-- **Add Program Manager** / **Add FMO / Agency** (label follows active tab) — Organization Name, Type (FMO/Agency), optional Parent Program Manager, Primary Leader (Name/Email required, Phone, Title), Override/Management Fee Rate, Status, Notes.
-- Each partner card: Edit, Delete, override rate, enrollment/member stats, an expandable **Leaders** panel (Add Leader, per-leader send/resend invite, Edit, Remove).
+- **Directory** (`/admin/brokers`): searchable table of every partner. Filter by status (defaults to Active), type, upline, portal access (someone connected / invite outstanding / nobody invited) and onboarded date range. Search matches organization, contact, email, agency code and NPN. **Onboard broker** starts a new one; **Applications** links to the review queue with a count of new submissions.
+- **Onboard broker** (`/admin/brokers/new`): one form for the organization (name, type, upline, NPN), agreement (effective date, override rate, status), primary contact (name, title, email, phone), their portal access role, whether to email the invite now, and internal profile notes.
+- **Broker workspace** (`/admin/brokers/[id]`), with tabs:
+  - **Overview** — organization and agreement details, notes, headline counts, and an **onboarding checklist** computed from live data (profile active, primary contact, agreement on file, override rate, invite sent, account connected, agency code, rep code for every team member, first active member).
+  - **Team & access** — everyone representing the partner, their account state (Connected / Invite pending / Invite expired / Not invited / Access off), an **access role** you can change in place, send/resend invite, make primary, edit, remove. A **Report data access** panel shows exactly which organizations each role can read.
+  - **Downline** — every partner beneath this one at any depth, plus **Onboard downline partner** (pre-fills the upline).
+  - **Members** — the 50 most recent members attributed to the partner and which team member wrote each.
+  - **Rep codes** — the agency code and every rep code, with a one-click **Assign agency code & issue rep codes** (`repCodes.provisionCodesForPartner`) for anyone missing one.
+  - **Activity** — the partner's audit trail.
+  - **Edit profile** (header button) — every organization/agreement field, including termination date and clearing values. **Delete broker** lives here and is refused while the partner still has a downline; setting the status to Inactive is the reversible alternative.
+
+### Access roles
+
+Each team member (`partnerLeaders` row) has an access role, stored as `portalAccess` + `reportScope` and enforced by `convex/insights/scope.ts`:
+
+| Role | Stored as | Sees in the partner portal |
+| --- | --- | --- |
+| Producer | `reportScope: "own"` (or unset) | Only members and enrollments they wrote |
+| Agency manager | `reportScope: "agency"` | The whole organization's book, no downline |
+| Upline leader | `reportScope: "downline"` | The organization plus every partner beneath it |
+| No portal access | `portalAccess: false` | Nothing; invites stop resolving and cannot be claimed |
+
+Everyone on a partner that is not Active loses access regardless of role.
 
 ### How it works
 
-- **Add a partner**: the `add` action creates the `distributionPartners` row **and** an auto-generated primary `partnerLeaders` record, then emails a 30-day invite link. If the email fails to send, the partner/leader records are still created — the toast says so explicitly ("invite email failed — resend manually") and you have to go back to the card's Leader panel to resend by hand.
-- **Delete a partner**: `remove` — a `confirm()` dialog, then a hard delete that **cascades to delete every Leader under that partner**, with no separate warning about the cascade.
-- **Resend/send invite**: `sendLeaderInvite` — generates a fresh 30-day token and re-sends the same HTML template.
-- **Claiming an invite** (downstream, not on this page): `claimInvite` links the invitee's Clerk account and auto-grants them free platform access as a side effect.
+- **Onboard**: `add` creates the partner and its primary team member in a single transaction, then (optionally) emails a 30-day invite. If the email fails the records still exist; the toast says so and you resend from Team & access.
+- **Invites**: claiming (`claimInvite`) links the Clerk account, grants complimentary platform access, and sends the person to `/partner`. It is refused when the partner is not active, the person's access is off, the account's email differs from the invited one, or the account is already linked to another team member.
+- **Audit**: creating, editing and deleting partners, team changes, primary-contact changes and invite send results are written to `adminAuditLog` with `targetType: "distributionPartner"`. Invite tokens are never logged or returned by `getWorkspace`.
 
 ### Known limitations
 
-- Deleting a partner cascades to all its leaders with only a generic confirm — no leader-count warning.
-- None of the read queries here (`getAllWithStats`, `getAll`, `getLeadersByPartner`) have a server-side auth check; access relies entirely on the `/admin` layout gate.
-- No audit-log entries are written for any Brokers-page mutation (create/update/delete partner or leader) — there's no built-in history of who added or removed a broker.
+- Rep code changes made on the Rep Codes page are still not audited.
+- Deleting a team member keeps their rep codes; revoke them on Rep Codes if they should stop working.
 
 ---
 

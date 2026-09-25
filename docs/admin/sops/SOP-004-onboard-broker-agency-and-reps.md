@@ -10,37 +10,47 @@
 
 **Related guide:** [Brokers](../guide/01-members-partners.md#brokers-adminbrokers), [Rep Codes](../guide/01-members-partners.md#rep-codes-adminrep-codes)
 
-## Steps — new Agency/FMO
+## How brokers get into the system
 
-1. Go to **Brokers** (`/admin/brokers`).
-2. Choose the correct tab: **Program Managers** or **FMOs & Agencies**.
-3. Click **Add Program Manager** / **Add FMO / Agency**.
-4. Fill in: Organization Name, Type (FMO/Agency, if applicable), optional Parent Program Manager, **Primary Leader**: Full Name + Email (required), Phone, Title, optional Override/Management Fee Rate, Status, Notes.
-5. Submit. The system automatically creates a primary Leader record for the contact you entered and emails them a 30-day invite link.
-6. Check the resulting toast:
-   - "Partner added" (invite sent) — done.
-   - "Partner added — invite email failed" — the partner record was still created; you'll need to manually resend (step 8 below).
+There are three ways, and all of them end in the same broker workspace:
 
-## Steps — add a rep under an existing agency, with a tracking code
+1. **Manually, here** (this SOP) — you onboard them from **Brokers → Onboard broker**.
+2. **Self-registration** — they submit `/register/rep`, then you approve it on **Partner Applications** ([SOP-005](SOP-005-review-partner-application.md)).
+3. **Partner Kit** — they sign the Partner Kit and you approve it as a partner from **Partner Kit Leads**.
 
-7. If the agency doesn't have a **4-digit Agency Code** yet: go to **Rep Codes** (`/admin/rep-codes`) → start **Add Rep Code** → select the agency in the Agency/FMO dropdown → click **Assign 4-Digit Code** next to it → confirm.
-8. Back on **Brokers**, expand the agency's card → **Leaders** panel → **Add Leader** → Name + Email (required), Phone, Title → submit. This sends its own invite email (same failure-handling as step 6 — check the toast).
-9. Return to **Rep Codes** → **Add Rep Code** → select the agent (search existing Clerk users, or paste their Clerk User ID if they haven't signed up under this name yet) → select the Agency.
-   - If the agency has a code (from step 7): Rep First/Last Name fields appear with a **live preview** of the auto-generated numeric code and slug — review it, then **Create Rep Code**.
-   - If not: enter a code manually or click **Generate**.
-10. Give the rep their resulting code and share their referral link: `https://idealhealth.com/health/plans?ref=THEIRCODE` (see `docs/internal/REP_CODE_SYSTEM.md` for the rep-facing instructions verbatim).
+## Steps — onboard a new Program Manager, FMO or Agency
+
+1. Go to **Brokers** (`/admin/brokers`) and search first to confirm they aren't already on file (search covers name, contact, email, agency code and NPN; set Status to *All statuses* to include inactive ones).
+2. Click **Onboard broker**.
+3. **Organization**: name, type, upline partner (leave *Independent* if nobody earns an override on them), NPN.
+4. **Agreement**: effective date (defaults to today), override/management fee %, status. Choose *Inactive* to set them up before they should have access.
+5. **Primary contact**: full name and email are required; title and phone are optional.
+6. **Portal access**: pick what the primary contact can see — *Producer* (own book), *Agency manager* (whole organization), *Upline leader* (organization + downline), or *No portal access*. Leave **Email a 30-day portal invite now** ticked unless you want to send it later.
+7. Add internal **profile notes** if useful, then submit. You land on the new broker's workspace.
+8. Check the toast. "Invite email failed" means the broker was still saved; resend from **Team & access** (paper-plane icon).
+
+## Steps — finish setup from the broker workspace
+
+The **Overview** tab's onboarding checklist shows what's left; each open item links to the tab that fixes it.
+
+9. **Team & access → Add team member** for each additional person (name + email required, choose their access role). Each gets their own invite.
+10. **Rep codes → Assign agency code & issue rep codes**. This assigns the 4-digit agency code if missing and issues one numbered rep code (e.g. `100001`) plus a vanity link to every team member who doesn't have one. Run it again after adding people.
+11. Copy each person's referral link from the Rep codes table (copy icon) and send it to them.
+12. For a partner that sits under this one, use **Downline → Onboard downline partner**; the upline is pre-filled.
 
 ## Verification
 
-- On **Brokers**, the agency card should show the correct Leader count and (once someone claims their invite) an "Active" status instead of "Pending"/"No invite."
-- On **Rep Codes**, search for the new code and confirm its Agent/Agency/Status look right, and that "Uses" starts at 0.
+- The Overview checklist shows every required step complete once someone has accepted their invite.
+- **Team & access** shows *Connected* for anyone who accepted, and the **Report data access** panel lists the organizations each role can read.
+- **Activity** records who created the broker, who was invited, and every later change.
 
 ## If something goes wrong
 
-- **Invite email failed** — resend from the agency card's Leaders panel (the paper-plane icon next to that leader), not from Rep Codes.
-- **You need to delete an agency** — the confirm dialog only says "this cannot be undone"; know before confirming that this **cascades and deletes every Leader under that partner** too, with no separate warning.
-- **The rep's Commission % shows blank on Rep Codes** — this can be a genuine "no rate set yet" or a rate-matching miss across three different lookup paths; check [Commissions](../guide/03-finance.md#commissions-admincommissions) directly before assuming it's a bug (also note Commissions is currently flagged unreliable — see [guide/05-known-issues.md](../guide/05-known-issues.md)).
-- **You need an audit trail of who created/removed a broker or rep code** — there currently isn't one; no audit-log entries are written for these actions (see [guide/05-known-issues.md #G3](../guide/05-known-issues.md#-structural--architectural-gaps-working-as-coded-but-incomplete-or-duplicated)). Track it manually (e.g., in the partner's Notes field) if this matters for your team.
+- **Invite expired** — resend from Team & access; it issues a fresh 30-day link.
+- **"Sign in with the email address this invitation was sent to"** — the person signed in with a different email. Either they sign in with the invited address, or you correct the email on their team record (only possible before they connect) and resend.
+- **Someone should stop seeing data** — set their access role to *No portal access* (immediate), or set the organization's status to Inactive to cut off the whole team.
+- **Delete is disabled** — the partner still has a downline. Reassign those partners' upline first, or set this one Inactive instead.
+- **The rep's Commission % shows blank on Rep Codes** — this can be a genuine "no rate set yet" or a rate-matching miss; check [Commissions](../guide/03-finance.md#commissions-admincommissions) directly (also note Commissions is currently flagged unreliable — see [guide/05-known-issues.md](../guide/05-known-issues.md)).
 
 ## Related SOPs
 

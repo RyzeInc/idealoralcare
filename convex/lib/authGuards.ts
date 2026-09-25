@@ -124,7 +124,7 @@ export async function requirePartnerOrAdmin(ctx: AnyCtx): Promise<AuthIdentity> 
     .query("partnerLeaders")
     .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", identity.clerkUserId))
     .first();
-  if (leader) return identity;
+  if (leader && leader.portalAccess !== false) return identity;
 
   throw new Error("Unauthorized: Partner or admin role required");
 }

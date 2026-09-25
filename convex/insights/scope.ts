@@ -7,7 +7,9 @@
  *   admin    — internal staff (`adminUsers`). Sees everything.
  *   partner  — a Program Manager / FMO / Agency (`distributionPartners`).
  *              Sees itself plus every partner beneath it in the upline tree.
- *   rep      — a front-line agent (`partnerLeaders`). Sees only its own book.
+ *   rep      — a front-line agent (`partnerLeaders`). Sees only its own book,
+ *              unless an admin set `reportScope` to "agency" (resolves as a
+ *              partner scope without downline) or "downline" (with it).
  *
  * Every exported query in `convex/insights/*` MUST call `resolveViewerScope`
  * first and constrain its reads to what the returned scope allows. Convex
@@ -211,15 +213,36 @@ export async function tryResolveViewerScope(
     };
   }
 
-  // 3. Front-line rep.
+  // 3. Partner team member. `reportScope` is set by admins on the broker
+  //    workspace; a missing value keeps the historical rep-only behaviour.
   const leader = await ctx.db
     .query("partnerLeaders")
     .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", clerkUserId))
     .first();
-  if (leader) {
+  if (leader && leader.portalAccess !== false) {
     // A rep whose agency has been deactivated loses access with it.
     const owningPartner = await ctx.db.get(leader.partnerId);
     if (owningPartner && owningPartner.status === "active") {
+      if (leader.reportScope === "agency" || leader.reportScope === "downline") {
+        const descendantPartnerIds =
+          leader.reportScope === "downline"
+            ? await collectDescendantPartnerIds(ctx, owningPartner._id)
+            : [];
+        const allPartnerIds = [owningPartner._id, ...descendantPartnerIds];
+        const leaders = await collectLeaders(ctx, allPartnerIds);
+        return {
+          kind: "partner",
+          clerkUserId,
+          partnerId: owningPartner._id,
+          partnerType: owningPartner.type,
+          partnerName: owningPartner.name,
+          overrideRate: owningPartner.overrideRate ?? null,
+          descendantPartnerIds,
+          allPartnerIds,
+          leaderIds: leaders.map((l) => l._id),
+          codes: await collectCodes(ctx, leaders),
+        };
+      }
       return {
         kind: "rep",
         clerkUserId,

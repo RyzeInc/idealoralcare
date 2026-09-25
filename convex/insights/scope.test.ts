@@ -51,7 +51,13 @@ async function seedPartner(
 
 async function seedLeader(
   t: ReturnType<typeof convexTest>,
-  opts: { partnerId: any; name: string; clerkUserId?: string },
+  opts: {
+    partnerId: any;
+    name: string;
+    clerkUserId?: string;
+    portalAccess?: boolean;
+    reportScope?: "own" | "agency" | "downline";
+  },
 ) {
   return await t.run(async (ctx) => {
     const now = Date.now();
@@ -61,6 +67,8 @@ async function seedLeader(
       email: `${opts.name.replace(/\s/g, "").toLowerCase()}@test.dev`,
       isPrimary: true,
       clerkUserId: opts.clerkUserId,
+      portalAccess: opts.portalAccess,
+      reportScope: opts.reportScope,
       createdAt: now,
       updatedAt: now,
     });
@@ -168,6 +176,55 @@ describe("resolveViewerScope", () => {
 
     const scope = await t
       .withIdentity(tok("rep_orphan"))
+      .run(async (ctx) => await tryResolveViewerScope(ctx as any));
+
+    expect(scope).toBeNull();
+  });
+
+  test("a team member with agency reporting sees the agency book but no downline", async () => {
+    const t = convexTest(schema);
+    const agency = await seedPartner(t, { name: "Coastal" });
+    const sub = await seedPartner(t, { name: "Harbor", parentId: agency });
+    const manager = await seedLeader(t, { partnerId: agency, name: "Manager", clerkUserId: "mgr_1", reportScope: "agency" });
+    const peer = await seedLeader(t, { partnerId: agency, name: "Peer" });
+    const subRep = await seedLeader(t, { partnerId: sub, name: "Sub Rep" });
+    await seedCode(t, { brokerId: String(peer), code: "PEER" });
+    await seedCode(t, { brokerId: String(subRep), code: "SUB" });
+
+    const scope: any = await t
+      .withIdentity(tok("mgr_1"))
+      .run(async (ctx) => await resolveViewerScope(ctx as any));
+
+    expect(scope.kind).toBe("partner");
+    expect(scope.partnerId).toBe(agency);
+    expect(scope.descendantPartnerIds).toEqual([]);
+    expect(scopeRepIds(scope)!.sort()).toEqual([String(manager), String(peer)].sort());
+    expect(scope.codes).toEqual(["PEER"]);
+  });
+
+  test("a team member with downline reporting sees every partner beneath the agency", async () => {
+    const t = convexTest(schema);
+    const fmo = await seedPartner(t, { name: "Apex", type: "fmo" });
+    const agency = await seedPartner(t, { name: "Coastal", parentId: fmo });
+    const subRep = await seedLeader(t, { partnerId: agency, name: "Sub Rep" });
+    await seedLeader(t, { partnerId: fmo, name: "Leader", clerkUserId: "lead_1", reportScope: "downline" });
+
+    const scope: any = await t
+      .withIdentity(tok("lead_1"))
+      .run(async (ctx) => await resolveViewerScope(ctx as any));
+
+    expect(scope.kind).toBe("partner");
+    expect(scope.allPartnerIds.map(String).sort()).toEqual([String(fmo), String(agency)].sort());
+    expect(scopeRepIds(scope)).toContain(String(subRep));
+  });
+
+  test("a team member with portal access disabled resolves to nothing", async () => {
+    const t = convexTest(schema);
+    const agency = await seedPartner(t, { name: "Coastal" });
+    await seedLeader(t, { partnerId: agency, name: "Locked", clerkUserId: "locked_1", portalAccess: false, reportScope: "downline" });
+
+    const scope = await t
+      .withIdentity(tok("locked_1"))
       .run(async (ctx) => await tryResolveViewerScope(ctx as any));
 
     expect(scope).toBeNull();

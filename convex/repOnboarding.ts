@@ -195,6 +195,8 @@ export const listForAdmin = query({
     )),
   },
   handler: async (ctx, args) => {
+    // Applications carry EINs, NPNs and banking status — staff only.
+    await requireAdmin(ctx);
     const q = args.status
       ? ctx.db.query("repOnboardingSubmissions").withIndex("by_status", (i) => i.eq("status", args.status as any))
       : ctx.db.query("repOnboardingSubmissions");
@@ -494,6 +496,7 @@ export const approve = action({
 export const getById = query({
   args: { id: v.id("repOnboardingSubmissions") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     return ctx.db.get(args.id);
   },
 });

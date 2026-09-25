@@ -73,7 +73,8 @@ function ClaimInviteContent() {
     if (!isLoaded) return;
     if (!token) { setClaimState('invalid-token'); return; }
     if (invite === undefined) return;
-    if (invite === null) { setClaimState('invalid-token'); return; }
+    // Claiming clears the token, so the lookup goes null right after success.
+    if (invite === null) { setClaimState((s) => (s === 'claiming' || s === 'success' ? s : 'invalid-token')); return; }
     if (invite.inviteStatus === 'claimed') { setClaimState('success'); return; }
     if (invite.inviteStatus === 'cancelled') { setClaimState('invalid-token'); return; }
     setClaimState('ready');
@@ -105,7 +106,7 @@ function ClaimInviteContent() {
       }
       setClaimState('success');
       // Admin invites redirect to admin portal instead of member dashboard
-      const redirectPath = isAdmin ? '/admin' : '/health/dashboard';
+      const redirectPath = isAdmin ? '/admin' : isPartner ? '/partner' : '/health/dashboard';
       setTimeout(() => router.push(redirectPath), 2000);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Failed to claim invite. Please try again.');
@@ -131,7 +132,7 @@ function ClaimInviteContent() {
   const successMessage = isAdmin
     ? 'Your admin access is now active. Redirecting to the admin portal…'
     : isPartner
-      ? 'Your complimentary member access is now active. Redirecting to your dashboard…'
+      ? 'Your partner access is now active. Redirecting to your partner portal…'
       : 'Your account is now linked to the plan. Redirecting to your dashboard…';
 
   return (

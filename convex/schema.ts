@@ -216,6 +216,10 @@ export default defineSchema({
     notes: v.optional(v.string()),
     // 4-digit numeric agency code, e.g. "1000". First rep = XXXX01, next = XXXX02, etc.
     agencyCode: v.optional(v.string()),
+    // Agreement terms, as YYYY-MM-DD. Informational: `status` still gates access.
+    effectiveDate: v.optional(v.string()),
+    terminationDate: v.optional(v.string()),
+    npn: v.optional(v.string()), // National Producer Number of the organization
     createdAt: v.number(),
     updatedAt: v.number(),
     createdBy: v.optional(v.string()),
@@ -236,6 +240,9 @@ export default defineSchema({
     phone: v.optional(v.string()),
     title: v.optional(v.string()),   // e.g. "VP of Sales", "Account Executive"
     isPrimary: v.boolean(),
+    // Missing fields preserve existing rep-only portal behavior.
+    portalAccess: v.optional(v.boolean()),
+    reportScope: v.optional(v.union(v.literal("own"), v.literal("agency"), v.literal("downline"))),
     clerkUserId: v.optional(v.string()),
     inviteToken: v.optional(v.string()),
     inviteStatus: v.optional(v.union(v.literal("pending"), v.literal("claimed"))),
