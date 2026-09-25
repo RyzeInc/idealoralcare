@@ -4,7 +4,7 @@
 
 **Who can do this:** Any admin (Owner or Editor) — there is no department/role restriction on refunds or cancellations despite what the Admin Users "Role Guide" copy implies.
 
-**Trigger:** Member support request, chargeback prevention, or a duplicate/erroneous charge.
+**When you'd do this:** Member support request, chargeback prevention, or a duplicate/erroneous charge.
 
 **Related guide:** [Customer Service](../guide/04-support-system.md#customer-service-admincustomer-service)
 
@@ -25,7 +25,7 @@
 8. Find the paid invoice in question and click its **Refund** link (only shown for paid invoices with a real charge and a nonzero amount).
 9. In the modal: leave **Amount** blank for a full refund, or enter a partial amount. Pick a **Reason** (requested by customer / duplicate / fraudulent). Add an internal note if useful for your own records.
 10. Click **Issue Refund**.
-11. **⚠️ Critical: a refund does NOT cancel the subscription or revoke entitlements on its own.** It is purely a Stripe-side monetary action plus an audit-log entry — nothing in Convex changes as a result. If the member should also lose access or stop being billed going forward, you must **separately** perform the Cancel Subscription steps above (before or after the refund, doesn't matter which order).
+11. **Critical — a refund does NOT cancel the subscription or revoke entitlements on its own.** It is purely a Stripe-side monetary action plus an audit-log entry — nothing in Convex changes as a result. If the member should also lose access or stop being billed going forward, you must **separately** perform the Cancel Subscription steps above (before or after the refund, doesn't matter which order).
 
 ## Steps — log a note
 

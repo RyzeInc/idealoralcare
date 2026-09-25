@@ -12,6 +12,7 @@
  */
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
@@ -162,6 +163,8 @@ function CancelModal({ onConfirm, onClose, isLoading, error }: { onConfirm: () =
 }
 
 function ManagePlansContent() {
+  const pathname = usePathname();
+  const basePath = `/${pathname.split("/")[1]}`;
   const { user } = useUser();
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelSubmitted, setCancelSubmitted] = useState(false);
@@ -280,7 +283,7 @@ function ManagePlansContent() {
       {/* Breadcrumb */}
       <div className="container" style={{ paddingTop: "1.5rem" }}>
         <Link
-          href="/health/dashboard"
+          href={`${basePath}/dashboard`}
           style={{
             display: "inline-flex", alignItems: "center", gap: "6px",
             color: "#64748b", fontSize: "0.875rem", fontWeight: 500, textDecoration: "none",
@@ -362,7 +365,7 @@ function ManagePlansContent() {
                     <p style={{ color: "#64748b", marginBottom: "1.5rem" }}>
                       You don&apos;t have an active plan yet. Explore your options below.
                     </p>
-                    <Link href="/health/plans" className="button button--primary">
+                    <Link href={`${basePath}/plans`} className="button button--primary">
                       Browse Plans
                     </Link>
                   </div>
@@ -648,7 +651,7 @@ function ManagePlansContent() {
                           </button>
                         ) : (
                           <Link
-                            href="/health/plans"
+                            href={`${basePath}/plans`}
                             style={{
                               display: "flex", alignItems: "center", justifyContent: "center", gap: "0.375rem",
                               padding: "0.625rem 1rem", borderRadius: "8px",

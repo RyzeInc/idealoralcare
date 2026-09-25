@@ -160,7 +160,7 @@ export default function OralHealthLanding() {
               <p>Offer your employees a modern oral health plan that actually works. AI-powered scanning, 24/7 teledentistry, and nationwide provider discounts reduce costs, improve preventative care, and boost employee satisfaction.</p>
               <div className="for-organization__btn_w">
                 <a className="button button--accent" href="/health">Learn About All Plans</a>
-                <a className="button button--primary" href="/contact">Schedule a Demo</a>
+                <a className="button button--primary" href="/register">Schedule a Demo</a>
               </div>
             </div>
             <div className="for-organization__img">

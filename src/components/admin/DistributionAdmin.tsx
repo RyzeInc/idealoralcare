@@ -5,6 +5,7 @@ import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Plus, Pencil, Trash2, Loader2, Mail, Phone, ChevronRight, Building2, Send, CheckCircle2, Clock, Users, X, UserPlus } from 'lucide-react';
 import { useToast } from './ui';
+import { buildUplineOptions } from '@/lib/partner-upline';
 import styles from './DistributionAdmin.module.css';
 
 type PartnerType = 'program_manager' | 'fmo' | 'agency';
@@ -303,7 +304,7 @@ export function DistributionAdmin() {
     <div className={styles.container}>
       <div className={styles.header}>
         <div>
-          <h1>Distribution Management</h1>
+          <h1>Brokers</h1>
           <p>Manage Program Managers and FMOs / Agencies in the sales distribution chain</p>
         </div>
         <button
@@ -390,15 +391,21 @@ export function DistributionAdmin() {
 
             {activeTab === 'fmos' && (
               <div className={styles.formGroup}>
-                <label>Parent Program Manager (Optional)</label>
+                <label>Upline Partner (Optional)</label>
                 <select
                   value={formData.parentId}
                   onChange={(e) => setFormData({ ...formData, parentId: e.target.value })}
                   className={styles.select}
                 >
-                  <option value="">— Independent (no parent PM) —</option>
-                  {programManagers.map((pm) => (
-                    <option key={pm._id} value={pm._id}>{pm.name}</option>
+                  <option value="">— Independent (no upline) —</option>
+                  {/* Any active partner, not just PMs: an agency that recruited
+                      this one is its upline and earns the override. Self is
+                      excluded so a partner can't parent itself. */}
+                  {buildUplineOptions(
+                    (allPartners ?? []) as never[],
+                    editingPartner?._id,
+                  ).map((o) => (
+                    <option key={o.id} value={o.id}>{o.label}</option>
                   ))}
                 </select>
               </div>

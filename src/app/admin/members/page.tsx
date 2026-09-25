@@ -730,8 +730,20 @@ export default function MembersAdmin() {
                     {memberDetail.member.listBillStatus && (
                       <div className="flex justify-between"><dt className="text-slate-500">List-Bill</dt><dd className="capitalize">{memberDetail.member.listBillStatus}</dd></div>
                     )}
+                    {/* Rep attribution — this is who gets paid for the member, so
+                        show where it came from: a member's own enrollment, or the
+                        employer deal they were loaded under. */}
                     {memberDetail.repAttribution?.repName && (
-                      <div className="flex justify-between"><dt className="text-slate-500">Representative</dt><dd className="font-medium text-right">{memberDetail.repAttribution.repName}{memberDetail.repAttribution.repCode ? ` (${memberDetail.repAttribution.repCode})` : ''}</dd></div>
+                      <div className="flex justify-between">
+                        <dt className="text-slate-500">Representative</dt>
+                        <dd className="font-medium text-right">
+                          {memberDetail.repAttribution.repName}
+                          {memberDetail.repAttribution.repCode ? ` (${memberDetail.repAttribution.repCode})` : ''}
+                          {memberDetail.repAttribution.source === 'group' && (
+                            <span className="block text-xs font-normal text-slate-400">via employer deal</span>
+                          )}
+                        </dd>
+                      </div>
                     )}
                     {memberDetail.repAttribution?.agencyName && (
                       <div className="flex justify-between"><dt className="text-slate-500">Agency</dt><dd className="font-medium text-right">{memberDetail.repAttribution.agencyName}</dd></div>

@@ -116,6 +116,7 @@ export function assembleDocument(row: any): VendorStatementDocument {
     status: row.status,
     vendor: row.vendor,
     vendorName: row.vendorName,
+    siteName: row.siteName ?? null,
     basis: row.basis,
     period: row.period,
     coverageStart: row.coverageStart,

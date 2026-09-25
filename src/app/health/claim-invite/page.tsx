@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import { useQuery, useMutation } from 'convex/react';
@@ -26,6 +26,8 @@ function PageShell({ children }: { children: React.ReactNode }) {
 
 // Inner component that uses useSearchParams - wrapped in Suspense to handle SSR
 function ClaimInviteContent() {
+  const pathname = usePathname();
+  const basePath = `/${pathname.split("/")[1]}`;
   const searchParams = useSearchParams();
   const router = useRouter();
   const { isLoaded, isSignedIn } = useUser();
@@ -87,7 +89,7 @@ function ClaimInviteContent() {
 
   const handleClaim = async () => {
     if (!isSignedIn) {
-      const returnUrl = encodeURIComponent(window.location.href);
+      const returnUrl = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
       router.push(`/health/sign-up?redirect_url=${returnUrl}`);
       return;
     }
@@ -150,7 +152,7 @@ function ClaimInviteContent() {
           <AlertCircle size={40} color="#dc2626" style={{ marginBottom: '1rem' }} />
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>Invalid Invite</h1>
           <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>This invite link is invalid or has already been used.</p>
-          <Link href="/health/sign-in" style={{ color: '#0066CC', fontSize: '0.9rem' }}>Sign in to your account</Link>
+          <Link href={`${basePath}/sign-in`} style={{ color: '#0066CC', fontSize: '0.9rem' }}>Sign in to your account</Link>
         </div>
       ) : claimState === 'error' ? (
         <div style={{ textAlign: 'center' }}>

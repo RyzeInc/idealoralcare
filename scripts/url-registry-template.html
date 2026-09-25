@@ -1,0 +1,638 @@
+<title>URL Registry — Ideal Oral Health</title>
+<style>
+  /* Light is the base palette. Every colour is a token so the two dark
+     branches below only ever redefine values, never rules. */
+  :root {
+    --ground: #f6f7fb;
+    --surface: #ffffff;
+    --surface-2: #fbfbfe;
+    --ink: #14171f;
+    --ink-2: #565e70;
+    --ink-3: #8a92a6;
+    --line: #e3e6ef;
+    --line-strong: #ccd1e0;
+    --accent: #5257dd;
+    --accent-ink: #3f43b8;
+    --accent-soft: #eeeffc;
+    --shadow: 0 1px 2px rgba(20, 23, 31, 0.05), 0 8px 24px -16px rgba(20, 23, 31, 0.25);
+
+    --lvl-public-fg: #0b6b4f;   --lvl-public-bg: #e3f5ec;
+    --lvl-member-fg: #1b5a9e;   --lvl-member-bg: #e4effb;
+    --lvl-partner-fg: #8a5a00;  --lvl-partner-bg: #fbf0dc;
+    --lvl-staff-fg: #a03050;    --lvl-staff-bg: #fbe7ec;
+    --lvl-owner-fg: #7a2e8c;    --lvl-owner-bg: #f5e6f8;
+    --lvl-webhook-fg: #4a5568;  --lvl-webhook-bg: #edeff3;
+
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  /* Default "system" viewers get no [data-theme] stamp, so the media query is
+     what serves them — guarded so an explicit light choice still wins. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0e1017;
+      --surface: #161a24;
+      --surface-2: #1a1f2b;
+      --ink: #e9ecf5;
+      --ink-2: #9aa3b8;
+      --ink-3: #6b7488;
+      --line: #262c3a;
+      --line-strong: #333b4d;
+      --accent: #8b8ff5;
+      --accent-ink: #a5a8f8;
+      --accent-soft: #21243a;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -16px rgba(0, 0, 0, 0.8);
+
+      --lvl-public-fg: #6fd9ae;   --lvl-public-bg: #12291f;
+      --lvl-member-fg: #7fb6ed;   --lvl-member-bg: #122334;
+      --lvl-partner-fg: #e5b368;  --lvl-partner-bg: #2b2110;
+      --lvl-staff-fg: #f09bb0;    --lvl-staff-bg: #301620;
+      --lvl-owner-fg: #dda0ea;    --lvl-owner-bg: #2a1730;
+      --lvl-webhook-fg: #a8b2c4;  --lvl-webhook-bg: #1e2430;
+    }
+  }
+
+  /* And the explicit dark stamp wins over a light OS. */
+  :root[data-theme="dark"] {
+    --ground: #0e1017;
+    --surface: #161a24;
+    --surface-2: #1a1f2b;
+    --ink: #e9ecf5;
+    --ink-2: #9aa3b8;
+    --ink-3: #6b7488;
+    --line: #262c3a;
+    --line-strong: #333b4d;
+    --accent: #8b8ff5;
+    --accent-ink: #a5a8f8;
+    --accent-soft: #21243a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -16px rgba(0, 0, 0, 0.8);
+
+    --lvl-public-fg: #6fd9ae;   --lvl-public-bg: #12291f;
+    --lvl-member-fg: #7fb6ed;   --lvl-member-bg: #122334;
+    --lvl-partner-fg: #e5b368;  --lvl-partner-bg: #2b2110;
+    --lvl-staff-fg: #f09bb0;    --lvl-staff-bg: #301620;
+    --lvl-owner-fg: #dda0ea;    --lvl-owner-bg: #2a1730;
+    --lvl-webhook-fg: #a8b2c4;  --lvl-webhook-bg: #1e2430;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 20px 96px;
+  }
+
+  a { color: var(--accent-ink); }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* ── Masthead ───────────────────────────────────────────────── */
+  .masthead { padding: 56px 0 32px; display: flex; flex-direction: column; gap: 14px; }
+
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(30px, 5vw, 44px);
+    line-height: 1.08;
+    letter-spacing: -0.025em;
+    font-weight: 700;
+    text-wrap: balance;
+  }
+
+  .lede { margin: 0; max-width: 62ch; color: var(--ink-2); font-size: 16.5px; }
+
+  .origin {
+    margin: 0;
+    max-width: 68ch;
+    font-size: 13px;
+    color: var(--ink-3);
+    border-left: 2px solid var(--line-strong);
+    padding-left: 12px;
+  }
+
+  .origin code { font-family: var(--mono); font-size: 12px; color: var(--ink-2); }
+
+  /* ── Summary tiles ──────────────────────────────────────────── */
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin: 10px 0 4px;
+  }
+
+  .tile {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .tile .n {
+    font-size: 26px;
+    font-weight: 680;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tile .k { font-size: 12px; color: var(--ink-3); }
+
+  /* ── Callouts ───────────────────────────────────────────────── */
+  .callouts {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px 22px;
+    margin: 28px 0 0;
+  }
+
+  .callouts h2 { margin: 0 0 12px; font-size: 15px; letter-spacing: -0.01em; }
+
+  .callouts ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 11px; }
+
+  .callouts li {
+    font-size: 14px;
+    color: var(--ink-2);
+    padding-left: 16px;
+    position: relative;
+    max-width: 78ch;
+  }
+
+  .callouts li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 9px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .callouts strong { color: var(--ink); font-weight: 620; }
+  .callouts code, .prose code { font-family: var(--mono); font-size: 0.88em; }
+
+  /* ── Controls ───────────────────────────────────────────────── */
+  .controls {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    margin: 32px 0 0;
+    padding: 12px 0;
+    background: color-mix(in srgb, var(--ground) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .search {
+    flex: 1 1 260px;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    padding: 0 10px;
+  }
+
+  .search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+  .search svg { flex: none; color: var(--ink-3); }
+
+  .search input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: none;
+    color: var(--ink);
+    font: inherit;
+    font-size: 14px;
+    padding: 8px 0;
+    outline: none;
+  }
+
+  .search input::placeholder { color: var(--ink-3); }
+
+  .filters { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .chip {
+    font: inherit;
+    font-size: 12px;
+    font-weight: 560;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+  }
+
+  .chip:hover { border-color: var(--ink-3); color: var(--ink); }
+
+  .chip[aria-pressed="true"] {
+    background: var(--lvl-bg, var(--accent-soft));
+    color: var(--lvl-fg, var(--accent-ink));
+    border-color: transparent;
+  }
+
+  .count { font-size: 12.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; margin-left: auto; }
+
+  /* ── Sections ───────────────────────────────────────────────── */
+  section.area { margin: 40px 0 0; }
+
+  section.area > header { margin-bottom: 14px; }
+
+  h2.area-title {
+    margin: 0 0 4px;
+    font-size: 20px;
+    font-weight: 680;
+    letter-spacing: -0.02em;
+  }
+
+  .area-blurb { margin: 0; font-size: 14px; color: var(--ink-2); max-width: 76ch; }
+
+  h3.group-title {
+    margin: 22px 0 8px;
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  .rows {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: minmax(200px, 0.9fr) minmax(0, 1.5fr) auto;
+    gap: 6px 18px;
+    align-items: start;
+    padding: 13px 16px;
+    border-top: 1px solid var(--line);
+  }
+
+  .row:first-child { border-top: 0; }
+  .row:nth-child(even) { background: var(--surface-2); }
+
+  .path {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--ink);
+    word-break: break-word;
+    line-height: 1.45;
+  }
+
+  .path .param { color: var(--accent-ink); }
+
+  .desc { font-size: 14px; color: var(--ink-2); }
+
+  .note {
+    display: block;
+    margin-top: 4px;
+    font-size: 12.5px;
+    color: var(--ink-3);
+    max-width: 62ch;
+  }
+
+  .meta { display: flex; align-items: center; gap: 8px; justify-self: end; }
+
+  .level {
+    font-size: 11px;
+    font-weight: 620;
+    letter-spacing: 0.02em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+    background: var(--lvl-bg);
+    color: var(--lvl-fg);
+  }
+
+  .indexed {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-3);
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    padding: 2px 8px;
+    white-space: nowrap;
+  }
+
+  .indexed[data-on="yes"] { color: var(--accent-ink); border-color: var(--accent); }
+
+  .empty { padding: 40px 16px; text-align: center; color: var(--ink-3); font-size: 14px; }
+
+  /* ── API + crawler ──────────────────────────────────────────── */
+  .api-group { border-top: 1px solid var(--line); padding: 16px; }
+  .api-group:first-child { border-top: 0; }
+
+  .api-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 12px; }
+  .api-head h3 { margin: 0; font-size: 15px; font-weight: 640; letter-spacing: -0.01em; }
+  .api-head .prefix { font-family: var(--mono); font-size: 12.5px; color: var(--ink-3); }
+  .api-purpose { margin: 5px 0 10px; font-size: 13.5px; color: var(--ink-2); max-width: 74ch; }
+
+  pre {
+    margin: 0;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--ink-2);
+  }
+
+  .prose { font-size: 14px; color: var(--ink-2); max-width: 76ch; }
+  .prose p { margin: 0 0 12px; }
+
+  footer.colophon {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    font-size: 12.5px;
+    color: var(--ink-3);
+  }
+
+  @media (max-width: 720px) {
+    .row { grid-template-columns: 1fr; gap: 7px; }
+    .meta { justify-self: start; }
+    .masthead { padding-top: 36px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <p class="eyebrow" id="eyebrow"></p>
+    <h1>Every URL the platform serves</h1>
+    <p class="lede" id="lede"></p>
+    <p class="origin" id="origin"></p>
+    <div class="tiles" id="tiles"></div>
+  </header>
+
+  <div class="callouts">
+    <h2>Worth knowing before you act on this</h2>
+    <ul id="callouts"></ul>
+  </div>
+
+  <div class="controls">
+    <label class="search">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.6" />
+        <path d="M10.5 10.5 14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+      </svg>
+      <input id="q" type="search" placeholder="Filter by path, purpose, or area…" aria-label="Filter routes" />
+    </label>
+    <div class="filters" id="levelFilters" role="group" aria-label="Filter by access level"></div>
+    <span class="count" id="count" role="status"></span>
+  </div>
+
+  <div id="sections"></div>
+
+  <section class="area" id="api-area">
+    <header>
+      <h2 class="area-title">API</h2>
+      <p class="area-blurb">
+        HTTP endpoints, grouped by integration. Every one is blocked in <code>robots.txt</code>; the access level shown
+        is what the endpoint itself enforces.
+      </p>
+    </header>
+    <div class="rows" id="api"></div>
+  </section>
+
+  <section class="area">
+    <header>
+      <h2 class="area-title">Search engine surface</h2>
+    </header>
+    <div class="rows" style="padding: 18px">
+      <div class="prose">
+        <p id="sitemapSummary"></p>
+        <p><code>robots.txt</code> disallows:</p>
+      </div>
+      <pre id="robots"></pre>
+      <div class="prose" style="margin-top: 12px">
+        <p>
+          A trailing slash is load-bearing: <code>/health/plans/</code> hides the plan detail pages while leaving
+          <code>/health/plans</code> itself indexable.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="colophon" id="colophon"></footer>
+</div>
+
+<script id="registry-data" type="application/json">__REGISTRY_DATA__</script>
+<script>
+  (function () {
+    const data = JSON.parse(document.getElementById("registry-data").textContent);
+    const el = (id) => document.getElementById(id);
+
+    const LEVEL_KEY = {
+      Public: "public",
+      Member: "member",
+      Partner: "partner",
+      Staff: "staff",
+      Owner: "owner",
+      "Signed webhook": "webhook",
+    };
+
+    const levelVars = (label) => {
+      const key = LEVEL_KEY[label] || "webhook";
+      return `--lvl-bg: var(--lvl-${key}-bg); --lvl-fg: var(--lvl-${key}-fg);`;
+    };
+
+    const esc = (s) =>
+      String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+    // Dynamic segments are the one place a path earns colour — they mark where
+    // a real id goes, which is what a reader is actually scanning for.
+    const renderPath = (path) =>
+      esc(path).replace(/:([A-Za-z0-9_]+)/g, '<span class="param">:$1</span>');
+
+    // Minimal inline markdown so the callouts can carry emphasis and code.
+    const inline = (s) =>
+      esc(s)
+        .replace(/`([^`]+)`/g, "<code>$1</code>")
+        .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*([^*]+)\*/g, "<em>$1</em>");
+
+    el("eyebrow").textContent = data.brand;
+    el("lede").textContent = data.lede;
+    el("origin").innerHTML = inline(data.origin);
+    el("colophon").innerHTML = inline(data.colophon);
+    el("sitemapSummary").innerHTML = inline(data.sitemapSummary);
+    el("robots").textContent = data.robots.map((r) => "Disallow: " + r).join("\n");
+
+    el("tiles").innerHTML = data.stats
+      .map((s) => `<div class="tile"><span class="n">${esc(s.value)}</span><span class="k">${esc(s.label)}</span></div>`)
+      .join("");
+
+    el("callouts").innerHTML = data.callouts.map((c) => `<li>${inline(c)}</li>`).join("");
+
+    // ── Route sections ────────────────────────────────────────────
+    el("sections").innerHTML = data.sections
+      .map(
+        (section) => `
+        <section class="area" data-area>
+          <header>
+            <h2 class="area-title">${esc(section.title)}</h2>
+            <p class="area-blurb">${inline(section.blurb)}</p>
+          </header>
+          ${section.groups
+            .map(
+              (group) => `
+            ${group.label ? `<h3 class="group-title" data-group-title>${esc(group.label)}</h3>` : ""}
+            <div class="rows" data-group>
+              ${group.routes
+                .map(
+                  (route) => `
+                <div class="row" data-row data-level="${esc(route.auth)}" data-haystack="${esc(
+                    (route.path + " " + route.title + " " + route.purpose + " " + (route.notes || "") + " " + section.title).toLowerCase(),
+                  )}">
+                  <div class="path">${renderPath(route.path)}</div>
+                  <div class="desc">${esc(route.purpose)}${
+                    route.notes ? `<span class="note">${esc(route.notes)}</span>` : ""
+                  }</div>
+                  <div class="meta">
+                    <span class="indexed" data-on="${route.sitemap ? "yes" : "no"}">${
+                      route.sitemap ? "In sitemap" : "Not indexed"
+                    }</span>
+                    <span class="level" style="${levelVars(route.auth)}">${esc(route.auth)}</span>
+                  </div>
+                </div>`,
+                )
+                .join("")}
+            </div>`,
+            )
+            .join("")}
+        </section>`,
+      )
+      .join("");
+
+    // ── API groups ────────────────────────────────────────────────
+    el("api").innerHTML = data.api
+      .map(
+        (group) => `
+        <div class="api-group">
+          <div class="api-head">
+            <h3>${esc(group.title)}</h3>
+            <span class="prefix">${esc(group.prefix)}</span>
+            <span class="level" style="${levelVars(group.auth)}; margin-left:auto">${esc(group.auth)}</span>
+          </div>
+          <p class="api-purpose">${esc(group.purpose)}</p>
+          <pre>${esc(group.endpoints.join("\n"))}</pre>
+        </div>`,
+      )
+      .join("");
+
+    // ── Filtering ─────────────────────────────────────────────────
+    const levels = [...new Set(data.sections.flatMap((s) => s.groups.flatMap((g) => g.routes.map((r) => r.auth))))];
+    const active = new Set();
+
+    el("levelFilters").innerHTML = levels
+      .map(
+        (level) =>
+          `<button class="chip" type="button" data-level="${esc(level)}" aria-pressed="false" style="${levelVars(
+            level,
+          )}">${esc(level)}</button>`,
+      )
+      .join("");
+
+    const rows = [...document.querySelectorAll("[data-row]")];
+    const groups = [...document.querySelectorAll("[data-group]")];
+    const areas = [...document.querySelectorAll("[data-area]")];
+
+    function apply() {
+      const term = el("q").value.trim().toLowerCase();
+      const terms = term ? term.split(/\s+/) : [];
+      let shown = 0;
+
+      for (const row of rows) {
+        const haystack = row.dataset.haystack;
+        const levelOk = active.size === 0 || active.has(row.dataset.level);
+        const textOk = terms.every((t) => haystack.includes(t));
+        const visible = levelOk && textOk;
+        row.hidden = !visible;
+        if (visible) shown++;
+      }
+
+      // Hide a group and its heading once every row inside it is filtered out,
+      // so the page never shows an empty container under a live heading.
+      for (const group of groups) {
+        const any = [...group.querySelectorAll("[data-row]")].some((r) => !r.hidden);
+        group.hidden = !any;
+        const heading = group.previousElementSibling;
+        if (heading && heading.hasAttribute("data-group-title")) heading.hidden = !any;
+      }
+
+      for (const area of areas) {
+        area.hidden = ![...area.querySelectorAll("[data-row]")].some((r) => !r.hidden);
+      }
+
+      const total = rows.length;
+      el("count").textContent =
+        shown === total ? `${total} routes` : `${shown} of ${total} routes`;
+    }
+
+    el("q").addEventListener("input", apply);
+    el("q").addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        el("q").value = "";
+        apply();
+      }
+    });
+
+    el("levelFilters").addEventListener("click", (e) => {
+      const chip = e.target.closest(".chip");
+      if (!chip) return;
+      const level = chip.dataset.level;
+      if (active.has(level)) active.delete(level);
+      else active.add(level);
+      chip.setAttribute("aria-pressed", active.has(level) ? "true" : "false");
+      apply();
+    });
+
+    apply();
+  })();
+</script>

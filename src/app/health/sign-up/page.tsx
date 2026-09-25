@@ -16,10 +16,11 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSignUp } from "@clerk/nextjs";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Mail, Phone, Lock, Eye, EyeOff, AlertCircle, Loader, CheckCircle2, User, ShieldCheck } from "lucide-react";
 import HealthHeader from "@/components/health/HealthHeader";
+import { safeReturnPath } from "@/lib/safe-redirect";
 import "@/app/health/health.css";
 
 /* ── Enrollment steps strip (mirrors Crunch's stepper concept) ─────────── */
@@ -193,7 +194,6 @@ function PortalSignUpForm({ redirectTo }: { redirectTo: string }) {
   const [firstName, setFirstName]           = useState("");
   const [lastName, setLastName]             = useState("");
   const [email, setEmail]                   = useState("");
-  const [phone, setPhone]                   = useState("");
   const [password, setPassword]             = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
@@ -337,20 +337,6 @@ function PortalSignUpForm({ redirectTo }: { redirectTo: string }) {
               </div>
             </div>
 
-            {/* Phone */}
-            <div>
-              <label htmlFor="portal-phone" style={{ display: "block", fontWeight: 600, color: "#0f172a", marginBottom: "0.5rem", fontSize: "0.95rem" }}>
-                Phone <span style={{ color: "#94a3b8", fontWeight: 400 }}>(optional)</span>
-              </label>
-              <div style={{ position: "relative" }}>
-                <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b", fontSize: "0.9rem", pointerEvents: "none", userSelect: "none" }}>+1</span>
-                <input id="portal-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(555) 000-0000"
-                  disabled={busy} autoComplete="tel"
-                  style={{ ...inputBase, paddingTop: "0.75rem", paddingBottom: "0.75rem", paddingLeft: "3rem", paddingRight: "1rem" }}
-                  onFocus={focusStyle} onBlur={blurStyle} />
-              </div>
-            </div>
-
             {/* Password */}
             <div>
               <label htmlFor="portal-password" style={{ display: "block", fontWeight: 600, color: "#0f172a", marginBottom: "0.5rem", fontSize: "0.95rem" }}>Password <span style={{ color: "#ef4444" }}>*</span></label>
@@ -437,12 +423,15 @@ function PortalSignUpForm({ redirectTo }: { redirectTo: string }) {
 /* ── Main page ───────────────────────────────────────────────────────────── */
 function GetStartedPage() {
   const searchParams = useSearchParams();
-  const rawRedirect = searchParams.get("redirect_url");
-  const redirectTo = rawRedirect && rawRedirect.startsWith("/") ? rawRedirect : "/health/dashboard";
+  const redirectTo = safeReturnPath(searchParams.get("redirect_url"), "/health/dashboard");
   const clerkTicket = searchParams.get("__clerk_ticket");
   const [showPortalForm, setShowPortalForm] = useState(false);
 
-  const enrollHref = "/health/checkout";
+  // This page is also rendered under /[siteSlug]/sign-up (a re-export of this
+  // page) — stay on the visitor's site so checkout attribution isn't lost.
+  const routeParams = useParams();
+  const siteSlug = typeof routeParams?.siteSlug === "string" ? routeParams.siteSlug : undefined;
+  const enrollHref = siteSlug ? `/${siteSlug}/checkout` : "/health/checkout";
   const signInHref = redirectTo !== "/health/dashboard"
     ? `/health/sign-in?redirect_url=${encodeURIComponent(redirectTo)}`
     : "/health/sign-in";

@@ -24,7 +24,17 @@ vi.mock("@clerk/nextjs", () => ({
 }));
 
 vi.mock("convex/react", () => ({
-  useQuery: vi.fn(() => mockDependents),
+  // FamilySection gates its query on useConvexAuth so it doesn't fire before
+  // the Convex client holds the JWT. The mock has to provide it or every test
+  // in this file throws before rendering.
+  useConvexAuth: vi.fn(() => ({ isAuthenticated: true, isLoading: false })),
+  // Dispatch per query. getMyPrimaryMember must return null — meaning "the
+  // viewer IS a primary" — otherwise the component takes its dependent branch
+  // and none of the add/remove UI these tests assert on is rendered.
+  useQuery: vi.fn((fn: string) => {
+    if (String(fn).includes("getMyPrimaryMember")) return null;
+    return mockDependents;
+  }),
   useMutation: vi.fn((fn: string) => {
     if (String(fn).includes("addDependent") || fn === "addDependent") return mockAddDependent;
     if (String(fn).includes("removeDependent") || fn === "removeDependent") return mockRemoveDependent;
@@ -40,6 +50,7 @@ vi.mock("@/convex/_generated/api", () => ({
     enrollment: {
       dependents: {
         getMyDependents: "enrollment.dependents.getMyDependents",
+        getMyPrimaryMember: "enrollment.dependents.getMyPrimaryMember",
         addDependent: "enrollment.dependents.addDependent",
         removeDependent: "enrollment.dependents.removeDependent",
         resendDependentInvite: "enrollment.dependents.resendDependentInvite",

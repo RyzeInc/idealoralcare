@@ -71,6 +71,8 @@ export interface GroupBreakdown {
   groupName: string;
   accountId: Id<"accounts">;
   accountName: string | null;
+  /** Brand the group belongs to. Drives per-site vendor statement scoping. */
+  siteId: Id<"sites"> | null;
   isListBill: boolean;
   activeMemberCount: number;
   individualPrimaryCount: number;
@@ -460,6 +462,7 @@ async function computeLiveBreakdown(
       groupName: group.name,
       accountId: group.accountId,
       accountName: (account as any)?.name ?? null,
+      siteId: group.siteId ?? null,
       isListBill,
       activeMemberCount,
       individualPrimaryCount,
@@ -575,6 +578,7 @@ export const getInvoiceBreakdownForPeriod = query({
       groupName: r.groupName,
       accountId: r.accountId,
       accountName: r.accountName ?? null,
+      siteId: r.siteId ?? null,
       isListBill: r.isListBill,
       activeMemberCount: r.activeMemberCount,
       individualPrimaryCount: r.individualPrimaryCount,
@@ -751,6 +755,7 @@ export const getGroupInvoice = query({
           groupName: group.name,
           accountId: group.accountId,
           accountName: (account as any)?.name ?? null,
+          siteId: group.siteId ?? null,
           isListBill: group.listBill?.enabled === true,
           activeMemberCount: members.length,
           individualPrimaryCount,
@@ -807,6 +812,7 @@ export const getGroupInvoice = query({
         groupName: snap.groupName,
         accountId: snap.accountId,
         accountName: snap.accountName ?? null,
+        siteId: snap.siteId ?? null,
         isListBill: snap.isListBill,
         activeMemberCount: snap.activeMemberCount,
         individualPrimaryCount: snap.individualPrimaryCount,
@@ -1012,6 +1018,7 @@ export const getVendorPayables = query({
         groupName: r.groupName,
         accountId: r.accountId,
         accountName: r.accountName ?? null,
+        siteId: r.siteId ?? null,
         isListBill: r.isListBill,
         activeMemberCount: r.activeMemberCount,
         individualPrimaryCount: r.individualPrimaryCount,
@@ -1148,6 +1155,11 @@ async function closePeriodInternal(
       periodEndMs: window.endMs,
       groupId: g.groupId,
       accountId: g.accountId,
+      // Denormalized so vendor statements can scope to one brand without
+      // re-reading every group. Deliberately NOT part of `payloadHash` above:
+      // it is metadata about who the revenue belongs to, not revenue, so adding
+      // it must not invalidate the verification hash of any existing close.
+      ...(g.siteId ? { siteId: g.siteId } : {}),
       isListBill: g.isListBill,
       groupCode: g.groupCode,
       organizationCode: g.organizationCode ?? undefined,
@@ -1546,6 +1558,66 @@ export const backfillMemberLines = mutation({
       skippedGroups: [] as string[],
       ...result,
     };
+  },
+});
+
+/**
+ * Stamp `siteId` onto close rows written before multi-site scoping shipped.
+ *
+ * Purely a denormalization catch-up: the value is copied from the row's own
+ * group, which is where site-scoped statement reads already fall back to. No
+ * figure is touched and `payloadHash` is not recomputed, because siteId was
+ * never part of the hashed payload — so a backfilled row still verifies against
+ * the hash it closed with.
+ *
+ * Safe to re-run; rows that already carry a siteId are left alone. Groups whose
+ * site has since been deleted are reported rather than guessed at.
+ */
+export const backfillInvoicePeriodSiteIds = mutation({
+  args: { period: v.optional(v.string()) },
+  handler: async (ctx, { period }) => {
+    const identity = await requireAdmin(ctx);
+
+    const snapshots = period
+      ? await ctx.db
+          .query("invoicePeriods")
+          .withIndex("by_period", (q) => q.eq("period", period))
+          .collect()
+      : await ctx.db.query("invoicePeriods").collect();
+
+    let stamped = 0;
+    let alreadySet = 0;
+    const unresolved: string[] = [];
+
+    for (const snapshot of snapshots) {
+      if (snapshot.siteId) {
+        alreadySet++;
+        continue;
+      }
+      const group = await ctx.db.get(snapshot.groupId);
+      if (!group?.siteId) {
+        unresolved.push(`${snapshot.period}/${snapshot.groupCode}`);
+        continue;
+      }
+      await ctx.db.patch(snapshot._id, { siteId: group.siteId });
+      stamped++;
+    }
+
+    await ctx.runMutation(internal.admin.adminAudit.record, {
+      actorClerkUserId: identity.clerkUserId,
+      action: "invoice.backfillSiteIds",
+      targetType: "invoicePeriods",
+      targetId: period ?? "all",
+      summary:
+        `Stamped siteId on ${stamped} close row(s)` +
+        (alreadySet > 0 ? `, ${alreadySet} already had one` : "") +
+        (unresolved.length > 0
+          ? `, ${unresolved.length} could not be resolved to a site`
+          : ""),
+      metadata: { period: period ?? null, stamped, alreadySet, unresolved },
+    });
+
+    return { period: period ?? null, stamped, alreadySet, unresolved };
   },
 });
 

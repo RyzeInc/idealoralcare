@@ -20,7 +20,7 @@ import { formatDateTime } from '@/lib/admin-format';
 const VENDORS = [
   { id: 'toothlens', name: 'Toothlens' },
   { id: 'careington', name: 'Careington' },
-  { id: 'ideal', name: 'Ideal Health' },
+  { id: 'ideal', name: 'Ideal Oral Health' },
   { id: 'ryze', name: 'Ryze' },
 ] as const;
 

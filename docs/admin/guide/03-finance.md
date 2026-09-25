@@ -1,6 +1,6 @@
 # Finance
 
-Covers: [Billing](#billing-adminbilling) · [List-Bill](#list-bill-adminlist-bill) · [List-Bill Invoices](#list-bill-invoices-adminlist-bill-invoices) · [Invoice Calculator](#invoice-calculator-admininvoice-calculator) · [Commissions](#commissions-admincommissions)
+Covers: [Billing](#billing-adminbilling) · [List-Bill](#list-bill-adminlist-bill) · [List-Bill Invoices](#list-bill-invoices-adminlist-bill-invoices) · [Revenue & Dispersal](#revenue--dispersal-admininvoice-calculator) · [Commissions](#commissions-admincommissions)
 
 Permission note: plain `requireAdmin` throughout — Owner and Editor have identical access. See [00-overview.md §1](00-overview.md#1-the-permission-model-read-this-first).
 
@@ -25,8 +25,8 @@ This is the most structurally complicated part of the admin suite. Before using 
 
 ### Known limitations
 
-- ⚠️ **The Billing Month picker doesn't filter anything.** The underlying query has no period argument — it always shows live, current-moment counts no matter what month you select. The displayed "Billing Period" box is cosmetic; there is no historical month-over-month view on this page (use [Invoice Calculator](#invoice-calculator-admininvoice-calculator)'s closed-period archive for that instead).
-- The flat $15/member default used here disagrees with the $14.99/$24.99 tiered pricing used by [Invoice Calculator](#invoice-calculator-admininvoice-calculator) and [List-Bill Invoices](#list-bill-invoices-adminlist-bill-invoices) — see §6.
+- ⚠️ **The Billing Month picker doesn't filter anything.** The underlying query has no period argument — it always shows live, current-moment counts no matter what month you select. The displayed "Billing Period" box is cosmetic; there is no historical month-over-month view on this page (use [Revenue & Dispersal](#revenue--dispersal-admininvoice-calculator)'s closed-period archive for that instead).
+- The flat $15/member default used here disagrees with the $14.99/$24.99 tiered pricing used by [Revenue & Dispersal](#revenue--dispersal-admininvoice-calculator) and [List-Bill Invoices](#list-bill-invoices-adminlist-bill-invoices) — see §6.
 - No refund/dispute/dunning view here — for a specific member's payment issue, use [Customer Service](04-support-system.md#customer-service-admincustomer-service) instead.
 
 ---
@@ -103,7 +103,9 @@ This is the most structurally complicated part of the admin suite. Before using 
 
 ---
 
-## Invoice Calculator (`/admin/invoice-calculator`)
+## Revenue & Dispersal (`/admin/invoice-calculator`)
+
+> Labeled **"Revenue & Dispersal"** in the sidebar and page header. The route is still `/admin/invoice-calculator` (unchanged), and it was previously called "Invoice Calculator" — the name was misleading because it does **not** generate invoices; it reconciles how revenue disperses across vendors. (List-Bill Invoices is what actually generates employer invoices.)
 
 **Purpose**: the internal finance/reconciliation tool. For any period, it answers "how much gross revenue did we generate, and exactly how does every dollar split across Toothlens, Careington, processing, Partner Vendor (Ideal Health), and Ryze's carrier-keep margin?" This is the source for vendor payable batches and carrier-revenue reporting — and, per the code's own comments, **the most rigorously built and tested module in the Finance section.** Full spec: `docs/internal/INVOICE_CALCULATOR_SPEC.md`.
 

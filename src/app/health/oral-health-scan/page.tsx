@@ -1,21 +1,13 @@
+"use client";
+
+import { usePathname } from "next/navigation";
 import HealthHeader from "@/components/health/HealthHeader";
 import Link from "next/link";
 
-export const metadata = {
-  title: "AI Oral Health Scan | Instant Dental Screening | Ideal Health",
-  description:
-    "Get instant AI-powered insights into your dental health with our AI oral health scan. No waiting, no hassle — just quick results from your smartphone.",
-  alternates: { canonical: "/health/oral-health-scan" },
-  openGraph: {
-    title: "AI Oral Health Scan — Screen Your Teeth From Home",
-    description:
-      "Snap a photo with your smartphone and get instant AI-powered dental health insights. No appointment needed.",
-    url: "https://getidealoh.com/health/oral-health-scan",
-    images: [{ url: "/health-assets/toothlensscan_1086x1024.png", width: 1086, height: 1024 }],
-  },
-};
 
 export default function OralHealthScanPage() {
+  const pathname = usePathname();
+  const basePath = `/${pathname.split("/")[1]}`;
   return (
     <div className="health-landing">
       <HealthHeader />
@@ -36,7 +28,7 @@ export default function OralHealthScanPage() {
                   Advanced AI-powered scanning reveals the mouth-body connection instantly. Detect early warning signs of systemic health conditions and take control of your wellness right from your phone.
                 </p>
                 <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-                  <Link className="button button--primary" href="/health/plans" style={{ background: "#fff", color: "#166534", border: "none", boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}>
+                  <Link className="button button--primary" href={`${basePath}/plans`} style={{ background: "#fff", color: "#166534", border: "none", boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}>
                     Get Started
                   </Link>
                   <Link className="button" href="#how-it-works" style={{ background: "rgba(255,255,255,0.15)", color: "#fff", borderColor: "rgba(255,255,255,0.3)" }}>
@@ -228,7 +220,7 @@ export default function OralHealthScanPage() {
                 <li>Stay informed about changes throughout the year</li>
               </ul>
               <div style={{ marginTop: "2rem" }}>
-                <Link className="button button--primary" href="/health/teledentistry" style={{ background: "rgba(255,255,255,0.15)", color: "#fff", border: "1.5px solid rgba(255,255,255,0.4)", boxShadow: "none" }}>
+                <Link className="button button--primary" href={`${basePath}/teledentistry`} style={{ background: "rgba(255,255,255,0.15)", color: "#fff", border: "1.5px solid rgba(255,255,255,0.4)", boxShadow: "none" }}>
                   Follow Up With Teledentistry
                 </Link>
               </div>
@@ -254,10 +246,10 @@ export default function OralHealthScanPage() {
             Get your AI oral health scan today. It takes less than 5 minutes and could reveal important insights about your wellness.
           </p>
           <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
-            <Link className="button button--primary" href="/health/plans">
+            <Link className="button button--primary" href={`${basePath}/plans`}>
               Start Your Scan
             </Link>
-            <Link className="button" href="/health/teledentistry" style={{ background: "#fff", color: "#27AE60", border: "2px solid #27AE60" }}>
+            <Link className="button" href={`${basePath}/teledentistry`} style={{ background: "#fff", color: "#27AE60", border: "2px solid #27AE60" }}>
               Schedule a Consultation
             </Link>
           </div>

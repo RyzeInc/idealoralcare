@@ -10,6 +10,7 @@ export { EssentialsMembershipModal } from "./EssentialsMembershipModal";
 export { OralCareTermsModal } from "./OralCareTermsModal";
 export { FooterDisclosure } from "./FooterDisclosure";
 export { CheckoutFlow } from "./CheckoutFlow";
+export { SignaturePad } from "./SignaturePad";
 
 // Types
 export interface MemberData {

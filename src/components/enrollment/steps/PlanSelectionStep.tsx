@@ -13,6 +13,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import styles from "./steps.module.css";
 import planStyles from "./plan-selection-step.module.css";
+import { useSiteThemeOptional } from "@/components/providers/SiteThemeProvider";
 
 interface Product {
   _id: string;
@@ -38,49 +39,15 @@ export function PlanSelectionStep() {
   const { nextStep, setError, setLoading, isLoading, error } = useEnrollmentStep();
   const { state, dispatch } = useEnrollment();
   const { selectedPlans, updatePricing } = useEnrollmentPricing();
+  const theme = useSiteThemeOptional();
+  const brandName = theme?.site?.name ?? "Ideal Oral Health";
   
   const [cadence, setCadence] = useState<"monthly" | "annual">("monthly");
   const [paymentMethod, setPaymentMethod] = useState<"card" | "ach">("card");
   
-  // TODO (Agent 2): Wire up Convex catalog.queries.list query
-  // const catalogProducts = useQuery(api.catalog.queries.list, {}) || [];
-  
-  // Stub implementation with sample products for development
-  const catalogProducts = [
-    {
-      _id: "product_ideal_health_oral",
-      slug: "ideal-health-oral",
-      name: "Ideal Oral Savings Plan",
-      description: "Comprehensive dental coverage including preventive, basic, and major services",
-      category: "oral_health",
-      pricing: {
-        monthlyCardCents: 1499,  // $14.99
-        monthlyACHCents: 1499,   // $14.99
-        annualCardCents: 16499,  // $164.99
-        annualACHCents: 16499,   // $164.99
-      },
-      inclusions: [
-        "Preventive care (cleanings, exams)",
-        "Basic care (fillings, extractions)",
-        "Major care (crowns, bridges)",
-        "Teledentistry consultations",
-        "Dental discount network",
-      ],
-      metadata: {
-        icon: "tooth",
-        bestFor: ["Individual", "Family"],
-      },
-      isFeatured: true,
-      order: 1,
-      eligibilityRules: {
-        disclosureText: "This is a discount dental plan, not insurance.",
-        requiresAgeVerification: false,
-        minimumAge: 0,
-        maximumAge: 150,
-      },
-    },
-  ];
-  
+  const catalogProducts = useQuery(api.catalog.queries.list, {});
+  const catalogLoading = catalogProducts === undefined;
+
   // Transform catalog products to Product interface
   const products: Product[] = (catalogProducts || []).map((p: any) => ({
     _id: p._id || "",
@@ -212,6 +179,11 @@ export function PlanSelectionStep() {
         </div>
 
         {/* Plans Grid */}
+        {catalogLoading ? (
+          <div className={styles.stepContent} style={{ textAlign: "center", padding: "2rem 0" }}>
+            <Loader size={24} className={styles.spinner} />
+          </div>
+        ) : (
         <div className={planStyles.plansGrid}>
           {products.map((product) => {
             const isSelected = selectedPlans && selectedPlans[product._id];
@@ -256,6 +228,7 @@ export function PlanSelectionStep() {
             );
           })}
         </div>
+        )}
 
         {error && (
           <div className={styles.errorBox}>

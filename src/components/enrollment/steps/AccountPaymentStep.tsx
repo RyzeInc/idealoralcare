@@ -107,7 +107,7 @@ export function AccountPaymentStep() {
               You'll need to create an account to complete your enrollment and manage your membership.
             </p>
             <Link 
-              href={`/health/sign-up?redirect_url=${encodeURIComponent(`${typeof window !== 'undefined' ? window.location.href : ''}`)}`}
+              href={`/health/sign-up?redirect_url=${encodeURIComponent(typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search}` : '')}`}
               className={styles.primaryButton}
               style={{ display: "block", textAlign: "center", marginBottom: "1rem" }}
             >

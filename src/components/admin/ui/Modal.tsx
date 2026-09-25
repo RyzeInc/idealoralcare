@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, ReactNode } from 'react';
+import { useEffect, useId, useRef, ReactNode } from 'react';
 import { X } from 'lucide-react';
 
 export interface ModalProps {
@@ -40,18 +40,22 @@ export function Modal({
   hideHeader = false,
 }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
-  const titleId = useRef(`modal-title-${Math.random().toString(36).slice(2, 9)}`).current;
+  const titleId = useId();
 
   // Keep the latest onClose/preventClose in refs so the effect below doesn't
   // need them as dependencies. Callers commonly pass inline arrow functions
   // (e.g. onClose={() => setShow(false)}), which get a new identity on every
   // parent re-render — if those were in the dependency array, this effect
   // would re-run (and re-steal focus to the first input) on every keystroke
-  // inside the modal.
+  // inside the modal. Written in their own effect (no deps: runs after every
+  // render) rather than assigned inline, so a ref write is never on the
+  // render path.
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
   const preventCloseRef = useRef(preventClose);
-  preventCloseRef.current = preventClose;
+  useEffect(() => {
+    onCloseRef.current = onClose;
+    preventCloseRef.current = preventClose;
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -73,7 +77,6 @@ export function Modal({
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prevOverflow;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   if (!open) return null;

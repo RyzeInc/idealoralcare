@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mail, Phone, Lock, Eye, EyeOff, AlertCircle, Loader, KeyRound, Heart, Users, DollarSign, Zap } from "lucide-react";
 import HealthHeader from "@/components/health/HealthHeader";
+import { safeReturnPath } from "@/lib/safe-redirect";
 import "@/app/health/health.css";
 
 function AppleIcon() {
@@ -160,8 +161,7 @@ function PlanShowcase() {
 function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const rawRedirect = searchParams.get("redirect_url");
-  const redirectTo = rawRedirect && rawRedirect.startsWith("/") ? rawRedirect : "/health/dashboard";
+  const redirectTo = safeReturnPath(searchParams.get("redirect_url"), "/health/dashboard");
   const { signIn, isLoaded, setActive } = useSignIn();
 
   const [mode, setMode] = useState<"email" | "phone">("email");
@@ -183,7 +183,7 @@ function SignInForm() {
   // Add new strategies here (and to the verification-step UI below) rather than
   // introducing another one-off if/else — that's how this app ended up unable
   // to handle backup codes even though Clerk had them enabled.
-  const SECOND_FACTOR_PRIORITY = ["totp", "phone_code", "backup_code"] as const;
+  const SECOND_FACTOR_PRIORITY = ["totp", "email_code", "phone_code", "backup_code"] as const;
   type SecondFactorStrategy = (typeof SECOND_FACTOR_PRIORITY)[number];
 
   useEffect(() => {
@@ -213,8 +213,8 @@ function SignInForm() {
 
   const activateSecondFactor = async (strategy: SecondFactorStrategy) => {
     if (!signIn) return;
-    if (strategy === "phone_code") {
-      await signIn.prepareSecondFactor({ strategy: "phone_code" });
+    if (strategy === "phone_code" || strategy === "email_code") {
+      await signIn.prepareSecondFactor({ strategy });
     }
     // totp and backup_code need no preparation — user already has the code in hand.
     setVerificationMethod(strategy);
@@ -555,6 +555,7 @@ function SignInForm() {
                               style={{ background: "none", border: "none", color: "#0066CC", fontSize: "0.8125rem", fontWeight: 500, cursor: busy ? "wait" : "pointer", padding: "0.125rem" }}
                             >
                               {strategy === "totp" && "Use authenticator app instead"}
+                              {strategy === "email_code" && "Email me a code instead"}
                               {strategy === "phone_code" && "Text me a code instead"}
                               {strategy === "backup_code" && "Use a backup code instead"}
                             </button>

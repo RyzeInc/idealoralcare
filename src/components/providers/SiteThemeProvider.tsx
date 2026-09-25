@@ -20,15 +20,35 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
+// Path segments that are never site slugs
+const NON_SITE_SEGMENTS = new Set([
+  "health", "admin", "api", "_next", "static", "public",
+  "register", "partner", "newideal", "debug", "bootstrap", "unsubscribe",
+  "404", "500", "favicon.ico",
+]);
+
+export type SitePromoPlacement = "landing" | "plans";
+
+export interface SitePromoLink {
+  text: string;
+  ctaText: string;
+  url: string;
+  disclosure?: string;
+  placements: SitePromoPlacement[];
+  enabled: boolean;
+}
+
 export interface SiteTheme {
   _id?: string;
   slug: string;
   name: string;
   type: "primary" | "whitelabel" | "channel";
   domain?: string;
+  basePath?: string;
   branding?: {
     logoUrl?: string;
     logoStorageId?: string;
+    logoWidth?: number;
     faviconUrl?: string;
     primaryColor?: string;
     secondaryColor?: string;
@@ -40,6 +60,11 @@ export interface SiteTheme {
     footerText?: string;
   };
   allowedPlanIds?: string[];
+  /**
+   * Third-party offers rendered on this site's public pages. Mirrors
+   * `promoLinks` on the sites table — see convex/lib/promoLinks.ts.
+   */
+  promoLinks?: SitePromoLink[];
   defaultCadence?: "monthly" | "annual";
   defaultPaymentMethod?: "card" | "ach";
   enrollmentDefaults?: {
@@ -71,70 +96,53 @@ const SiteThemeContext = createContext<SiteThemeContextValue | undefined>(undefi
 
 interface SiteThemeProviderProps {
   children: ReactNode;
-  defaultSlug?: string; // Default to "ideal-health" if not provided
+  defaultSlug?: string;
 }
 
-/**
- * Provider component - wraps the app and resolves site theme
- */
 export function SiteThemeProvider({
   children,
-  defaultSlug = "ideal-health",
+  defaultSlug,
 }: SiteThemeProviderProps) {
-  const [siteSlug, setSiteSlug] = useState(defaultSlug);
+  const [siteSlug, setSiteSlug] = useState(defaultSlug ?? "");
   const [isLoading, setIsLoading] = useState(true);
 
-  // Resolve site by slug
-  const site = useQuery(api.hierarchy.resolveSiteBySlug, { slug: siteSlug });
+  // Only query when we have a slug
+  const site = useQuery(
+    api.hierarchy.resolveSiteBySlug,
+    siteSlug ? { slug: siteSlug } : "skip"
+  );
 
-  // Cast to SiteTheme since generated types may be stale relative to schema
   const siteTheme = site as unknown as SiteTheme | null | undefined;
 
-  // Load site from URL or defaults on mount
+  // If no explicit slug was passed, try to resolve from the URL path
   useEffect(() => {
-    // Try to resolve from URL path or domain
-    const pathMatch = window.location.pathname.split("/")[1];
-    if (pathMatch && pathMatch !== "health") {
-      setSiteSlug(pathMatch);
+    if (!defaultSlug) {
+      const segment = window.location.pathname.split("/")[1];
+      if (segment && !NON_SITE_SEGMENTS.has(segment)) {
+        setSiteSlug(segment);
+      }
     }
-
     setIsLoading(false);
-  }, []);
+  }, [defaultSlug]);
 
   // Inject CSS custom properties when site loads
   useEffect(() => {
     if (siteTheme) {
       const root = document.documentElement;
 
-      // Brand colors
-      root.style.setProperty(
-        "--brand-primary",
-        siteTheme.branding?.primaryColor || "#1e3a5f"
-      );
-      root.style.setProperty(
-        "--brand-secondary",
-        siteTheme.branding?.secondaryColor || "#14b8a6"
-      );
-      root.style.setProperty(
-        "--brand-accent",
-        siteTheme.branding?.accentColor || "#0ea5e9"
-      );
+      root.style.setProperty("--brand-primary", siteTheme.branding?.primaryColor || "#1e3a5f");
+      root.style.setProperty("--brand-secondary", siteTheme.branding?.secondaryColor || "#14b8a6");
+      root.style.setProperty("--brand-accent", siteTheme.branding?.accentColor || "#0ea5e9");
 
-      // Logo URL (for img elements)
-      root.style.setProperty(
-        "--brand-logo-url",
-        `url('${siteTheme.branding?.logoUrl || "/ideal-oral-health-logo.png"}')`
-      );
-
-      // Favicon
-      if (siteTheme.branding?.faviconUrl) {
-        const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-        if (link) {
-          link.href = siteTheme.branding.faviconUrl;
-        }
+      if (siteTheme.branding?.logoUrl) {
+        root.style.setProperty("--brand-logo-url", `url('${siteTheme.branding.logoUrl}')`);
       }
 
-      // Custom CSS injections (if site has custom styles)
+      if (siteTheme.branding?.faviconUrl) {
+        const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+        if (link) link.href = siteTheme.branding.faviconUrl;
+      }
+
       if (siteTheme.branding?.customCSS) {
         const styleId = "site-custom-styles";
         let style = document.getElementById(styleId) as HTMLStyleElement;
@@ -146,9 +154,8 @@ export function SiteThemeProvider({
         style.textContent = siteTheme.branding.customCSS;
       }
 
-      // Update document title
       if (siteTheme.name) {
-        document.title = `${siteTheme.name} | Modern Health Plans Made Simple`;
+        document.title = siteTheme.name;
       }
     }
   }, [siteTheme]);

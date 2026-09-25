@@ -14,14 +14,51 @@ export const isAdmin = query({
       .query("adminUsers")
       .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", args.clerkUserId))
       .first();
-    if (admin) return true;
+    // Internal staff only. Distribution partners used to pass here, which is
+    // what let a broker into /admin and every whole-book query behind it.
+    // They now belong in /partner — see getMyPortal below for the routing.
+    return !!admin;
+  },
+});
 
-    // Program Managers, FMOs, and Agencies with a clerkUserId get portal access
+/**
+ * Which portal this user belongs in.
+ *
+ * Used by the /admin and /partner layouts to route rather than simply refuse:
+ * a broker who bookmarks /admin should land in their own portal, not be
+ * bounced to the marketing site with no explanation.
+ *
+ * Resolves the SIGNED-IN user; it takes no user id, so it cannot be used to
+ * probe someone else's role.
+ */
+export const getMyPortal = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+    const clerkUserId = identity.tokenIdentifier.split("|").pop() ?? "";
+
+    const admin = await ctx.db
+      .query("adminUsers")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", clerkUserId))
+      .first();
+    if (admin) return { portal: "admin" as const, role: admin.role };
+
     const partner = await ctx.db
       .query("distributionPartners")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", args.clerkUserId))
+      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", clerkUserId))
       .first();
-    return !!partner && partner.status === "active";
+    if (partner && partner.status === "active") {
+      return { portal: "partner" as const, role: null };
+    }
+
+    const leader = await ctx.db
+      .query("partnerLeaders")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", clerkUserId))
+      .first();
+    if (leader) return { portal: "partner" as const, role: null };
+
+    return null;
   },
 });
 
@@ -42,6 +79,7 @@ export const getByClerkId = query({
 export const getAll = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     // Public - the /admin layout already verifies admin role
     // This prevents auth dependency issues on client-side component mount
     return await ctx.db.query("adminUsers").collect();
@@ -65,6 +103,7 @@ export const getMyAdminProfile = query({
 export const getBrokersByDepartment = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     // Public query - fetch all users with broker department
     const allAdmins = await ctx.db.query("adminUsers").collect();
     return allAdmins.filter((admin) =>
@@ -266,6 +305,7 @@ const departmentValidator = v.union(
 export const getAllInvites = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     return await ctx.db.query("adminInvites").collect();
   },
 });

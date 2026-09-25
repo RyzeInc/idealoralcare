@@ -70,13 +70,21 @@ interface World {
 
 async function seedWorld(
   t: ReturnType<typeof convexTest>,
-  opts: { groupCode?: string; groupName?: string } = {},
+  opts: {
+    groupCode?: string;
+    groupName?: string;
+    /** Reuse an existing brand instead of minting a new one. */
+    siteId?: Id<"sites">;
+    siteName?: string;
+  } = {},
 ): Promise<World> {
   return t.run(async (ctx) => {
     const now = Date.now();
-    const siteId = await ctx.db.insert("sites", {
+    const siteId =
+      opts.siteId ??
+      (await ctx.db.insert("sites", {
       slug: `s-${Math.random().toString(36).slice(2)}`,
-      name: "VS Site",
+      name: opts.siteName ?? "VS Site",
       type: "primary",
       branding: {},
       allowedPlanIds: [],
@@ -93,7 +101,7 @@ async function seedWorld(
       status: "active",
       createdAt: now,
       updatedAt: now,
-    });
+      }));
     const accountId = await ctx.db.insert("accounts", {
       siteId,
       slug: `a-${Math.random().toString(36).slice(2)}`,
@@ -387,7 +395,7 @@ describe("vendorStatements — recipient disclosure", () => {
     expect(printed).not.toContain("organization");
   });
 
-  test("Ideal Health sees its own rate class, and self-pay members show as direct", async () => {
+  test("Ideal Oral Health sees its own rate class, and self-pay members show as direct", async () => {
     const t = convexTest(schema);
     const { period } = await seedClosedMonth(t);
     const { statementId } = await asAdmin(t).mutation(
@@ -731,7 +739,7 @@ describe("vendorStatements — adjustments", () => {
 // ---------------------------------------------------------------------------
 
 describe("vendorStatements — rep attribution", () => {
-  test("Ideal Health sees who sold each member; the flat-fee recipients do not", async () => {
+  test("Ideal Oral Health sees who sold each member; the flat-fee recipients do not", async () => {
     const t = convexTest(schema);
     await seedAdmin(t);
     const world = await seedWorld(t);
@@ -758,22 +766,22 @@ describe("vendorStatements — rep attribution", () => {
       month,
     });
 
-    const ideal = await asAdmin(t).mutation(
+    const nexus = await asAdmin(t).mutation(
       api.admin.vendorStatements.generateStatement,
       { period, vendor: "ideal" },
     );
-    const idealStatement: any = await asAdmin(t).query(
+    const nexusStatement: any = await asAdmin(t).query(
       api.admin.vendorStatements.getStatement,
-      { statementId: ideal.statementId },
+      { statementId: nexus.statementId },
     );
-    expect(idealStatement.showBroker).toBe(true);
-    expect(idealStatement.attributionBasis).toBe("frozen");
-    expect(idealStatement.memberLines[0].repName).toBe("Dana Reyes");
-    expect(idealStatement.memberLines[0].repCode).toBe("BRK-REYES-01");
-    expect(idealStatement.memberLines[0].repEmail).toBe("dana@agency.test");
-    expect(idealStatement.memberLines[0].agencyName).toBe("Southeast Benefits Group");
+    expect(nexusStatement.showBroker).toBe(true);
+    expect(nexusStatement.attributionBasis).toBe("frozen");
+    expect(nexusStatement.memberLines[0].repName).toBe("Dana Reyes");
+    expect(nexusStatement.memberLines[0].repCode).toBe("BRK-REYES-01");
+    expect(nexusStatement.memberLines[0].repEmail).toBe("dana@agency.test");
+    expect(nexusStatement.memberLines[0].agencyName).toBe("Southeast Benefits Group");
     // Ideal can pay the rep, but still cannot see the employer behind them.
-    expect(JSON.stringify(idealStatement.memberLines)).not.toContain("ACMEMFG");
+    expect(JSON.stringify(nexusStatement.memberLines)).not.toContain("ACMEMFG");
 
     const toothlens = await asAdmin(t).mutation(
       api.admin.vendorStatements.generateStatement,
@@ -1594,13 +1602,13 @@ describe("vendorStatements — activity trail", () => {
       { period },
     );
 
-    const ideal: any[] = await asAdmin(t).query(
+    const nexus: any[] = await asAdmin(t).query(
       api.admin.vendorStatements.listStatementActivity,
       { vendor: "ideal" },
     );
-    expect(ideal.length).toBeGreaterThan(0);
-    expect(ideal.every((e) => e.vendor === "ideal")).toBe(true);
-    expect(JSON.stringify(ideal)).not.toContain("Careington");
+    expect(nexus.length).toBeGreaterThan(0);
+    expect(nexus.every((e) => e.vendor === "ideal")).toBe(true);
+    expect(JSON.stringify(nexus)).not.toContain("Careington");
   });
 
   test("a void and a reissue both leave a trace with their reason", async () => {
@@ -1708,7 +1716,7 @@ describe("vendorStatements — statement readability", () => {
     const { year, month, period, midMs } = previousMonth();
     for (const [code, name] of [
       ["IDEALDO", "Apricus"],
-      ["NEWIDEAL", "Northwind"],
+      ["NEWNEXUS", "Northwind"],
     ]) {
       const world = await seedWorld(t, { groupCode: code, groupName: name });
       await t.run(async (ctx) => {
@@ -1769,13 +1777,13 @@ describe("vendorStatements — statement readability", () => {
       month,
     });
 
-    const ideal = await asAdmin(t).mutation(
+    const nexus = await asAdmin(t).mutation(
       api.admin.vendorStatements.generateStatement,
       { period, vendor: "ideal" },
     );
     const statement: any = await asAdmin(t).query(
       api.admin.vendorStatements.getStatement,
-      { statementId: ideal.statementId },
+      { statementId: nexus.statementId },
     );
     expect(statement.groups[0].repName).toBe("Dana Reyes");
     expect(statement.groups[0].agencyName).toBe("Southeast Benefits Group");
@@ -2774,11 +2782,11 @@ describe("vendorStatements — column selection", () => {
       {},
     );
     const profiles: any[] = profilesResult.profiles;
-    const ideal = profiles.find((p) => p.vendor === "ideal");
+    const nexus = profiles.find((p) => p.vendor === "ideal");
     // Every registry column is represented; the unknown ones default off.
-    expect(ideal.current.columns.length).toBeGreaterThan(3);
+    expect(nexus.current.columns.length).toBeGreaterThan(3);
     expect(
-      ideal.current.columns.find((c: any) => c.key === "repName").enabled,
+      nexus.current.columns.find((c: any) => c.key === "repName").enabled,
     ).toBe(false);
   });
 
@@ -3303,5 +3311,449 @@ describe("vendorStatements — the picker reads the server's registry", () => {
       "careingtonId",
       "amount",
     ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Multi-site scoping
+//
+// A statement is book-wide by default (every brand's close rows), which is what
+// a vendor contracted with the carrier is owed. Scoping it to a site is opt-in,
+// and the two shapes are mutually exclusive for one (vendor, period) because
+// allowing both would remit the same revenue twice.
+// ---------------------------------------------------------------------------
+
+describe("vendor statements — site scoping", () => {
+  /** Two brands, one closed month, $14.99 primaries on each side. */
+  async function seedTwoBrands(t: ReturnType<typeof convexTest>) {
+    const { year, month, period, midMs } = previousMonth();
+
+    const brandA = await seedWorld(t, {
+      groupCode: "IDEALDO",
+      groupName: "Apricus",
+      siteName: "Ideal Oral Health",
+    });
+    // Second group on the SAME brand, to prove scoping keys on site not group.
+    const brandAExtra = await seedWorld(t, {
+      groupCode: "IDEALDO",
+      groupName: "Apricus West",
+      siteId: brandA.siteId,
+    });
+    const brandB = await seedWorld(t, {
+      groupCode: "IDEALDO",
+      groupName: "Northwind Traders",
+      siteName: "Acme Dental",
+    });
+
+    await seedPrimary(t, brandA, {
+      customerId: "a-1", memberId: "MEM-A1", totalCents: 1499, createdAt: midMs,
+    });
+    await seedPrimary(t, brandAExtra, {
+      customerId: "a-2", memberId: "MEM-A2", totalCents: 1499, createdAt: midMs,
+    });
+    await seedPrimary(t, brandB, {
+      customerId: "b-1", memberId: "MEM-B1", totalCents: 1499, createdAt: midMs,
+    });
+
+    await asAdmin(t).mutation(api.admin.invoiceCalculator.closePeriodManual, {
+      year, month,
+    });
+    return { brandA, brandAExtra, brandB, period };
+  }
+
+  test("close rows carry the brand they belong to", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const { brandA, brandB } = await seedTwoBrands(t);
+
+    const rows = await t.run(async (ctx) =>
+      ctx.db.query("invoicePeriods").collect(),
+    );
+    expect(rows.length).toBeGreaterThanOrEqual(3);
+    // Every row knows its site without anyone running the backfill.
+    expect(rows.every((r) => r.siteId)).toBe(true);
+    const aRows = rows.filter((r) => r.siteId === brandA.siteId);
+    const bRows = rows.filter((r) => r.siteId === brandB.siteId);
+    expect(aRows).toHaveLength(2);
+    expect(bRows).toHaveLength(1);
+  });
+
+  test("book-wide is the default and still covers every brand", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const { period } = await seedTwoBrands(t);
+
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+
+    expect(statement.siteId ?? null).toBeNull();
+    expect(statement.siteName ?? null).toBeNull();
+    expect(statement.primaryCount).toBe(3);
+  });
+
+  test("a scoped statement covers only its own brand's revenue", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const { brandA, brandB, period } = await seedTwoBrands(t);
+
+    const a = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal", siteId: brandA.siteId },
+    );
+    const b = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal", siteId: brandB.siteId },
+    );
+    const aDoc: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId: a.statementId },
+    );
+    const bDoc: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId: b.statementId },
+    );
+
+    // Two groups on brand A, one on brand B.
+    expect(aDoc.primaryCount).toBe(2);
+    expect(bDoc.primaryCount).toBe(1);
+    expect(aDoc.siteName).toBe("Ideal Oral Health");
+    expect(bDoc.siteName).toBe("Acme Dental");
+
+    // The brands never see each other's organizations.
+    expect(JSON.stringify(aDoc.memberLines)).not.toContain("MEM-B1");
+    expect(JSON.stringify(bDoc.memberLines)).not.toContain("MEM-A1");
+
+    // And the parts sum to what one book-wide statement would have said.
+    expect(aDoc.subtotalCents + bDoc.subtotalCents).toBeGreaterThan(0);
+  });
+
+  test("per-site statements sum to the book-wide total for the same month", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const { brandA, brandB, period } = await seedTwoBrands(t);
+
+    // Measure the book-wide figure, then void it so the per-site cut is allowed.
+    const book = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const bookDoc: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId: book.statementId },
+    );
+    await asAdmin(t).mutation(api.admin.vendorStatements.voidStatement, {
+      statementId: book.statementId,
+      reason: "switching to per-brand settlement",
+    });
+
+    const a = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal", siteId: brandA.siteId },
+    );
+    const b = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal", siteId: brandB.siteId },
+    );
+    const aDoc: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId: a.statementId },
+    );
+    const bDoc: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId: b.statementId },
+    );
+
+    // No money is created or lost by changing how the month is sliced.
+    expect(aDoc.subtotalCents + bDoc.subtotalCents).toBe(bookDoc.subtotalCents);
+    expect(aDoc.primaryCount + bDoc.primaryCount).toBe(bookDoc.primaryCount);
+  });
+
+  test("a per-site statement is refused while a book-wide one is live", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const { brandA, period } = await seedTwoBrands(t);
+
+    await asAdmin(t).mutation(api.admin.vendorStatements.generateStatement, {
+      period, vendor: "ideal",
+    });
+
+    await expect(
+      asAdmin(t).mutation(api.admin.vendorStatements.generateStatement, {
+        period, vendor: "ideal", siteId: brandA.siteId,
+      }),
+    ).rejects.toThrow(/already covers .* across every site/);
+  });
+
+  test("a book-wide statement is refused while a per-site one is live", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const { brandA, period } = await seedTwoBrands(t);
+
+    await asAdmin(t).mutation(api.admin.vendorStatements.generateStatement, {
+      period, vendor: "ideal", siteId: brandA.siteId,
+    });
+
+    await expect(
+      asAdmin(t).mutation(api.admin.vendorStatements.generateStatement, {
+        period, vendor: "ideal",
+      }),
+    ).rejects.toThrow(/Void the per-site statement/);
+  });
+
+  test("generating twice for the same brand is idempotent", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const { brandA, period } = await seedTwoBrands(t);
+
+    const first = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal", siteId: brandA.siteId },
+    );
+    const second = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal", siteId: brandA.siteId },
+    );
+    expect(second.created).toBe(false);
+    expect(second.statementId).toBe(first.statementId);
+  });
+
+  test("splitBySite cuts one statement per recipient per brand", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const { period } = await seedTwoBrands(t);
+
+    const result = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatementsForPeriod,
+      { period, splitBySite: true },
+    );
+    // 4 recipients × 2 brands.
+    expect(result.generated).toBe(8);
+
+    const rows: any[] = await asAdmin(t).query(
+      api.admin.vendorStatements.listStatements,
+      { period },
+    );
+    expect(rows).toHaveLength(8);
+    expect(rows.every((r) => r.siteId)).toBe(true);
+  });
+
+  test("siteId and splitBySite cannot be combined", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const { brandA, period } = await seedTwoBrands(t);
+
+    await expect(
+      asAdmin(t).mutation(
+        api.admin.vendorStatements.generateStatementsForPeriod,
+        { period, siteId: brandA.siteId, splitBySite: true },
+      ),
+    ).rejects.toThrow(/Choose one/);
+  });
+
+  test("listStatements filters by brand, and 'book' selects the unscoped ones", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const { brandA, brandB, period } = await seedTwoBrands(t);
+
+    await asAdmin(t).mutation(api.admin.vendorStatements.generateStatement, {
+      period, vendor: "ideal", siteId: brandA.siteId,
+    });
+    await asAdmin(t).mutation(api.admin.vendorStatements.generateStatement, {
+      period, vendor: "ideal", siteId: brandB.siteId,
+    });
+    // A different recipient settled book-wide, so both shapes exist to filter.
+    await asAdmin(t).mutation(api.admin.vendorStatements.generateStatement, {
+      period, vendor: "toothlens",
+    });
+
+    const onlyA: any[] = await asAdmin(t).query(
+      api.admin.vendorStatements.listStatements,
+      { period, siteId: brandA.siteId },
+    );
+    expect(onlyA).toHaveLength(1);
+    expect(onlyA[0].siteName).toBe("Ideal Oral Health");
+
+    const onlyBook: any[] = await asAdmin(t).query(
+      api.admin.vendorStatements.listStatements,
+      { period, siteId: "book" },
+    );
+    expect(onlyBook).toHaveLength(1);
+    expect(onlyBook[0].vendor).toBe("toothlens");
+  });
+
+  test("listStatementPeriods reports brands and which shape a month uses", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const { brandA, period } = await seedTwoBrands(t);
+
+    const before: any[] = await asAdmin(t).query(
+      api.admin.vendorStatements.listStatementPeriods,
+      {},
+    );
+    const row = before.find((p) => p.period === period);
+    expect(row.scope).toBe("none");
+    expect(row.sites).toHaveLength(2);
+    expect(row.sites.map((s: any) => s.siteName).sort()).toEqual([
+      "Acme Dental",
+      "Ideal Oral Health",
+    ]);
+    // Brand A has two organizations closed against it, brand B one.
+    const aTally = row.sites.find((s: any) => s.siteName === "Ideal Oral Health");
+    expect(aTally.groupCount).toBe(2);
+
+    await asAdmin(t).mutation(api.admin.vendorStatements.generateStatement, {
+      period, vendor: "ideal", siteId: brandA.siteId,
+    });
+    const after: any[] = await asAdmin(t).query(
+      api.admin.vendorStatements.listStatementPeriods,
+      {},
+    );
+    expect(after.find((p) => p.period === period).scope).toBe("perSite");
+  });
+
+  test("a reissue keeps the brand the original covered", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const { brandA, period } = await seedTwoBrands(t);
+
+    const original = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal", siteId: brandA.siteId },
+    );
+    const { replacementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateReplacementStatement,
+      { statementId: original.statementId, reason: "corrected roster" },
+    );
+    const doc: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId: replacementId },
+    );
+
+    // Dropping the scope here would silently widen one brand's statement to
+    // the entire book — the exact double-remittance the guard exists to stop.
+    expect(doc.siteId).toBe(brandA.siteId);
+    expect(doc.siteName).toBe("Ideal Oral Health");
+    expect(doc.primaryCount).toBe(2);
+  });
+
+  test("scoped statements only carry their own brand's adjustments", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const { brandA, brandB, period } = await seedTwoBrands(t);
+
+    // Book a correction against brand B only.
+    const bPeriodId = await t.run(async (ctx) => {
+      const rows = await ctx.db.query("invoicePeriods").collect();
+      return rows.find((r) => r.siteId === brandB.siteId)!._id;
+    });
+    await asAdmin(t).mutation(api.admin.invoiceCalculator.recordAdjustment, {
+      periodId: bPeriodId,
+      reason: "refund",
+      bucket: "partnerVendor",
+      deltaCents: -500,
+      notes: "brand B only",
+    });
+
+    const a = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal", siteId: brandA.siteId },
+    );
+    const b = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal", siteId: brandB.siteId },
+    );
+    const aDoc: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId: a.statementId },
+    );
+    const bDoc: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId: b.statementId },
+    );
+
+    expect(aDoc.adjustmentCents).toBe(0);
+    expect(bDoc.adjustmentCents).toBe(-500);
+    // And brand A is never nagged to reissue over brand B's correction.
+    expect(aDoc.unappliedAdjustments).toHaveLength(0);
+  });
+
+  test("backfill stamps siteId onto rows closed before scoping shipped", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const { brandA, period } = await seedTwoBrands(t);
+
+    // Simulate a legacy close: strip the denormalized site off every row.
+    await t.run(async (ctx) => {
+      for (const row of await ctx.db.query("invoicePeriods").collect()) {
+        await ctx.db.patch(row._id, { siteId: undefined });
+      }
+    });
+
+    // Scoping still works, because reads fall back to the row's group.
+    const pre = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal", siteId: brandA.siteId },
+    );
+    const preDoc: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId: pre.statementId },
+    );
+    expect(preDoc.primaryCount).toBe(2);
+
+    const result = await asAdmin(t).mutation(
+      api.admin.invoiceCalculator.backfillInvoicePeriodSiteIds,
+      { period },
+    );
+    expect(result.stamped).toBe(3);
+    expect(result.unresolved).toEqual([]);
+
+    const rows = await t.run(async (ctx) =>
+      ctx.db.query("invoicePeriods").collect(),
+    );
+    expect(rows.every((r) => r.siteId)).toBe(true);
+
+    // Re-running is a no-op rather than an error.
+    const again = await asAdmin(t).mutation(
+      api.admin.invoiceCalculator.backfillInvoicePeriodSiteIds,
+      { period },
+    );
+    expect(again.stamped).toBe(0);
+    expect(again.alreadySet).toBe(3);
+  });
+
+  test("backfill does not disturb the close verification hash", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const { period } = await seedTwoBrands(t);
+
+    const before = await t.run(async (ctx) =>
+      (await ctx.db.query("invoicePeriods").collect())
+        .map((r) => r.payloadHash)
+        .sort(),
+    );
+    await t.run(async (ctx) => {
+      for (const row of await ctx.db.query("invoicePeriods").collect()) {
+        await ctx.db.patch(row._id, { siteId: undefined });
+      }
+    });
+    await asAdmin(t).mutation(
+      api.admin.invoiceCalculator.backfillInvoicePeriodSiteIds,
+      { period },
+    );
+    const after = await t.run(async (ctx) =>
+      (await ctx.db.query("invoicePeriods").collect())
+        .map((r) => r.payloadHash)
+        .sort(),
+    );
+
+    // siteId is metadata about whose revenue it is, not revenue. If it ever
+    // entered the hashed payload, every historical close would stop verifying.
+    expect(after).toEqual(before);
   });
 });

@@ -29,7 +29,7 @@ export default function CommissionsPage() {
     <div className="space-y-6">
       <Breadcrumbs items={[{ label: 'Commissions' }]} />
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">Commission Reporting</h1>
+        <h1 className="text-3xl font-bold text-slate-900">Commissions</h1>
         <p className="text-slate-600">Distribution chain commission tracking and payroll exports</p>
       </div>
 

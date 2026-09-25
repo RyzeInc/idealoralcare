@@ -1,6 +1,7 @@
 "use client";
 
 import { Shield, Users, Award, Zap } from "lucide-react";
+import { useSiteThemeOptional } from "@/components/providers/SiteThemeProvider";
 
 const TRUST_ITEMS = [
   {
@@ -26,6 +27,8 @@ const TRUST_ITEMS = [
 ];
 
 export default function TrustAnchors() {
+  const theme = useSiteThemeOptional();
+  const brandName = theme?.site?.name ?? "Ideal Oral Health";
   return (
     <section style={{ padding: "100px 0" }}>
       <div className="container">
@@ -40,7 +43,7 @@ export default function TrustAnchors() {
               marginBottom: "1rem",
             }}
           >
-            Why Members Trust Ideal Health
+            Why Members Trust {brandName}
           </p>
           <h2>Peace of Mind, Every Step</h2>
         </div>

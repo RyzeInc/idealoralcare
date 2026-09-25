@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery } from 'convex/react';
 import {
@@ -42,11 +42,34 @@ import { formatCurrency, formatDate } from '@/lib/admin-format';
 const VENDORS = [
   { id: 'toothlens', name: 'Toothlens' },
   { id: 'careington', name: 'Careington' },
-  { id: 'ideal', name: 'Ideal Health' },
+  { id: 'ideal', name: 'Ideal Oral Health' },
   { id: 'ryze', name: 'Ryze' },
 ] as const;
 
 type VendorId = (typeof VENDORS)[number]['id'];
+
+/**
+ * One coverage month as `listStatementPeriods` reports it, including which
+ * brands closed revenue in it and whether the month is already being settled
+ * book-wide or per brand.
+ */
+type PeriodInfo = {
+  period: string;
+  closedAt: number;
+  groupCount: number;
+  grossCents: number;
+  statementCount: number;
+  scope: 'book' | 'perSite' | 'none';
+  missingVendors: string[];
+  sites: Array<{
+    siteId: Id<'sites'> | null;
+    siteName: string;
+    groupCount: number;
+    grossCents: number;
+    statementCount: number;
+    missingVendors: string[];
+  }>;
+};
 
 type StatementStatus = 'draft' | 'issued' | 'partial' | 'paid' | 'voided';
 
@@ -145,21 +168,45 @@ function StatCard({
 // ---------------------------------------------------------------------------
 
 function GenerateStatementModal({
-  periods,
+  periodInfo,
   onClose,
 }: {
-  periods: string[];
+  periodInfo: PeriodInfo[];
   onClose: (statementId?: Id<'vendorStatements'>) => void;
 }) {
   const toast = useToast();
   const generate = useMutation(api.admin.vendorStatements.generateStatement);
+  const periods = useMemo(() => periodInfo.map((p) => p.period), [periodInfo]);
   const [period, setPeriod] = useState(periods[0] ?? '');
   const [vendor, setVendor] = useState<VendorId>('toothlens');
+  // '' = book-wide (every site). Otherwise a specific site's id.
+  const [siteId, setSiteId] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Only brands that actually closed revenue this month can be statemented.
+  const selected = periodInfo.find((p) => p.period === period);
+  const sites = (selected?.sites ?? []).filter((s) => s.siteId);
+  // Book-wide and per-site can't coexist for a month, so once a month is being
+  // settled one way, don't offer the other and let the server reject it.
+  const lockedToPerSite = selected?.scope === 'perSite';
+  const lockedToBook = selected?.scope === 'book';
+
+  useEffect(() => {
+    if (lockedToPerSite && !siteId && sites[0]?.siteId) {
+      setSiteId(String(sites[0].siteId));
+    }
+    if (lockedToBook && siteId) setSiteId('');
+  }, [lockedToPerSite, lockedToBook, siteId, sites]);
 
   const preview = useQuery(
     api.admin.vendorStatements.previewStatement,
-    period ? { period, vendor } : 'skip',
+    period
+      ? {
+          period,
+          vendor,
+          ...(siteId ? { siteId: siteId as Id<'sites'> } : {}),
+        }
+      : 'skip',
   );
 
   async function handleSubmit(event: React.FormEvent) {
@@ -167,7 +214,11 @@ function GenerateStatementModal({
     if (!period) return;
     setSubmitting(true);
     try {
-      const result = await generate({ period, vendor });
+      const result = await generate({
+        period,
+        vendor,
+        ...(siteId ? { siteId: siteId as Id<'sites'> } : {}),
+      });
       toast.success(
         result.created
           ? 'Statement generated as a draft'
@@ -220,6 +271,36 @@ function GenerateStatementModal({
             </select>
           </div>
         </div>
+
+        {sites.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Covered Brand
+            </label>
+            <select
+              className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500"
+              value={siteId}
+              onChange={(event) => setSiteId(event.target.value)}
+            >
+              {!lockedToPerSite && (
+                <option value="">All sites (book-wide)</option>
+              )}
+              {sites.map((site) => (
+                <option key={String(site.siteId)} value={String(site.siteId)}>
+                  {site.siteName} — {site.groupCount} org
+                  {site.groupCount === 1 ? '' : 's'}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-slate-500">
+              {lockedToPerSite
+                ? `${period} is already being settled per brand, so a book-wide statement would remit the same revenue twice.`
+                : lockedToBook
+                  ? `${period} already has book-wide statements covering every brand.`
+                  : 'Book-wide is what a vendor contracted with the carrier is owed. Scope to a brand only when it settles its own revenue share.'}
+            </p>
+          </div>
+        )}
 
         <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
           {preview === undefined ? (
@@ -279,7 +360,7 @@ function GenerateMonthModal({
   periods,
   onClose,
 }: {
-  periods: Array<{ period: string; statementCount: number; missingVendors: string[] }>;
+  periods: PeriodInfo[];
   onClose: (ran: boolean) => void;
 }) {
   const toast = useToast();
@@ -287,15 +368,30 @@ function GenerateMonthModal({
   const [period, setPeriod] = useState(
     periods.find((item) => item.missingVendors.length > 0)?.period ?? periods[0]?.period ?? '',
   );
+  const [splitBySite, setSplitBySite] = useState(false);
   const [running, setRunning] = useState(false);
 
   const selected = periods.find((item) => item.period === period);
+  const namedSites = (selected?.sites ?? []).filter((s) => s.siteId);
+  // Splitting is only meaningful with more than one brand, and only offerable
+  // while the month isn't already committed to a shape.
+  const canSplit = namedSites.length > 1 && selected?.scope !== 'book';
+
+  useEffect(() => {
+    if (!canSplit && splitBySite) setSplitBySite(false);
+    if (selected?.scope === 'perSite' && !splitBySite && canSplit) {
+      setSplitBySite(true);
+    }
+  }, [canSplit, splitBySite, selected?.scope]);
 
   async function handleConfirm() {
     if (!period) return;
     setRunning(true);
     try {
-      const result = await generateAll({ period });
+      const result = await generateAll({
+        period,
+        ...(splitBySite ? { splitBySite: true } : {}),
+      });
       toast.success(
         `Generated ${result.generated} statement(s) for ${period}` +
           (result.skipped > 0 ? ` — ${result.skipped} already existed` : ''),
@@ -332,13 +428,39 @@ function GenerateMonthModal({
           </select>
         </div>
 
+        {canSplit && (
+          <label className="flex items-start gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={splitBySite}
+              disabled={selected?.scope === 'perSite'}
+              onChange={(event) => setSplitBySite(event.target.checked)}
+            />
+            <span>
+              <span className="font-medium text-slate-800">
+                One statement per brand
+              </span>
+              <span className="block text-xs text-slate-500">
+                {selected?.scope === 'perSite'
+                  ? `${period} is already being settled per brand.`
+                  : `Cuts ${namedSites.length} × ${VENDORS.length} drafts instead of ${VENDORS.length}. Use when each brand settles its own revenue share; leave off when vendors are paid by the carrier across the whole book.`}
+              </span>
+            </span>
+          </label>
+        )}
+
         {selected && (
           <p className="text-sm text-slate-600">
-            {selected.missingVendors.length === 0
-              ? 'Every recipient already has a live statement for this month. Running this again will do nothing.'
-              : `Will create drafts for: ${selected.missingVendors
-                  .map((id) => VENDORS.find((v) => v.id === id)?.name ?? id)
-                  .join(', ')}.`}
+            {splitBySite
+              ? `Will create drafts for each recipient across: ${namedSites
+                  .map((s) => s.siteName)
+                  .join(', ')}. Recipients that already have a live statement for a brand are skipped.`
+              : selected.missingVendors.length === 0
+                ? 'Every recipient already has a live statement for this month. Running this again will do nothing.'
+                : `Will create drafts for: ${selected.missingVendors
+                    .map((id) => VENDORS.find((v) => v.id === id)?.name ?? id)
+                    .join(', ')}.`}
           </p>
         )}
 
@@ -665,6 +787,7 @@ export default function VendorStatementsPage() {
   const [periodFilter, setPeriodFilter] = useState('');
   const [vendorFilter, setVendorFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [siteFilter, setSiteFilter] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('statementNumber');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [showGenerate, setShowGenerate] = useState(false);
@@ -677,10 +800,28 @@ export default function VendorStatementsPage() {
     period: periodFilter || undefined,
     vendor: (vendorFilter || undefined) as VendorId | undefined,
     status: statusFilter || undefined,
+    siteId: (siteFilter || undefined) as Id<'sites'> | 'book' | undefined,
     limit: 500,
   });
 
   const periodKeys = useMemo(() => (periods ?? []).map((p) => p.period), [periods]);
+
+  // Every brand that has closed revenue in any month, for the filter dropdown.
+  // Hidden entirely on a single-brand deployment, where the column is noise.
+  const allSites = useMemo(() => {
+    const byId = new Map<string, { id: string; name: string }>();
+    for (const period of periods ?? []) {
+      for (const site of period.sites ?? []) {
+        if (site.siteId) {
+          byId.set(String(site.siteId), {
+            id: String(site.siteId),
+            name: site.siteName,
+          });
+        }
+      }
+    }
+    return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [periods]);
   // The month a bulk download acts on: whatever is filtered, else the newest.
   const bundlePeriod = periodFilter || periodKeys[0] || '';
 
@@ -901,6 +1042,22 @@ export default function VendorStatementsPage() {
                 ))}
               </select>
             </div>
+            {allSites.length > 0 && (
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Brand</label>
+                <select
+                  className="border border-slate-300 rounded-md px-3 py-1.5 text-sm bg-white focus:ring-2 focus:ring-blue-500"
+                  value={siteFilter}
+                  onChange={(event) => setSiteFilter(event.target.value)}
+                >
+                  <option value="">All Brands</option>
+                  <option value="book">Book-wide only</option>
+                  {allSites.map((site) => (
+                    <option key={site.id} value={site.id}>{site.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1">Status</label>
               <select
@@ -1026,6 +1183,14 @@ export default function VendorStatementsPage() {
                     </td>
                     <td className="px-3 py-2.5 font-medium text-slate-800">
                       {row.vendorName}
+                      {/* Only scoped statements get a brand line. On a
+                          single-brand book every row is book-wide, and a
+                          repeated "all sites" badge would just be noise. */}
+                      {row.siteName && (
+                        <span className="block text-xs font-normal text-slate-500">
+                          {row.siteName}
+                        </span>
+                      )}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-slate-600">{row.period}</td>
                     <td className="px-3 py-2.5 text-right text-slate-700">
@@ -1095,9 +1260,9 @@ export default function VendorStatementsPage() {
         )}
       </div>
 
-      {showGenerate && (
+      {showGenerate && periods && (
         <GenerateStatementModal
-          periods={periodKeys}
+          periodInfo={periods as PeriodInfo[]}
           onClose={() => setShowGenerate(false)}
         />
       )}

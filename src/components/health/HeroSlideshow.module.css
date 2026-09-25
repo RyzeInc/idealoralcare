@@ -10,7 +10,7 @@
 .imageContainer {
   position: relative;
   width: 100%;
-  height: 500px;
+  aspect-ratio: 1916 / 821;
   overflow: hidden;
 }
 
@@ -36,19 +36,6 @@
   height: 100%;
 }
 
-/* Subtle gradient overlay for depth */
-.overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    180deg,
-    rgba(0, 0, 0, 0) 0%,
-    rgba(0, 0, 0, 0.02) 50%,
-    rgba(0, 0, 0, 0.15) 100%
-  );
-  pointer-events: none;
-}
-
 /* Progress Indicators */
 .indicators {
   position: absolute;
@@ -57,13 +44,13 @@
   display: flex;
   gap: 12px;
   z-index: 10;
-  background: rgba(255, 255, 255, 0.35);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(4px) saturate(140%);
+  -webkit-backdrop-filter: blur(4px) saturate(140%);
   padding: 12px 20px;
   border-radius: 100px;
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .indicator {
@@ -109,7 +96,7 @@
   width: 100%;
   background: linear-gradient(90deg, #0066cc 0%, #14b8a6 100%);
   transform-origin: left;
-  animation: progressBar 4s linear;
+  animation: progressBar 5s linear;
 }
 
 @keyframes progressBar {
@@ -132,19 +119,32 @@
 
 /* Responsive */
 @media (max-width: 768px) {
+  .slideshow {
+    padding-bottom: 36px;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.82);
+  }
+
   .imageContainer {
-    height: 320px;
+    aspect-ratio: 941 / 1672;
   }
 
   .indicators {
-    bottom: 16px;
-    right: 16px;
-    padding: 10px 16px;
+    bottom: 7px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    padding: 6px 12px;
     gap: 8px;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   .indicatorLabel {
-    font-size: 0.625rem;
+    display: none;
   }
 
   .indicatorBar {
@@ -154,19 +154,11 @@
 }
 
 @media (max-width: 480px) {
-  .imageContainer {
-    height: 280px;
-  }
-
   .indicators {
     flex-direction: row;
-    bottom: 12px;
-    right: 12px;
-    padding: 8px 14px;
-  }
-
-  .indicatorLabel {
-    display: none;
+    bottom: 7px;
+    right: auto;
+    padding: 6px 12px;
   }
 
   .indicatorBar {

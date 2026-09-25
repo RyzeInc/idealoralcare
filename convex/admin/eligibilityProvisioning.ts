@@ -996,6 +996,9 @@ export const bulkResendWelcomeEmails = action({
         if (profile.customerId) {
           throw new Error("Member has already registered a Clerk account");
         }
+        if (profile.customerId) {
+          throw new Error("Member has already registered a Clerk account");
+        }
 
         await sendWelcomeInviteToMember(ctx, secret, profile, "bulk_resend_welcome");
         result.succeeded++;

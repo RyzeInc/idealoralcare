@@ -1,10 +1,10 @@
 # SOP-005: Review and Approve a Partner (Broker/Rep) Application
 
-**Purpose:** Process an inbound self-registration submission from the public `/register/rep` form — review the agency/rep details, then approve (creating a live Distribution Partner) or reject.
+**Purpose:** Process an inbound self-registration submission from the public `/register/rep` form — review the agency/rep details, then approve (creating a live Broker) or reject.
 
 **Who can do this:** Any admin (Owner or Editor) — note there's no owner-only gate on Approve despite it being the most consequential action in this workflow.
 
-**Trigger:** A new submission appears in the "New" tab.
+**When you'd do this:** A new submission appears in the "New" tab.
 
 **Related guide:** [Partner Applications](../guide/01-members-partners.md#partner-applications-adminpartner-applications)
 

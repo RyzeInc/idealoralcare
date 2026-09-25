@@ -1,6 +1,7 @@
 "use client";
 
 import styles from "./principles.module.css";
+import { useSiteThemeOptional } from "@/components/providers/SiteThemeProvider";
 
 const PRINCIPLES = [
   {
@@ -26,6 +27,8 @@ const PRINCIPLES = [
 ];
 
 export default function PrincipleSection() {
+  const theme = useSiteThemeOptional();
+  const brandName = theme?.site?.name ?? "Ideal Oral Health";
   return (
     <section className={styles.principles}>
       <div className="container">
@@ -40,7 +43,7 @@ export default function PrincipleSection() {
               marginBottom: "1rem",
             }}
           >
-            Why Ideal Health Works
+            Why {brandName} Works
           </p>
           <h2>Built On Four Core Principles</h2>
           <p style={{ fontSize: "1.125rem", color: "#475569", maxWidth: "600px", margin: "0 auto" }}>

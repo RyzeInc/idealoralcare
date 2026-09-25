@@ -4,15 +4,15 @@
 
 **Who can do this:** Any admin (Owner or Editor).
 
-**Trigger:** A new agency/FMO signs on to sell the plan, or an existing agency adds a new rep.
+**When you'd do this:** A new agency/FMO signs on to sell the plan, or an existing agency adds a new rep.
 
-**Prerequisites:** The agency's legal/organization name and a primary contact (name + email). This is distinct from the employer Hierarchy tree ([SOP-001](SOP-001-onboard-selfpay-employer-group.md)) — don't confuse "Account (Broker)" under Hierarchy with "Distribution Partner" here; see [guide/00-overview.md §4](../guide/00-overview.md#4-distribution-hierarchy-vocabulary).
+**Before you begin:** The agency's legal/organization name and a primary contact (name + email). This is distinct from the employer Hierarchy tree ([SOP-001](SOP-001-onboard-selfpay-employer-group.md)) — don't confuse an **Account** (the Hierarchy tier that owns Groups) with a **Broker** (a sales/commission partner, this page); see [guide/00-overview.md §4](../guide/00-overview.md#4-hierarchy-vocabulary).
 
-**Related guide:** [Distribution](../guide/01-members-partners.md#distribution-adminbrokers), [Rep Codes](../guide/01-members-partners.md#rep-codes-adminrep-codes)
+**Related guide:** [Brokers](../guide/01-members-partners.md#brokers-adminbrokers), [Rep Codes](../guide/01-members-partners.md#rep-codes-adminrep-codes)
 
 ## Steps — new Agency/FMO
 
-1. Go to **Brokers** (`/admin/brokers` — page titled "Distribution Management").
+1. Go to **Brokers** (`/admin/brokers`).
 2. Choose the correct tab: **Program Managers** or **FMOs & Agencies**.
 3. Click **Add Program Manager** / **Add FMO / Agency**.
 4. Fill in: Organization Name, Type (FMO/Agency, if applicable), optional Parent Program Manager, **Primary Leader**: Full Name + Email (required), Phone, Title, optional Override/Management Fee Rate, Status, Notes.
@@ -40,7 +40,7 @@
 - **Invite email failed** — resend from the agency card's Leaders panel (the paper-plane icon next to that leader), not from Rep Codes.
 - **You need to delete an agency** — the confirm dialog only says "this cannot be undone"; know before confirming that this **cascades and deletes every Leader under that partner** too, with no separate warning.
 - **The rep's Commission % shows blank on Rep Codes** — this can be a genuine "no rate set yet" or a rate-matching miss across three different lookup paths; check [Commissions](../guide/03-finance.md#commissions-admincommissions) directly before assuming it's a bug (also note Commissions is currently flagged unreliable — see [guide/05-known-issues.md](../guide/05-known-issues.md)).
-- **You need an audit trail of who created/removed a broker or rep code** — there currently isn't one; no audit-log entries are written for these actions (see [guide/05-known-issues.md #G3](../guide/05-known-issues.md#-structural-architectural-gaps-working-as-coded-but-incomplete-or-duplicated)). Track it manually (e.g., in the partner's Notes field) if this matters for your team.
+- **You need an audit trail of who created/removed a broker or rep code** — there currently isn't one; no audit-log entries are written for these actions (see [guide/05-known-issues.md #G3](../guide/05-known-issues.md#-structural--architectural-gaps-working-as-coded-but-incomplete-or-duplicated)). Track it manually (e.g., in the partner's Notes field) if this matters for your team.
 
 ## Related SOPs
 

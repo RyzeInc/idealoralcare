@@ -20,6 +20,7 @@ import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { v } from "convex/values";
 import { requireAuth } from "../lib/authGuards";
 import { internal } from "../_generated/api";
+import { lifecyclePatchFor } from "../lib/memberLifecycle";
 
 // ---------------------------------------------------------------------------
 // Helpers (mirrors members.ts utilities)
@@ -416,9 +417,7 @@ export const removeDependent = mutation({
     const now = Date.now();
 
     await ctx.db.patch(args.dependentProfileId, {
-      status: "terminated",
-      memberType: "terminated" as any,
-      updatedAt: now,
+      ...lifecyclePatchFor("terminated", dependentProfile, now),
     });
 
     await ctx.db.insert("memberActivities", {
@@ -475,8 +474,8 @@ export const claimDependentProfile = mutation({
       customerId: identity.clerkUserId,
       inviteStatus: "claimed" as any,
       inviteToken: undefined as any, // Consume the token
-      memberType: "active" as any, // Promote from "enrolling" → "active" on claim
-      updatedAt: now,
+      // Promote "enrolling" → "active" on claim, clearing any prior exit stamp.
+      ...lifecyclePatchFor("active", profile, now),
     });
 
     // Log on the dependent's own timeline

@@ -54,10 +54,10 @@ export const seedInitialData = mutation({
           annualACHCents: 16499,
         },
         stripeProducts: {
-          monthlyCardId: "prod_U3no15TNX9iTj1",
-          monthlyACHId: "prod_U3nrt0liKgXRmq",
-          annualCardId: "prod_U3nsR7DN8AVcL9",
-          annualACHId: "prod_U3ns1IYNVgNwGM",
+          monthlyCardId: "prod_UVWl0Se8oBz8Y6",
+          monthlyACHId: "prod_UVWngMetqF2o7l",
+          annualCardId: "prod_UVWpTiimyKyVjY",
+          annualACHId: "prod_UVWqkmj7cR6Jdb",
         },
         metadata: {
           icon: "Heart",
@@ -96,10 +96,10 @@ export const seedInitialData = mutation({
           annualACHCents: 27499,
         },
         stripeProducts: {
-          monthlyCardId: "prod_UATZaCDHuecUAU",
-          monthlyACHId: "prod_UATZtpSjiCDdA8",
-          annualCardId: "prod_UATbPjQGVypcuM",
-          annualACHId: "prod_UATaKRi9t60PVO",
+          monthlyCardId: "prod_UVWtntremdPrJ0",
+          monthlyACHId: "prod_UVWt7HPIf4AD9x",
+          annualCardId: "prod_UVWrRY1IhSo0iF",
+          annualACHId: "prod_UVWr08H4gBKFZH",
         },
         metadata: {
           icon: "Users",
@@ -176,10 +176,10 @@ export const reseedData = mutation({
           annualACHCents: 16499,
         },
         stripeProducts: {
-          monthlyCardId: "prod_U3no15TNX9iTj1",
-          monthlyACHId: "prod_U3nrt0liKgXRmq",
-          annualCardId: "prod_U3nsR7DN8AVcL9",
-          annualACHId: "prod_U3ns1IYNVgNwGM",
+          monthlyCardId: "prod_UVWl0Se8oBz8Y6",
+          monthlyACHId: "prod_UVWngMetqF2o7l",
+          annualCardId: "prod_UVWpTiimyKyVjY",
+          annualACHId: "prod_UVWqkmj7cR6Jdb",
         },
         metadata: {
           icon: "Heart",
@@ -218,10 +218,10 @@ export const reseedData = mutation({
           annualACHCents: 27499,
         },
         stripeProducts: {
-          monthlyCardId: "prod_UATZaCDHuecUAU",
-          monthlyACHId: "prod_UATZtpSjiCDdA8",
-          annualCardId: "prod_UATbPjQGVypcuM",
-          annualACHId: "prod_UATaKRi9t60PVO",
+          monthlyCardId: "prod_UVWtntremdPrJ0",
+          monthlyACHId: "prod_UVWt7HPIf4AD9x",
+          annualCardId: "prod_UVWrRY1IhSo0iF",
+          annualACHId: "prod_UVWr08H4gBKFZH",
         },
         metadata: {
           icon: "Users",
@@ -291,10 +291,10 @@ export const reseedInternal = internalMutation({
         annualACHCents: 16499,
       },
       stripeProducts: {
-        monthlyCardId: "prod_U3no15TNX9iTj1",
-        monthlyACHId: "prod_U3nrt0liKgXRmq",
-        annualCardId: "prod_U3nsR7DN8AVcL9",
-        annualACHId: "prod_U3ns1IYNVgNwGM",
+        monthlyCardId: "prod_UVWl0Se8oBz8Y6",
+        monthlyACHId: "prod_UVWngMetqF2o7l",
+        annualCardId: "prod_UVWpTiimyKyVjY",
+        annualACHId: "prod_UVWqkmj7cR6Jdb",
       },
       metadata: {
         icon: "Heart",
@@ -334,10 +334,10 @@ export const reseedInternal = internalMutation({
         annualACHCents: 27499,
       },
       stripeProducts: {
-        monthlyCardId: "prod_UATZaCDHuecUAU",
-        monthlyACHId: "prod_UATZtpSjiCDdA8",
-        annualCardId: "prod_UATbPjQGVypcuM",
-        annualACHId: "prod_UATaKRi9t60PVO",
+        monthlyCardId: "prod_UVWtntremdPrJ0",
+        monthlyACHId: "prod_UVWt7HPIf4AD9x",
+        annualCardId: "prod_UVWrRY1IhSo0iF",
+        annualACHId: "prod_UVWr08H4gBKFZH",
       },
       metadata: {
         icon: "Users",
@@ -418,10 +418,10 @@ export const upsertV07Products = internalMutation({
           annualACHCents: 27499,
         },
         stripeProducts: {
-          monthlyCardId: "prod_UATZaCDHuecUAU",
-          monthlyACHId: "prod_UATZtpSjiCDdA8",
-          annualCardId: "prod_UATbPjQGVypcuM",
-          annualACHId: "prod_UATaKRi9t60PVO",
+          monthlyCardId: "prod_UVWtntremdPrJ0",
+          monthlyACHId: "prod_UVWt7HPIf4AD9x",
+          annualCardId: "prod_UVWrRY1IhSo0iF",
+          annualACHId: "prod_UVWr08H4gBKFZH",
         },
         metadata: { icon: "Users", bestFor: ["Families"] },
         isVisible: true,
@@ -498,10 +498,10 @@ export const fixFamilyStripeIds = internalMutation({
       if (p.slug === "oral-health-family") {
         await ctx.db.patch(p._id, {
           stripeProducts: {
-            monthlyCardId: "prod_UATZaCDHuecUAU",
-            monthlyACHId: "prod_UATZtpSjiCDdA8",
-            annualCardId: "prod_UATbPjQGVypcuM",
-            annualACHId: "prod_UATaKRi9t60PVO",
+            monthlyCardId: "prod_UVWtntremdPrJ0",
+            monthlyACHId: "prod_UVWt7HPIf4AD9x",
+            annualCardId: "prod_UVWrRY1IhSo0iF",
+            annualACHId: "prod_UVWr08H4gBKFZH",
           },
           updatedAt: now,
         });
@@ -512,6 +512,50 @@ export const fixFamilyStripeIds = internalMutation({
     return {
       success: true,
       message: `Family Stripe product IDs updated on ${updated} product(s).`,
+    };
+  },
+});
+
+/** Patch both catalog products with live-mode Stripe product IDs.
+ *  Run via: npx convex run catalog/mutations:setLiveStripeProductIds
+ */
+export const setLiveStripeProductIds = internalMutation({
+  args: {},
+  handler: async (ctx: any) => {
+    const now = Date.now();
+    const products = await ctx.db.query("catalogProducts").collect();
+    const results: string[] = [];
+
+    for (const p of products) {
+      if (p.slug === "oral-health-individual") {
+        await ctx.db.patch(p._id, {
+          stripeProducts: {
+            monthlyCardId: "prod_UVWl0Se8oBz8Y6",
+            monthlyACHId: "prod_UVWngMetqF2o7l",
+            annualCardId: "prod_UVWpTiimyKyVjY",
+            annualACHId: "prod_UVWqkmj7cR6Jdb",
+          },
+          updatedAt: now,
+        });
+        results.push("oral-health-individual updated");
+      } else if (p.slug === "oral-health-family") {
+        await ctx.db.patch(p._id, {
+          stripeProducts: {
+            monthlyCardId: "prod_UVWtntremdPrJ0",
+            monthlyACHId: "prod_UVWt7HPIf4AD9x",
+            annualCardId: "prod_UVWrRY1IhSo0iF",
+            annualACHId: "prod_UVWr08H4gBKFZH",
+          },
+          updatedAt: now,
+        });
+        results.push("oral-health-family updated");
+      }
+    }
+
+    return {
+      success: true,
+      updated: results,
+      message: results.length > 0 ? results.join(", ") : "No matching products found",
     };
   },
 });

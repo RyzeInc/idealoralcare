@@ -11,7 +11,7 @@
 1. Go to `/admin/users`. If zero admins exist, you'll see **Initialize First Admin**.
 2. Sign up/in at `/health/sign-in` first if you haven't already, and get your Clerk User ID from the Clerk dashboard (Users → your account → User ID, format `user_xxxxx`).
 3. Click **Initialize First Admin**, paste your Clerk User ID, fill in name/email, submit. This only works while the admin table is completely empty — it's the safe path.
-4. **⚠️ Do not use `/bootstrap` for this.** It's a separate, less-safe page that doesn't check whether admins already exist — see the warning in [guide/00-overview.md §1](../guide/00-overview.md#first-admin-bootstrapping-two-different-paths-one-of-them-risky). Always use step 3 above.
+4. **Do not use `/bootstrap` for this.** It's a separate, less-safe page that doesn't check whether admins already exist — see the warning in [guide/00-overview.md §1](../guide/00-overview.md#first-admin-bootstrapping-two-different-paths-one-of-them-risky). Always use step 3 above.
 
 ## Steps — invite a new admin (has never signed up before)
 

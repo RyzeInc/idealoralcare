@@ -209,6 +209,8 @@ export async function POST(req: NextRequest) {
         brokerCode: brokerCode || referralCode || "",
         groupId: groupId || "",
         referralCode: referralCode || "",
+        // White-label site the shopper checked out under (e.g. "flourishxv"),
+        // read from the [siteSlug] route param. Empty on the primary /health/checkout path.
         siteSlug: siteSlug || "",
         dependentCount: String(dependentList.length),
         // Truncate to 500 chars if needed (Stripe metadata limit per value)

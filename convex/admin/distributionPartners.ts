@@ -1,6 +1,7 @@
 import { action, internalMutation, mutation, query } from "../_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
+import type { Doc, Id } from "../_generated/dataModel";
 import { requireAdmin, requireAuth } from "../lib/authGuards";
 import { getBaseUrl } from "../lib/env";
 import { sendViaResend } from "../lib/resend";
@@ -23,68 +24,96 @@ const statusValidator = v.union(
 export const getAll = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     return await ctx.db.query("distributionPartners").collect();
   },
 });
 
-/** All partners with enrollment and member counts */
+/**
+ * All partners with enrollment and member counts.
+ *
+ * These figures were wrong before: every join keyed off the partner's own
+ * `clerkUserId`, but `enrollmentSessions.brokerId` and
+ * `brokerTrackingCodes.brokerId` hold a `partnerLeaders._id`, and
+ * `memberProfiles.assignedStaffId` is an `adminUsers` id — so a partner's
+ * stats were silently all zero unless they happened to also be a rep.
+ *
+ * Attribution now comes from the denormalized stamp on `memberProfiles`
+ * (schema.ts, DENORMALIZED REP ATTRIBUTION), which already rolls a member's
+ * rep up to that rep's agency for both Scenario A and Scenario B.
+ */
 export const getAllWithStats = query({
   args: {},
   handler: async (ctx) => {
-    const partners = await ctx.db.query("distributionPartners").collect();
-    const leaders = await ctx.db.query("partnerLeaders").collect();
-    const sessions = await ctx.db.query("enrollmentSessions").collect();
-    const codes = await ctx.db.query("brokerTrackingCodes").collect();
+    await requireAdmin(ctx);
+    const [partners, leaders, members, codes, sessions] = await Promise.all([
+      ctx.db.query("distributionPartners").collect(),
+      ctx.db.query("partnerLeaders").collect(),
+      ctx.db.query("memberProfiles").collect(),
+      ctx.db.query("brokerTrackingCodes").collect(),
+      ctx.db.query("enrollmentSessions").collect(),
+    ]);
 
-    // Attribution chain (Clerk-free):
-    //   distributionPartners._id
-    //     → partnerLeaders._id        (partnerLeaders.partnerId)
-    //       → brokerTrackingCodes     (brokerId = leader._id, agencyId = partner._id)
-    //         → code string
-    //           → enrollmentSessions.brokerTrackingCode
+    // rep id (and legacy Clerk id) -> owning agency, so rows keyed either way
+    // land on the right partner.
+    const agencyForRepKey = new Map<string, string>();
+    for (const leader of leaders) {
+      const agencyId = String(leader.partnerId);
+      agencyForRepKey.set(String(leader._id), agencyId);
+      if (leader.clerkUserId) agencyForRepKey.set(leader.clerkUserId, agencyId);
+    }
+
+    const bump = (map: Map<string, number>, key: string | undefined | null, by = 1) => {
+      if (!key) return;
+      map.set(key, (map.get(key) ?? 0) + by);
+    };
+
+    // Single pass per table — no nested scans.
+    const totalMembersByAgency = new Map<string, number>();
+    const activeMembersByAgency = new Map<string, number>();
+    for (const m of members) {
+      const agencyId =
+        m.attributedAgencyId ??
+        (m.attributedRepId ? agencyForRepKey.get(m.attributedRepId) : undefined);
+      if (!agencyId) continue;
+      bump(totalMembersByAgency, agencyId);
+      if (m.memberType === "active") bump(activeMembersByAgency, agencyId);
+    }
+
+    const completedByAgency = new Map<string, number>();
+    for (const s of sessions) {
+      if (s.status !== "completed") continue;
+      const agencyId =
+        (s.agencyId as string | undefined) ??
+        (s.brokerId ? agencyForRepKey.get(s.brokerId) : undefined);
+      bump(completedByAgency, agencyId);
+    }
+
+    const codeCountByAgency = new Map<string, number>();
+    const usageByAgency = new Map<string, number>();
+    for (const c of codes) {
+      const agencyId =
+        (c.agencyId as string | undefined) ??
+        (c.brokerId ? agencyForRepKey.get(c.brokerId) : undefined);
+      bump(codeCountByAgency, agencyId);
+      bump(usageByAgency, agencyId, c.usageCount ?? 0);
+    }
+
+    const leaderCountByAgency = new Map<string, number>();
+    for (const leader of leaders) bump(leaderCountByAgency, String(leader.partnerId));
+
     return partners.map((p) => {
-      // Leaders that belong to this partner
-      const leaderIds = new Set(
-        leaders
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .filter((l: any) => l.partnerId === p._id)
-          .map((l: any) => l._id as string)
-      );
-
-      // Rep codes owned by this partner — match on agencyId (preferred) or
-      // a brokerId that resolves to one of this partner's leaders.
-      const partnerCodes = codes.filter(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (c: any) => c.agencyId === p._id || leaderIds.has(c.brokerId)
-      );
-      const codeStrings = new Set(partnerCodes.map((c: any) => c.code));
-
-      // Enrollments attributed via any of this partner's tracking codes.
-      const partnerSessions = sessions.filter(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (s: any) => s.brokerTrackingCode && codeStrings.has(s.brokerTrackingCode)
-      );
-      const completedSessions = partnerSessions.filter(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (s: any) => s.status === "completed"
-      );
-
-      // Distinct members linked to those enrollments.
-      const memberIds = new Set(
-        partnerSessions
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .filter((s: any) => s.memberId)
-          .map((s: any) => s.memberId as string)
-      );
-
+      const key = String(p._id);
       return {
         ...p,
-        completedEnrollments: completedSessions.length,
-        activeMemberCount: memberIds.size,
-        repCodeCount: partnerCodes.length,
-        leaderCount: leaderIds.size,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        totalUsage: partnerCodes.reduce((s: number, c: any) => s + c.usageCount, 0),
+        completedEnrollments: completedByAgency.get(key) ?? 0,
+        activeMemberCount: activeMembersByAgency.get(key) ?? 0,
+        totalMemberCount: totalMembersByAgency.get(key) ?? 0,
+        repCount: leaderCountByAgency.get(key) ?? 0,
+        repCodeCount: codeCountByAgency.get(key) ?? 0,
+        // Only meaningful for links clicked after rep-link tracking shipped;
+        // historical codes were never incremented.
+        totalUsage: usageByAgency.get(key) ?? 0,
       };
     });
   },
@@ -94,6 +123,7 @@ export const getAllWithStats = query({
 export const getProgramManagers = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     return await ctx.db
       .query("distributionPartners")
       .withIndex("by_type", (q) => q.eq("type", "program_manager"))
@@ -116,6 +146,7 @@ export const getByInviteToken = query({
 export const getLeadersByPartner = query({
   args: { partnerId: v.id("distributionPartners") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     return await ctx.db
       .query("partnerLeaders")
       .withIndex("by_partner", (q) => q.eq("partnerId", args.partnerId))
@@ -213,6 +244,31 @@ export const update = mutation({
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
     const { id, ...updates } = args;
+
+    // Any partner may be an upline (PM, FMO, or agency), so a cycle is now
+    // reachable: A→B plus B→A would spin forever in anything that walks the
+    // parent chain for overrides. Reject before writing.
+    if (updates.parentId) {
+      if (updates.parentId === id) {
+        throw new Error("A partner cannot be its own upline.");
+      }
+      let cursor: Id<"distributionPartners"> | undefined = updates.parentId;
+      const seen = new Set<string>([id]);
+      while (cursor) {
+        if (seen.has(cursor)) {
+          throw new Error(
+            "That upline would create a loop in the partner hierarchy.",
+          );
+        }
+        seen.add(cursor);
+        // Annotated explicitly: without it TS sees `cursor` defined in terms of
+        // its own initializer and bails with TS7022.
+        const ancestor: Doc<"distributionPartners"> | null =
+          await ctx.db.get(cursor);
+        cursor = ancestor?.parentId;
+      }
+    }
+
     await ctx.db.patch(id, { ...updates, updatedAt: Date.now() });
   },
 });
@@ -569,6 +625,7 @@ export const sendLeaderInvite = action({
 export const getLeaderById = query({
   args: { leaderId: v.id("partnerLeaders") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     return await ctx.db.get(args.leaderId);
   },
 });

@@ -44,6 +44,7 @@ export const getUserStatuses = query({
     clerkUserIds: v.array(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const results: Record<
       string,
       {
@@ -102,6 +103,7 @@ export const getUserStatuses = query({
 export const getUserDetail = query({
   args: { clerkUserId: v.string() },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const { clerkUserId } = args;
 
     // Admin record

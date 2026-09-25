@@ -80,6 +80,7 @@ export const generateUploadUrl = mutation({
  */
 export const getAllEligibilityFiles = query({
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     return await ctx.db.query("eligibilityFiles").order("desc").collect();
   },
 });
@@ -138,6 +139,7 @@ export const getEligibilityFiles = query({
     offset: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const limit = args.limit ?? 25;
     const offset = args.offset ?? 0;
 
@@ -165,6 +167,7 @@ export const getEligibilityFiles = query({
 export const getEligibilityFileDetail = query({
   args: { fileId: v.id("eligibilityFiles") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const file = await ctx.db.get(args.fileId);
     if (!file) throw new Error("File not found");
 
@@ -2351,6 +2354,7 @@ export const deleteEligibilityFile = mutation({
 export const getEligibilityStats = query({
   args: { groupId: v.id("groups") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const files = await ctx.db
       .query("eligibilityFiles")
       .filter((q) => q.eq(q.field("groupId"), args.groupId))

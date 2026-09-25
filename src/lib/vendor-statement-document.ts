@@ -58,6 +58,14 @@ export interface VendorStatementDocument {
   vendorName: string;
   basis: string;
 
+  /**
+   * Which brand's revenue this statement settles. Null = book-wide, every
+   * site. Printed so a recipient paid by two brands can tell two otherwise
+   * identical documents apart, and so a scoped total never reads as the
+   * whole book.
+   */
+  siteName?: string | null;
+
   // Coverage — coverageEnd is the last representable instant of the month.
   period: string;
   coverageStart: number;
@@ -173,6 +181,9 @@ export function statementFileBase(
     opts.variant === "verification"
       ? "Statement-Verification"
       : "Remittance-Statement",
+    // Keeps two same-month statements for one recipient from landing in a
+    // finance folder under identical names when a month is settled per brand.
+    ...(doc.siteName ? [fileToken(doc.siteName)] : []),
     `Coverage-${doc.period}`,
     fileToken(doc.statementNumberDisplay),
     doc.status.toUpperCase(),
@@ -292,6 +303,9 @@ export function summaryTable(doc: VendorStatementDocument): Table {
     ["Statement Number", doc.statementNumberDisplay],
     ["Recipient", doc.vendorName],
     ["Status", doc.status.toUpperCase()],
+    // Only printed when the statement is scoped. A book-wide document says
+    // nothing about sites, which is the historical (and still default) shape.
+    ...(doc.siteName ? ([["Covered Brand", doc.siteName]] as Row[]) : []),
     ["Coverage Month", doc.period],
     ["Coverage Window", formatCoverageRange(doc)],
     ["Statement Date", formatStatementDate(doc.statementDate)],
@@ -479,6 +493,8 @@ export function periodStatementsToCsv(docs: VendorStatementDocument[]): string {
 export interface VerificationDocument {
   statementNumberDisplay: string;
   vendorName: string;
+  /** Null = book-wide. Set = the brand this statement settles. */
+  siteName?: string | null;
   period: string;
   status: string;
   amountField: string;
@@ -528,7 +544,7 @@ export function verificationDetailTable(doc: VerificationDocument): Table {
       "Toothlens",
       "Careington",
       "Processing",
-      "Ideal Health",
+      "Ideal Oral Health",
       "Ryze Keep",
       "On This Statement",
       "Split Balances",
@@ -577,7 +593,7 @@ export function verificationTotalsTable(doc: VerificationDocument): Table {
       ["Toothlens", doc.totals.toothlensCents / 100],
       ["Careington", doc.totals.careingtonCents / 100],
       ["Processing", doc.totals.processingCents / 100],
-      ["Ideal Health", doc.totals.partnerVendorCents / 100],
+      ["Ideal Oral Health", doc.totals.partnerVendorCents / 100],
       ["Ryze Keep", doc.totals.ryzeKeepCents / 100],
       ["— Statement subtotal", doc.statementSubtotalCents / 100],
       ["— Statement adjustments", doc.statementAdjustmentCents / 100],
@@ -593,6 +609,7 @@ export function verificationToCsv(doc: VerificationDocument): string {
       ["Document", "INTERNAL VERIFICATION — NOT FOR DISTRIBUTION"],
       ["Statement", doc.statementNumberDisplay],
       ["Recipient", doc.vendorName],
+      ...(doc.siteName ? ([["Covered Brand", doc.siteName]] as Row[]) : []),
       ["Coverage Month", doc.period],
       ["Status", doc.status.toUpperCase()],
       ["Paid From Bucket", doc.amountField],

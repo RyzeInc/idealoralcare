@@ -146,6 +146,32 @@ export const getMembershipAgreementByMemberId = query({
   },
 });
 
+/**
+ * Called from the Stripe checkout webhook once the real Careington member
+ * ID exists. The agreement is created at signing time (before payment) with
+ * a placeholder memberId (the Clerk user ID), so this patches it to the
+ * real member ID once enrollment completes.
+ */
+export const linkAgreementToMember = mutation({
+  args: {
+    userId: v.string(),
+    memberId: v.string(),
+  },
+  handler: async (ctx: any, args: any) => {
+    const agreements = await ctx.db
+      .query("membershipAgreements")
+      .withIndex("by_userId", (q: any) => q.eq("userId", args.userId))
+      .collect();
+
+    if (agreements.length === 0) return { linked: false };
+
+    const latest = agreements.sort((a: any, b: any) => b.createdAt - a.createdAt)[0];
+    await ctx.db.patch(latest._id, { memberId: args.memberId, lastUpdated: Date.now() });
+
+    return { linked: true, agreementId: latest._id };
+  },
+});
+
 export const updateMembershipAgreementStatus = mutation({
   args: {
     agreementId: v.id("membershipAgreements"),

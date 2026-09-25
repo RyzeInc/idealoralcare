@@ -175,7 +175,7 @@ a:hover {
    ======================================== */
 
 .site-header {
-  padding: 1rem 2rem;
+  padding: 0;
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
@@ -984,7 +984,7 @@ a:hover {
   
   /* Mobile Navigation */
   .site-header {
-    padding: 12px 16px;
+    padding: 0;
   }
   
   .site-header_container { 
@@ -2148,4 +2148,57 @@ a:hover {
 }
 .blog-content strong {
   color: var(--text-primary);
+}
+
+/* ============================================================
+   HERO CALL-TO-ACTION ROW (Enroll Now + See What's Included)
+   ============================================================ */
+.hero-home__cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+}
+
+/* On phones, stack the two CTAs full-width so the primary action
+   ("Enroll Now") is big, obvious, and easy to tap. */
+@media (max-width: 560px) {
+  .hero-home__cta {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .hero-home__cta .button {
+    width: 100%;
+  }
+}
+
+/* ============================================================
+   RESPONSIVE CHECKOUT / PLANS LAYOUT
+   Two-column (form + summary) on desktop, single column on mobile
+   so the whole transaction flow works on phones.
+   ============================================================ */
+.checkout-grid {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 2.5rem;
+  align-items: start;
+}
+
+.checkout-summary {
+  position: sticky;
+  top: 100px;
+}
+
+@media (max-width: 900px) {
+  .checkout-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  /* Let the order summary flow naturally under the steps on mobile
+     instead of trying to stick to a viewport that has scrolled past. */
+  .checkout-summary {
+    position: static;
+    top: auto;
+  }
 }

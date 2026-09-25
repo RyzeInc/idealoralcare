@@ -8,6 +8,7 @@ import { internal, api } from "../_generated/api";
 export const getAll = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     return await ctx.db.query("brokerTrackingCodes").collect();
   },
 });
@@ -16,6 +17,7 @@ export const getAll = query({
 export const getByAgent = query({
   args: { brokerId: v.string() },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     return await ctx.db
       .query("brokerTrackingCodes")
       .withIndex("by_broker", (q) => q.eq("brokerId", args.brokerId))
@@ -24,8 +26,12 @@ export const getByAgent = query({
 });
 
 // Slugs that may not be used as rep code URL slugs
+// NOTE: intentionally duplicated from src/lib/rep-routing/reserved.ts —
+// convex/ cannot import from src/, and both sides must refuse the same slugs:
+// this one blocks creation, that one blocks the vanity-URL redirect. Keep them
+// in step.
 const SLUG_RESERVED = new Set([
-  "admin","api","health","newideal","bootstrap","debug",
+  "admin","partner","api","health","newideal","register","unsubscribe","bootstrap","debug",
   "login","signup","sign-in","sign-up","sign-out","sso-callback",
   "about","contact","privacy","terms","legal",
   "plans","checkout","enroll","dashboard","claim-invite",
@@ -261,6 +267,7 @@ export const backfillSlugs = mutation({
 export const getEnrollmentsByCode = query({
   args: { code: v.string() },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const sessions = await ctx.db
       .query("enrollmentSessions")
       .filter((q: any) => q.eq(q.field("brokerTrackingCode"), args.code))
@@ -285,6 +292,7 @@ export const getEnrollmentsByCode = query({
 export const getAllWithRates = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     const codes = await ctx.db.query("brokerTrackingCodes").collect();
     const rates = await ctx.db.query("commissionRates").collect();
     const leaders = await ctx.db.query("partnerLeaders").collect();
@@ -323,6 +331,7 @@ export const previewAgencyRepCode = query({
     lastName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const partner = await ctx.db.get(args.agencyId as Id<"distributionPartners">);
     const agencyCode: string | undefined = (partner as any)?.agencyCode;
     if (!agencyCode) return null;

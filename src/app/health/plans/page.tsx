@@ -9,16 +9,18 @@
  */
 
 import { useState, useMemo, useEffect, useRef, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { ShoppingCart, Check, Loader, Heart, ArrowRight, Lock, Zap, RotateCcw, MessageCircle, Users } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import HealthHeader from "@/components/health/HealthHeader";
+import SitePromoLinks from "@/components/health/SitePromoLinks";
 import { CartProvider, useCart } from "@/lib/health-plans";
 import { formatPrice, getPrice } from "@/lib/health-plans/types";
 import { CadenceModal } from "@/components/health/catalog";
+import { useBrandName, rebrand } from "@/lib/branding";
 
 // Extended product type for catalog page
 interface CatalogProduct {
@@ -56,6 +58,7 @@ interface CatalogProduct {
 
 function PlanCard({ product }: { product: CatalogProduct }) {
   const { cart, addItem, removeItem, isInCart } = useCart();
+  const brandName = useBrandName();
   const inCart = isInCart(product._id);
   const isFamily = product.slug?.includes('family');
   const price = getPrice(product, cart.cadence, cart.paymentMethod);
@@ -98,7 +101,7 @@ function PlanCard({ product }: { product: CatalogProduct }) {
             margin: '0 0 8px 0',
             lineHeight: 1.2
           }}>
-            {product.name}
+            {rebrand(product.name, brandName)}
           </h2>
         </div>
       </div>
@@ -304,9 +307,12 @@ function PlanCard({ product }: { product: CatalogProduct }) {
 
 function StickyCart() {
   const { cart, itemCount, subtotalCents, removeItem } = useCart();
-  
+  const brandName = useBrandName();
+  const pathname = usePathname();
+  const basePath = `/${pathname.split("/")[1]}`;
+
   if (itemCount === 0) return null;
-  
+
   const periodLabel = cart.cadence === "monthly" ? "Monthly" : "Annual";
   
   return (
@@ -361,7 +367,7 @@ function StickyCart() {
             borderBottom: '1px solid rgba(0,0,0,0.06)'
           }}>
             <div>
-              <div style={{ fontWeight: '500', fontSize: '0.9375rem' }}>{item.product.name}</div>
+              <div style={{ fontWeight: '500', fontSize: '0.9375rem' }}>{rebrand(item.product.name, brandName)}</div>
               <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
                 {formatPrice(getPrice(
                   item.product, 
@@ -407,8 +413,8 @@ function StickyCart() {
       </div>
       
       {/* Checkout Button */}
-      <Link 
-        href="/health/checkout" 
+      <Link
+        href={`${basePath}/checkout`}
         className="button button--primary"
         style={{ width: '100%', justifyContent: 'center' }}
       >
@@ -556,6 +562,7 @@ function TierToggle({ tier, setTier }: { tier: "individual" | "family"; setTier:
 
 function PlansContent() {
   const { itemCount, syncProductPricing, cart, addItem, removeItem, isInCart } = useCart();
+  const brandName = useBrandName();
   const searchParams = useSearchParams();
   const initialTier = searchParams.get("tier") === "family" ? "family" : "individual";
   const [tier, setTier] = useState<"individual" | "family">(initialTier);
@@ -654,12 +661,7 @@ function PlansContent() {
               Loading plan...
             </div>
           ) : selectedPlan ? (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 400px',
-              gap: '3rem',
-              alignItems: 'start'
-            }}>
+            <div className="checkout-grid">
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 <PlanCard key={selectedPlan._id} product={selectedPlan} />
               </div>
@@ -677,7 +679,7 @@ function PlansContent() {
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em'
                   }}>
-                    Why Ideal Health?
+                    Why {brandName}?
                   </h3>
                   <ul style={{
                     listStyle: 'none',
@@ -723,6 +725,8 @@ function PlansContent() {
       </section>
       
       {/* Trust Indicators */}
+      <SitePromoLinks placement="plans" />
+
       <section className="section bg--light">
         <div className="container">
           <div style={{

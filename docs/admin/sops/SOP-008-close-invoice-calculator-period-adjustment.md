@@ -1,16 +1,16 @@
-# SOP-008: Close a Monthly Invoice Calculator Period / Record an Adjustment
+# SOP-008: Close a Monthly Revenue & Dispersal Period / Record an Adjustment
 
 **Purpose:** Verify (or manually trigger) the monthly close of the internal revenue-dispersal snapshot, and record a correction (refund, chargeback, retroactive term/enrollment) against an already-closed period.
 
 **Who can do this:** Any admin (Owner or Editor).
 
-**Trigger:** Monthly, automatically via cron shortly after month-end — or manually if the cron missed its run, or whenever a correction is needed against a past period.
+**When you'd do this:** Monthly, automatically via cron shortly after month-end — or manually if the cron missed its run, or whenever a correction is needed against a past period.
 
-**Related guide:** [Invoice Calculator](../guide/03-finance.md#invoice-calculator-admininvoice-calculator)
+**Related guide:** [Revenue & Dispersal](../guide/03-finance.md#revenue--dispersal-admininvoice-calculator)
 
 ## Steps — routine monthly verification
 
-1. Go to **Invoice Calculator** (`/admin/invoice-calculator`) shortly after the start of a new month.
+1. Go to **Revenue & Dispersal** (`/admin/invoice-calculator`) shortly after the start of a new month.
 2. Check the **Closed Period Archive** table at the bottom — the prior month should now appear with a "closed at" timestamp.
 3. If it's there: use the month picker to view it, and confirm the source banner reads "closed snapshot… immutable" (not the live/blue banner). Spot-check the grand totals against what you expect from enrollment volume.
 4. If the prior month is **not** in the archive yet (the cron missed its run): switch the period picker to that month — since there's no snapshot, it'll show a live reconstruction gated to that period's end, and a **Close period now** button will appear. Click it to close manually.

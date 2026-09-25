@@ -17,7 +17,7 @@ Both were written by reading the current source code directly (not by summarizin
 
 - `ADMIN_QUICK_START.md` (repo root) is the older, higher-level onboarding doc — still useful for first-time platform setup (Clerk account creation, initial site config). This guide is the deeper reference for day-to-day feature use.
 - `/admin/help` (in-app) is a lightweight in-product glossary/cheat-sheet — this guide is the fuller version of the same material, plus the internal "how it works" detail the in-app page doesn't have room for.
-- `docs/internal/` holds engineering specs (Invoice Calculator, List-Bill Invoices, Rep Code system, Finance Platform Evaluation) that this guide draws on and links to directly where relevant — read those if you need implementation-level detail beyond what an admin needs day-to-day.
+- `docs/internal/` holds engineering specs (Revenue & Dispersal, List-Bill Invoices, Rep Code system, Finance Platform Evaluation) that this guide draws on and links to directly where relevant — read those if you need implementation-level detail beyond what an admin needs day-to-day.
 
 ## Structure
 
@@ -26,10 +26,10 @@ docs/admin/
   README.md                    ← you are here
   guide/
     00-overview.md              Permission model, hierarchy, member lifecycle, dashboard, nav map
-    01-members-partners.md      Members, Distribution/"Brokers", Partner Applications, Rep Codes
+    01-members-partners.md      Members, Brokers, Partner Applications, Rep Codes, Partner Kit Leads
     02-operations.md            Hierarchy, Eligibility Files, Vendor Files
-    03-finance.md                Billing, List-Bill, List-Bill Invoices, Invoice Calculator, Commissions
-    04-support-system.md        Customer Service, Admin Users, User Audit, Audit Log, Site Settings, Dev Tools
+    03-finance.md                Billing, List-Bill, List-Bill Invoices, Revenue & Dispersal, Commissions
+    04-support-system.md        Customer Service, Admin Users, User Lookup, Audit Log, Site Settings, Dev Tools
     05-known-issues.md          Every bug/stub found, severity-tagged
   sops/
     README.md                    Index of all SOPs

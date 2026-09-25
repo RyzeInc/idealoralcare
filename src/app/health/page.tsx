@@ -3,6 +3,7 @@ import HeroSlideshow from "@/components/health/HeroSlideshow";
 import HealthHeader from "@/components/health/HealthHeader";
 import { TrustAnchors, ProblemBand } from "@/components/health/sections";
 import { Zap, Clock, Smile, Heart, Shield } from "lucide-react";
+import { BrandName } from "@/components/ui/BrandName";
 
 export const metadata = {
   title: "Ideal Oral Savings Plan | Wide Ranging Oral Healthcare Discount Plan",
@@ -35,16 +36,21 @@ export default function HealthLanding() {
           <div className="row">
             <div className="col-12">
               <div className="hero-home__heading">
-                <div className="hero-home__subtitle">Ideal Oral Savings Plan</div>
+                <div className="hero-home__subtitle"><BrandName /> Savings Plan</div>
                 <h1>Oral Health Savings Plan That Works Around Your Life — Not the Other Way Around.</h1>
                 <p className="hero-home__descr">
                   AI Oral Scanning from home, licensed dentists available 24/7, and a
                   nationwide provider network that saves members 20–50% on dental
                   procedures — without the waiting rooms, surprise bills, or guesswork.
                 </p>
-                <a className="button button--primary" href="#whats-included">
-                  See What&rsquo;s Included
-                </a>
+                <div className="hero-home__cta">
+                  <Link className="button button--accent" href="/health/checkout?plan=individual">
+                    Enroll Now
+                  </Link>
+                  <a className="button button--primary" href="#whats-included">
+                    See What&rsquo;s Included
+                  </a>
+                </div>
               </div>
             </div>
           </div>
@@ -212,7 +218,7 @@ export default function HealthLanding() {
           <div className="faq__list">
             <div className="accordion">
               <h4>Is this real dental insurance?</h4>
-              <div>No — The Ideal Oral Health Savings Plan is a membership, not an insurance plan. Because this is not insurance, there are no deductibles, no waiting periods, no claim forms, and no annual coverage caps. You get AI scanning, 24/7 dentist access, and a nationwide dental discount network — starting the day after you enroll.</div>
+              <div>No — The <BrandName /> Savings Plan is a membership, not an insurance plan. Because this is not insurance, there are no deductibles, no waiting periods, no claim forms, and no annual coverage caps. You get AI scanning, 24/7 dentist access, and a nationwide dental discount network — starting the day after you enroll.</div>
             </div>
             <div className="accordion">
               <h4>How does the AI scanning work — do I need any equipment?</h4>

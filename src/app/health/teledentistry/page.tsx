@@ -1,19 +1,9 @@
+"use client";
+
+import { usePathname } from "next/navigation";
 import HealthHeader from "@/components/health/HealthHeader";
 import Link from "next/link";
 
-export const metadata = {
-  title: "Teledentistry | 24/7 Virtual Dental Consultations | Ideal Health",
-  description:
-    "24/7/365 virtual consultations with licensed dentists via phone or video chat. Ideal Health Teledentistry — care on your schedule, wherever you are.",
-  alternates: { canonical: "/health/teledentistry" },
-  openGraph: {
-    title: "24/7 Teledentistry — Talk to a Dentist Anytime",
-    description:
-      "Virtual dental consultations available 24/7/365 via phone or video. Get prescriptions, second opinions, and expert oral health guidance from home.",
-    url: "https://getidealoh.com/health/teledentistry",
-    images: [{ url: "/health-assets/teledentistr_1024x1024.png", width: 1024, height: 1024 }],
-  },
-};
 
 const HELP_WITH = [
   { title: "Oral Pain", desc: "Immediate guidance for toothaches, jaw pain, and other acute oral discomfort." },
@@ -37,6 +27,8 @@ const WHEN_TO_USE = [
 ];
 
 export default function TeledentistryPage() {
+  const pathname = usePathname();
+  const basePath = `/${pathname.split("/")[1]}`;
   return (
     <div className="health-landing">
       <HealthHeader />
@@ -57,7 +49,7 @@ export default function TeledentistryPage() {
                   Via phone or video, providing members and their families convenient access to quality care from home, work or on the go, anywhere in the U.S.
                 </p>
                 <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-                  <Link className="button button--accent" href="/health/plans" style={{ padding: "12px 28px", fontSize: "0.9375rem" }}>
+                  <Link className="button button--accent" href={`${basePath}/plans`} style={{ padding: "12px 28px", fontSize: "0.9375rem" }}>
                     Explore Plans
                   </Link>
                   <a href="#services" style={{ padding: "12px 28px", fontSize: "0.9375rem", fontWeight: 600, color: "#fff", border: "2px solid rgba(255,255,255,0.35)", borderRadius: "8px", textDecoration: "none", transition: "border-color 0.2s" }}>
@@ -281,7 +273,7 @@ export default function TeledentistryPage() {
               </ul>
               <Link
                 className="button button--accent"
-                href="/health/plans"
+                href={`${basePath}/plans`}
                 style={{ padding: "13px 32px", fontSize: "0.9375rem" }}
               >
                 Start Consultation
@@ -312,7 +304,7 @@ export default function TeledentistryPage() {
             <p style={{ color: "#475569", fontSize: "1.0625rem", lineHeight: 1.7, marginBottom: "2rem" }}>
               Access top-quality dental guidance 24 hours a day, 7 days a week, 365 days a year. No waiting rooms, no scheduling headaches — just the answers you need, when you need them.
             </p>
-            <Link className="button button--primary" href="/health/plans">
+            <Link className="button button--primary" href={`${basePath}/plans`}>
               Explore Plans
             </Link>
           </div>

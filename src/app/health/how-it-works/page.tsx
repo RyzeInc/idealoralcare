@@ -7,10 +7,12 @@
  * Uses health.css design system for consistent styling
  */
 
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Check, CreditCard, Settings, Shield, Unlock, Scale, DollarSign, Clock, Lock } from "lucide-react";
 import HealthHeader from "@/components/health/HealthHeader";
 import { CartProvider, useCart } from "@/lib/health-plans";
+import { useSiteThemeOptional } from "@/components/providers/SiteThemeProvider";
 
 const STEPS = [
   {
@@ -61,7 +63,11 @@ const WHAT_ISNT = [
 ];
 
 function HowItWorksContent() {
+  const pathname = usePathname();
+  const basePath = `/${pathname.split("/")[1]}`;
   const { itemCount } = useCart();
+  const theme = useSiteThemeOptional();
+  const brandName = theme?.site?.name ?? "Ideal Oral Health";
 
   return (
     <div className="health-landing">
@@ -71,7 +77,7 @@ function HowItWorksContent() {
       <section className="section" style={{ paddingBottom: '60px' }}>
         <div className="container">
           <div className="heading-block">
-            <h1 style={{ marginBottom: '16px' }}>How Ideal Health Works</h1>
+            <h1 style={{ marginBottom: '16px' }}>How {brandName} Works</h1>
             <p className="heading-block__descr" style={{ fontSize: '1.125rem', maxWidth: '700px' }}>
               Simple, transparent, and straightforward. Browse, choose, and enroll in health plans that fit your lifestyle.
             </p>
@@ -288,7 +294,7 @@ function HowItWorksContent() {
       <section className="section">
         <div className="container">
           <div className="heading-block">
-            <h2>Why Choose Ideal Health</h2>
+            <h2>Why Choose {brandName}</h2>
           </div>
           
           <ul className="benefits__list">
@@ -360,7 +366,7 @@ function HowItWorksContent() {
             }}>
               Browse our plans and find the right fit for your health goals. No commitment required.
             </p>
-            <Link href="/health/plans" className="button button--primary" style={{ padding: '16px 32px' }}>
+            <Link href={`${basePath}/plans`} className="button button--primary" style={{ padding: '16px 32px' }}>
               Browse Plans
               <ArrowRight size={18} style={{ marginLeft: '8px' }} />
             </Link>

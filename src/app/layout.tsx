@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ConvexClientProvider } from "@/components/providers/ConvexClientProvider";
+import { RepVisitTracker } from "@/components/providers/RepVisitTracker";
+import { Suspense } from "react";
 import { GoogleAnalytics } from "@/components/seo/GoogleAnalytics";
 import "./globals.css";
 
@@ -64,7 +66,15 @@ export default function RootLayout({
           signInFallbackRedirectUrl="/health/dashboard"
           signUpFallbackRedirectUrl="/health/dashboard"
         >
-          <ConvexClientProvider>{children}</ConvexClientProvider>
+          <ConvexClientProvider>
+            {/* Records ?ref= landings for the production funnel. Inside
+                Suspense because it reads searchParams, which would otherwise
+                opt every page into dynamic rendering. */}
+            <Suspense fallback={null}>
+              <RepVisitTracker />
+            </Suspense>
+            {children}
+          </ConvexClientProvider>
         </ClerkProvider>
       </body>
     </html>

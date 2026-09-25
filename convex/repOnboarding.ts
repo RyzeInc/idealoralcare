@@ -77,11 +77,17 @@ export const submit = mutation({
     repEffectiveDate: v.optional(v.string()),
     repStatus: v.optional(v.string()),
     writingNumber: v.optional(v.string()),
+    // Pipeline: when the applicant arrived via a Partner Kit Lead invite link
+    // (/register/rep?leadToken=…), this closes the loop back to the lead.
+    leadToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Pull the pipeline-only arg out before the generic cleaning loop.
+    const { leadToken, ...submissionArgs } = args;
+
     // ── trim all strings, drop empties ────────────────────────────────
     const cleaned: Record<string, unknown> = {};
-    for (const [k, raw] of Object.entries(args)) {
+    for (const [k, raw] of Object.entries(submissionArgs)) {
       if (typeof raw === "string") {
         const trimmed = raw.trim();
         if (trimmed !== "") cleaned[k] = trimmed;
@@ -123,13 +129,54 @@ export const submit = mutation({
       cleaned.ein = `${d.slice(0, 2)}-${d.slice(2)}`;
     }
 
+    // ── resolve the source lead (if invited via /register/rep?leadToken=…) ──
+    let sourceLeadId: string | undefined;
+    if (leadToken) {
+      const lead = await ctx.db
+        .query("partnerRegistrations")
+        .withIndex("by_invite_token", (q) => q.eq("inviteToken", leadToken))
+        .first();
+      if (lead) sourceLeadId = lead._id;
+    }
+
+    // ── auto-match an existing signed Partner Kit by email ─────────────
+    const matchEmail =
+      (cleaned.primaryContactEmail as string | undefined) ??
+      (cleaned.repEmail as string | undefined);
+    let matchedKit: { _id: string } | null = null;
+    if (matchEmail) {
+      matchedKit = await ctx.db
+        .query("partnerKitSubmissions")
+        .withIndex("by_email", (q) => q.eq("email", matchEmail))
+        .first();
+    }
+
     const now = Date.now();
     const id = await ctx.db.insert("repOnboardingSubmissions", {
       ...(cleaned as any),
+      ...(sourceLeadId ? { sourceLeadId: sourceLeadId as any } : {}),
+      ...(matchedKit ? { partnerKitSubmissionId: matchedKit._id as any } : {}),
       status: "new",
       createdAt: now,
       updatedAt: now,
     });
+
+    // ── close the loop back to the lead ────────────────────────────────
+    if (sourceLeadId) {
+      await ctx.db.patch(sourceLeadId as any, {
+        inviteStatus: "claimed",
+        status: "converted",
+        convertedToApplicationId: id,
+      });
+    }
+
+    // ── back-link the matched kit to this application ──────────────────
+    if (matchedKit) {
+      await ctx.db.patch(matchedKit._id as any, {
+        matchedApplicationId: id,
+        updatedAt: now,
+      });
+    }
 
     return { ok: true as const, id };
   },
@@ -399,6 +446,42 @@ export const approve = action({
       } catch (e) {
         // Non-fatal — admin can provision manually via the drawer button
         console.warn("[approve] provisionCodesForPartner failed:", e);
+      }
+
+      // Keep the signed W-9 (if any) linked past the submission stage.
+      try {
+        await ctx.runMutation(
+          // @ts-ignore
+          internal.legal.w9Forms._linkPartner,
+          { repSubmissionId: args.id, partnerId: resolvedPartnerId as any },
+        );
+      } catch (e) {
+        console.warn("[approve] linking W-9 to partner failed:", e);
+      }
+
+      // If a signed Partner Kit is matched to this application, stamp it approved
+      // and carry its W-9 (e-signed on the kit) through to the new partner.
+      if (sub.partnerKitSubmissionId) {
+        try {
+          const { w9FormId } = await ctx.runMutation(
+            // @ts-ignore
+            internal.partnerKit._stampApproved,
+            {
+              id: sub.partnerKitSubmissionId,
+              approvedPartnerId: resolvedPartnerId,
+              approvedRepLeaderId: repLeaderId,
+            },
+          );
+          if (w9FormId) {
+            await ctx.runMutation(
+              // @ts-ignore
+              internal.legal.w9Forms._linkPartnerByFormId,
+              { w9FormId, partnerId: resolvedPartnerId as any },
+            );
+          }
+        } catch (e) {
+          console.warn("[approve] stamping/linking matched Partner Kit failed:", e);
+        }
       }
     }
 

@@ -1,0 +1,638 @@
+<title>URL Registry — Ideal Oral Health</title>
+<style>
+  /* Light is the base palette. Every colour is a token so the two dark
+     branches below only ever redefine values, never rules. */
+  :root {
+    --ground: #f6f7fb;
+    --surface: #ffffff;
+    --surface-2: #fbfbfe;
+    --ink: #14171f;
+    --ink-2: #565e70;
+    --ink-3: #8a92a6;
+    --line: #e3e6ef;
+    --line-strong: #ccd1e0;
+    --accent: #5257dd;
+    --accent-ink: #3f43b8;
+    --accent-soft: #eeeffc;
+    --shadow: 0 1px 2px rgba(20, 23, 31, 0.05), 0 8px 24px -16px rgba(20, 23, 31, 0.25);
+
+    --lvl-public-fg: #0b6b4f;   --lvl-public-bg: #e3f5ec;
+    --lvl-member-fg: #1b5a9e;   --lvl-member-bg: #e4effb;
+    --lvl-partner-fg: #8a5a00;  --lvl-partner-bg: #fbf0dc;
+    --lvl-staff-fg: #a03050;    --lvl-staff-bg: #fbe7ec;
+    --lvl-owner-fg: #7a2e8c;    --lvl-owner-bg: #f5e6f8;
+    --lvl-webhook-fg: #4a5568;  --lvl-webhook-bg: #edeff3;
+
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  /* Default "system" viewers get no [data-theme] stamp, so the media query is
+     what serves them — guarded so an explicit light choice still wins. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0e1017;
+      --surface: #161a24;
+      --surface-2: #1a1f2b;
+      --ink: #e9ecf5;
+      --ink-2: #9aa3b8;
+      --ink-3: #6b7488;
+      --line: #262c3a;
+      --line-strong: #333b4d;
+      --accent: #8b8ff5;
+      --accent-ink: #a5a8f8;
+      --accent-soft: #21243a;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -16px rgba(0, 0, 0, 0.8);
+
+      --lvl-public-fg: #6fd9ae;   --lvl-public-bg: #12291f;
+      --lvl-member-fg: #7fb6ed;   --lvl-member-bg: #122334;
+      --lvl-partner-fg: #e5b368;  --lvl-partner-bg: #2b2110;
+      --lvl-staff-fg: #f09bb0;    --lvl-staff-bg: #301620;
+      --lvl-owner-fg: #dda0ea;    --lvl-owner-bg: #2a1730;
+      --lvl-webhook-fg: #a8b2c4;  --lvl-webhook-bg: #1e2430;
+    }
+  }
+
+  /* And the explicit dark stamp wins over a light OS. */
+  :root[data-theme="dark"] {
+    --ground: #0e1017;
+    --surface: #161a24;
+    --surface-2: #1a1f2b;
+    --ink: #e9ecf5;
+    --ink-2: #9aa3b8;
+    --ink-3: #6b7488;
+    --line: #262c3a;
+    --line-strong: #333b4d;
+    --accent: #8b8ff5;
+    --accent-ink: #a5a8f8;
+    --accent-soft: #21243a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -16px rgba(0, 0, 0, 0.8);
+
+    --lvl-public-fg: #6fd9ae;   --lvl-public-bg: #12291f;
+    --lvl-member-fg: #7fb6ed;   --lvl-member-bg: #122334;
+    --lvl-partner-fg: #e5b368;  --lvl-partner-bg: #2b2110;
+    --lvl-staff-fg: #f09bb0;    --lvl-staff-bg: #301620;
+    --lvl-owner-fg: #dda0ea;    --lvl-owner-bg: #2a1730;
+    --lvl-webhook-fg: #a8b2c4;  --lvl-webhook-bg: #1e2430;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 20px 96px;
+  }
+
+  a { color: var(--accent-ink); }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* ── Masthead ───────────────────────────────────────────────── */
+  .masthead { padding: 56px 0 32px; display: flex; flex-direction: column; gap: 14px; }
+
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(30px, 5vw, 44px);
+    line-height: 1.08;
+    letter-spacing: -0.025em;
+    font-weight: 700;
+    text-wrap: balance;
+  }
+
+  .lede { margin: 0; max-width: 62ch; color: var(--ink-2); font-size: 16.5px; }
+
+  .origin {
+    margin: 0;
+    max-width: 68ch;
+    font-size: 13px;
+    color: var(--ink-3);
+    border-left: 2px solid var(--line-strong);
+    padding-left: 12px;
+  }
+
+  .origin code { font-family: var(--mono); font-size: 12px; color: var(--ink-2); }
+
+  /* ── Summary tiles ──────────────────────────────────────────── */
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin: 10px 0 4px;
+  }
+
+  .tile {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .tile .n {
+    font-size: 26px;
+    font-weight: 680;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tile .k { font-size: 12px; color: var(--ink-3); }
+
+  /* ── Callouts ───────────────────────────────────────────────── */
+  .callouts {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px 22px;
+    margin: 28px 0 0;
+  }
+
+  .callouts h2 { margin: 0 0 12px; font-size: 15px; letter-spacing: -0.01em; }
+
+  .callouts ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 11px; }
+
+  .callouts li {
+    font-size: 14px;
+    color: var(--ink-2);
+    padding-left: 16px;
+    position: relative;
+    max-width: 78ch;
+  }
+
+  .callouts li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 9px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .callouts strong { color: var(--ink); font-weight: 620; }
+  .callouts code, .prose code { font-family: var(--mono); font-size: 0.88em; }
+
+  /* ── Controls ───────────────────────────────────────────────── */
+  .controls {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    margin: 32px 0 0;
+    padding: 12px 0;
+    background: color-mix(in srgb, var(--ground) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .search {
+    flex: 1 1 260px;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    padding: 0 10px;
+  }
+
+  .search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+  .search svg { flex: none; color: var(--ink-3); }
+
+  .search input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: none;
+    color: var(--ink);
+    font: inherit;
+    font-size: 14px;
+    padding: 8px 0;
+    outline: none;
+  }
+
+  .search input::placeholder { color: var(--ink-3); }
+
+  .filters { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .chip {
+    font: inherit;
+    font-size: 12px;
+    font-weight: 560;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+  }
+
+  .chip:hover { border-color: var(--ink-3); color: var(--ink); }
+
+  .chip[aria-pressed="true"] {
+    background: var(--lvl-bg, var(--accent-soft));
+    color: var(--lvl-fg, var(--accent-ink));
+    border-color: transparent;
+  }
+
+  .count { font-size: 12.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; margin-left: auto; }
+
+  /* ── Sections ───────────────────────────────────────────────── */
+  section.area { margin: 40px 0 0; }
+
+  section.area > header { margin-bottom: 14px; }
+
+  h2.area-title {
+    margin: 0 0 4px;
+    font-size: 20px;
+    font-weight: 680;
+    letter-spacing: -0.02em;
+  }
+
+  .area-blurb { margin: 0; font-size: 14px; color: var(--ink-2); max-width: 76ch; }
+
+  h3.group-title {
+    margin: 22px 0 8px;
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  .rows {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: minmax(200px, 0.9fr) minmax(0, 1.5fr) auto;
+    gap: 6px 18px;
+    align-items: start;
+    padding: 13px 16px;
+    border-top: 1px solid var(--line);
+  }
+
+  .row:first-child { border-top: 0; }
+  .row:nth-child(even) { background: var(--surface-2); }
+
+  .path {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--ink);
+    word-break: break-word;
+    line-height: 1.45;
+  }
+
+  .path .param { color: var(--accent-ink); }
+
+  .desc { font-size: 14px; color: var(--ink-2); }
+
+  .note {
+    display: block;
+    margin-top: 4px;
+    font-size: 12.5px;
+    color: var(--ink-3);
+    max-width: 62ch;
+  }
+
+  .meta { display: flex; align-items: center; gap: 8px; justify-self: end; }
+
+  .level {
+    font-size: 11px;
+    font-weight: 620;
+    letter-spacing: 0.02em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+    background: var(--lvl-bg);
+    color: var(--lvl-fg);
+  }
+
+  .indexed {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-3);
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    padding: 2px 8px;
+    white-space: nowrap;
+  }
+
+  .indexed[data-on="yes"] { color: var(--accent-ink); border-color: var(--accent); }
+
+  .empty { padding: 40px 16px; text-align: center; color: var(--ink-3); font-size: 14px; }
+
+  /* ── API + crawler ──────────────────────────────────────────── */
+  .api-group { border-top: 1px solid var(--line); padding: 16px; }
+  .api-group:first-child { border-top: 0; }
+
+  .api-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 12px; }
+  .api-head h3 { margin: 0; font-size: 15px; font-weight: 640; letter-spacing: -0.01em; }
+  .api-head .prefix { font-family: var(--mono); font-size: 12.5px; color: var(--ink-3); }
+  .api-purpose { margin: 5px 0 10px; font-size: 13.5px; color: var(--ink-2); max-width: 74ch; }
+
+  pre {
+    margin: 0;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--ink-2);
+  }
+
+  .prose { font-size: 14px; color: var(--ink-2); max-width: 76ch; }
+  .prose p { margin: 0 0 12px; }
+
+  footer.colophon {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    font-size: 12.5px;
+    color: var(--ink-3);
+  }
+
+  @media (max-width: 720px) {
+    .row { grid-template-columns: 1fr; gap: 7px; }
+    .meta { justify-self: start; }
+    .masthead { padding-top: 36px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <p class="eyebrow" id="eyebrow"></p>
+    <h1>Every URL the platform serves</h1>
+    <p class="lede" id="lede"></p>
+    <p class="origin" id="origin"></p>
+    <div class="tiles" id="tiles"></div>
+  </header>
+
+  <div class="callouts">
+    <h2>Worth knowing before you act on this</h2>
+    <ul id="callouts"></ul>
+  </div>
+
+  <div class="controls">
+    <label class="search">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.6" />
+        <path d="M10.5 10.5 14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+      </svg>
+      <input id="q" type="search" placeholder="Filter by path, purpose, or area…" aria-label="Filter routes" />
+    </label>
+    <div class="filters" id="levelFilters" role="group" aria-label="Filter by access level"></div>
+    <span class="count" id="count" role="status"></span>
+  </div>
+
+  <div id="sections"></div>
+
+  <section class="area" id="api-area">
+    <header>
+      <h2 class="area-title">API</h2>
+      <p class="area-blurb">
+        HTTP endpoints, grouped by integration. Every one is blocked in <code>robots.txt</code>; the access level shown
+        is what the endpoint itself enforces.
+      </p>
+    </header>
+    <div class="rows" id="api"></div>
+  </section>
+
+  <section class="area">
+    <header>
+      <h2 class="area-title">Search engine surface</h2>
+    </header>
+    <div class="rows" style="padding: 18px">
+      <div class="prose">
+        <p id="sitemapSummary"></p>
+        <p><code>robots.txt</code> disallows:</p>
+      </div>
+      <pre id="robots"></pre>
+      <div class="prose" style="margin-top: 12px">
+        <p>
+          A trailing slash is load-bearing: <code>/health/plans/</code> hides the plan detail pages while leaving
+          <code>/health/plans</code> itself indexable.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="colophon" id="colophon"></footer>
+</div>
+
+<script id="registry-data" type="application/json">{"brand":"Ideal Oral Health · Platform reference","lede":"Every route the platform serves, what it is for, and who can reach it. Production base URL: https://getidealoh.com.","origin":"Generated by `npm run docs:urls` from `src/lib/site-routes.ts` and `src/lib/admin-nav.ts` — the same definitions that produce `sitemap.xml`, `robots.txt`, and the admin sidebar. Editing the output by hand will be overwritten.","colophon":"109 routes and 11 API groups, generated from the codebase. No registry inconsistencies detected.","sitemapSummary":"`sitemap.xml` lists **17 static pages** plus one entry per blog post. Blog posts are expanded from `src/app/health/blog/posts.ts`, each carrying its own publish date.","stats":[{"value":"109","label":"documented routes"},{"value":"17","label":"in sitemap.xml"},{"value":"67","label":"require a session"},{"value":"37","label":"API endpoints"}],"callouts":["**`/register` and `/register/partnerkit` are named backwards.** `/register` is the *signing* flow (Partner Agreement + W-9); `/register/partnerkit` is the *sign-up form* that requests the kit. Worth renaming before either URL goes on printed collateral.","**`/health/plans/:slug` still serves hardcoded sample data** and is not linked from the plans page. It is deliberately excluded from the sitemap and blocked in robots.txt until it reads the live catalogue.","**`/bootstrap`, `/debug/email-test`, and `/debug/employer-membership-agreement` are development utilities** that are crawl-blocked but not access-gated. Anyone with the URL can load them.","**Any unreserved single-segment path is a rep vanity URL.** Adding a new top-level route means adding it to `src/lib/rep-routing/reserved.ts` as well, or a rep code can shadow it.","**White-label brand sites are excluded from our sitemap on purpose** — they are near-duplicates of `/health` and would compete with the primary brand for the same search queries. They stay crawlable, so partners keep any organic traffic they earn."],"robots":["/admin","/partner","/api","/debug","/bootstrap","/unsubscribe","/health/dashboard","/health/manage-plans","/health/checkout","/health/sign-in","/health/sign-up","/health/forgot-password","/health/sso-callback","/health/claim-invite","/health/admin-redirect","/health/plans/"],"sections":[{"title":"Marketing","blurb":"Public pages. These are the indexable surface — everything here is in `sitemap.xml` unless a note says otherwise.","groups":[{"label":null,"routes":[{"path":"/","title":"Root","purpose":"Plan chooser: routes visitors to the Oral Savings Plans (/health) or the Essentials membership (/newideal).","notes":"Excluded from the sitemap so /health stays the single canonical entry point for search.","auth":"Public","sitemap":false},{"path":"/health","title":"Home","purpose":"Primary brand landing page: hero, value props, plan entry points.","notes":null,"auth":"Public","sitemap":true},{"path":"/health/plans","title":"Plans","purpose":"Plan catalogue with pricing and cadence selection. Accepts ?ref= for rep attribution.","notes":null,"auth":"Public","sitemap":true},{"path":"/health/plans/:slug","title":"Plan detail","purpose":"Long-form detail for a single plan: inclusions, exclusions, FAQ.","notes":"Held back from the sitemap: still served from hardcoded MOCK_PRODUCTS and not linked from /health/plans. Add to the sitemap once it reads the live catalogue.","auth":"Public","sitemap":false},{"path":"/health/compare","title":"Compare plans","purpose":"Side-by-side plan comparison table.","notes":null,"auth":"Public","sitemap":true},{"path":"/health/how-it-works","title":"How it works","purpose":"Explains the membership model end to end.","notes":null,"auth":"Public","sitemap":true},{"path":"/health/discount","title":"Dental discount network","purpose":"Careington network savings — the discount side of the product.","notes":null,"auth":"Public","sitemap":true},{"path":"/health/teledentistry","title":"Teledentistry","purpose":"24/7 virtual dental consults.","notes":null,"auth":"Public","sitemap":true},{"path":"/health/oral-health-scan","title":"AI oral health scan","purpose":"Toothlens SmileScan explainer and entry point.","notes":null,"auth":"Public","sitemap":true},{"path":"/newideal","title":"Essentials home","purpose":"Landing page for the Ideal Health Essentials membership (telehealth, Rx, labs, mental health) alongside Oral Care.","notes":"The /newideal pages were never in the sitemap; add them here once Essentials is ready to be indexed.","auth":"Public","sitemap":false},{"path":"/newideal/plans","title":"Essentials plans","purpose":"Plan chooser for Essentials and Oral Care. Default landing page for rep vanity URLs (/{code}).","notes":null,"auth":"Public","sitemap":false},{"path":"/newideal/essentials","title":"Essentials plan","purpose":"Essentials membership detail and the four coverage tiers. Rep links land here with ?to=essentials.","notes":null,"auth":"Public","sitemap":false},{"path":"/newideal/oralcare","title":"Oral Care plan","purpose":"Oral Care plan detail in the Essentials-branded chrome. Rep links land here with ?to=oralcare.","notes":null,"auth":"Public","sitemap":false},{"path":"/health/dental","title":"Dental care","purpose":"Dental-specific landing page for paid and organic search.","notes":null,"auth":"Public","sitemap":true},{"path":"/health/faq","title":"FAQ","purpose":"Common member questions before purchase.","notes":null,"auth":"Public","sitemap":true},{"path":"/health/shop","title":"Preventative care shop","purpose":"Affiliate storefront for preventative-care products. Outbound links, not plans.","notes":"404s when the global shop kill switch is off (shop.queries.isEnabled). Listed anyway — the switch is an operational pause, not a decision to deindex.","auth":"Public","sitemap":true},{"path":"/health/blog","title":"Blog index","purpose":"Editorial and SEO content hub.","notes":null,"auth":"Public","sitemap":true},{"path":"/health/blog/:slug","title":"Blog post","purpose":"Individual article. Enumerated in the sitemap from BLOG_POSTS.","notes":"Expanded per post by src/app/sitemap.ts; each post's own publish date is its lastModified.","auth":"Public","sitemap":false},{"path":"/health/enroll","title":"Enrollment wizard","purpose":"Guided enrollment: flow selection, broker attribution, member details.","notes":null,"auth":"Public","sitemap":true},{"path":"/health/terms","title":"Terms of service","purpose":"Member terms.","notes":null,"auth":"Public","sitemap":true},{"path":"/health/privacy","title":"Privacy policy","purpose":"Privacy notice.","notes":null,"auth":"Public","sitemap":true}]}]},{"title":"Member portal","blurb":"Reachable without a link but never indexed. Sign-in, checkout, and the member's own account pages.","groups":[{"label":null,"routes":[{"path":"/newideal/checkout","title":"Essentials checkout","purpose":"Stripe checkout for Essentials and Oral Care, with the signed membership agreement persisted at signing.","notes":"Intentionally public — authentication happens inline, as on /health/checkout.","auth":"Public","sitemap":false},{"path":"/newideal/success","title":"Essentials checkout success","purpose":"Post-payment confirmation for the /newideal checkout.","notes":null,"auth":"Public","sitemap":false},{"path":"/health/sign-in","title":"Sign in","purpose":"Clerk-backed sign-in, hosted on our domain rather than Clerk's.","notes":null,"auth":"Public","sitemap":false},{"path":"/health/sign-up","title":"Sign up","purpose":"Account creation.","notes":null,"auth":"Public","sitemap":false},{"path":"/health/forgot-password","title":"Forgot password","purpose":"Password reset request.","notes":null,"auth":"Public","sitemap":false},{"path":"/health/sso-callback","title":"SSO callback","purpose":"OAuth return URL. Never linked directly.","notes":null,"auth":"Public","sitemap":false},{"path":"/health/claim-invite","title":"Claim invite","purpose":"Redeems an emailed invite for a group-enrolled employee.","notes":"Tokenised link sent by email; the token is the gate, not a session.","auth":"Public","sitemap":false},{"path":"/health/checkout","title":"Checkout","purpose":"Stripe checkout for a selected plan and cadence.","notes":"Intentionally public — the Account step authenticates inline so a visitor never loses their cart to a sign-in redirect.","auth":"Public","sitemap":false},{"path":"/health/dashboard","title":"Member dashboard","purpose":"Membership status, ID card, scan history, benefits.","notes":null,"auth":"Member","sitemap":false},{"path":"/health/manage-plans","title":"Manage plans","purpose":"Change, add, or cancel plans; open the Stripe billing portal.","notes":null,"auth":"Member","sitemap":false},{"path":"/health/admin-redirect","title":"Post-signup router","purpose":"Lands a freshly signed-up user on the right portal (member, partner, or admin).","notes":"Transient — calls /api/admin/post-signup-check and forwards.","auth":"Member","sitemap":false}]}]},{"title":"Registration","blurb":"Public lead capture. These feed the Partner Kit Leads and Partner Applications queues in the admin console.","groups":[{"label":null,"routes":[{"path":"/register","title":"Partner kit — agreement & W-9","purpose":"Sign the Partner Agreement and W-9, or upload completed forms.","notes":"Naming is inverted against /register/partnerkit: this is the signing flow, that one is the sign-up form. Worth renaming before either URL is printed on collateral.","auth":"Public","sitemap":true},{"path":"/register/partnerkit","title":"Partner registration","purpose":"Agency and business registration form requesting the partner kit.","notes":"Feeds Admin → Partner Kit Leads.","auth":"Public","sitemap":true},{"path":"/register/rep","title":"Broker / agency / rep registration","purpose":"Onboarding submission for brokers, agencies, and front-line reps.","notes":"Feeds Admin → Partner Applications.","auth":"Public","sitemap":true},{"path":"/:repSlug","title":"Rep vanity URL","purpose":"Any unreserved single-segment path resolves against the rep-code table, records the visit, and redirects to /health/plans?ref=CODE with a 90-day attribution cookie.","notes":"Handled in src/proxy.ts, ahead of auth. Reserved segments are listed in src/lib/rep-routing/reserved.ts — adding a top-level route means adding it there too, or a rep slug can shadow it.","auth":"Public","sitemap":false}]}]},{"title":"White-label","blurb":"Partner-branded mirrors of the marketing and member pages, themed per site from the `sites` table.","groups":[{"label":null,"routes":[{"path":"/:siteSlug","title":"White-label brand site","purpose":"Partner-branded mirror of the marketing and member pages, themed per site from the Convex `sites` table.","notes":"Mirrors: /, /plans, /compare, /how-it-works, /discount, /teledentistry, /oral-health-scan, /dental, /faq, /shop, /blog, /blog/:slug, /enroll, /checkout, /dashboard, /manage-plans, /claim-invite, /sign-in, /sign-up, /forgot-password, /sso-callback, /terms, /privacy. Deliberately absent from our sitemap — near-duplicates of /health would compete with the primary brand. Left crawlable so partners keep any organic traffic they earn.","auth":"Public","sitemap":false}]}]},{"title":"Partner portal","blurb":"Distribution partners see their own book here, and only their own book. Partners have no CRM access at all — that boundary is enforced per Convex function, not just per route.","groups":[{"label":null,"routes":[{"path":"/partner","title":"Partner overview","purpose":"Book-of-business summary for the signed-in partner.","notes":null,"auth":"Partner","sitemap":false},{"path":"/partner/members","title":"Partner members","purpose":"Every member the partner is credited for.","notes":null,"auth":"Partner","sitemap":false},{"path":"/partner/production","title":"Production","purpose":"Funnel, lead sources, and follow-ups.","notes":null,"auth":"Partner","sitemap":false},{"path":"/partner/retention","title":"Retention","purpose":"Cohorts, churn, and revenue movement.","notes":null,"auth":"Partner","sitemap":false},{"path":"/partner/downline","title":"Downline","purpose":"Sub-agencies and reps beneath this partner.","notes":"Hidden for reps, who have no downline.","auth":"Partner","sitemap":false},{"path":"/partner/groups","title":"Groups","purpose":"Employer accounts and participation rates.","notes":null,"auth":"Partner","sitemap":false},{"path":"/partner/watchlist","title":"Watchlist","purpose":"Accounts and members needing action today.","notes":null,"auth":"Partner","sitemap":false},{"path":"/partner/resources","title":"Partner resources","purpose":"Marketing material, partner kit, collateral, and forms.","notes":null,"auth":"Partner","sitemap":false}]}]},{"title":"Admin console","blurb":"Internal staff only. Ordered below as the sidebar orders it.","groups":[{"label":"Overview","routes":[{"path":"/admin","title":"Admin dashboard","purpose":"Daily snapshot: alerts, activity feed, system health, quick links.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/insights","title":"Insights","purpose":"Whole-book performance: growth, revenue, retention, data health.","notes":null,"auth":"Staff","sitemap":false}]},{"label":"Members & Partners","routes":[{"path":"/admin/members","title":"Members","purpose":"Every person in a plan, at any lifecycle stage.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/brokers","title":"Brokers","purpose":"Program managers, FMOs, and agencies reselling the plans.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/rep-codes","title":"Rep codes","purpose":"Attribution codes and the vanity URLs that resolve to them.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/partnerkit","title":"Partner kit leads","purpose":"Inbound registrations from /register/partnerkit.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/partner-applications","title":"Partner applications","purpose":"Review broker, agency, and rep onboarding submissions from /register/rep.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/resources","title":"Resources","purpose":"Manage the collateral that partners download.","notes":null,"auth":"Staff","sitemap":false}]},{"label":"Operations","routes":[{"path":"/admin/hierarchy","title":"Hierarchy","purpose":"Sites → accounts → organizations. Also where a site's branding, domain, and integrations are edited.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/eligibility","title":"Eligibility files","purpose":"Upload and reconcile employer member rosters.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/vendor-files","title":"Vendor files","purpose":"Generate and download outbound vendor files for manual delivery.","notes":null,"auth":"Staff","sitemap":false}]},{"label":"Finance","routes":[{"path":"/admin/billing","title":"Billing","purpose":"Subscription billing and group invoices.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/list-bill","title":"List-bill management","purpose":"Payroll-deduction groups and monthly employer remittance.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/list-bill-invoices","title":"List-bill invoices","purpose":"Group-paid roster invoices.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/vendor-statements","title":"Vendor statements","purpose":"Locked monthly remittance statements for Toothlens, Careington, Ideal, and Ryze.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/invoice-calculator","title":"Revenue & dispersal","purpose":"Per-member revenue and dispersal breakdown by group and partner.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/commissions","title":"Commissions","purpose":"Agent commission reporting.","notes":"Coming soon — figures are not yet reliable.","auth":"Staff","sitemap":false},{"path":"/admin/shop","title":"Shop admin","purpose":"Affiliate products, ordering, and the storefront kill switch.","notes":null,"auth":"Staff","sitemap":false}]},{"label":"Support","routes":[{"path":"/admin/customer-service","title":"Customer service","purpose":"Member lookup and issue resolution.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/communications","title":"Communications","purpose":"Send or re-send member email one at a time or en masse, with the full send log.","notes":null,"auth":"Staff","sitemap":false}]},{"label":"System","routes":[{"path":"/admin/users","title":"Admin users","purpose":"Invite teammates and manage admin access.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/user-audit","title":"User lookup","purpose":"Reconcile one person across Clerk, Convex, and Toothlens; repair or delete identity records.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/audit-log","title":"Audit log","purpose":"Append-only, system-wide trail of admin actions.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/settings","title":"Site settings","purpose":"Global site text: name, contact details, social links.","notes":"Branding, domain, and integrations live under Hierarchy → Edit Site, not here.","auth":"Staff","sitemap":false},{"path":"/admin/dev-tools","title":"Dev tools","purpose":"Developer and maintenance utilities.","notes":null,"auth":"Owner","sitemap":false}]},{"label":"Help","routes":[{"path":"/admin/docs/sops","title":"SOP library","purpose":"Step-by-step procedures for recurring admin tasks.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/docs/guide","title":"Admin guide","purpose":"Narrative operator guide to the console.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/help","title":"Help & vocabulary","purpose":"Terminology and common workflows for new operators.","notes":null,"auth":"Staff","sitemap":false}]},{"label":"Detail pages (reached from the pages above, not the sidebar)","routes":[{"path":"/admin/members/:id","title":"Member detail","purpose":"Single member: subscription, dependents, scans, billing, audit trail.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/list-bill-invoices/:groupId","title":"Group invoice history","purpose":"Invoice history for one list-bill group.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/list-bill-invoices/invoice/:invoiceId","title":"Invoice detail","purpose":"Single list-bill invoice with line items and payment status.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/vendor-statements/:statementId","title":"Vendor statement detail","purpose":"One locked statement with its document and line detail.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/vendor-statements/activity","title":"Vendor statement activity","purpose":"Cross-vendor history of generation, locking, and delivery.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/vendor-statements/disclosure","title":"Vendor disclosure settings","purpose":"Controls which columns each vendor sees on their statement.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/docs/:section/:slug","title":"Doc article","purpose":"A single SOP or guide chapter, compiled from docs/admin/**.","notes":null,"auth":"Staff","sitemap":false}]}]},{"title":"CRM","blurb":"Internal staff only, gated a second time on top of the admin gate: some CRM contacts are themselves brokers.","groups":[{"label":null,"routes":[{"path":"/admin/crm","title":"CRM home","purpose":"Pipeline summary and today's work.","notes":"The whole /admin/crm tree is gated twice — once in the route layout and once per Convex function — because some CRM contacts are themselves brokers. Distribution partners never reach it.","auth":"Staff","sitemap":false},{"path":"/admin/crm/deals","title":"Pipeline","purpose":"Deal board by stage.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/crm/deals/:id","title":"Deal detail","purpose":"One deal: stage history, contacts, activity.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/crm/contacts","title":"Contacts","purpose":"Prospect and customer contacts.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/crm/contacts/:id","title":"Contact detail","purpose":"One contact: touch history, emails, calls, notes.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/crm/companies","title":"Companies","purpose":"Prospect organizations and their deal stage.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/crm/companies/:id","title":"Company detail","purpose":"One company: people, deals, activity.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/crm/tags","title":"Tags","purpose":"Tag taxonomy for contacts and companies.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/crm/segments","title":"Segments","purpose":"Saved filters used to target campaigns.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/crm/workflows","title":"Workflows","purpose":"Automation rules and sequences.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/crm/workflows/:id","title":"Workflow detail","purpose":"One workflow's steps and run history.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/crm/campaigns","title":"Campaigns","purpose":"Outbound email campaigns.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/crm/campaigns/new","title":"New campaign","purpose":"Compose and schedule a campaign.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/crm/campaigns/:id","title":"Campaign detail","purpose":"One campaign: recipients, sends, engagement.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/crm/drip","title":"Drip campaigns","purpose":"Multi-phase outreach tracks and who is enrolled on each.","notes":"A drip campaign is the track (e.g. five broker emails); a campaign under /admin/crm/campaigns is one blast within it. Enrollment, not the blast's recipient list, is what records who is on a track and at which phase.","auth":"Staff","sitemap":false},{"path":"/admin/crm/drip/:id","title":"Drip campaign detail","purpose":"One track: phase breakdown, members, and bulk phase moves.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/crm/import","title":"Import","purpose":"CSV import for contacts and companies.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/crm/inbox","title":"Inbox","purpose":"Inbound replies and unhandled conversations.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/crm/analytics","title":"CRM analytics","purpose":"Pipeline conversion and outbound performance.","notes":null,"auth":"Staff","sitemap":false},{"path":"/admin/crm/settings","title":"CRM settings","purpose":"Pipeline stages, sending identities, and compliance settings.","notes":null,"auth":"Staff","sitemap":false}]}]},{"title":"System","blurb":"Operational and development endpoints.","groups":[{"label":null,"routes":[{"path":"/unsubscribe/:token","title":"Unsubscribe","purpose":"One-click unsubscribe for CRM email recipients.","notes":"Public by necessity — the recipient has no account. The token is the only gate. Must stay reachable: CAN-SPAM requires it.","auth":"Public","sitemap":false},{"path":"/bootstrap","title":"Bootstrap first admin","purpose":"One-time setup that grants the first signed-in user admin access.","notes":"Setup utility. Should be removed or hard-gated once the first admin exists in an environment.","auth":"Member","sitemap":false},{"path":"/debug/email-test","title":"Email test harness","purpose":"Renders and sends transactional email templates against a test address.","notes":"Development aid. Blocked in robots.txt; not otherwise gated.","auth":"Public","sitemap":false},{"path":"/debug","title":"Debug tools index","purpose":"Index of the development-only preview and test harnesses.","notes":"Development aid. Blocked in robots.txt; not otherwise gated.","auth":"Public","sitemap":false},{"path":"/debug/email-preview","title":"Email template preview","purpose":"Renders every template in the email registry from fixture data, without sending.","notes":"Development aid. Blocked in robots.txt; not otherwise gated.","auth":"Public","sitemap":false},{"path":"/debug/pdf-preview","title":"PDF document preview","purpose":"Renders any PDF the system can generate from fixture data — no real member or invoice needed.","notes":"Development aid. Blocked in robots.txt; not otherwise gated.","auth":"Public","sitemap":false},{"path":"/debug/employer-membership-agreement","title":"Agreement preview","purpose":"Renders the employer membership agreement PDF for proofreading.","notes":"Development aid. Blocked in robots.txt; not otherwise gated.","auth":"Public","sitemap":false},{"path":"/sitemap.xml","title":"Sitemap","purpose":"Generated from this registry by src/app/sitemap.ts.","notes":null,"auth":"Public","sitemap":false},{"path":"/robots.txt","title":"Robots","purpose":"Generated from ROBOTS_DISALLOW by src/app/robots.ts.","notes":null,"auth":"Public","sitemap":false}]}]}],"api":[{"title":"Stripe","prefix":"/api/stripe","purpose":"Checkout, subscription changes, refunds, and the billing portal.","auth":"Member","endpoints":["POST /api/stripe/checkout","POST /api/stripe/change-plan","POST /api/stripe/cancel","POST /api/stripe/setup-payment","POST /api/stripe/billing-portal","GET  /api/stripe/member-invoices","POST /api/stripe/sync","POST /api/stripe/admin-cancel  (staff)","POST /api/stripe/admin-refund  (staff)","POST /api/stripe/webhook       (unauthenticated by design — Stripe-signed)"]},{"title":"Clerk identity","prefix":"/api/clerk","purpose":"User directory reads and identity webhook intake.","auth":"Staff","endpoints":["GET    /api/clerk/users","GET    /api/clerk/users/:id","DELETE /api/clerk/users/:id","POST   /api/clerk/webhook  (unauthenticated by design — Svix-signed)"]},{"title":"Admin operations","prefix":"/api/admin","purpose":"Server-side admin utilities: PDF generation, invite lookup, vendor delivery.","auth":"Staff","endpoints":["GET  /api/admin/get-invite-by-email","GET  /api/admin/post-signup-check","GET  /api/admin/members/:memberId/id-card","GET  /api/admin/list-bill-invoices/:invoiceId/group-pdf","GET  /api/admin/list-bill-invoices/preview-sample","POST /api/admin/vendor-deliver","GET  /api/admin/vendor-statements/:statementId/document","GET  /api/admin/vendor-statements/period/:period/document"]},{"title":"CRM public endpoints","prefix":"/api/crm","purpose":"Endpoints reachable by email recipients, who have no account.","auth":"Public","endpoints":["GET /api/crm/unsubscribe"]},{"title":"Twilio voice","prefix":"/api/twilio","purpose":"Click-to-call from the CRM: token minting, call control, recordings.","auth":"Staff","endpoints":["GET  /api/twilio/token","POST /api/twilio/voice      (Twilio-signed)","POST /api/twilio/status     (Twilio-signed)","POST /api/twilio/recording  (Twilio-signed)"]},{"title":"Documents & PDFs","prefix":"/api/documents","purpose":"Generates member cards, agreements, W-9s, and fulfillment paperwork.","auth":"Member","endpoints":["GET/POST /api/documents","POST     /api/member-card-pdf","POST     /api/generate-partner-agreement-pdf","POST     /api/generate-w9-pdf","POST     /api/generate-fulfillment-pdf"]},{"title":"Toothlens","prefix":"/api/toothlens","purpose":"Scan completion callback from the SmileScan provider.","auth":"Signed webhook","endpoints":["POST /api/toothlens/scan-completed"]},{"title":"Resend","prefix":"/api/resend","purpose":"Email delivery, open, click, and bounce events.","auth":"Signed webhook","endpoints":["POST /api/resend/webhook"]},{"title":"Shop","prefix":"/api/shop","purpose":"Affiliate outbound click tracking.","auth":"Public","endpoints":["POST /api/shop/click"]},{"title":"Attribution","prefix":"/api/track","purpose":"Records rep-link visits for attribution reporting.","auth":"Public","endpoints":["POST /api/track/rep-visit"]},{"title":"Email test","prefix":"/api/test-email","purpose":"Development-only send used by /debug/email-test.","auth":"Public","endpoints":["POST /api/test-email"]}]}</script>
+<script>
+  (function () {
+    const data = JSON.parse(document.getElementById("registry-data").textContent);
+    const el = (id) => document.getElementById(id);
+
+    const LEVEL_KEY = {
+      Public: "public",
+      Member: "member",
+      Partner: "partner",
+      Staff: "staff",
+      Owner: "owner",
+      "Signed webhook": "webhook",
+    };
+
+    const levelVars = (label) => {
+      const key = LEVEL_KEY[label] || "webhook";
+      return `--lvl-bg: var(--lvl-${key}-bg); --lvl-fg: var(--lvl-${key}-fg);`;
+    };
+
+    const esc = (s) =>
+      String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+    // Dynamic segments are the one place a path earns colour — they mark where
+    // a real id goes, which is what a reader is actually scanning for.
+    const renderPath = (path) =>
+      esc(path).replace(/:([A-Za-z0-9_]+)/g, '<span class="param">:$1</span>');
+
+    // Minimal inline markdown so the callouts can carry emphasis and code.
+    const inline = (s) =>
+      esc(s)
+        .replace(/`([^`]+)`/g, "<code>$1</code>")
+        .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*([^*]+)\*/g, "<em>$1</em>");
+
+    el("eyebrow").textContent = data.brand;
+    el("lede").textContent = data.lede;
+    el("origin").innerHTML = inline(data.origin);
+    el("colophon").innerHTML = inline(data.colophon);
+    el("sitemapSummary").innerHTML = inline(data.sitemapSummary);
+    el("robots").textContent = data.robots.map((r) => "Disallow: " + r).join("\n");
+
+    el("tiles").innerHTML = data.stats
+      .map((s) => `<div class="tile"><span class="n">${esc(s.value)}</span><span class="k">${esc(s.label)}</span></div>`)
+      .join("");
+
+    el("callouts").innerHTML = data.callouts.map((c) => `<li>${inline(c)}</li>`).join("");
+
+    // ── Route sections ────────────────────────────────────────────
+    el("sections").innerHTML = data.sections
+      .map(
+        (section) => `
+        <section class="area" data-area>
+          <header>
+            <h2 class="area-title">${esc(section.title)}</h2>
+            <p class="area-blurb">${inline(section.blurb)}</p>
+          </header>
+          ${section.groups
+            .map(
+              (group) => `
+            ${group.label ? `<h3 class="group-title" data-group-title>${esc(group.label)}</h3>` : ""}
+            <div class="rows" data-group>
+              ${group.routes
+                .map(
+                  (route) => `
+                <div class="row" data-row data-level="${esc(route.auth)}" data-haystack="${esc(
+                    (route.path + " " + route.title + " " + route.purpose + " " + (route.notes || "") + " " + section.title).toLowerCase(),
+                  )}">
+                  <div class="path">${renderPath(route.path)}</div>
+                  <div class="desc">${esc(route.purpose)}${
+                    route.notes ? `<span class="note">${esc(route.notes)}</span>` : ""
+                  }</div>
+                  <div class="meta">
+                    <span class="indexed" data-on="${route.sitemap ? "yes" : "no"}">${
+                      route.sitemap ? "In sitemap" : "Not indexed"
+                    }</span>
+                    <span class="level" style="${levelVars(route.auth)}">${esc(route.auth)}</span>
+                  </div>
+                </div>`,
+                )
+                .join("")}
+            </div>`,
+            )
+            .join("")}
+        </section>`,
+      )
+      .join("");
+
+    // ── API groups ────────────────────────────────────────────────
+    el("api").innerHTML = data.api
+      .map(
+        (group) => `
+        <div class="api-group">
+          <div class="api-head">
+            <h3>${esc(group.title)}</h3>
+            <span class="prefix">${esc(group.prefix)}</span>
+            <span class="level" style="${levelVars(group.auth)}; margin-left:auto">${esc(group.auth)}</span>
+          </div>
+          <p class="api-purpose">${esc(group.purpose)}</p>
+          <pre>${esc(group.endpoints.join("\n"))}</pre>
+        </div>`,
+      )
+      .join("");
+
+    // ── Filtering ─────────────────────────────────────────────────
+    const levels = [...new Set(data.sections.flatMap((s) => s.groups.flatMap((g) => g.routes.map((r) => r.auth))))];
+    const active = new Set();
+
+    el("levelFilters").innerHTML = levels
+      .map(
+        (level) =>
+          `<button class="chip" type="button" data-level="${esc(level)}" aria-pressed="false" style="${levelVars(
+            level,
+          )}">${esc(level)}</button>`,
+      )
+      .join("");
+
+    const rows = [...document.querySelectorAll("[data-row]")];
+    const groups = [...document.querySelectorAll("[data-group]")];
+    const areas = [...document.querySelectorAll("[data-area]")];
+
+    function apply() {
+      const term = el("q").value.trim().toLowerCase();
+      const terms = term ? term.split(/\s+/) : [];
+      let shown = 0;
+
+      for (const row of rows) {
+        const haystack = row.dataset.haystack;
+        const levelOk = active.size === 0 || active.has(row.dataset.level);
+        const textOk = terms.every((t) => haystack.includes(t));
+        const visible = levelOk && textOk;
+        row.hidden = !visible;
+        if (visible) shown++;
+      }
+
+      // Hide a group and its heading once every row inside it is filtered out,
+      // so the page never shows an empty container under a live heading.
+      for (const group of groups) {
+        const any = [...group.querySelectorAll("[data-row]")].some((r) => !r.hidden);
+        group.hidden = !any;
+        const heading = group.previousElementSibling;
+        if (heading && heading.hasAttribute("data-group-title")) heading.hidden = !any;
+      }
+
+      for (const area of areas) {
+        area.hidden = ![...area.querySelectorAll("[data-row]")].some((r) => !r.hidden);
+      }
+
+      const total = rows.length;
+      el("count").textContent =
+        shown === total ? `${total} routes` : `${shown} of ${total} routes`;
+    }
+
+    el("q").addEventListener("input", apply);
+    el("q").addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        el("q").value = "";
+        apply();
+      }
+    });
+
+    el("levelFilters").addEventListener("click", (e) => {
+      const chip = e.target.closest(".chip");
+      if (!chip) return;
+      const level = chip.dataset.level;
+      if (active.has(level)) active.delete(level);
+      else active.add(level);
+      chip.setAttribute("aria-pressed", active.has(level) ? "true" : "false");
+      apply();
+    });
+
+    apply();
+  })();
+</script>

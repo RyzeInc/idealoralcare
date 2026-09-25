@@ -4,15 +4,15 @@
 
 **Who can do this:** Any admin (Owner or Editor).
 
-**Trigger:** Employer eligibility file marks someone termed, or an employee is manually termed from list-bill, and they've since asked to keep their coverage.
+**When you'd do this:** Employer eligibility file marks someone termed, or an employee is manually termed from list-bill, and they've since asked to keep their coverage.
 
 **Related guide:** [List-Bill](../guide/03-finance.md#list-bill-adminlist-bill), [Members](../guide/01-members-partners.md#members-adminmembers)
 
 ## Steps — via the List-Bill page
 
-1. Go to `/admin/list-bill` (⚠️ no sidebar link — bookmark it or navigate by URL).
+1. Go to `/admin/list-bill` (note: no sidebar link — bookmark it or navigate by URL).
 2. Open the relevant employer group and switch to the **Termed Members** tab.
-3. Find the employee. If they have an email on file, click **Send Re-enrollment Link**. If the button is greyed out/disabled, they have no email on record — you'll need to add one first (see [SOP-011](SOP-011-investigate-member-identity-issue.md)'s "Edit all fields" via User Audit, or the Members page's inline edit) before a link can be sent.
+3. Find the employee. If they have an email on file, click **Send Re-enrollment Link**. If the button is greyed out/disabled, they have no email on record — you'll need to add one first (see [SOP-011](SOP-011-investigate-member-identity-issue.md)'s "Edit all fields" via User Lookup, or the Members page's inline edit) before a link can be sent.
 4. Confirm the toast reports success.
 
 ## Steps — equivalent path via the Members page

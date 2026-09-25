@@ -1,25 +1,12 @@
-import type { Metadata } from "next";
+"use client";
+
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import HealthHeader from "@/components/health/HealthHeader";
 import { FAQJsonLd, BreadcrumbJsonLd } from "@/components/seo/JsonLd";
+import { useSiteThemeOptional } from "@/components/providers/SiteThemeProvider";
 
-export const metadata: Metadata = {
-  title: "Frequently Asked Questions | Ideal Health Oral Health Plan",
-  description:
-    "Get answers to common questions about Ideal Health oral health plans, dental discount networks, teledentistry, AI oral scanning, pricing, and how to enroll.",
-  alternates: { canonical: "/health/faq" },
-  openGraph: {
-    title: "FAQ — Ideal Health Oral Health Plans",
-    description:
-      "Everything you need to know about dental discount plans, teledentistry, AI oral scanning, and Ideal Health membership.",
-    url: "https://getidealoh.com/health/faq",
-    images: [
-      { url: "/health-assets/og-default.png", width: 1200, height: 630 },
-    ],
-  },
-};
-
-const FAQ_SECTIONS = [
+function getFAQSections(n: string) { return [
   {
     heading: "General Dental Questions",
     questions: [
@@ -51,22 +38,22 @@ const FAQ_SECTIONS = [
     ],
   },
   {
-    heading: "About Ideal Health",
+    heading: `About ${n}`,
     questions: [
       {
-        question: "What is Ideal Health?",
+        question: `What is ${n}?`,
         answer:
-          "Ideal Health is an oral health membership that combines three powerful tools: AI Oral Scanning from your smartphone, 24/7 teledentistry consultations with licensed dentists, and access to a nationwide Dental Discount Network of 140,000+ providers — saving members 20–58% on dental procedures.",
+          `${n} is an oral health membership that combines three powerful tools: AI Oral Scanning from your smartphone, 24/7 teledentistry consultations with licensed dentists, and access to a nationwide Dental Discount Network of 140,000+ providers — saving members 20–58% on dental procedures.`,
       },
       {
-        question: "Is Ideal Health dental insurance?",
+        question: `Is ${n} dental insurance?`,
         answer:
-          "No. Ideal Health is a dental discount program, not insurance. There are no claims to file, no waiting periods, no annual maximums, and no deductibles. You pay the discounted price directly to your dentist at the time of service.",
+          `No. ${n} is a dental discount program, not insurance. There are no claims to file, no waiting periods, no annual maximums, and no deductibles. You pay the discounted price directly to your dentist at the time of service.`,
       },
       {
-        question: "Who is Ideal Health for?",
+        question: `Who is ${n} for?`,
         answer:
-          "Ideal Health is for anyone who wants affordable dental care — whether you're uninsured, self-employed, retired, between jobs, or simply looking for a more affordable alternative to traditional dental insurance. Plans are available for individuals and families.",
+          `${n} is for anyone who wants affordable dental care — whether you're uninsured, self-employed, retired, between jobs, or simply looking for a more affordable alternative to traditional dental insurance. Plans are available for individuals and families.`,
       },
     ],
   },
@@ -74,14 +61,14 @@ const FAQ_SECTIONS = [
     heading: "Plans & Pricing",
     questions: [
       {
-        question: "How much does Ideal Health cost?",
+        question: `How much does ${n} cost?`,
         answer:
           "Individual plans start at $14.99/month and family plans (unlimited dependents) start at $24.99/month. Annual billing options are also available at a discount. There are no hidden fees, deductibles, or additional costs beyond your membership and the discounted service price.",
       },
       {
         question: "What's included in every plan?",
         answer:
-          "Every Ideal Health plan includes AI Oral Health Scanning, 24/7 teledentistry consultations, and access to the Dental Discount Network with 140,000+ participating providers. Family plans include unlimited dependents.",
+          `Every ${n} plan includes AI Oral Health Scanning, 24/7 teledentistry consultations, and access to the Dental Discount Network with 140,000+ participating providers. Family plans include unlimited dependents.`,
       },
       {
         question: "What's the difference between individual and family plans?",
@@ -91,7 +78,7 @@ const FAQ_SECTIONS = [
       {
         question: "Can I cancel anytime?",
         answer:
-          "Yes. You can cancel your Ideal Health membership at any time from your member dashboard. There are no cancellation fees or long-term contracts.",
+          `Yes. You can cancel your ${n} membership at any time from your member dashboard. There are no cancellation fees or long-term contracts.`,
       },
     ],
   },
@@ -111,7 +98,7 @@ const FAQ_SECTIONS = [
       {
         question: "Are there waiting periods before I can use the dental discount?",
         answer:
-          "No. Your Ideal Health membership activates within 24 hours of enrollment. You can start using your discounts immediately — there are no waiting periods for any procedure.",
+          `No. Your ${n} membership activates within 24 hours of enrollment. You can start using your discounts immediately — there are no waiting periods for any procedure.`,
       },
       {
         question: "Is there a limit to how much I can save each year?",
@@ -126,7 +113,7 @@ const FAQ_SECTIONS = [
       {
         question: "What is teledentistry?",
         answer:
-          "Teledentistry is virtual dental care. With Ideal Health, you can connect with a licensed dentist 24/7 via phone or video call to get diagnoses, treatment recommendations, prescriptions (when clinically appropriate), and second opinions — all from home.",
+          `Teledentistry is virtual dental care. With ${n}, you can connect with a licensed dentist 24/7 via phone or video call to get diagnoses, treatment recommendations, prescriptions (when clinically appropriate), and second opinions — all from home.`,
       },
       {
         question: "When should I use teledentistry?",
@@ -156,7 +143,7 @@ const FAQ_SECTIONS = [
       {
         question: "How accurate is the AI scan?",
         answer:
-          "The AI model has been trained on thousands of dental images and identifies visible dental concerns with high accuracy. Results should be discussed with a dental professional — which is why Ideal Health includes 24/7 teledentistry in every plan.",
+          `The AI model has been trained on thousands of dental images and identifies visible dental concerns with high accuracy. Results should be discussed with a dental professional — which is why ${n} includes 24/7 teledentistry in every plan.`,
       },
     ],
   },
@@ -169,9 +156,9 @@ const FAQ_SECTIONS = [
           "Visit our plans page, choose individual or family, select monthly or annual billing, and complete checkout. Your membership activates within 24 hours. No paperwork, no approval process.",
       },
       {
-        question: "Can I use Ideal Health alongside dental insurance?",
+        question: `Can I use ${n} alongside dental insurance?`,
         answer:
-          "Yes. Some members use Ideal Health as a supplement to their insurance — using the dental discount network for procedures not covered by their plan, or using teledentistry and AI scanning for convenience between covered visits.",
+          `Yes. Some members use ${n} as a supplement to their insurance — using the dental discount network for procedures not covered by their plan, or using teledentistry and AI scanning for convenience between covered visits.`,
       },
       {
         question: "Is there a contract or commitment?",
@@ -180,10 +167,10 @@ const FAQ_SECTIONS = [
       },
     ],
   },
-];
+]; }
 
-// Flatten all Q&As for the JSON-LD schema
-const ALL_QUESTIONS = FAQ_SECTIONS.flatMap((s) =>
+const STATIC_FAQ_SECTIONS = getFAQSections("Ideal Oral Health");
+const ALL_QUESTIONS = STATIC_FAQ_SECTIONS.flatMap((s) =>
   s.questions.map((q) => ({
     question: q.question,
     answer: q.answer,
@@ -191,6 +178,11 @@ const ALL_QUESTIONS = FAQ_SECTIONS.flatMap((s) =>
 );
 
 export default function FAQPage() {
+  const pathname = usePathname();
+  const basePath = `/${pathname.split("/")[1]}`;
+  const theme = useSiteThemeOptional();
+  const brandName = theme?.site?.name ?? "Ideal Oral Health";
+  const faqSections = getFAQSections(brandName);
   return (
     <div className="health-landing">
       <HealthHeader />
@@ -226,7 +218,7 @@ export default function FAQPage() {
                 margin: "0 auto",
               }}
             >
-              Everything you need to know about Ideal Health oral health plans.
+              Everything you need to know about {brandName} oral health plans.
               Can&apos;t find what you&apos;re looking for?{" "}
               <a
                 href="mailto:support@getidealoh.com"
@@ -238,7 +230,7 @@ export default function FAQPage() {
             </p>
           </div>
 
-          {FAQ_SECTIONS.map((section) => (
+          {faqSections.map((section) => (
             <div key={section.heading} style={{ marginBottom: "3rem" }}>
               <h2
                 style={{
@@ -318,7 +310,7 @@ export default function FAQPage() {
               Plans start at $14.99/month. No waiting periods. No annual
               maximums. Cancel anytime.
             </p>
-            <Link href="/health/plans" className="button button--primary">
+            <Link href={`${basePath}/plans`} className="button button--primary">
               View Plans & Pricing
             </Link>
           </div>

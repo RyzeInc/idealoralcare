@@ -275,6 +275,7 @@ function validateCareingtonRows(
  */
 export const getVendorConfigurations = query({
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     return [
       {
         vendor: "Dental Discount Network",
@@ -301,6 +302,7 @@ export const getVendorFilePreview = query({
     groupId: v.id("groups"),
   },
   handler: async (ctx, args): Promise<any> => {
+    await requireAdmin(ctx);
     const group: any = await ctx.runQuery(api.admin.hierarchy.getGroupById, { groupId: args.groupId });
     if (!group) throw new Error("Group not found");
 
@@ -759,6 +761,7 @@ export const getVendorFileHistory = query({
     vendor: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     // Placeholder: in production, query from a vendorFileGeneration table
     return {
       groupId: args.groupId,

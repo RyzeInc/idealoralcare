@@ -10,6 +10,7 @@ import type { MutationCtx } from "../_generated/server";
 import { v } from "convex/values";
 import { requireAdmin } from "../lib/authGuards";
 import { recordAdminAction } from "./adminAudit";
+import { createMemberProfile } from "../lib/memberCreation";
 
 /**
  * Shared helper — call from within any mutation to auto-grant free full access.
@@ -325,6 +326,143 @@ export const grantFullFreeAccess = mutation({
       entitlementIds,
       periodEnd,
       message: `Free access granted to ${args.productIds.length} product(s) until ${new Date(periodEnd).toISOString()}`,
+    };
+  },
+});
+
+/**
+ * ONE-CLICK COMP: take a person who only has a Clerk login (no memberProfiles
+ * row) and turn them into a full member — creates their memberProfiles row
+ * (so they show up on the group's vendor/eligibility file), a $0 subscription
+ * bundle, and an entitlement for the chosen plan. Used by the "Grant Free
+ * Access" action on the User Lookup (Clerk Only) admin screen.
+ */
+export const grantFreeAccessAndEnroll = mutation({
+  args: {
+    clerkUserId: v.string(),
+    email: v.string(),
+    firstName: v.string(),
+    lastName: v.string(),
+    groupId: v.id("groups"),
+    productId: v.id("catalogProducts"),
+    durationDays: v.optional(v.number()),
+    notes: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await requireAdmin(ctx);
+
+    const existingProfile = await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_customer", (q) => q.eq("customerId", args.clerkUserId))
+      .first();
+    if (existingProfile) {
+      throw new Error(
+        `This user already has a member profile (${existingProfile.memberId}). Use the Members admin page to manage their plan instead.`
+      );
+    }
+
+    const group = await ctx.db.get(args.groupId);
+    if (!group) throw new Error("Group not found");
+
+    const now = Date.now();
+    const durationMs = (args.durationDays ?? 365) * 24 * 60 * 60 * 1000;
+    const periodEnd = now + durationMs;
+
+    // 1. Member profile — memberType "active" so they're immediately usable
+    //    and included in the group's Careington/DialCare vendor file.
+    const profile = await createMemberProfile(ctx, {
+      groupId: args.groupId,
+      groupOverride: group,
+      customerId: args.clerkUserId,
+      firstName: args.firstName,
+      lastName: args.lastName,
+      email: args.email,
+      memberType: "active",
+      memberRole: "primary",
+      leadType: "referral",
+      signupSource: "admin_comp_grant",
+    });
+
+    await ctx.db.insert("memberActivities", {
+      memberProfileId: profile._id,
+      siteId: group.siteId,
+      groupId: args.groupId,
+      activityType: "plan_activated",
+      title: "Comped by admin",
+      description: args.notes ?? `Free access granted by admin on ${new Date(now).toISOString()}`,
+      actorType: "admin",
+      actorId: identity.clerkUserId,
+      createdAt: now,
+    });
+
+    // 2. $0 subscription bundle (reuse an existing active one if this Clerk
+    //    user somehow already has one, e.g. a prior comp/paid grant).
+    let bundleId = (
+      await ctx.db.query("subscriptionBundles").collect()
+    ).find((b) => b.customerId === args.clerkUserId && b.status === "active")?._id;
+
+    if (!bundleId) {
+      bundleId = await ctx.db.insert("subscriptionBundles", {
+        customerId: args.clerkUserId,
+        cadence: "annual",
+        paymentMethod: "card",
+        stripeCustomerId: `free_local_${args.clerkUserId}`,
+        stripeSubscriptionId: `free_${now}`,
+        status: "active",
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+        pricingSnapshot: {
+          cadence: "annual",
+          paymentMethod: "card",
+          totalCents: 0,
+          planCount: 1,
+          capturedAt: now,
+        },
+        createdAt: now,
+        updatedAt: now,
+        activatedAt: now,
+      });
+    }
+
+    // 3. Entitlement for the chosen plan.
+    const entitlementId = await ctx.db.insert("entitlements", {
+      customerId: args.clerkUserId,
+      bundleId,
+      productId: args.productId,
+      periodStart: now,
+      periodEnd,
+      status: "active",
+      endCondition: "expire",
+      createdAt: now,
+      activatedAt: now,
+      expiresAt: periodEnd,
+      createdVia: "admin_action",
+      notes: args.notes ?? `Free access granted by admin on ${new Date(now).toISOString()}`,
+    });
+
+    await recordAdminAction(ctx, identity, {
+      action: "grantFreeAccessAndEnroll",
+      targetType: "memberProfiles",
+      targetId: String(profile._id),
+      summary: `Comped ${args.firstName} ${args.lastName} (${args.email}) into ${group.name} on plan ${args.productId}`,
+      metadata: {
+        clerkUserId: args.clerkUserId,
+        groupId: args.groupId,
+        productId: args.productId,
+        bundleId,
+        entitlementId,
+        durationDays: args.durationDays ?? 365,
+        notes: args.notes,
+      },
+    });
+
+    return {
+      memberProfileId: profile._id,
+      memberId: profile.memberId,
+      careingtonUniqueId: profile.careingtonUniqueId,
+      bundleId,
+      entitlementId,
+      periodEnd,
     };
   },
 });

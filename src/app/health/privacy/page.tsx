@@ -1,35 +1,36 @@
-import { Metadata } from "next";
+"use client";
+
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-export const metadata: Metadata = {
-  title: "Privacy Policy | Ideal Health",
-  description: "Privacy policy for Ideal Health discount program by Ideal.",
-};
+import { useSiteThemeOptional } from "@/components/providers/SiteThemeProvider";
 
 export default function IdealHealthPrivacyPage() {
+  const theme = useSiteThemeOptional();
+  const brandName = theme?.site?.name ?? "Ideal Oral Health";
+  const supportEmail = theme?.site?.enrollmentDefaults?.supportEmail ?? "support@getidealoh.com";
+  const supportPhone = theme?.site?.enrollmentDefaults?.supportPhone ?? "";
+  const address = theme?.site?.branding?.footerText ?? "1846 Fernando Ln, Tallahassee, FL 32303";
+
   return (
     <main className="min-h-screen">
-      {/* Header */}
       <section className="py-16 md:py-20">
         <div className="container mx-auto max-w-4xl px-4">
           <Button asChild variant="ghost" size="sm" className="mb-6 bg-white/50 hover:bg-white/70">
             <Link href="/health">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Ideal Health
+              Back to {brandName}
             </Link>
           </Button>
           <h1 className="font-[family-name:var(--font-playfair)] text-4xl font-medium tracking-tight text-[#0F1320] md:text-5xl">
             Privacy Policy
           </h1>
           <p className="mt-4 text-[#64748B]">
-            Ideal Health Discount Program
+            {brandName} Discount Program
           </p>
         </div>
       </section>
 
-      {/* Content */}
       <section className="py-12">
         <div className="container mx-auto max-w-4xl px-4">
           <div className="prose prose-sm max-w-none space-y-6 text-[#354158]">
@@ -38,9 +39,7 @@ export default function IdealHealthPrivacyPage() {
                 Introduction
               </h2>
               <p>
-                This Privacy Policy explains how Ideal ("we," "us," "our," or "Company") 
-                collects, uses, discloses, and otherwise processes personal information in 
-                connection with the Ideal Health discount program.
+                This Privacy Policy explains how {brandName} (&ldquo;we,&rdquo; &ldquo;us,&rdquo; &ldquo;our,&rdquo; or &ldquo;Company&rdquo;) collects, uses, discloses, and otherwise processes personal information in connection with the {brandName} discount program.
               </p>
             </div>
 
@@ -67,7 +66,7 @@ export default function IdealHealthPrivacyPage() {
                 We use the information we collect to:
               </p>
               <ul className="list-disc list-inside space-y-2 ml-2">
-                <li>Operate and maintain the Ideal Health program</li>
+                <li>Operate and maintain the {brandName} program</li>
                 <li>Process your enrollment and manage your membership</li>
                 <li>Communicate with you about the program and updates</li>
                 <li>Comply with legal obligations</li>
@@ -79,8 +78,7 @@ export default function IdealHealthPrivacyPage() {
                 Information Sharing
               </h2>
               <p>
-                We may share information with participating healthcare providers to facilitate 
-                discounted services. We do not sell your personal information to third parties.
+                We may share information with participating healthcare providers to facilitate discounted services. We do not sell your personal information to third parties.
               </p>
             </div>
 
@@ -89,9 +87,7 @@ export default function IdealHealthPrivacyPage() {
                 Data Security
               </h2>
               <p>
-                We implement appropriate technical and organizational measures to protect your 
-                personal information. However, no method of transmission over the internet is 
-                completely secure.
+                We implement appropriate technical and organizational measures to protect your personal information. However, no method of transmission over the internet is completely secure.
               </p>
             </div>
 
@@ -100,9 +96,7 @@ export default function IdealHealthPrivacyPage() {
                 Your Rights and Choices
               </h2>
               <p>
-                You may have rights regarding your personal information, including the right to 
-                access, correct, or delete your information. Contact us for more information about 
-                your rights.
+                You may have rights regarding your personal information, including the right to access, correct, or delete your information. Contact us for more information about your rights.
               </p>
             </div>
 
@@ -111,14 +105,13 @@ export default function IdealHealthPrivacyPage() {
                 Contact Us
               </h2>
               <p>
-                If you have questions about this Privacy Policy or our privacy practices, please 
-                contact us at:
+                If you have questions about this Privacy Policy or our privacy practices, please contact us at:
               </p>
               <p className="mt-4">
-                <strong>Ideal (Ideal LLC)</strong><br />
-                1846 Fernando Ln<br />
-                Tallahassee, FL 32303<br />
-                Email: support@getidealoh.com
+                <strong>{brandName}</strong><br />
+                {address}<br />
+                Email: {supportEmail}
+                {supportPhone && <><br />Phone: {supportPhone}</>}
               </p>
             </div>
 

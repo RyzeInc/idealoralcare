@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
     }
 
     const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || "");
+    let processingFailed = false;
 
     switch (event.type) {
       case "checkout.session.completed": {
@@ -72,6 +73,12 @@ export async function POST(req: NextRequest) {
           let accountId: string;
           let groupId: string;
           let enrollmentSessionDocId: string | undefined;
+          // Census fields collected by a wizard flow (e.g. /health/enroll)
+          // before the user had an account, synced onto the session's
+          // stepData in the review step. Stripe Checkout itself only ever
+          // collects name/email.
+          let sessionPersonalInfo: any;
+          let sessionAddress: any;
 
           if (enrollmentSessionId) {
             try {
@@ -83,6 +90,8 @@ export async function POST(req: NextRequest) {
               accountId = enrollmentSession.accountId;
               groupId = enrollmentSession.groupId;
               enrollmentSessionDocId = enrollmentSession._id;
+              sessionPersonalInfo = (enrollmentSession as any).stepData?.personalInfo;
+              sessionAddress = (enrollmentSession as any).stepData?.address;
             } catch {
               console.warn(`[webhook] Enrollment session not found: ${enrollmentSessionId}. Falling back to DTC hierarchy.`);
               const hierarchy = await convex.query(api.enrollment.sessions.getDTCHierarchy, siteSlug ? { siteSlug } : {});
@@ -101,6 +110,36 @@ export async function POST(req: NextRequest) {
             siteId = hierarchy.siteId;
             accountId = hierarchy.accountId;
             groupId = hierarchy.groupId;
+          }
+
+          // Backstop: a DTC checkout never ran the enrollment wizard, so no
+          // enrollmentSessions row exists. Create one now — before the member
+          // — so their attribution stamp resolves through the enrollment path
+          // and the production funnel sees the sale. Idempotent on the Stripe
+          // Checkout session id, so a replay reuses the same row.
+          const brokerValueForAttribution = brokerCode || referralCode;
+          let effectiveSessionKey: string | undefined = enrollmentSessionId;
+          if (!enrollmentSessionDocId) {
+            try {
+              const backstop = await convex.mutation(
+                api.enrollment.sessions.webhookEnsureEnrollmentSession,
+                {
+                  stripeCheckoutSessionId: session.id,
+                  siteId: siteId as any,
+                  accountId: accountId as any,
+                  groupId: groupId as any,
+                  brokerValue: brokerValueForAttribution || undefined,
+                  signupSource: brokerValueForAttribution
+                    ? `referral:${brokerValueForAttribution}`
+                    : `stripe:${session.id}`,
+                }
+              );
+              enrollmentSessionDocId = backstop._id;
+              effectiveSessionKey = backstop.sessionId;
+            } catch (backstopErr) {
+              // Non-fatal: the member is still created, just without a session.
+              console.error("[webhook] Could not create backstop enrollment session:", backstopErr);
+            }
           }
 
           // Get Stripe subscription to extract pricing/billingdetails
@@ -139,7 +178,7 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          const memberProfileId = await convex.mutation(
+          const memberResult = await convex.mutation(
             api.enrollment.members.webhookCreateMemberProfile,
             {
               siteId: siteId as any,
@@ -154,9 +193,11 @@ export async function POST(req: NextRequest) {
                 ? `referral:${referralCode}`
                 : `stripe:${enrollmentSessionId || session.id}`,
               enrollmentSessionId: enrollmentSessionDocId as any,
-              // Profile fields collected during account creation
-              phone: metadata.memberPhone || undefined,
-              dateOfBirth: normalizedDOB,
+              // Profile fields collected during account creation, falling back
+              // to census data a wizard flow (e.g. /health/enroll) synced onto
+              // the enrollment session — Stripe Checkout only collects name/email.
+              phone: metadata.memberPhone || sessionPersonalInfo?.phone || undefined,
+              dateOfBirth: normalizedDOB || sessionPersonalInfo?.dateOfBirth || undefined,
               gender: normalizedGender,
               address: metadata.memberAddress1 ? {
                 line1: metadata.memberAddress1,
@@ -165,9 +206,39 @@ export async function POST(req: NextRequest) {
                 state: metadata.memberState,
                 postalCode: metadata.memberZip,
                 country: "US",
-              } : undefined,
+              } : sessionAddress || undefined,
             }
           );
+          // Support both old (plain ID string) and new ({ profileId, memberId, subscriberId }) return shapes
+          const memberProfileId: any = (memberResult as any)?.profileId ?? memberResult;
+          const createdMemberId: string = (memberResult as any)?.memberId ?? "";
+
+          // Close the session -> member link. RepAttributionResolver indexes
+          // sessions BY member, so an unlinked session is invisible to it and
+          // the member would silently fall back to group attribution.
+          if (enrollmentSessionDocId && memberProfileId) {
+            try {
+              await convex.mutation(api.enrollment.sessions.webhookLinkSessionMember, {
+                enrollmentSessionId: enrollmentSessionDocId as any,
+                memberId: memberProfileId,
+              });
+            } catch (linkSessionErr) {
+              console.error("[webhook] Could not link member to enrollment session:", linkSessionErr);
+            }
+          }
+
+          // Link the signed membership agreement (captured at checkout with a
+          // placeholder memberId) to the real Careington member ID now that it exists.
+          if (createdMemberId) {
+            try {
+              await convex.mutation(api.legal.membershipAgreements.linkAgreementToMember, {
+                userId: clerkUserId,
+                memberId: createdMemberId,
+              });
+            } catch (linkErr) {
+              console.error("[webhook] Failed to link membership agreement to member:", linkErr);
+            }
+          }
 
           // 2. Create subscription bundle
           const bundleId = await convex.mutation(api.subscriptions.mutations.webhookCreateBundle, {
@@ -215,7 +286,7 @@ export async function POST(req: NextRequest) {
 
           // Resolve the rep tracking code → Clerk-free Convex IDs.
           // effectiveBrokerCode is the rep code STRING (e.g. "100001"), never a Clerk ID.
-          const effectiveBrokerCode = brokerCode || referralCode;
+          const effectiveBrokerCode = brokerValueForAttribution;
           let attributedRepLeaderId: string | undefined; // partnerLeaders._id
           let attributedAgencyId: string | undefined;    // distributionPartners._id
           if (effectiveBrokerCode) {
@@ -234,12 +305,13 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // 4. Complete enrollment session (only if we found one).
-          //    Persist rep attribution on the sale record (canonical source of truth).
-          if (enrollmentSessionId) {
+          // 4. Complete the enrollment session — the wizard's, or the backstop
+          //    created above for a DTC checkout. Persist rep attribution on the
+          //    sale record (canonical source of truth).
+          if (effectiveSessionKey) {
             try {
               await convex.mutation(api.enrollment.sessions.completeEnrollmentSession, {
-                sessionId: enrollmentSessionId,
+                sessionId: effectiveSessionKey,
                 bundleId,
                 customerId: clerkUserId,
                 brokerId: attributedRepLeaderId,
@@ -251,21 +323,33 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // 5. Create commission record if a rep is attributed.
-          //    Clerk-free: brokerId = partnerLeaders._id, agencyId = distributionPartners._id.
-          if (attributedRepLeaderId) {
+          // 5. Record the commission.
+          //
+          // This previously inserted a payable at a hardcoded 15%. The mutation
+          // now resolves the code to a real rep id and reads the contracted rate
+          // from commissionRates — and where it cannot determine both, it
+          // records nothing and says why rather than inventing a figure.
+          if (effectiveBrokerCode) {
             try {
-              await convex.mutation(api.subscriptions.commissions.createCommissionPayable, {
-                brokerId: attributedRepLeaderId,
-                agencyId: attributedAgencyId,
-                enrollmentSessionId: enrollmentSessionDocId as any,
-                memberId: memberProfileId,
-                rateApplied: 0.15, // Default 15% - will be overridden by commissionRates
-                amount: Math.round(totalCents * 0.15), // Auto-calculated
-                period: new Date().toISOString().slice(0, 7), // YYYY-MM
-              });
+              const commissionResult = await convex.mutation(
+                api.subscriptions.commissions.recordCommissionForCheckout,
+                {
+                  brokerValue: effectiveBrokerCode,
+                  enrollmentSessionId: enrollmentSessionDocId as any,
+                  memberId: memberProfileId,
+                  groupId: groupId as any,
+                  siteId: siteId as any,
+                  totalCents,
+                }
+              );
+              if (!commissionResult.recorded) {
+                console.warn(
+                  `[webhook] No commission recorded for "${effectiveBrokerCode}": ${commissionResult.reason}`
+                );
+              }
             } catch (commissionError) {
               // Don't fail the whole webhook for commission tracking issues
+              console.error("[webhook] Commission recording failed:", commissionError);
             }
           }
 
@@ -317,34 +401,56 @@ export async function POST(req: NextRequest) {
               const memberFirstName =
                 (session.customer_details?.name || cardData.memberName || "Member").split(" ")[0];
 
+              // The PDFs are rendered here, in-process, and handed to the Convex
+              // action. Letting the action fetch /api/generate-*-pdf instead is
+              // a Convex→Next request that Vercel Deployment Protection blocks.
+              // If in-process rendering fails, the action falls back to that fetch.
               if (isEssentialsSlug(cardData.productSlug)) {
+                const packet = {
+                  memberName: cardData.memberName,
+                  memberFirstName,
+                  memberEmail,
+                  essentialsMemberNumber: cardData.essentialsMemberNumber,
+                  essentialsGroupNumber: cardData.essentialsGroupNumber,
+                  planName: cardData.planName,
+                  coverageType: essentialsCoverageLabel(cardData.productSlug),
+                  effectiveDate: cardData.effectiveDate,
+                };
+                let rendered: { pdfBase64?: string; agreementPdfBase64?: string } = {};
+                try {
+                  const { generateEssentialsPdfs } = await import("@/lib/generate-essentials-pdf");
+                  const pdfs = await generateEssentialsPdfs({ ...packet });
+                  rendered = { pdfBase64: pdfs.pdf, agreementPdfBase64: pdfs.agreementPdf };
+                } catch (renderErr) {
+                  console.error("[webhook] In-process Essentials PDF render failed; action will fetch:", renderErr);
+                }
                 await convex.action(
                   (api as any)["legal/emailFulfillment"].sendEssentialsPacketEmail,
-                  {
-                    memberName: cardData.memberName,
-                    memberFirstName,
-                    memberEmail,
-                    essentialsMemberNumber: cardData.essentialsMemberNumber,
-                    essentialsGroupNumber: cardData.essentialsGroupNumber,
-                    planName: cardData.planName,
-                    coverageType: essentialsCoverageLabel(cardData.productSlug),
-                    effectiveDate: cardData.effectiveDate,
-                  },
+                  { ...packet, ...rendered },
                 );
               } else {
+                const packet = {
+                  memberName: cardData.memberName,
+                  memberFirstName,
+                  memberEmail,
+                  memberId: cardData.memberId,
+                  subscriberId: cardData.subscriberId,
+                  groupCode: PROVIDER_GROUP_CODE,
+                  planName: cardData.planName,
+                  effectiveDate: cardData.effectiveDate,
+                  networks: cardData.networks,
+                };
+                let rendered: { pdfBase64?: string; agreementPdfBase64?: string } = {};
+                try {
+                  const { generateFulfillmentPdfs } = await import("@/lib/generate-fulfillment-pdf");
+                  const pdfs = await generateFulfillmentPdfs({ ...packet });
+                  rendered = { pdfBase64: pdfs.pdf, agreementPdfBase64: pdfs.agreementPdf };
+                } catch (renderErr) {
+                  console.error("[webhook] In-process PDF render failed; action will fetch:", renderErr);
+                }
                 await convex.action(
                   (api as any)["legal/emailFulfillment"].sendFulfillmentPacketEmail,
-                  {
-                    memberName: cardData.memberName,
-                    memberFirstName,
-                    memberEmail,
-                    memberId: cardData.memberId,
-                    subscriberId: cardData.subscriberId,
-                    groupCode: PROVIDER_GROUP_CODE,
-                    planName: cardData.planName,
-                    effectiveDate: cardData.effectiveDate,
-                    networks: cardData.networks,
-                  },
+                  { ...packet, ...rendered },
                 );
               }
             }
@@ -355,6 +461,7 @@ export async function POST(req: NextRequest) {
           }
         } catch (error) {
           console.error("[webhook] Error processing checkout.session.completed:", error);
+          processingFailed = true;
           try {
             await convex.mutation(api.subscriptions.mutations.webhookLogEvent, {
               eventType: "checkout.session.completed",
@@ -414,6 +521,7 @@ export async function POST(req: NextRequest) {
           }
         } catch (error) {
           console.error("[webhook] Error processing invoice.payment_succeeded:", error);
+          processingFailed = true;
         }
         break;
       }
@@ -461,6 +569,7 @@ export async function POST(req: NextRequest) {
           });
         } catch (error) {
           console.error("[webhook] Error processing invoice.payment_failed:", error);
+          processingFailed = true;
         }
         break;
       }
@@ -545,6 +654,7 @@ export async function POST(req: NextRequest) {
           }
         } catch (error) {
           console.error("[webhook] Error processing customer.subscription.updated:", error);
+          processingFailed = true;
         }
         break;
       }
@@ -615,6 +725,7 @@ export async function POST(req: NextRequest) {
           });
         } catch (error) {
           console.error("[webhook] Error processing customer.subscription.deleted:", error);
+          processingFailed = true;
 
           // Log failure event
           try {
@@ -637,6 +748,12 @@ export async function POST(req: NextRequest) {
 
       default:
         break;
+    }
+
+    if (processingFailed) {
+      // Non-2xx so Stripe retries delivery and surfaces this in its dashboard —
+      // this only affects webhook retry/alerting, not the underlying charge/subscription.
+      return NextResponse.json({ received: true, error: "Processing failed, see events log" }, { status: 500 });
     }
 
     return NextResponse.json({ received: true });

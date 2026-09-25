@@ -2,6 +2,8 @@ import { mutation, query } from "../_generated/server";
 import { MutationCtx, QueryCtx } from "../_generated/server";
 import { v } from "convex/values";
 import { PROVIDER_GROUP_CODE } from "../lib/constants";
+import { restampMemberAttribution } from "../lib/repAttribution";
+import { resolveBrokerKey } from "../lib/brokerResolve";
 
 /**
  * Enrollment Session Management
@@ -65,11 +67,15 @@ export const initializeEnrollment = mutation({
           disclosureText: "This plan is not insurance.",
         },
         activationBehavior: "immediate",
+        // Must match convex/catalog/mutations.ts — classifyTier() in
+        // lib/dispersal.ts matches these totals exactly, so a bootstrap that
+        // seeds different prices produces bundles worth $0 to the revenue
+        // engine. This branch only fires when catalogProducts is empty.
         pricing: {
-          monthlyCardCents: 1500,
-          monthlyACHCents: 1300,
-          annualCardCents: 15000,
-          annualACHCents: 13000,
+          monthlyCardCents: 1499,
+          monthlyACHCents: 1499,
+          annualCardCents: 16499,
+          annualACHCents: 16499,
         },
         metadata: { icon: "Smile", bestFor: ["Individuals", "Families"] },
         isVisible: true,
@@ -375,7 +381,109 @@ export const completeEnrollmentSession = mutation({
 
     await ctx.db.patch(session._id, patch);
 
+    // Refresh the member's denormalized attribution stamp. A session that only
+    // reaches "completed" here may have been created before its broker code
+    // was known, so the stamp written at member-creation time can be stale.
+    if (session.memberId) {
+      await restampMemberAttribution(ctx, session.memberId);
+    }
+
     return { ...session, ...patch };
+  },
+});
+
+/**
+ * Ensure a DTC checkout has an enrollment session (the "backstop").
+ *
+ * The direct-to-consumer path goes straight from /health/plans to Stripe
+ * Checkout without running the enrollment wizard, so historically it created
+ * no `enrollmentSessions` row at all. That left two holes:
+ *
+ *   - the production funnel had no record of the sale, and
+ *   - rep attribution for those members could only ever come from the group
+ *     deal (Scenario B), losing the rep who actually sold it.
+ *
+ * This writes the missing row so both paths look the same downstream. It is
+ * keyed on the Stripe Checkout session id, so a webhook replay finds the
+ * existing row instead of creating a duplicate.
+ *
+ * Called BEFORE member creation, so the member's attribution stamp resolves
+ * through the enrollment path like any wizard signup.
+ */
+export const webhookEnsureEnrollmentSession = mutation({
+  args: {
+    stripeCheckoutSessionId: v.string(),
+    siteId: v.id("sites"),
+    accountId: v.id("accounts"),
+    groupId: v.id("groups"),
+    /** Rep id, tracking code, or Clerk user ID — resolved by lookup. */
+    brokerValue: v.optional(v.string()),
+    signupSource: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const sessionId = `stripe:${args.stripeCheckoutSessionId}`;
+
+    const existing = await ctx.db
+      .query("enrollmentSessions")
+      .withIndex("by_session_id", (q) => q.eq("sessionId", sessionId))
+      .first();
+    if (existing) {
+      return { _id: existing._id, sessionId, created: false };
+    }
+
+    const resolved = args.brokerValue
+      ? await resolveBrokerKey(ctx, args.brokerValue)
+      : null;
+
+    const now = Date.now();
+    const _id = await ctx.db.insert("enrollmentSessions", {
+      sessionId,
+      siteId: args.siteId,
+      accountId: args.accountId,
+      groupId: args.groupId,
+      enrollmentType: "individual",
+      // The wizard never ran; record that plainly rather than inventing steps.
+      currentStep: "confirmation",
+      completedSteps: [],
+      status: "in_progress",
+      signupSource: args.signupSource,
+      brokerId: resolved?.leaderId,
+      agencyId: resolved?.agencyId ?? undefined,
+      // Keep the code as supplied when it did not resolve, so the value is
+      // still visible for a later backfill rather than being discarded.
+      brokerTrackingCode: resolved?.code ?? args.brokerValue,
+      createdAt: now,
+      updatedAt: now,
+      expiresAt: now + 24 * 60 * 60 * 1000,
+    });
+
+    return { _id, sessionId, created: true };
+  },
+});
+
+/**
+ * Link a member to their enrollment session.
+ *
+ * `RepAttributionResolver` indexes sessions BY member, so a session without
+ * `memberId` is invisible to it and that member silently falls back to group
+ * attribution. The backstop session above is created before the member exists,
+ * so this closes the link immediately afterwards.
+ */
+export const webhookLinkSessionMember = mutation({
+  args: {
+    enrollmentSessionId: v.id("enrollmentSessions"),
+    memberId: v.id("memberProfiles"),
+  },
+  handler: async (ctx, args) => {
+    const session = await ctx.db.get(args.enrollmentSessionId);
+    if (!session) return { linked: false };
+    if (session.memberId === args.memberId) return { linked: true };
+
+    await ctx.db.patch(args.enrollmentSessionId, {
+      memberId: args.memberId,
+      updatedAt: Date.now(),
+    });
+    return { linked: true };
   },
 });
 
@@ -396,9 +504,13 @@ export const getEnrollmentSession = query({
 });
 
 /**
- * Get the default DTC (direct-to-consumer) site/account/group hierarchy.
- * Used by the Stripe sync reconciliation to assign orphaned subscriptions.
- * Accepts an optional siteSlug to support multi-site DTC flows (e.g. "newideal").
+ * Get the DTC (direct-to-consumer) site/account/group hierarchy for a given
+ * site slug, defaulting to the primary "ideal-health" site when no slug is
+ * given. Used as a fallback when an enrollment session is missing (e.g. Stripe
+ * sync reconciliation for orphaned subscriptions, or checkout flows that skip
+ * the enrollment wizard) — the slug lets white-label signups (e.g.
+ * "flourishxv") still resolve to their own site instead of silently
+ * defaulting to the primary brand.
  */
 export const getDTCHierarchy = query({
   args: { siteSlug: v.optional(v.string()) },

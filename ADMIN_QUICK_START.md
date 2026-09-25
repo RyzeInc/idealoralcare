@@ -1,6 +1,8 @@
 # Admin Quick Start Guide
 
-Welcome to the Ideal Health platform administration panel. This guide covers day-to-day administrative tasks and configuration.
+Welcome to the Ideal Oral Health platform administration panel. This guide covers day-to-day administrative tasks and configuration.
+
+> **Looking for more depth?** [`docs/admin/`](docs/admin/README.md) has a full feature-by-feature guide (how each admin page actually works internally, including known bugs/stubs) plus a concrete SOP library (step-by-step runbooks for common tasks like onboarding an employer group, processing a refund, or generating vendor files). This file remains the quick first-time-setup overview; `docs/admin/` is the deeper reference.
 
 > **Looking for more depth?** [`docs/admin/`](docs/admin/README.md) has a full feature-by-feature guide (how each admin page actually works internally, including known bugs/stubs) plus a concrete SOP library (step-by-step runbooks for common tasks like onboarding an employer group, processing a refund, or generating vendor files). This file remains the quick first-time-setup overview; `docs/admin/` is the deeper reference.
 
@@ -29,7 +31,7 @@ You can now create additional admin users from the `Users` page.
 The platform uses a three-level hierarchy:
 
 ```
-Site (e.g., "Ideal Health")
+Site (e.g., "Ideal Oral Health")
   ├─ Account (e.g., "East Coast Insurance")
   │   ├─ Group (e.g., "Group A - Manufacturing")
   │   └─ Group (e.g., "Group B - Healthcare")
@@ -44,7 +46,7 @@ Site (e.g., "Ideal Health")
 
 1. Go to `/admin/hierarchy`
 2. Click on the **Sites** tab
-3. You should see "Ideal Health" as the default site
+3. You should see "Ideal Oral Health" as the default site
 4. Click **Edit** to customize:
    - Name
    - Domain (used for branded enrollment links)

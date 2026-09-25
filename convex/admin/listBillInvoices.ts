@@ -44,6 +44,14 @@ import {
 import { v } from "convex/values";
 import { requireAdmin } from "../lib/authGuards";
 import { DISPERSAL } from "../lib/dispersal";
+import {
+  BILLABLE_MEMBER_TYPES,
+  classifyListBillTier,
+  resolveListBillRates,
+  resolveListBillRateCents,
+  type InvoiceTier,
+  type ResolvedRates,
+} from "../lib/memberBilling";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -51,15 +59,8 @@ import { DISPERSAL } from "../lib/dispersal";
 
 const DEFAULT_RATE_LABEL = "Ideal Oral Health";
 
-// Member lifecycle states that should be billed on a list-bill invoice.
-// Includes "eligible" (not just "active"/"enrolling") because members loaded
-// from an employer eligibility file who lack an email address can never be
-// portal-provisioned (see convex/admin/eligibilityProvisioning.ts, which
-// requires an email to create the Clerk account and flip memberType to
-// "active"/"enrolling"). Employer coverage — and the obligation to bill for
-// it — starts at eligibility-file ingest, not at portal signup, so those
-// members must stay billable indefinitely in "eligible" status.
-const BILLABLE_MEMBER_TYPES = new Set(["active", "enrolling", "eligible"]);
+// Billable lifecycle states now live in lib/memberBilling.ts so the dashboard
+// bills on exactly the same definition this generator invoices on.
 
 /**
  * True if a member's coverage effective date (if any) has begun on or before
@@ -179,7 +180,6 @@ export function resolveInvoiceColumns(
 // Types
 // ---------------------------------------------------------------------------
 
-type InvoiceTier = "MO" | "MS" | "MF";
 
 export interface InvoiceLine {
   memberProfileId: Id<"memberProfiles">;
@@ -252,57 +252,11 @@ export function computeAgingBucket(
 // Core computation — tier classification + rate resolution
 // ---------------------------------------------------------------------------
 
-function classifyTier(
-  deps: Doc<"memberProfiles">[],
-): { tier: InvoiceTier; dependentCount: number } {
-  const active = deps.filter(
-    (d) =>
-      BILLABLE_MEMBER_TYPES.has(d.memberType) &&
-      d.memberRole === "dependent",
-  );
-  const count = active.length;
-  if (count === 0) return { tier: "MO", dependentCount: 0 };
-  if (count >= 2) return { tier: "MF", dependentCount: count };
-  const dep = active[0];
-  const rel = dep.relationship;
-  if (rel === "child") return { tier: "MF", dependentCount: 1 };
-  if (rel === "spouse" || rel === "domestic_partner")
-    return { tier: "MS", dependentCount: 1 };
-  // no relationship set → conservative MO
-  return { tier: "MO", dependentCount: 1 };
-}
-
 function resolveRates(
   group: Doc<"groups">,
   account: Doc<"accounts">,
-): { moCents: number; msCents: number; mfCents: number; rateLabel: string } {
-  // Priority 1: group-level custom rates
-  const gr = (group.listBill as any)?.rates;
-  if (gr?.moCents !== undefined) {
-    return {
-      moCents: gr.moCents,
-      msCents: gr.msCents,
-      mfCents: gr.mfCents,
-      rateLabel: gr.rateLabel ?? DEFAULT_RATE_LABEL,
-    };
-  }
-  // Priority 2: account custom pricing (first product, monthly card cents)
-  const cp = (account as any).customPricing?.[0];
-  if (cp?.monthlyCardCents !== undefined) {
-    return {
-      moCents: cp.monthlyCardCents,
-      msCents: cp.monthlyCardCents,
-      mfCents: cp.monthlyCardCents,
-      rateLabel: DEFAULT_RATE_LABEL,
-    };
-  }
-  // Priority 3: dispersal defaults
-  return {
-    moCents: DISPERSAL.individual.grossCents,
-    msCents: DISPERSAL.family.grossCents,
-    mfCents: DISPERSAL.family.grossCents,
-    rateLabel: DEFAULT_RATE_LABEL,
-  };
+): ResolvedRates {
+  return resolveListBillRates(group, account);
 }
 
 async function buildInvoiceLines(
@@ -349,13 +303,12 @@ async function buildInvoiceLines(
     const deps = (dependentsByPrimary.get(primary._id) ?? []).filter(
       (d) => isEffectiveForPeriod(d.effectiveDate, coverageEnd) && existedByPeriodEnd(d.createdAt, coverageEnd),
     );
-    const { tier, dependentCount } = classifyTier(deps);
+    const { tier, dependentCount } = classifyListBillTier(deps);
     // Per-member premium captured from the eligibility file (e.g. Soar "Approved
     // EE Cost") is authoritative when present; otherwise fall back to the
     // tier-resolved contracted rate.
     const memberPremium = (primary as any).monthlyPremiumCents;
-    const tierRate = tier === "MO" ? moCents : tier === "MS" ? msCents : mfCents;
-    const rateCents = typeof memberPremium === "number" && memberPremium >= 0 ? memberPremium : tierRate;
+    const rateCents = resolveListBillRateCents(primary, tier, { moCents, msCents, mfCents, rateLabel });
     const productLabel = `${rateLabel} - ${TIER_SUFFIX[tier]}`;
     lines.push({
       memberProfileId: primary._id,

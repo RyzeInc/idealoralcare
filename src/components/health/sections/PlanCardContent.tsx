@@ -3,6 +3,7 @@
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import Link from "next/link";
+import { useSiteThemeOptional } from "@/components/providers/SiteThemeProvider";
 
 interface PlanCardContentProps {
   title?: string;
@@ -10,9 +11,12 @@ interface PlanCardContentProps {
 }
 
 export default function PlanCardContent({
-  title = "Ideal Oral Savings Plan",
+  title: _title,
   description = "Wide Ranging oral healthcare discount plan with AI scanning, teledentistry, and nationwide provider discounts.",
 }: PlanCardContentProps) {
+  const theme = useSiteThemeOptional();
+  const planName = `${theme?.site?.name ?? "Ideal Oral Health"} Savings Plan`;
+
   // Query for oral plan data from Convex
   const planData = useQuery(api.healthplans.oral.getOralPlan);
 
@@ -63,7 +67,7 @@ export default function PlanCardContent({
         <div className="plan-card">
           <div className="plan-card__badge">Everything Included</div>
 
-          <h3 className="plan-card__name">{planData.name}</h3>
+          <h3 className="plan-card__name">{planName}</h3>
 
 
           <ul className="plan-card__features">

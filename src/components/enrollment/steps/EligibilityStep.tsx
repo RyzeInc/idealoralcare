@@ -12,8 +12,8 @@
  */
 
 import { useState } from "react";
+import { useParams } from "next/navigation";
 import { useEnrollmentStep, useEnrollment } from "@/components/enrollment/EnrollmentProvider";
-import { PROVIDER_GROUP_CODE } from "@/lib/constants";
 import { ArrowRight, AlertCircle, Loader, WifiOff } from "lucide-react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -75,36 +75,15 @@ export function EligibilityStep() {
   const [localError, setLocalError] = useState("");
   const [convexOffline, setConvexOffline] = useState(false);
 
-  // TODO (Agent 2): Wire up Convex enrollment_sessions.initializeEnrollment mutation
-  // This needs to be properly integrated with the Convex API after schema deployment
-  // const initializeEnrollment = useMutation(api["enrollment/sessions"].initializeEnrollment);
-  
-  // Stub implementation for now - returns expected shape for local development
-  const initializeEnrollment = async (args: any) => {
-    const sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-    return {
-      sessionId,
-      site: {
-        _id: "site_ideal-health",
-        slug: "ideal-health",
-        name: "Ideal Health",
-        type: "primary" as const,
-        defaultCadence: "monthly" as const,
-      },
-      account: {
-        _id: "account_default",
-        slug: "ideal-health",
-        name: "Ideal Health",
-        accountType: "internal" as const,
-      },
-      group: {
-        _id: "group_default",
-        slug: "default",
-        name: "Default Group",
-        groupCode: PROVIDER_GROUP_CODE,
-      },
-    };
-  };
+  // This step (and the wizard as a whole) is also rendered under
+  // /[siteSlug]/enroll (a re-export of /health/enroll). useParams() reflects
+  // the matched route regardless of which file the component is physically
+  // defined in, so this correctly captures which white-label site the
+  // shopper is enrolling under.
+  const routeParams = useParams();
+  const siteSlug = typeof routeParams?.siteSlug === "string" ? routeParams.siteSlug : undefined;
+
+  const initializeEnrollment = useMutation(api.enrollment.sessions.initializeEnrollment);
 
   const validate = (): boolean => {
     if (meta.inputMode === "zip") {
@@ -137,7 +116,7 @@ export function EligibilityStep() {
           : "individual";
 
       const result = await initializeEnrollment({
-        siteSlug: "ideal-health",
+        siteSlug,
         groupCode: meta.inputMode === "group-code" ? fieldValue : undefined,
         enrollmentType,
         brokerCode:

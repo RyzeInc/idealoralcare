@@ -74,8 +74,11 @@ export async function POST(req: NextRequest) {
   const client = new ConvexHttpClient(convexUrl);
 
   try {
+    // Dispatcher tries, in order: crmCampaignRecipients (batch CRM send),
+    // crmActivities (one-off CRM send), then delegates unchanged to the
+    // original member-email logic. See convex/emailEvents.ts.
     const result = await client.mutation(
-      api.admin.eligibilityProvisioning.recordEmailDeliveryEvent,
+      api.emailEvents.recordResendEvent,
       {
         resendEmailId,
         eventType,

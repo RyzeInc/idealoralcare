@@ -21,6 +21,10 @@ import sop012 from "../../docs/admin/sops/SOP-012-manage-admin-users.md";
 import sop013 from "../../docs/admin/sops/SOP-013-reenroll-termed-listbill-employee.md";
 import sop014 from "../../docs/admin/sops/SOP-014-monthly-finance-reconciliation-checklist.md";
 import sop015 from "../../docs/admin/sops/SOP-015-troubleshoot-eligibility-file-errors.md";
+import sop016 from "../../docs/admin/sops/SOP-016-handle-partner-kit-lead.md";
+import sop017 from "../../docs/admin/sops/SOP-017-create-configure-site.md";
+import sop018 from "../../docs/admin/sops/SOP-018-manage-rep-codes.md";
+import sop019 from "../../docs/admin/sops/SOP-019-grant-free-comp-access.md";
 
 import guide00 from "../../docs/admin/guide/00-overview.md";
 import guide01 from "../../docs/admin/guide/01-members-partners.md";
@@ -56,6 +60,10 @@ export const ADMIN_DOCS: Record<string, AdminDocEntry> = {
   "sops/SOP-013-reenroll-termed-listbill-employee": { content: sop013, dir: "sops" },
   "sops/SOP-014-monthly-finance-reconciliation-checklist": { content: sop014, dir: "sops" },
   "sops/SOP-015-troubleshoot-eligibility-file-errors": { content: sop015, dir: "sops" },
+  "sops/SOP-016-handle-partner-kit-lead": { content: sop016, dir: "sops" },
+  "sops/SOP-017-create-configure-site": { content: sop017, dir: "sops" },
+  "sops/SOP-018-manage-rep-codes": { content: sop018, dir: "sops" },
+  "sops/SOP-019-grant-free-comp-access": { content: sop019, dir: "sops" },
 
   "guide/00-overview": { content: guide00, dir: "guide" },
   "guide/01-members-partners": { content: guide01, dir: "guide" },

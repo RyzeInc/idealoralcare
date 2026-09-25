@@ -4,7 +4,7 @@
 
 **Who can do this:** Any admin (Owner or Editor).
 
-**Trigger:** Member requests cancellation, employer reports someone left, or a status correction is needed.
+**When you'd do this:** Member requests cancellation, employer reports someone left, or a status correction is needed.
 
 **Related guide:** [Members](../guide/01-members-partners.md#members-adminmembers)
 
@@ -36,8 +36,8 @@
 
 ## If something goes wrong
 
-- **⚠️ You terminated a member but their Stripe subscription is still charging them** — this is expected, not a bug: terminating a member here is purely a Convex status change and does **not** cancel Stripe or issue a refund. Go to [Customer Service](../guide/04-support-system.md#customer-service-admincustomer-service) and cancel the subscription separately ([SOP-010](SOP-010-refund-or-cancel-subscription.md)).
-- **You need to permanently, completely delete a member's record** (not just terminate/soft-delete) — there's no button for that on this page. Use [User Audit](../guide/04-support-system.md#user-audit-adminuser-audit)'s "Delete permanently" instead ([SOP-011](SOP-011-investigate-member-identity-issue.md)), and cancel their Stripe subscription first if relevant.
+- **You terminated a member but their Stripe subscription is still charging them** — this is expected, not a bug: terminating a member here is purely a Convex status change and does **not** cancel Stripe or issue a refund. Go to [Customer Service](../guide/04-support-system.md#customer-service-admincustomer-service) and cancel the subscription separately ([SOP-010](SOP-010-refund-or-cancel-subscription.md)).
+- **You need to permanently, completely delete a member's record** (not just terminate/soft-delete) — there's no button for that on this page. Use [User Lookup](../guide/04-support-system.md#user-lookup-adminuser-audit)'s "Delete permanently" instead ([SOP-011](SOP-011-investigate-member-identity-issue.md)), and cancel their Stripe subscription first if relevant.
 - **You clicked "Download ID Card" and got an error** — that button is currently broken (calls a function that doesn't exist); there's no working ID-card export today. See [guide/05-known-issues.md #B2](../guide/05-known-issues.md).
 - **Bulk change reports a partial failure** — check the Activity Timeline of the members that didn't update; retry them individually since the bulk action doesn't automatically retry failures.
 

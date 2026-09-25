@@ -38,101 +38,91 @@ export async function GET() {
   return NextResponse.json({ templates: listEmailTemplates() });
 }
 
+/**
+ * Build the packet attachments in-process.
+ *
+ * Deliberately NOT a fetch to /api/generate-fulfillment-pdf: Vercel Deployment
+ * Protection blocks route-to-route fetches, which silently produced packet-less
+ * emails. See src/lib/generate-fulfillment-pdf.ts.
+ */
 async function buildFulfillmentAttachments(
   to: string,
   memberName: string,
   memberFirstName: string,
 ): Promise<{ filename: string; content: string }[] | undefined> {
-  const serverUrl = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${process.env.PORT || 3000}`;
   const sample = EMAIL_TEMPLATES['fulfillment-packet'].sample({
     firstName: memberFirstName,
     lastName: '',
     email: to,
   });
 
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  const internalSecret = process.env.INTERNAL_API_SECRET;
-  if (internalSecret) headers['Authorization'] = `Bearer ${internalSecret}`;
-
   try {
-    const res = await fetch(`${serverUrl}/api/generate-fulfillment-pdf`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        memberName,
-        memberFirstName,
-        memberEmail: to,
-        memberId: sample.memberId,
-        groupCode: sample.groupCode,
-        planName: sample.planName,
-        effectiveDate: sample.effectiveDate,
-        memberServicesPhone: sample.memberServicesPhone,
-      }),
+    const { generateFulfillmentPdfs } = await import('@/lib/generate-fulfillment-pdf');
+    const result = await generateFulfillmentPdfs({
+      memberName,
+      memberFirstName,
+      memberEmail: to,
+      memberId: sample.memberId,
+      groupCode: sample.groupCode,
+      planName: sample.planName,
+      effectiveDate: sample.effectiveDate,
+      memberServicesPhone: sample.memberServicesPhone,
     });
-    if (!res.ok) return undefined;
 
-    const data = await res.json();
     const attachments: { filename: string; content: string }[] = [];
-    if (data.pdf) {
-      attachments.push({ filename: 'Ideal_Oral_Health_Membership_Packet.pdf', content: data.pdf });
+    if (result.pdf) {
+      attachments.push({ filename: 'Ideal_Oral_Health_Membership_Packet.pdf', content: result.pdf });
     }
-    if (data.agreementPdf) {
-      attachments.push({ filename: 'Ideal_Oral_Health_Membership_Agreement.pdf', content: data.agreementPdf });
+    if (result.agreementPdf) {
+      attachments.push({ filename: 'Ideal_Oral_Health_Membership_Agreement.pdf', content: result.agreementPdf });
     }
     return attachments.length ? attachments : undefined;
-  } catch {
+  } catch (err) {
     // PDF generation failed — still send the email body so the template is testable.
+    console.error('[test-email] attachment generation failed:', err);
     return undefined;
   }
 }
 
+/** Essentials twin of buildFulfillmentAttachments — also in-process, for the same reason. */
 async function buildEssentialsAttachments(
   to: string,
   memberName: string,
   memberFirstName: string,
 ): Promise<{ filename: string; content: string }[] | undefined> {
-  const serverUrl = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${process.env.PORT || 3000}`;
   const sample = EMAIL_TEMPLATES['essentials-fulfillment-packet'].sample({
     firstName: memberFirstName,
     lastName: '',
     email: to,
   });
 
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  const internalSecret = process.env.INTERNAL_API_SECRET;
-  if (internalSecret) headers['Authorization'] = `Bearer ${internalSecret}`;
-
   try {
-    const res = await fetch(`${serverUrl}/api/generate-essentials-pdf`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        memberName,
-        memberFirstName,
-        memberEmail: to,
-        essentialsMemberNumber: sample.essentialsMemberNumber,
-        essentialsGroupNumber: sample.essentialsGroupNumber,
-        planName: sample.planName,
-        coverageType: sample.coverageType,
-        effectiveDate: sample.effectiveDate,
-      }),
+    const { generateEssentialsPdfs } = await import('@/lib/generate-essentials-pdf');
+    const result = await generateEssentialsPdfs({
+      memberName,
+      memberFirstName,
+      memberEmail: to,
+      essentialsMemberNumber: sample.essentialsMemberNumber,
+      essentialsGroupNumber: sample.essentialsGroupNumber,
+      planName: sample.planName,
+      coverageType: sample.coverageType,
+      effectiveDate: sample.effectiveDate,
     });
-    if (!res.ok) return undefined;
 
-    const data = await res.json();
     const attachments: { filename: string; content: string }[] = [];
-    if (data.pdf) {
-      attachments.push({ filename: 'Ideal_Health_Essentials_Welcome_Packet.pdf', content: data.pdf });
+    if (result.pdf) {
+      attachments.push({ filename: 'Ideal_Health_Essentials_Welcome_Packet.pdf', content: result.pdf });
     }
-    if (data.agreementPdf) {
+    if (result.agreementPdf) {
       attachments.push({
         filename: 'Ideal_Health_Essentials_Membership_Agreement.pdf',
-        content: data.agreementPdf,
+        content: result.agreementPdf,
       });
     }
     return attachments.length ? attachments : undefined;
-  } catch {
+  } catch (err) {
     // PDF generation failed — still send the email body so the template is testable.
+    console.error('[test-email] Essentials attachment generation failed:', err);
     return undefined;
   }
 }

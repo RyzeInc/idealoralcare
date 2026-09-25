@@ -8,15 +8,15 @@ Permission note: plain `requireAdmin` throughout — Owner and Editor have ident
 
 ## Hierarchy (`/admin/hierarchy`)
 
-The sidebar calls this **"Hierarchy"**; the page itself is titled **"Brokers & Organizations."** This manages the Site → Account → Group tree described in [00-overview.md §4](00-overview.md#4-distribution-hierarchy-vocabulary) — **not** the Distribution Partners sales chain covered in [01-members-partners.md](01-members-partners.md#distribution-adminbrokers) (confusingly, both use the word "Broker" in different UI labels).
+The sidebar calls this **"Hierarchy"**; the page is titled **"Sites, Accounts & Organizations."** This manages the Site → Account → Group tree described in [00-overview.md §4](00-overview.md#4-hierarchy-vocabulary) — **not** the [Brokers](01-members-partners.md#brokers-adminbrokers) sales/commission chain. (Both tiers used to be labeled "Broker"; that overload has been removed — the middle tier here is now called **"Accounts."**)
 
 ### What's on the page
 
-Three tabs, each with its own Create button (**Create Site (Carrier)**, **Create Broker**, **Create Organization**):
+Three tabs, each with its own Create button (**Create Site (Carrier)**, **Create Account**, **Create Organization**):
 
 - **Sites tab**: Name/Slug/Type/Domain/Status. Click the status pill to toggle active↔suspended inline.
-- **Brokers (Accounts) tab**: searchable; Name/Slug, Carrier, Type, Billing Model, Status.
-- **Organizations (Groups) tab**: searchable; Name, Org Code (Subscriber ID), Provider Group Code, Broker, a clickable **Members** count that expands a full status breakdown (lead/eligible/enrolling/active/inactive/terminated/declined, each drilling into a member list), Status.
+- **Accounts tab**: searchable; Name/Slug, Carrier, Type, Billing Model, Status.
+- **Organizations (Groups) tab**: searchable; Name, Org Code (Subscriber ID), Provider Group Code, Account, a clickable **Members** count that expands a full status breakdown (lead/eligible/enrolling/active/inactive/terminated/declined, each drilling into a member list), Status.
 - Group create/edit modal also has a **List-Bill** sub-section (enable payroll-deduction billing, payment method, due day, contact email) and a **Representative** field (rep-code attribution for commissions).
 
 ### How it works

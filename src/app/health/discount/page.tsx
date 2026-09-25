@@ -1,20 +1,10 @@
+"use client";
+
+import { usePathname } from "next/navigation";
 import HealthHeader from "@/components/health/HealthHeader";
 import Link from "next/link";
 import FindDentistEmbed from "@/components/health/FindDentistEmbed";
-
-export const metadata = {
-  title: "Dental Discount Network | Ideal Health",
-  description:
-    "Save 20%–58% on dental procedures through our national dental discount network. No waiting periods, no annual maximums.",
-  alternates: { canonical: "/health/discount" },
-  openGraph: {
-    title: "Save 20–58% on Dental Care | Dental Discount Network",
-    description:
-      "Access 140,000+ dental providers nationwide. Save on cleanings, crowns, root canals & more. No waiting periods, no annual maximums.",
-    url: "https://getidealoh.com/health/discount",
-    images: [{ url: "/health-assets/dentist-network-discount_1536x1024.png", width: 1536, height: 1024 }],
-  },
-};
+import { useSiteThemeOptional } from "@/components/providers/SiteThemeProvider";
 
 const SAVINGS_DATA = [
   { procedure: "Routine Checkup",                        regular: 76,   plan: 33,  savings: 43,  pct: 57 },
@@ -55,6 +45,10 @@ const FEATURES = [
 ];
 
 export default function DentalDiscountNetworkPage() {
+  const pathname = usePathname();
+  const basePath = `/${pathname.split("/")[1]}`;
+  const theme = useSiteThemeOptional();
+  const brandName = theme?.site?.name ?? "Ideal Oral Health";
   return (
     <div className="health-landing">
       <HealthHeader />
@@ -119,7 +113,7 @@ export default function DentalDiscountNetworkPage() {
             marginBottom: "1rem",
           }}
         >
-          Ideal Health Dental Discount Network
+          {brandName} Dental Discount Network
         </p>
           <h1
             style={{
@@ -146,7 +140,7 @@ export default function DentalDiscountNetworkPage() {
           <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
             <Link
               className="button button--accent"
-              href="/health/plans"
+              href={`${basePath}/plans`}
               style={{ padding: "12px 28px", fontSize: "0.9375rem" }}
             >
               Explore Plans

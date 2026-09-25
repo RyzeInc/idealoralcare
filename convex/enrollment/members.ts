@@ -266,7 +266,7 @@ export const webhookCreateMemberProfile = mutation({
   handler: async (ctx, args) => {
     const now = Date.now();
 
-    const { _id: profile } = await createMemberProfileShared(ctx, {
+    const { _id: profile, memberId, subscriberId } = await createMemberProfileShared(ctx, {
       groupId: args.groupId,
       customerId: args.customerId,
       firstName: args.firstName,
@@ -295,7 +295,9 @@ export const webhookCreateMemberProfile = mutation({
       createdAt: now,
     });
 
-    return profile;
+    // Profile id plus the member-facing ids, so the webhook can link the
+    // signed membership agreement to the real member ID.
+    return { profileId: profile, memberId, subscriberId };
   },
 });
 

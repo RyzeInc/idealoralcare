@@ -4,7 +4,7 @@
 
 **Who can do this:** Any admin (Owner or Editor).
 
-**Trigger:** Monthly, automatically drafted by cron on the 25th for the following month's coverage — or generated manually here for an off-cycle need.
+**When you'd do this:** Monthly, automatically drafted by cron on the 25th for the following month's coverage — or generated manually here for an off-cycle need.
 
 **Related guide:** [List-Bill Invoices](../guide/03-finance.md#list-bill-invoices-adminlist-bill-invoices)
 
@@ -33,7 +33,7 @@
 ## Verification
 
 - The group's **Aging Summary** (visible on that group's invoice-history page) should reflect the new invoice in the correct aging bucket, and drop it once fully paid.
-- Cross-check the invoice total against the same group/period on [Invoice Calculator](../guide/03-finance.md#invoice-calculator-admininvoice-calculator) if you also need the internal revenue-dispersal view — see [SOP-014](SOP-014-monthly-finance-reconciliation-checklist.md) for the full monthly reconciliation routine, including the known gap where this total can legitimately disagree with the plain Billing/List-Bill pages.
+- Cross-check the invoice total against the same group/period on [Revenue & Dispersal](../guide/03-finance.md#revenue--dispersal-admininvoice-calculator) if you also need the internal revenue-dispersal view — see [SOP-014](SOP-014-monthly-finance-reconciliation-checklist.md) for the full monthly reconciliation routine, including the known gap where this total can legitimately disagree with the plain Billing/List-Bill pages.
 
 ## If something goes wrong
 

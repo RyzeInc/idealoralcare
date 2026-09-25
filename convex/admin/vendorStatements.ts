@@ -93,7 +93,7 @@ export const VENDOR_IDENTITY: Record<VendorId, VendorIdentity> = {
     basis: "Flat service fee per covered primary",
   },
   ideal: {
-    name: "Ideal Health",
+    name: "Ideal Oral Health",
     amountField: "partnerVendorCents",
     adjustmentBucket: "partnerVendor",
     basis: "Remittance rate per covered primary by rate class",
@@ -214,7 +214,7 @@ export const STATEMENT_COLUMN_REGISTRY: Array<{
   { key: "toothlensCents", label: "Toothlens Share", group: "Money", internalOnly: true, sensitive: true, defaultFor: ["ryze"] },
   { key: "careingtonCents", label: "Careington Share", group: "Money", internalOnly: true, sensitive: true, defaultFor: ["ryze"] },
   { key: "processingCents", label: "Processing", group: "Money", internalOnly: true, sensitive: true, defaultFor: ["ryze"] },
-  { key: "partnerVendorCents", label: "Ideal Health Share", group: "Money", internalOnly: true, sensitive: true, defaultFor: ["ryze"] },
+  { key: "partnerVendorCents", label: "Ideal Oral Health Share", group: "Money", internalOnly: true, sensitive: true, defaultFor: ["ryze"] },
   { key: "ryzeKeepCents", label: "Ryze Keep", group: "Money", internalOnly: true, sensitive: true, defaultFor: ["ryze"] },
 ];
 
@@ -279,7 +279,7 @@ export const DISCLOSURE_FIELDS: Array<{
 /**
  * Starting defaults. Toothlens and Careington are paid a flat amount per
  * covered primary, so tier, employer, and rep would all disclose something
- * without explaining anything about what they are owed. Ideal Health pays its
+ * without explaining anything about what they are owed. Ideal Oral Health pays its
  * downstream reps out of its own remittance and needs to know which employer
  * a list-bill member came from to do it. Ryze is the internal carrier view.
  */
@@ -470,6 +470,9 @@ export interface StatementPayload {
   vendor: VendorId;
   vendorName: string;
   basis: string;
+  /** Null = book-wide (every site). Set = scoped to one white-label brand. */
+  siteId: Id<"sites"> | null;
+  siteName: string | null;
   period: string;
   coverageStart: number;
   coverageEnd: number;
@@ -1077,9 +1080,34 @@ function sortMemberLines(lines: StatementMemberLine[]): StatementMemberLine[] {
   );
 }
 
+/**
+ * Which site a close row belongs to.
+ *
+ * `invoicePeriods.siteId` is denormalized at close time, but rows closed before
+ * multi-site scoping shipped don't have it. Falling back to the row's group
+ * keeps site-scoped statements correct on historical months without requiring
+ * anyone to run the backfill first — the group is the same source the backfill
+ * copies from, so the two can never disagree.
+ */
+async function resolveSnapshotSiteId(
+  ctx: QueryCtx | MutationCtx,
+  snapshot: Doc<"invoicePeriods">,
+): Promise<Id<"sites"> | null> {
+  if (snapshot.siteId) return snapshot.siteId;
+  const group = await ctx.db.get(snapshot.groupId);
+  return group?.siteId ?? null;
+}
+
+/**
+ * The immutable close rows a statement is drawn from.
+ *
+ * @param siteId Restricts to one brand's groups. Omitted = book-wide, which is
+ *   the default and what a vendor contracted with the carrier is owed.
+ */
 async function loadClosedSnapshots(
   ctx: QueryCtx | MutationCtx,
   period: string,
+  siteId?: Id<"sites"> | null,
 ): Promise<Doc<"invoicePeriods">[]> {
   if (!/^\d{4}-\d{2}$/.test(period)) {
     throw new Error(`Invalid coverage month: ${period}`);
@@ -1090,16 +1118,31 @@ async function loadClosedSnapshots(
       `Coverage month ${period} has not finished yet. Statements cover completed months only.`,
     );
   }
-  const snapshots = await ctx.db
+  const all = await ctx.db
     .query("invoicePeriods")
     .withIndex("by_period", (q) => q.eq("period", period))
     .collect();
-  if (snapshots.length === 0) {
+  if (all.length === 0) {
     throw new Error(
       `Coverage month ${period} has not been closed. Close it in the Invoice Calculator before generating statements.`,
     );
   }
-  return snapshots;
+  if (!siteId) return all;
+
+  const scoped: Doc<"invoicePeriods">[] = [];
+  for (const snapshot of all) {
+    if ((await resolveSnapshotSiteId(ctx, snapshot)) === siteId) {
+      scoped.push(snapshot);
+    }
+  }
+  if (scoped.length === 0) {
+    const site = await ctx.db.get(siteId);
+    throw new Error(
+      `No closed organizations for ${site?.name ?? "that site"} in ${period}. ` +
+        `The month is closed, but none of its groups belong to this site.`,
+    );
+  }
+  return scoped;
 }
 
 /**
@@ -1114,9 +1157,11 @@ async function buildPayload(
   period: string,
   vendor: VendorId,
   adjustmentFilter?: (id: Id<"invoiceAdjustments">) => boolean,
+  siteId?: Id<"sites"> | null,
 ): Promise<StatementPayload> {
   const policy = await resolvePolicy(ctx, vendor);
-  const snapshots = await loadClosedSnapshots(ctx, period);
+  const snapshots = await loadClosedSnapshots(ctx, period, siteId);
+  const site = siteId ? await ctx.db.get(siteId) : null;
   const { coverageStart, coverageEnd } = coverageWindow(period);
 
   const { basis: attributionBasis, fallbackByMember } = await hydrateAttribution(
@@ -1153,8 +1198,14 @@ async function buildPayload(
     .query("invoiceAdjustments")
     .withIndex("by_period", (q) => q.eq("period", period))
     .collect();
+  // A site-scoped statement must only carry corrections against the close rows
+  // it actually covers. Keying on `periodId` rather than the adjustment's own
+  // group is exact by construction: `snapshots` IS the scoped row set, so an
+  // adjustment can never leak in from a brand this statement doesn't settle.
+  const scopedPeriodIds = new Set(snapshots.map((s) => String(s._id)));
   const adjustments: StatementAdjustment[] = allAdjustments
     .filter((a) => a.bucket === policy.adjustmentBucket)
+    .filter((a) => !siteId || scopedPeriodIds.has(String(a.periodId)))
     .filter((a) => (adjustmentFilter ? adjustmentFilter(a._id) : true))
     .sort((a, b) => a.createdAt - b.createdAt)
     .map((a) => ({
@@ -1170,6 +1221,8 @@ async function buildPayload(
     vendor,
     vendorName: policy.name,
     basis: policy.basis,
+    siteId: siteId ?? null,
+    siteName: site?.name ?? null,
     period,
     coverageStart,
     coverageEnd,
@@ -1213,10 +1266,15 @@ async function buildPayload(
  * document before committing to it.
  */
 export const previewStatement = query({
-  args: { period: v.string(), vendor: vendorValidator },
-  handler: async (ctx, { period, vendor }): Promise<StatementPayload> => {
+  args: {
+    period: v.string(),
+    vendor: vendorValidator,
+    /** Omit to preview the book-wide statement covering every site. */
+    siteId: v.optional(v.id("sites")),
+  },
+  handler: async (ctx, { period, vendor, siteId }): Promise<StatementPayload> => {
     await requireAdmin(ctx);
-    return buildPayload(ctx, period, vendor as VendorId);
+    return buildPayload(ctx, period, vendor as VendorId, undefined, siteId);
   },
 });
 
@@ -1230,22 +1288,67 @@ export const listStatementPeriods = query({
   handler: async (ctx) => {
     await requireAdmin(ctx);
     const closes = await ctx.db.query("invoicePeriods").collect();
+    const sites = await ctx.db.query("sites").collect();
+    const siteNameById = new Map(sites.map((s) => [String(s._id), s.name]));
+
+    // Resolve each close row to a site once. Rows closed before multi-site
+    // scoping shipped fall back to their group, same as the statement engine.
+    const groupSiteCache = new Map<string, Id<"sites"> | null>();
+    const siteOf = async (row: Doc<"invoicePeriods">) => {
+      if (row.siteId) return row.siteId;
+      const key = String(row.groupId);
+      if (!groupSiteCache.has(key)) {
+        const group = await ctx.db.get(row.groupId);
+        groupSiteCache.set(key, group?.siteId ?? null);
+      }
+      return groupSiteCache.get(key) ?? null;
+    };
+
+    interface SiteTally {
+      siteId: Id<"sites"> | null;
+      groupCount: number;
+      grossCents: number;
+    }
     const byPeriod = new Map<
       string,
-      { closedAt: number; groupCount: number; grossCents: number }
+      {
+        closedAt: number;
+        groupCount: number;
+        grossCents: number;
+        sites: Map<string, SiteTally>;
+      }
     >();
     for (const row of closes) {
+      const resolvedSite = await siteOf(row);
+      const siteKey = resolvedSite ? String(resolvedSite) : "__unassigned__";
       const cur = byPeriod.get(row.period);
       if (!cur) {
         byPeriod.set(row.period, {
           closedAt: row.closedAt,
           groupCount: 1,
           grossCents: row.grossCents,
+          sites: new Map([
+            [
+              siteKey,
+              { siteId: resolvedSite, groupCount: 1, grossCents: row.grossCents },
+            ],
+          ]),
         });
       } else {
         cur.groupCount += 1;
         cur.grossCents += row.grossCents;
         cur.closedAt = Math.max(cur.closedAt, row.closedAt);
+        const tally = cur.sites.get(siteKey);
+        if (tally) {
+          tally.groupCount += 1;
+          tally.grossCents += row.grossCents;
+        } else {
+          cur.sites.set(siteKey, {
+            siteId: resolvedSite,
+            groupCount: 1,
+            grossCents: row.grossCents,
+          });
+        }
       }
     }
 
@@ -1255,15 +1358,46 @@ export const listStatementPeriods = query({
     return Array.from(byPeriod.entries())
       .map(([period, info]) => {
         const forPeriod = live.filter((s) => s.period === period);
+        const bookWide = forPeriod.filter((s) => !s.siteId);
+        const perSite = forPeriod.filter((s) => s.siteId);
         return {
           period,
           closedAt: info.closedAt,
           groupCount: info.groupCount,
           grossCents: info.grossCents,
           statementCount: forPeriod.length,
+          // Which shape this month is being settled in. Book-wide and per-site
+          // are mutually exclusive, so the UI can offer only the valid action.
+          scope:
+            perSite.length > 0
+              ? ("perSite" as const)
+              : bookWide.length > 0
+                ? ("book" as const)
+                : ("none" as const),
+          // Vendors with no live BOOK-WIDE statement. Meaningless once the month
+          // is being settled per site, where coverage is tracked in `sites`.
           missingVendors: VENDOR_IDS.filter(
-            (id) => !forPeriod.some((s) => s.vendor === id),
+            (id) => !bookWide.some((s) => s.vendor === id),
           ),
+          sites: Array.from(info.sites.values())
+            .map((tally) => {
+              const forSite = perSite.filter(
+                (s) => String(s.siteId) === String(tally.siteId),
+              );
+              return {
+                siteId: tally.siteId,
+                siteName: tally.siteId
+                  ? siteNameById.get(String(tally.siteId)) ?? "Unknown site"
+                  : "Unassigned",
+                groupCount: tally.groupCount,
+                grossCents: tally.grossCents,
+                statementCount: forSite.length,
+                missingVendors: VENDOR_IDS.filter(
+                  (id) => !forSite.some((s) => s.vendor === id),
+                ),
+              };
+            })
+            .sort((a, b) => b.grossCents - a.grossCents),
         };
       })
       .sort((a, b) => (a.period < b.period ? 1 : -1));
@@ -1275,9 +1409,11 @@ export const listStatements = query({
     period: v.optional(v.string()),
     vendor: v.optional(vendorValidator),
     status: v.optional(v.string()),
+    /** Filter to one brand's statements. "book" selects the book-wide ones. */
+    siteId: v.optional(v.union(v.id("sites"), v.literal("book"))),
     limit: v.optional(v.number()),
   },
-  handler: async (ctx, { period, vendor, status, limit }) => {
+  handler: async (ctx, { period, vendor, status, siteId, limit }) => {
     await requireAdmin(ctx);
     let rows: Doc<"vendorStatements">[];
     if (vendor && period) {
@@ -1301,6 +1437,11 @@ export const listStatements = query({
       rows = await ctx.db.query("vendorStatements").order("desc").collect();
     }
     if (status) rows = rows.filter((r) => r.status === status);
+    if (siteId) {
+      rows = rows.filter((r) =>
+        siteId === "book" ? !r.siteId : r.siteId === siteId,
+      );
+    }
     return rows
       .sort((a, b) => b.statementNumber - a.statementNumber)
       .slice(0, limit ?? 500)
@@ -1388,8 +1529,15 @@ export const getStatement = query({
       .query("invoiceAdjustments")
       .withIndex("by_period", (q) => q.eq("period", row.period))
       .collect();
+    // On a site-scoped statement, only corrections against the close rows this
+    // statement actually covers are "mine". Without this, `unappliedAdjustments`
+    // below would nag finance to reissue a brand's statement because of a
+    // correction booked against a different brand entirely.
+    const sourceIds = new Set(row.sourcePeriodIds.map((id) => String(id)));
     const mine = periodAdjustments.filter(
-      (a) => a.bucket === policy.adjustmentBucket,
+      (a) =>
+        a.bucket === policy.adjustmentBucket &&
+        (!row.siteId || sourceIds.has(String(a.periodId))),
     );
     const toRow = (a: Doc<"invoiceAdjustments">): StatementAdjustment => ({
       id: a._id,
@@ -2192,6 +2340,7 @@ export const getStatementVerification = query({
       statementNumberDisplay: row.statementNumberDisplay,
       vendor: row.vendor,
       vendorName: row.vendorName,
+      siteName: row.siteName ?? null,
       period: row.period,
       status: row.status,
       amountField: policy.amountField,
@@ -2245,16 +2394,37 @@ async function createStatement(
     actor: string;
     paymentDueDate?: number;
     replacesId?: Id<"vendorStatements">;
+    siteId?: Id<"sites"> | null;
   },
 ): Promise<{ statementId: Id<"vendorStatements">; created: boolean }> {
-  // Idempotent per (vendor, period): a live statement already covers this.
+  const siteId = args.siteId ?? null;
+
   const existing = await ctx.db
     .query("vendorStatements")
     .withIndex("by_vendor_period", (q) =>
       q.eq("vendor", args.vendor).eq("period", args.period),
     )
     .collect();
-  const live = existing.find((s) => s.status !== "voided");
+  const liveForVendorPeriod = existing.filter((s) => s.status !== "voided");
+
+  // Book-wide and per-site statements settle overlapping money, so allowing
+  // both for one (vendor, period) would remit the same dollar twice. Whichever
+  // shape got there first wins until it is voided.
+  const conflicting = liveForVendorPeriod.find((s) =>
+    siteId ? !s.siteId : Boolean(s.siteId),
+  );
+  if (conflicting && !args.replacesId) {
+    throw new Error(
+      siteId
+        ? `${conflicting.statementNumberDisplay} already covers ${conflicting.vendorName} for ${args.period} across every site. ` +
+          `Void it before cutting per-site statements, or the same revenue is remitted twice.`
+        : `${conflicting.statementNumberDisplay} already covers ${conflicting.vendorName} for ${args.period} for ${conflicting.siteName ?? "one site"}. ` +
+          `Void the per-site statement(s) before cutting a book-wide one, or the same revenue is remitted twice.`,
+    );
+  }
+
+  // Idempotent per (vendor, period, site): a live statement already covers this.
+  const live = liveForVendorPeriod.find((s) => (s.siteId ?? null) === siteId);
   if (live && !args.replacesId) {
     return { statementId: live._id, created: false };
   }
@@ -2264,7 +2434,13 @@ async function createStatement(
   // not whether the members are shown — totals are never rewritten either way.
   await fillMemberLines(ctx, args.period);
 
-  const payload = await buildPayload(ctx, args.period, args.vendor);
+  const payload = await buildPayload(
+    ctx,
+    args.period,
+    args.vendor,
+    undefined,
+    siteId,
+  );
   const now = Date.now();
   const { statementNumber, statementNumberDisplay } =
     await allocateStatementNumber(ctx);
@@ -2274,6 +2450,7 @@ async function createStatement(
     statementNumberDisplay,
     vendor: args.vendor,
     vendorName: payload.vendorName,
+    ...(siteId ? { siteId, siteName: payload.siteName ?? undefined } : {}),
     period: args.period,
     coverageStart: payload.coverageStart,
     coverageEnd: payload.coverageEnd,
@@ -2307,10 +2484,15 @@ async function createStatement(
     action: "vendor_statement.generate",
     targetType: "vendorStatements",
     targetId: statementId,
-    summary: `Generated ${statementNumberDisplay} — ${payload.vendorName} ${args.period} (${payload.primaryCount} primaries, ${payload.totalCents}¢)`,
+    summary:
+      `Generated ${statementNumberDisplay} — ${payload.vendorName} ${args.period}` +
+      `${payload.siteName ? ` (${payload.siteName})` : " (all sites)"}` +
+      ` (${payload.primaryCount} primaries, ${payload.totalCents}¢)`,
     metadata: {
       vendor: args.vendor,
       period: args.period,
+      siteId: siteId ?? null,
+      siteName: payload.siteName,
       totalCents: payload.totalCents,
       primaryCount: payload.primaryCount,
       sourcePayloadHashes: payload.sourcePayloadHashes,
@@ -2325,14 +2507,17 @@ export const generateStatement = mutation({
     period: v.string(),
     vendor: vendorValidator,
     paymentDueDate: v.optional(v.number()),
+    /** Omit for a book-wide statement covering every site. */
+    siteId: v.optional(v.id("sites")),
   },
-  handler: async (ctx, { period, vendor, paymentDueDate }) => {
+  handler: async (ctx, { period, vendor, paymentDueDate, siteId }) => {
     const actor = await requireAdmin(ctx);
     return createStatement(ctx, {
       period,
       vendor: vendor as VendorId,
       actor: actor.clerkUserId,
       paymentDueDate,
+      siteId,
     });
   },
 });
@@ -2343,35 +2528,89 @@ export const generateStatement = mutation({
  * to re-run after adding a recipient or voiding one bad document.
  */
 export const generateStatementsForPeriod = mutation({
-  args: { period: v.string(), paymentDueDate: v.optional(v.number()) },
-  handler: async (ctx, { period, paymentDueDate }) => {
+  args: {
+    period: v.string(),
+    paymentDueDate: v.optional(v.number()),
+    /**
+     * Scope one run. Omit both for the book-wide default (one statement per
+     * recipient covering every site). `siteId` cuts for a single brand;
+     * `splitBySite` cuts one per recipient per site that actually closed
+     * revenue this month. The two are mutually exclusive.
+     */
+    siteId: v.optional(v.id("sites")),
+    splitBySite: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { period, paymentDueDate, siteId, splitBySite }) => {
     const actor = await requireAdmin(ctx);
+    if (siteId && splitBySite) {
+      throw new Error(
+        "Choose one: a single site, or split by site. Not both.",
+      );
+    }
     // Validate/close-check once up front so a bad month fails before it has
     // burned any statement numbers.
-    await loadClosedSnapshots(ctx, period);
+    const snapshots = await loadClosedSnapshots(ctx, period, siteId);
+
+    // Only sites that actually closed revenue this month get a statement —
+    // cutting an empty document for a brand with no groups is noise.
+    let scopes: Array<Id<"sites"> | null>;
+    if (splitBySite) {
+      const seen = new Set<string>();
+      scopes = [];
+      for (const snapshot of snapshots) {
+        const resolved = await resolveSnapshotSiteId(ctx, snapshot);
+        if (resolved && !seen.has(String(resolved))) {
+          seen.add(String(resolved));
+          scopes.push(resolved);
+        }
+      }
+      if (scopes.length === 0) {
+        throw new Error(
+          `No closed organization in ${period} could be resolved to a site, so there is nothing to split. ` +
+            `Run backfillInvoicePeriodSiteIds, or generate book-wide instead.`,
+        );
+      }
+    } else {
+      scopes = [siteId ?? null];
+    }
 
     let generated = 0;
     let skipped = 0;
     const statementIds: Id<"vendorStatements">[] = [];
-    for (const vendor of VENDOR_IDS) {
-      const result = await createStatement(ctx, {
-        period,
-        vendor,
-        actor: actor.clerkUserId,
-        paymentDueDate,
-      });
-      statementIds.push(result.statementId);
-      if (result.created) generated++;
-      else skipped++;
+    for (const scope of scopes) {
+      for (const vendor of VENDOR_IDS) {
+        const result = await createStatement(ctx, {
+          period,
+          vendor,
+          actor: actor.clerkUserId,
+          paymentDueDate,
+          siteId: scope,
+        });
+        statementIds.push(result.statementId);
+        if (result.created) generated++;
+        else skipped++;
+      }
     }
 
+    const scopeLabel = splitBySite
+      ? `${scopes.length} site(s)`
+      : siteId
+        ? "1 site"
+        : "all sites";
     await ctx.runMutation(internal.admin.adminAudit.record, {
       actorClerkUserId: actor.clerkUserId,
       action: "vendor_statement.generate_period",
       targetType: "vendorStatements",
       targetId: period,
-      summary: `Generated ${generated} statement(s) for ${period} (${skipped} already existed)`,
-      metadata: { period, generated, skipped },
+      summary: `Generated ${generated} statement(s) for ${period} across ${scopeLabel} (${skipped} already existed)`,
+      metadata: {
+        period,
+        generated,
+        skipped,
+        siteId: siteId ?? null,
+        splitBySite: splitBySite ?? false,
+        siteCount: scopes.length,
+      },
     });
 
     return { period, generated, skipped, statementIds };
@@ -2402,8 +2641,14 @@ export const generateReplacementStatement = mutation({
         q.eq("vendor", original.vendor).eq("period", original.period),
       )
       .collect();
+    // Same site scope only: a book-wide statement and a per-site one for the
+    // same recipient/month can't coexist anyway (createStatement rejects that),
+    // so the sibling worth guarding against is the one covering this same scope.
     const otherLive = siblings.find(
-      (s) => s._id !== statementId && s.status !== "voided",
+      (s) =>
+        s._id !== statementId &&
+        s.status !== "voided" &&
+        (s.siteId ?? null) === (original.siteId ?? null),
     );
     if (otherLive) {
       throw new Error(
@@ -2433,6 +2678,9 @@ export const generateReplacementStatement = mutation({
       actor: actor.clerkUserId,
       paymentDueDate: original.paymentDueDate,
       replacesId: statementId,
+      // A reissue covers exactly what the original covered. Dropping the scope
+      // here would silently widen a single brand's statement to the whole book.
+      siteId: original.siteId ?? null,
     });
     await ctx.db.patch(statementId, {
       supersededById: replacementId,

@@ -97,7 +97,7 @@ const internal: VendorStatementDocument = {
     { key: "toothlensCents", label: "Toothlens Share" },
     { key: "careingtonCents", label: "Careington Share" },
     { key: "processingCents", label: "Processing" },
-    { key: "partnerVendorCents", label: "Ideal Health Share" },
+    { key: "partnerVendorCents", label: "Ideal Oral Health Share" },
     { key: "ryzeKeepCents", label: "Ryze Keep" },
   ],
   attributionBasis: "frozen",
@@ -268,10 +268,10 @@ describe("vendor statement file names", () => {
 
   test("punctuation in a recipient name cannot break the file name", () => {
     const name = statementFileBase(
-      { ...flatFee, vendorName: "Ideal Health, Inc. / Dental" },
+      { ...flatFee, vendorName: "Ideal Oral Health, Inc. / Dental" },
       { generatedAt },
     );
-    expect(name.startsWith("Ideal-Health-Inc-Dental_")).toBe(true);
+    expect(name.startsWith("Ideal-Oral-Health-Inc-Dental_")).toBe(true);
     expect(name).not.toMatch(/[/,]/);
   });
 });
@@ -330,7 +330,7 @@ describe("verification export", () => {
     expect(csv).toContain("INTERNAL VERIFICATION — NOT FOR DISTRIBUTION");
     expect(csv).toContain("Reconciliation Checks");
     expect(csv).toContain("Full Member Dispersal");
-    for (const bucket of ["Toothlens", "Careington", "Processing", "Ideal Health", "Ryze Keep"]) {
+    for (const bucket of ["Toothlens", "Careington", "Processing", "Ideal Oral Health", "Ryze Keep"]) {
       expect(csv).toContain(bucket);
     }
     expect(csv).toContain("Dana Reyes");

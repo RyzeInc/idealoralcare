@@ -40,16 +40,18 @@ import { formatPrice, getPrice } from "@/lib/health-plans/types";
 import { CatalogHeader } from "@/components/health/catalog";
 import { MembershipAgreementModal, TermsAndConditionsModal } from "@/components/legal";
 import styles from "./checkout.module.css";
+import { useBrandName, rebrand } from "@/lib/branding";
 
 function CheckoutContent() {
   const { user, isLoaded, isSignedIn } = useUser();
-  const { 
-    cart, 
-    itemCount, 
-    subtotalCents, 
+  const {
+    cart,
+    itemCount,
+    subtotalCents,
     setPaymentMethod,
-    removeItem 
+    removeItem
   } = useCart();
+  const brandName = useBrandName();
   
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [agreedToNotInsurance, setAgreedToNotInsurance] = useState(false);
@@ -236,7 +238,7 @@ function CheckoutContent() {
                   <div key={item.productId} className={styles.orderItem}>
                     <div className={styles.orderItemInfo}>
                       <span className={styles.orderItemCategory}>{item.product.category}</span>
-                      <span className={styles.orderItemName}>{item.product.name}</span>
+                      <span className={styles.orderItemName}>{rebrand(item.product.name, brandName)}</span>
                     </div>
                     <div className={styles.orderItemPrice}>
                       <span>{formatPrice(itemPrice)}{periodShort}</span>
@@ -505,7 +507,7 @@ function CheckoutContent() {
                 const itemPrice = getPrice(item.product, cart.cadence, cart.paymentMethod);
                 return (
                   <div key={item.productId} className={styles.summaryItem}>
-                    <span className={styles.summaryItemName}>{item.product.name}</span>
+                    <span className={styles.summaryItemName}>{rebrand(item.product.name, brandName)}</span>
                     <span className={styles.summaryItemPrice}>
                       {formatPrice(itemPrice)}
                     </span>
@@ -615,7 +617,7 @@ function CheckoutContent() {
           memberName: user?.fullName || user?.emailAddresses[0]?.emailAddress || "Member",
           memberAddress: "Address TBD",
           email: user?.emailAddresses[0]?.emailAddress || "email@example.com",
-          planName: cart.items[0]?.product?.name || "Ideal Oral Savings Plan",
+          planName: cart.items[0]?.product?.name || `${brandName} Savings Plan`,
           groupCode: PROVIDER_GROUP_CODE,
           effectiveDate: new Date().toISOString().split('T')[0],
           billingInterval: cart.cadence,

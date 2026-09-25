@@ -27,6 +27,12 @@ pnpm-debug.log*
 
 # macOS
 .DS_Store
+.vercel
+.env*
+!.env.example
 # Large media that exceeds GitHub size limits
 Notes/GIH Notes/idealassets/Videos/
 *.mp4
+
+# Clerk keyless-mode credentials — never commit
+.clerk/

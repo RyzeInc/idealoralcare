@@ -98,47 +98,128 @@ export const getAllPayables = query({
   },
 });
 
-/** Get broker commission summaries joined with reps (partnerLeaders) and agencies */
+/**
+ * A payable is only reportable if it was written in the current key space.
+ *
+ * Legacy rows hold a tracking-code string in `brokerId` and a hardcoded 15%
+ * rate, so they neither join to `partnerLeaders` nor reflect a contracted
+ * rate. Counting them would produce confidently wrong money. They are
+ * surfaced as a `quarantined` count instead of being silently dropped.
+ */
+function isReportablePayable(p: { keySpace?: string }): boolean {
+  return p.keySpace === "leader_id";
+}
+
+/**
+ * Broker commission summaries joined to their rep and agency.
+ *
+ * Previously this summed `p.amountCents` (a field that does not exist, so
+ * every total read 0), divided an already-decimal `ratePercentage` by 100
+ * again, multiplied by a hardcoded $15, and joined `rate.brokerId` — a
+ * `partnerLeaders._id` — against `distributionPartners.clerkUserId`, which
+ * never matches. Totals now come from the payables themselves.
+ */
 export const getBrokerCommissions = query({
   handler: async (ctx) => {
-    const [rates, leaders, partners, payables] = await Promise.all([
+    await requireAdmin(ctx);
+
+    const [rates, partners, leaders, payables] = await Promise.all([
       ctx.db.query("commissionRates").collect(),
-      ctx.db.query("partnerLeaders").collect(),
       ctx.db.query("distributionPartners").collect(),
+      ctx.db.query("partnerLeaders").collect(),
       ctx.db.query("commissionPayables").collect(),
     ]);
 
-    // Clerk-free joins: rate.brokerId = partnerLeaders._id, rate.agencyId = distributionPartners._id
-    const leaderById = new Map(leaders.map((l: any) => [l._id, l]));
-    const partnerById = new Map(partners.map((p: any) => [p._id, p]));
+    const leaderById = new Map(leaders.map((l) => [String(l._id), l]));
+    const partnerById = new Map(partners.map((p) => [String(p._id), p]));
 
-    const activeRates = rates.filter((r: any) => r.status === "active");
-    return activeRates.map((rate: any) => {
+    const payablesByBroker = new Map<string, typeof payables>();
+    for (const p of payables) {
+      if (!p.brokerId) continue;
+      const list = payablesByBroker.get(p.brokerId) ?? [];
+      list.push(p);
+      payablesByBroker.set(p.brokerId, list);
+    }
+
+    const activeRates = rates.filter((r) => r.status === "active");
+    return activeRates.map((rate) => {
       const leader = leaderById.get(rate.brokerId);
-      const partner =
-        partnerById.get(rate.agencyId) ??
-        (leader?.partnerId ? partnerById.get(leader.partnerId) : undefined);
-      const brokerPayables = payables.filter((p: any) => p.brokerId === rate.brokerId);
-      const pending = brokerPayables.filter((p: any) => p.status === "pending");
-      const paid = brokerPayables.filter((p: any) => p.status === "paid");
-      const activeEnrollments = brokerPayables.length;
-      const pendingAmountCents = pending.reduce((sum: number, p: any) => sum + (p.amountCents ?? 0), 0);
-      const calculatedPayout = activeEnrollments * (rate.ratePercentage / 100) * 1500; // $15/member
+      const agency = leader
+        ? partnerById.get(String(leader.partnerId))
+        : rate.agencyId
+        ? partnerById.get(rate.agencyId)
+        : undefined;
+
+      const all = payablesByBroker.get(rate.brokerId) ?? [];
+      const reportable = all.filter(isReportablePayable);
+      const quarantined = all.length - reportable.length;
+
+      const sum = (rows: typeof reportable) =>
+        rows.reduce((total, p) => total + (p.amount ?? 0), 0);
+      const pending = reportable.filter((p) => p.status === "pending");
+      const approved = reportable.filter((p) => p.status === "approved");
+      const paid = reportable.filter((p) => p.status === "paid");
 
       return {
+        _id: rate._id,
         brokerId: rate.brokerId,
         brokerName: leader?.name ?? rate.brokerId,
-        partnerName: partner?.name ?? "Independent",
+        partnerName: agency?.name ?? "Independent",
+        // Stored as a decimal (0.25 = 25%); expose both so callers cannot
+        // guess wrong about the unit.
         commissionRate: rate.ratePercentage,
+        commissionRatePercent: rate.ratePercentage * 100,
         overrideRate: rate.overridePercentage,
-        activeEnrollments,
-        pendingAmountCents,
+        activeEnrollments: reportable.length,
+        pendingCount: pending.length,
+        pendingAmountCents: sum(pending),
+        approvedAmountCents: sum(approved),
         paidCount: paid.length,
-        calculatedPayout,
+        paidAmountCents: sum(paid),
+        totalEarnedCents: sum(reportable),
+        /** Pre-repair rows excluded from every total above. */
+        quarantinedCount: quarantined,
         status: pending.length > 0 ? "pending" : "paid",
-        _id: rate._id,
       };
     });
+  },
+});
+
+/**
+ * How much of the commission ledger is trustworthy.
+ *
+ * Read this before presenting any commission figure: a ledger that is mostly
+ * `quarantined` is not a report, it is a backlog.
+ */
+export const getCommissionLedgerHealth = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    const payables = await ctx.db.query("commissionPayables").collect();
+
+    let reportable = 0;
+    let quarantined = 0;
+    let reportableCents = 0;
+    let quarantinedCents = 0;
+
+    for (const p of payables) {
+      if (isReportablePayable(p)) {
+        reportable++;
+        reportableCents += p.amount ?? 0;
+      } else {
+        quarantined++;
+        quarantinedCents += p.amount ?? 0;
+      }
+    }
+
+    return {
+      total: payables.length,
+      reportable,
+      quarantined,
+      reportableCents,
+      /** Not included in any total — shown so the backlog is visible. */
+      quarantinedCents,
+    };
   },
 });
 

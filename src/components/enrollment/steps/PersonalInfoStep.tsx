@@ -8,8 +8,6 @@
 import { useState } from "react";
 import { useEnrollmentStep, useEnrollment } from "@/components/enrollment/EnrollmentProvider";
 import { ArrowRight, AlertCircle, Loader } from "lucide-react";
-import { useMutation } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
 import styles from "./steps.module.css";
 
 export function PersonalInfoStep() {
@@ -24,18 +22,6 @@ export function PersonalInfoStep() {
     phone: state.personalInfo?.phone || "",
     dateOfBirth: state.personalInfo?.dateOfBirth || "",
   });
-
-  // TODO (Agent 2): Wire up Convex enrollment.members.createMemberProfile mutation
-  // const createMemberProfile = useMutation(api.enrollment.members.createMemberProfile);
-  
-  // Stub implementation for local development
-  const createMemberProfile = async (args: any) => {
-    return {
-      _id: `member_${Date.now()}`,
-      memberId: `MBR-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 100000)).padStart(5, '0')}`,
-      ...args,
-    };
-  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -71,24 +57,12 @@ export function PersonalInfoStep() {
         throw new Error("Enrollment context not initialized. Please restart.");
       }
 
-      // Create member profile
-      const memberProfile = await createMemberProfile({
-        siteId: state.site._id,
-        accountId: state.account._id,
-        groupId: state.group._id,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        phone: formData.phone,
-        dateOfBirth: formData.dateOfBirth,
-        memberType: "enrolling",
-        enrollmentSessionId: (state.sessionId || "") as any, // Will resolve to doc ID in mutation
-      });
-
-      // Store member profile ID
-      dispatch({ type: "SET_MEMBER_PROFILE_ID", payload: memberProfile._id });
-
-      // Store personal info
+      // No account exists yet at this point in the flow (that happens in the
+      // payment step), so there's no authenticated user to attach a real
+      // memberProfiles row to. Personal info is kept in wizard state and
+      // synced to the enrollment session in the review step, then turned
+      // into the actual member record by the Stripe webhook once checkout
+      // completes — same pattern as /health/checkout.
       dispatch({
         type: "SET_PERSONAL_INFO",
         payload: {

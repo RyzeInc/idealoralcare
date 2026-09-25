@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import { api as apiOriginal } from "../_generated/api";
 import { requireAdmin, requireAdminAction } from "../lib/authGuards";
 import * as unifiedData from "./unifiedData";
+import { isListBillMember } from "../lib/memberBilling";
 
 const getApi = () => {
   // @ts-ignore - Type instantiation too deep
@@ -64,6 +65,7 @@ export const getAllGroupBillingSummaries = query({
 export const getGroupMembersWithBillingStatus = query({
   args: { groupId: v.id("groups") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const group = await ctx.db.get(args.groupId);
     const isListBillGroup = group?.listBill?.enabled === true;
 
@@ -149,6 +151,7 @@ export const getGroupBillingSummary = query({
     groupId: v.id("groups"),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const group = await ctx.db.get(args.groupId);
     if (!group) throw new Error("Group not found");
 
@@ -301,6 +304,7 @@ export const getSiteBillingSummary = query({
     siteId: v.id("sites"),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const site = await ctx.db.get(args.siteId);
     if (!site) throw new Error("Site not found");
 
@@ -369,6 +373,7 @@ export const getSiteBillingSummary = query({
  */
 export const getUpcomingBillingDates = query({
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     const currentDate = new Date();
     const currentMonth = currentDate.getMonth();
     const currentYear = currentDate.getFullYear();
@@ -446,17 +451,17 @@ export const getListBillMonthlySummary = query({
       const ratePerMemberCents =
         (account as any)?.billingDetails?.perMemberRateCents ?? DEFAULT_RATE_CENTS;
 
-      // Count active list-bill (FT) members in the group
-      const members = await ctx.db
+      // Count covered list-bill members. Keyed off the group, and on the same
+      // billable lifecycle set the invoice generator uses — the old
+      // memberType==="active" AND employeeType==="full_time" filter excluded
+      // every member loaded from an eligibility file.
+      const allMembers = await ctx.db
         .query("memberProfiles")
         .withIndex("by_group", (q: any) => q.eq("groupId", group._id))
-        .filter((q) =>
-          q.and(
-            q.eq(q.field("memberType"), "active"),
-            q.eq(q.field("employeeType"), "full_time")
-          )
-        )
         .collect();
+      const members = allMembers.filter(
+        (m) => m.memberRole !== "dependent" && isListBillMember(m, group),
+      );
 
       const memberCount = members.length;
       const totalCents = memberCount * ratePerMemberCents;

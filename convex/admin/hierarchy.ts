@@ -2,6 +2,8 @@ import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
 import { requireAdmin } from "../lib/authGuards";
 import * as unifiedData from "./unifiedData";
+import { restampGroupAttribution } from "../lib/repAttribution";
+import { promoLinkValidator } from "../lib/promoLinks";
 
 /**
  * ADMIN HIERARCHY MANAGEMENT
@@ -26,6 +28,7 @@ export const createSite = mutation({
     branding: v.optional(v.any()), // Flexible branding object
     allowedPlanIds: v.optional(v.array(v.id("catalogProducts"))),
     enrollmentDefaults: v.optional(v.any()), // Flexible enrollment defaults object
+    promoLinks: v.optional(v.array(promoLinkValidator)),
     status: v.optional(v.union(v.literal("active"), v.literal("suspended"), v.literal("onboarding"), v.literal("terminated"))),
   },
   handler: async (ctx, args) => {
@@ -46,7 +49,18 @@ export const createSite = mutation({
       domain: args.domain,
       branding: args.branding ?? {},
       allowedPlanIds: args.allowedPlanIds ?? [],
-      enrollmentDefaults: args.enrollmentDefaults ?? {},
+      enrollmentDefaults: args.enrollmentDefaults ?? {
+        requireGroupCode: false,
+        requireEligibilityMatch: false,
+        allowSelfEnrollment: true,
+        requirePayment: true,
+        autoActivate: false,
+        collectAddress: true,
+        collectPhone: true,
+        collectEmployeeId: false,
+        collectDependents: true,
+      },
+      promoLinks: args.promoLinks,
       status: args.status ?? "active",
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -66,6 +80,7 @@ export const updateSite = mutation({
     branding: v.optional(v.any()),
     allowedPlanIds: v.optional(v.array(v.id("catalogProducts"))),
     enrollmentDefaults: v.optional(v.any()),
+    promoLinks: v.optional(v.array(promoLinkValidator)),
     status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -84,6 +99,7 @@ export const updateSite = mutation({
     if (args.branding !== undefined) updates.branding = args.branding;
     if (args.allowedPlanIds !== undefined) updates.allowedPlanIds = args.allowedPlanIds;
     if (args.enrollmentDefaults !== undefined) updates.enrollmentDefaults = args.enrollmentDefaults;
+    if (args.promoLinks !== undefined) updates.promoLinks = args.promoLinks;
     if (args.status !== undefined) updates.status = args.status;
 
     await ctx.db.patch(args.siteId, updates);
@@ -93,6 +109,7 @@ export const updateSite = mutation({
 
 export const getSites = query({
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     // Public query - access control at page level (/admin layout verifies admin role)
     return await ctx.db.query("sites").order("asc").collect();
   },
@@ -101,6 +118,7 @@ export const getSites = query({
 export const getSiteById = query({
   args: { siteId: v.id("sites") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     // Public query - access control at page level
     return await ctx.db.get(args.siteId);
   },
@@ -109,6 +127,7 @@ export const getSiteById = query({
 export const getSiteBySlug = query({
   args: { slug: v.string() },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     // Public query - access control at page level
     return await ctx.db
       .query("sites")
@@ -248,6 +267,7 @@ export const updateAccount = mutation({
 export const getAccountsBySite = query({
   args: { siteId: v.id("sites") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     // Public query - access control at page level
     return await ctx.db
       .query("accounts")
@@ -260,6 +280,7 @@ export const getAccountsBySite = query({
 export const getAccountById = query({
   args: { accountId: v.id("accounts") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     // Public query - access control at page level
     return await ctx.db.get(args.accountId);
   },
@@ -268,6 +289,7 @@ export const getAccountById = query({
 export const getAccountBySlug = query({
   args: { siteId: v.id("sites"), slug: v.string() },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     // Public query - access control at page level
     return await ctx.db
       .query("accounts")
@@ -420,13 +442,28 @@ export const updateGroup = mutation({
     if (args.listBill !== undefined) updates.listBill = args.listBill;
 
     await ctx.db.patch(args.groupId, updates);
-    return await ctx.db.get(args.groupId);
+
+    // A group's broker IS the Scenario B attribution for its whole roster, so
+    // changing it invalidates every member's stamp. Members carrying their own
+    // enrollment-level attribution resolve unchanged and are skipped.
+    let restamp: { scanned: number; updated: number; remaining: number } | null = null;
+    const brokerChanged =
+      (args.brokerId !== undefined && args.brokerId !== group.brokerId) ||
+      (args.brokerTrackingCode !== undefined &&
+        args.brokerTrackingCode !== group.brokerTrackingCode);
+    if (brokerChanged) {
+      restamp = await restampGroupAttribution(ctx, args.groupId);
+    }
+
+    const updated = await ctx.db.get(args.groupId);
+    return { ...(updated as any), _restamp: restamp };
   },
 });
 
 export const getGroupsByAccount = query({
   args: { accountId: v.id("accounts") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     // Public query - access control at page level
     return await ctx.db
       .query("groups")
@@ -439,6 +476,7 @@ export const getGroupsByAccount = query({
 export const getGroupById = query({
   args: { groupId: v.id("groups") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     // Public query - access control at page level
     return await ctx.db.get(args.groupId);
   },
@@ -447,6 +485,7 @@ export const getGroupById = query({
 export const getGroupByCode = query({
   args: { groupCode: v.string() },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     // Public query - access control at page level
     return await ctx.db
       .query("groups")
@@ -593,6 +632,7 @@ export const setGroupCapacity = mutation({
 export const getGroupMemberCount = query({
   args: { groupId: v.id("groups") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     // Public query - access control at page level
     const members = await ctx.db
       .query("memberProfiles")

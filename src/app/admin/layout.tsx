@@ -1,56 +1,56 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { ConvexHttpClient } from "convex/browser";
-import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { AdminShell } from "@/components/admin/AdminShell";
 import { AdminProviders } from "@/components/admin/AdminProviders";
+import { ConvexAuthGate } from "@/components/auth/ConvexAuthGate";
+import { api } from "@/convex/_generated/api";
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { userId } = await auth();
+  const { userId, getToken } = await auth();
 
   // Must be authenticated
   if (!userId) {
     redirect("/health");
   }
 
-  // Verify admin role via Convex
+  // Verify admin role via Convex.
+  //
+  // Distribution partners used to pass this check and see the whole book. They
+  // now belong in /partner, so send them there rather than bouncing them to the
+  // marketing site with no explanation.
   try {
     const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
     if (convexUrl) {
       const convex = new ConvexHttpClient(convexUrl);
-      // Call the unprotected isAdmin query to check role
-      const isAdmin = await convex.query(
-        "admin/adminUsers:isAdmin" as any,
-        { clerkUserId: userId }
-      );
+      const isAdmin = await convex.query(api.admin.adminUsers.isAdmin, {
+        clerkUserId: userId,
+      });
       if (!isAdmin) {
-        redirect("/health");
+        const token = await getToken({ template: "convex" });
+        if (token) convex.setAuth(token);
+        const portal = await convex
+          .query(api.admin.adminUsers.getMyPortal, {})
+          .catch(() => null);
+        redirect(portal?.portal === "partner" ? "/partner" : "/health");
       }
     }
   } catch (error) {
-    // On error, deny access (fail-safe)
+    // redirect() signals by throwing — let it through rather than swallowing it
+    // into the fail-safe below.
+    if (error && typeof error === "object" && "digest" in error) throw error;
     redirect("/health");
   }
 
   return (
     <AdminProviders>
-      <div className="flex min-h-screen bg-slate-100">
-        <AdminSidebar />
-        <main className="flex-1 overflow-y-auto">
-          <a
-            href="#admin-main"
-            className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-white focus:text-slate-900 focus:px-3 focus:py-1.5 focus:rounded focus:shadow"
-          >
-            Skip to main content
-          </a>
-          <div id="admin-main" className="max-w-7xl mx-auto px-6 py-8">
-            {children}
-          </div>
-        </main>
-      </div>
+      <AdminShell>
+        <ConvexAuthGate>{children}</ConvexAuthGate>
+      </AdminShell>
     </AdminProviders>
   );
 }

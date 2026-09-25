@@ -3,10 +3,12 @@ import { v } from "convex/values";
 import { requireAdmin, requireAdminAction } from "../lib/authGuards";
 import { recordAdminAction } from "./adminAudit";
 import { createMemberProfile } from "../lib/memberCreation";
-import { resolveRepAttribution } from "../lib/repAttribution";
+import { RepAttributionResolver, resolveRepAttribution } from "../lib/repAttribution";
 import * as unifiedData from "./unifiedData";
 // @ts-ignore - Type instantiation too deep
 import { api as apiOriginal } from "../_generated/api";
+import { lifecyclePatchFor } from "../lib/memberLifecycle";
+import { isListBillMember } from "../lib/memberBilling";
 
 const getApi = () => {
   // @ts-ignore
@@ -47,6 +49,11 @@ export const getAllMembers = query({
       limit: args.limit ?? 500,
     });
 
+    // One batch resolver for the whole page. Reading the enrollment session
+    // alone (as this used to) misses every eligibility-file and list-bill
+    // member, who never run a session and carry their rep on the group deal.
+    const attribution = await RepAttributionResolver.create(ctx);
+
     const dependentCounts = new Map<string, number>();
     const nameByProfileId = new Map<string, string>();
     for (const m of enrichedMembers) {
@@ -62,6 +69,7 @@ export const getAllMembers = query({
 
     return enrichedMembers.map((m) => {
       const bundle = m._subscription;
+      const rep = attribution.resolve(m._id, m._group);
       const isListBillGroup = m._group?.listBill?.enabled === true;
       const onListBill =
         isListBillGroup && (!m.listBillStatus || m.listBillStatus === "active");
@@ -95,12 +103,16 @@ export const getAllMembers = query({
         primaryMemberName: m.primaryMemberId
           ? nameByProfileId.get(m.primaryMemberId as string) ?? null
           : null,
-        // Rep attribution (Clerk-free; null when there is no rep)
-        attributedRepCode: m._enrollment?.brokerTrackingCode ?? null,
-        attributedRepId: m._enrollment?.brokerId ?? null,
-        attributedRepName: m._broker?.name ?? null,
-        attributedAgencyId: m._agency?._id ?? null,
-        attributedAgencyName: m._agency?.name ?? null,
+        // Rep attribution (Clerk-free; null when there is no rep). Member-level
+        // enrollment beats the group deal; `attributedRepSource` says which one
+        // answered so a payout can be traced to the record it came from.
+        attributedRepCode: rep.repCode,
+        attributedRepId: rep.repId,
+        attributedRepName: rep.repName,
+        attributedRepEmail: rep.repEmail,
+        attributedAgencyId: rep.agencyId,
+        attributedAgencyName: rep.agencyName,
+        attributedRepSource: rep.source,
       };
     });
   },
@@ -115,6 +127,7 @@ export const getMemberRoster = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const limit = Math.min(args.limit ?? 100, 500);
 
     const members = await ctx.db
@@ -140,6 +153,7 @@ export const getMembersByStatus = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const limit = args.limit ?? 100;
 
     return await ctx.db
@@ -162,6 +176,7 @@ export const getMembersByStatus = query({
 export const getMemberDetail = query({
   args: { memberId: v.id("memberProfiles") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const member = await ctx.db.get(args.memberId);
     if (!member) throw new Error("Member not found");
 
@@ -250,10 +265,12 @@ export const updateMemberStatus = mutation({
 
     const oldStatus = member.memberType;
 
-    // Update member status
-    await ctx.db.patch(args.memberId, {
-      memberType: args.newStatus,
-    });
+    // Update memberType, the status that follows from it, and the exit
+    // timestamp — all three together, so they cannot drift.
+    await ctx.db.patch(
+      args.memberId,
+      lifecyclePatchFor(args.newStatus, member),
+    );
 
     // Log activity
     await ctx.db.insert("memberActivities", {
@@ -294,6 +311,7 @@ export const searchMembers = query({
     query: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const lowerQuery = args.query.toLowerCase();
 
     const all = await ctx.db
@@ -437,6 +455,7 @@ export const getMemberActivityTimeline = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     return await ctx.db
       .query("memberActivities")
       .filter((q) => q.eq(q.field("memberProfileId"), args.memberId))
@@ -451,6 +470,7 @@ export const getMemberActivityTimeline = query({
 export const getGroupMemberBreakdown = query({
   args: { groupId: v.id("groups") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const members = await ctx.db
       .query("memberProfiles")
       .filter((q) => q.eq(q.field("groupId"), args.groupId))
@@ -497,6 +517,7 @@ export const getGroupMemberBreakdown = query({
 export const getActiveMembersBySite = query({
   args: { siteId: v.id("sites") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const allMembers = await ctx.db
       .query("memberProfiles")
       .filter((q) => q.eq(q.field("siteId"), args.siteId))
@@ -513,6 +534,7 @@ export const getActiveMembersBySite = query({
 export const getActiveMembersByGroup = query({
   args: { groupId: v.id("groups") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const allMembers = await ctx.db
       .query("memberProfiles")
       .filter((q) => q.eq(q.field("groupId"), args.groupId))
@@ -535,6 +557,7 @@ export const getRecentlyEnrolled = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const daysAgo = (args.days ?? 7) * 24 * 60 * 60 * 1000;
     const cutoff = Date.now() - daysAgo;
 
@@ -581,9 +604,7 @@ export const bulkUpdateMemberStatus = mutation({
       const oldStatus = member.memberType;
 
       try {
-        await ctx.db.patch(memberId, {
-          memberType: args.newStatus,
-        });
+        await ctx.db.patch(memberId, lifecyclePatchFor(args.newStatus, member));
 
         // Log activity
         await ctx.db.insert("memberActivities", {
@@ -696,6 +717,7 @@ export const assignMemberToStaff = mutation({
  */
 export const getDashboardStats = query({
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     const [allMembers, eligFiles, allBundles] = await Promise.all([
       ctx.db.query("memberProfiles").collect(),
       ctx.db.query("eligibilityFiles").collect(),
@@ -735,6 +757,7 @@ export const getDashboardStats = query({
  */
 export const getSystemHealth = query({
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     const now = Date.now();
     const oneDayAgo = now - 24 * 60 * 60 * 1000;
     const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
@@ -855,6 +878,7 @@ export const getSystemHealth = query({
 export const getRecentActivity = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     return await ctx.db
       .query("memberActivities")
       .order("desc")
@@ -875,11 +899,7 @@ export const removeMember = mutation({
     const member = await ctx.db.get(args.memberId);
     if (!member) throw new Error("Member not found");
 
-    await ctx.db.patch(args.memberId, {
-      memberType: "terminated",
-      status: "terminated",
-      updatedAt: Date.now(),
-    });
+    await ctx.db.patch(args.memberId, lifecyclePatchFor("terminated", member));
 
     await ctx.db.insert("memberActivities", {
       memberProfileId: args.memberId,
@@ -1109,6 +1129,7 @@ export const createAdminMember = mutation({
 export const getMemberCountsByGroup = query({
   args: { groupIds: v.optional(v.array(v.id("groups"))) },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const allMembers = await ctx.db.query("memberProfiles").collect();
     const counts: Record<string, { total: number; active: number; enrolling: number }> = {};
     for (const m of allMembers) {
@@ -1127,6 +1148,7 @@ export const getMemberCountsByGroup = query({
  */
 export const getAdminAlerts = query({
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     const [contacts, inquiries, failedFiles, stuckMembers] = await Promise.all([
       ctx.db.query("contactSubmissions")
         .withIndex("by_status", (q: any) => q.eq("status", "new")).collect(),
@@ -1163,16 +1185,17 @@ export const getListBillActiveMembers = query({
   args: { groupId: v.id("groups") },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
-    return await ctx.db
+    // List-bill membership is a property of the GROUP, not of employeeType —
+    // the eligibility pipeline never sets employeeType, so the old filter
+    // hid every member loaded from a file.
+    const group = await ctx.db.get(args.groupId);
+    const members = await ctx.db
       .query("memberProfiles")
       .withIndex("by_group", (q: any) => q.eq("groupId", args.groupId))
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("memberType"), "active"),
-          q.eq(q.field("employeeType"), "full_time")
-        )
-      )
       .collect();
+    return members.filter(
+      (m) => m.memberRole !== "dependent" && isListBillMember(m, group),
+    );
   },
 });
 
@@ -1183,27 +1206,18 @@ export const getTermedListBillMembers = query({
   args: { groupId: v.optional(v.id("groups")) },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
+    // termListBillMember never sets employeeType, so requiring it hid every
+    // member termed without having been portal-provisioned.
     if (args.groupId) {
       return await ctx.db
         .query("memberProfiles")
         .withIndex("by_group", (q: any) => q.eq("groupId", args.groupId))
-        .filter((q) =>
-          q.and(
-            q.eq(q.field("employeeType"), "full_time"),
-            q.eq(q.field("listBillStatus"), "termed")
-          )
-        )
+        .filter((q) => q.eq(q.field("listBillStatus"), "termed"))
         .collect();
     }
-    // All groups
     return await ctx.db
       .query("memberProfiles")
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("employeeType"), "full_time"),
-          q.eq(q.field("listBillStatus"), "termed")
-        )
-      )
+      .filter((q) => q.eq(q.field("listBillStatus"), "termed"))
       .collect();
   },
 });

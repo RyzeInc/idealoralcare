@@ -1,6 +1,6 @@
-import path from "node:path";
 import type { NextConfig } from "next";
 import withBundleAnalyzer from "@next/bundle-analyzer";
+import path from "node:path";
 
 const withAnalyzer = withBundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
@@ -40,6 +40,18 @@ const nextConfig: NextConfig = {
         ...(process.env.NODE_ENV === "development" ? ["*.app.github.dev"] : []),
       ],
     },
+  },
+
+  images: {
+    remotePatterns: [
+      // Convex file storage (uploaded logos, favicons, etc.)
+      { protocol: "https", hostname: "*.convex.cloud" },
+      // QR code generator used in email templates
+      { protocol: "https", hostname: "api.qrserver.com" },
+      // Clerk user avatars
+      { protocol: "https", hostname: "img.clerk.com" },
+      { protocol: "https", hostname: "*.clerk.com" },
+    ],
   },
 
   async headers() {
@@ -95,7 +107,7 @@ const nextConfig: NextConfig = {
               // Inline styles + Google Fonts
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               // Images: Clerk CDN + QR code generator + general
-              "img-src 'self' data: blob: https://*.clerk.com https://img.clerk.com https://*.clerk.accounts.dev https://api.qrserver.com",
+              "img-src 'self' data: blob: https://*.clerk.com https://img.clerk.com https://*.clerk.accounts.dev https://api.qrserver.com https://*.convex.cloud",
               // Fonts: local + Google Fonts CDN
               "font-src 'self' data: https://fonts.gstatic.com",
               // API connections: Convex + Clerk (dev + prod) + Stripe + Clerk telemetry

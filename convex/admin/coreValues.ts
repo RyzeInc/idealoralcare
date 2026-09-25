@@ -7,6 +7,7 @@ import { requireAdmin } from "../lib/authGuards";
 export const getAll = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     return await ctx.db.query("coreValues").withIndex("by_order").collect();
   },
 });
@@ -117,6 +118,7 @@ export const reorder = mutation({
 export const seedInitialData = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     const existing = await ctx.db.query("coreValues").first();
     if (existing) return;
     await seedCoreValuesData(ctx);
@@ -127,6 +129,7 @@ export const seedInitialData = mutation({
 export const resyncData = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     // Delete all existing core values
     const existing = await ctx.db.query("coreValues").collect();
     for (const value of existing) {

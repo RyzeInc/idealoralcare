@@ -76,6 +76,7 @@ export async function POST(req: NextRequest) {
       total: subscriptions.length,
       alreadySynced: 0,
       created: 0,
+      skippedOtherProduct: 0,
       errors: [] as Array<{ subscriptionId: string; error: string }>,
     };
 
@@ -111,6 +112,29 @@ export async function POST(req: NextRequest) {
         const totalCents = firstItem?.plan?.amount || 1500;
         const paymentMethod = "card" as const; // Default — Stripe doesn't expose this cleanly
 
+        // Skip subscriptions for products that don't belong to this site's catalog —
+        // the Stripe account is shared across multiple sites/brands, so a subscription
+        // here may have nothing to do with this site's members.
+        let belongsToThisSite = false;
+        for (const item of items) {
+          const stripeProductId =
+            typeof item.plan?.product === "string"
+              ? item.plan.product
+              : (item.plan?.product as any)?.id || "";
+          if (!stripeProductId) continue;
+          const catalogProduct = await convex.query(api.catalog.queries.getByStripeProductId, {
+            stripeProductId,
+          });
+          if (catalogProduct) {
+            belongsToThisSite = true;
+            break;
+          }
+        }
+        if (!belongsToThisSite) {
+          results.skippedOtherProduct++;
+          continue;
+        }
+
         if (!hierarchy) {
           results.errors.push({
             subscriptionId: sub.id,
@@ -137,7 +161,7 @@ export async function POST(req: NextRequest) {
           const firstName = customerName.split(" ")[0] || "Member";
           const lastName = customerName.split(" ").slice(1).join(" ") || "";
 
-          memberProfileId = await convex.mutation(
+          const memberResult = await convex.mutation(
             api.enrollment.members.webhookCreateMemberProfile,
             {
               siteId: hierarchy.siteId,
@@ -151,6 +175,7 @@ export async function POST(req: NextRequest) {
               signupSource: `stripe-sync:${sub.id}`,
             }
           );
+          memberProfileId = (memberResult as any)?.profileId ?? (memberResult as any);
         }
 
         // 2. Create subscription bundle
@@ -230,7 +255,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Synced ${results.created} new subscription(s). ${results.alreadySynced} already existed. ${results.errors.length} error(s).`,
+      message: `Synced ${results.created} new subscription(s). ${results.alreadySynced} already existed. ${results.skippedOtherProduct} skipped (other site's product). ${results.errors.length} error(s).`,
       ...results,
     });
   } catch (error) {

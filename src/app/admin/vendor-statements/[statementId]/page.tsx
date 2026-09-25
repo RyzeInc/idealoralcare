@@ -736,7 +736,7 @@ function VerificationPanel({
               ['Toothlens', audit.totals.toothlensCents, 'toothlensCents'],
               ['Careington', audit.totals.careingtonCents, 'careingtonCents'],
               ['Processing', audit.totals.processingCents, 'processingCents'],
-              ['Ideal Health', audit.totals.partnerVendorCents, 'partnerVendorCents'],
+              ['Ideal Oral Health', audit.totals.partnerVendorCents, 'partnerVendorCents'],
               ['Ryze Keep', audit.totals.ryzeKeepCents, 'ryzeKeepCents'],
             ] as const
           ).map(([label, cents, field]) => (
@@ -981,6 +981,13 @@ export default function VendorStatementDetailPage({
           />
           <h1 className="text-2xl font-bold text-slate-900 mt-1 flex items-center gap-3">
             {statement.vendorName} — {statement.period}
+            {/* A scoped statement's totals cover one brand, not the book. Say so
+                next to the number so nobody reconciles it against everything. */}
+            {statement.siteName && (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+                {statement.siteName}
+              </span>
+            )}
             <span
               className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[status]}`}
             >

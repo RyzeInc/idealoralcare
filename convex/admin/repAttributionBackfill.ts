@@ -27,6 +27,11 @@
 import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
 import { requireAdmin } from "../lib/authGuards";
+import {
+  RepAttributionResolver,
+  stampDiffersFrom,
+  stampFromAttribution,
+} from "../lib/repAttribution";
 
 type Resolution = { leaderId: string; agencyId: string | null } | null;
 
@@ -205,5 +210,174 @@ export const backfillRepAttribution = mutation({
     }
 
     return summary;
+  },
+});
+
+/* ------------------------------------------------------------------ */
+/* MEMBER ATTRIBUTION STAMPS                                          */
+/* ------------------------------------------------------------------ */
+/*
+ * The re-keying above fixes the SOURCE rows (enrollmentSessions, groups).
+ * These two functions maintain the denormalized CACHE on memberProfiles that
+ * convex/insights/* reads by index — see the DENORMALIZED REP ATTRIBUTION
+ * block in schema.ts.
+ *
+ * Run order after a fresh deploy:
+ *   1. backfillRepAttribution   (re-key the sources)
+ *   2. backfillMemberAttributionStamps (populate the cache from them)
+ *   3. getAttributionDrift      (verify cache == resolver)
+ */
+
+/** Members re-stamped per call. Keeps one mutation inside Convex's limits. */
+const STAMP_BATCH_SIZE = 200;
+
+/**
+ * Populate/refresh `memberProfiles` attribution stamps, one page at a time.
+ *
+ * Pass the returned `cursor` back in to continue; `isDone` reports completion.
+ * Pass { dryRun: true } to count what would change without writing.
+ */
+export const backfillMemberAttributionStamps = mutation({
+  args: {
+    cursor: v.optional(v.union(v.string(), v.null())),
+    batchSize: v.optional(v.number()),
+    dryRun: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const dryRun = args.dryRun === true;
+    const numItems = Math.min(args.batchSize ?? STAMP_BATCH_SIZE, STAMP_BATCH_SIZE);
+
+    const page = await ctx.db
+      .query("memberProfiles")
+      .paginate({ numItems, cursor: args.cursor ?? null });
+
+    // One resolver for the page: three table reads total, not three per member.
+    const resolver = await RepAttributionResolver.create(ctx);
+
+    // Groups are the Scenario B source; cache them across the page.
+    const groupCache = new Map<string, any>();
+    const getGroup = async (groupId: any) => {
+      const key = String(groupId);
+      if (!groupCache.has(key)) groupCache.set(key, await ctx.db.get(groupId));
+      return groupCache.get(key);
+    };
+
+    let updated = 0;
+    const bySource: Record<string, number> = { enrollment: 0, group: 0, none: 0 };
+
+    for (const member of page.page) {
+      const group = member.groupId ? await getGroup(member.groupId) : null;
+      const attribution = resolver.resolve(member._id, group);
+      bySource[attribution.source] = (bySource[attribution.source] ?? 0) + 1;
+
+      if (!stampDiffersFrom(member, attribution)) continue;
+      updated++;
+      if (!dryRun) {
+        await ctx.db.patch(member._id, stampFromAttribution(attribution));
+      }
+    }
+
+    return {
+      dryRun,
+      scanned: page.page.length,
+      updated,
+      bySource,
+      cursor: page.continueCursor,
+      isDone: page.isDone,
+    };
+  },
+});
+
+/**
+ * Drift check: does the cached stamp still agree with the resolver?
+ *
+ * Samples the most recently created members rather than the whole table so it
+ * stays cheap enough to render on an admin page. A non-zero `drifted` means a
+ * write path is bypassing the stamp — find it before trusting the dashboard.
+ */
+export const getAttributionDrift = query({
+  args: { sampleSize: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const sampleSize = Math.min(args.sampleSize ?? 200, 500);
+
+    const members = await ctx.db
+      .query("memberProfiles")
+      .order("desc")
+      .take(sampleSize);
+
+    const resolver = await RepAttributionResolver.create(ctx);
+    const groupCache = new Map<string, any>();
+    const getGroup = async (groupId: any) => {
+      const key = String(groupId);
+      if (!groupCache.has(key)) groupCache.set(key, await ctx.db.get(groupId));
+      return groupCache.get(key);
+    };
+
+    let drifted = 0;
+    let unstamped = 0;
+    const examples: Array<{
+      memberId: string;
+      stampedRepId: string | null;
+      resolvedRepId: string | null;
+      stampedSource: string | null;
+      resolvedSource: string;
+    }> = [];
+
+    for (const member of members) {
+      if (member.attributionUpdatedAt === undefined) unstamped++;
+      const group = member.groupId ? await getGroup(member.groupId) : null;
+      const attribution = resolver.resolve(member._id, group);
+      if (!stampDiffersFrom(member, attribution)) continue;
+      drifted++;
+      if (examples.length < 10) {
+        examples.push({
+          memberId: member.memberId,
+          stampedRepId: member.attributedRepId ?? null,
+          resolvedRepId: attribution.repId,
+          stampedSource: member.attributionSource ?? null,
+          resolvedSource: attribution.source,
+        });
+      }
+    }
+
+    return { sampled: members.length, drifted, unstamped, examples };
+  },
+});
+
+/**
+ * Mark every pre-repair commission payable as `legacy_code`.
+ *
+ * Re-keying `brokerId` (above) fixes WHO a payable belongs to, but not WHAT
+ * it is worth — historical rows were all written at a hardcoded 15% rather
+ * than the contracted rate, so their amounts remain wrong even once the
+ * identity is correct. They stay quarantined and excluded from reporting
+ * until someone recalculates them against `commissionRates`.
+ *
+ * Only `recordCommissionForCheckout` writes `leader_id`, so this is safe to
+ * re-run: rows already stamped either way are left alone.
+ */
+export const quarantineLegacyPayables = mutation({
+  args: { dryRun: v.optional(v.boolean()) },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const dryRun = args.dryRun === true;
+    const payables = await ctx.db.query("commissionPayables").collect();
+
+    let stamped = 0;
+    let alreadyStamped = 0;
+    for (const p of payables) {
+      if (p.keySpace) {
+        alreadyStamped++;
+        continue;
+      }
+      stamped++;
+      if (!dryRun) {
+        await ctx.db.patch(p._id, { keySpace: "legacy_code", updatedAt: Date.now() });
+      }
+    }
+
+    return { dryRun, total: payables.length, stamped, alreadyStamped };
   },
 });

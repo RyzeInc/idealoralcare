@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { Loader } from "lucide-react";
+import { useSiteThemeOptional } from "@/components/providers/SiteThemeProvider";
 
 interface PlanCardProps {
   title?: string;
@@ -28,8 +29,10 @@ const PlanCardContent = dynamic(() => import("./PlanCardContent"), {
 });
 
 export default function PlanCard({
-  title = "Ideal Oral Savings Plan",
+  title,
   description = "Wide Ranging oral healthcare discount plan with AI scanning, teledentistry, and nationwide provider discounts.",
 }: PlanCardProps) {
-  return <PlanCardContent title={title} description={description} />;
+  const theme = useSiteThemeOptional();
+  const brandName = theme?.site?.name ?? "Ideal Oral Health";
+  return <PlanCardContent title={title ?? `${brandName} Savings Plan`} description={description} />;
 }

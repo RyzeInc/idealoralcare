@@ -2,7 +2,10 @@ import { notFound } from "next/navigation";
 import { BookOpen } from "lucide-react";
 import { Breadcrumbs, type Crumb } from "@/components/admin/ui/Breadcrumbs";
 import { MarkdownDoc } from "@/components/admin/MarkdownDoc";
+import { SopDirectory } from "@/components/admin/docs/SopDirectory";
+import { SopArticle } from "@/components/admin/docs/SopArticle";
 import { getDoc } from "@/lib/admin-docs";
+import { getSop, stripSopIntro } from "@/lib/admin-sops";
 
 const SECTION_LABELS: Record<string, string> = {
   sops: "SOP Library",
@@ -41,8 +44,33 @@ export default async function AdminDocsPage({
   const doc = getDoc(segments);
   if (!doc) notFound();
 
-  const title = extractTitle(doc.content, segments[segments.length - 1] ?? "Admin Docs");
+  // The SOP Library index gets a bespoke directory (scannable table, colored
+  // area tags, filter tabs) rather than the generic markdown render.
+  if (segments.length === 1 && segments[0] === "sops") {
+    return (
+      <div className="max-w-6xl">
+        <Breadcrumbs items={buildCrumbs(segments, "SOP Library")} />
+        <SopDirectory />
+      </div>
+    );
+  }
 
+  // A single SOP gets the polished article layout (header + at-a-glance card),
+  // driven by its structured metadata; the markdown body renders below it.
+  if (segments.length === 2 && segments[0] === "sops") {
+    const meta = getSop(segments[1]);
+    if (meta) {
+      return (
+        <div className="max-w-4xl">
+          <Breadcrumbs items={buildCrumbs(segments, meta.title)} />
+          <SopArticle meta={meta} body={stripSopIntro(doc.content)} resolveHref={doc.resolveHref} />
+        </div>
+      );
+    }
+  }
+
+  // Everything else (root index, guide chapters) uses the generic doc renderer.
+  const title = extractTitle(doc.content, segments[segments.length - 1] ?? "Admin Docs");
   return (
     <div className="space-y-6 max-w-4xl">
       <Breadcrumbs items={buildCrumbs(segments, title)} />

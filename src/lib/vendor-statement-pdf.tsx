@@ -214,7 +214,13 @@ function Header({ doc, compact = false }: { doc: VendorStatementDocument; compac
       </View>
       <View>
         <Text style={s.documentTitle}>Remittance Statement</Text>
-        <Text style={s.recipientLine}>{doc.vendorName}</Text>
+        <Text style={s.recipientLine}>
+          {doc.vendorName}
+          {/* Scoped statements must say so on the face of the document: two
+              same-month statements for one recipient are otherwise identical
+              at a glance, and the totals only cover one brand. */}
+          {doc.siteName ? ` — ${doc.siteName}` : ""}
+        </Text>
       </View>
     </View>
   );
@@ -658,10 +664,11 @@ function StatementBody({ doc }: { doc: VendorStatementDocument }) {
       <Totals doc={doc} />
       <RemitBlock doc={doc} />
       <Text style={s.footer} fixed>
-        {doc.vendorName} · Coverage month {doc.period} · Statement{" "}
-        {doc.statementNumberDisplay} · Figures taken from the{" "}
-        {formatStatementDate(doc.sourceClosedAt)} close of {doc.period} and do not
-        change.
+        {doc.vendorName}
+        {doc.siteName ? ` (${doc.siteName})` : ""} · Coverage month {doc.period} ·
+        Statement {doc.statementNumberDisplay} · Figures taken from the{" "}
+        {formatStatementDate(doc.sourceClosedAt)} close of {doc.period}
+        {doc.siteName ? ` for ${doc.siteName} only` : ""} and do not change.
       </Text>
     </>
   );
@@ -686,7 +693,7 @@ function pageLayout(doc: VendorStatementDocument) {
 export function VendorStatementPdf({ doc }: { doc: VendorStatementDocument }) {
   return (
     <Document
-      title={`${doc.vendorName} Remittance Statement ${doc.period} (${doc.statementNumberDisplay})`}
+      title={`${doc.vendorName}${doc.siteName ? ` ${doc.siteName}` : ""} Remittance Statement ${doc.period} (${doc.statementNumberDisplay})`}
       author={doc.brandName}
       subject={`Vendor remittance statement for coverage month ${doc.period}`}
     >

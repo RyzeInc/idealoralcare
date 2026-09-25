@@ -225,6 +225,28 @@ export function AgentRepCodeSelector({
     width: "100%",
   };
 
+  /**
+   * Card style for this component's outer `.glass-card`.
+   *
+   * `.glass-card` carries `backdrop-filter: blur(20px)`, which makes every card
+   * its own stacking context. That means the dropdown's `zIndex: 50` only
+   * competes with siblings *inside this card* — it can never paint above the
+   * "Confirm & Pay" card, which is a later sibling and therefore drawn on top.
+   * Raising this card's own z-index is what actually lifts the dropdown clear.
+   *
+   * Only raised while a dropdown is open, so a closed selector keeps normal
+   * paint order and never sits over anything unexpectedly. `overflow: visible`
+   * is inline because the max-width:640px rule in health.css sets
+   * `.glass-card { overflow: hidden }`, which would clip the dropdown on mobile.
+   */
+  const isAnyDropdownOpen = isGroupDropdownOpen || isAgentDropdownOpen;
+  const cardStyle: React.CSSProperties = {
+    padding: "1.25rem 2rem",
+    overflow: "visible",
+    position: "relative",
+    ...(isAnyDropdownOpen ? { zIndex: 60 } : {}),
+  };
+
   const inputStyle: React.CSSProperties = {
     width: "100%",
     padding: "0.625rem 0.875rem",
@@ -266,7 +288,7 @@ export function AgentRepCodeSelector({
   // Render confirmed state
   if (referralCode && mode === "repCode") {
     return (
-      <div className="glass-card" style={{ padding: "1.25rem 2rem", overflow: "visible" }}>
+      <div className="glass-card" style={cardStyle}>
         {/* Header - Agent left, Rep Code right */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
           <button
@@ -330,7 +352,7 @@ export function AgentRepCodeSelector({
   }
 
   return (
-    <div className="glass-card" style={{ padding: "1.25rem 2rem", overflow: "visible" }}>
+    <div className="glass-card" style={cardStyle}>
       {/* Header with mode toggle - Agent left, Rep Code right */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
         <button

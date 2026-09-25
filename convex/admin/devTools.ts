@@ -2,7 +2,7 @@ import { mutation, query, internalQuery, internalMutation } from "../_generated/
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { createMemberProfile, deriveCareingtonUniqueId } from "../lib/memberCreation";
-import { requireAdmin } from "../lib/authGuards";
+import { requireAdmin, requireOwner } from "../lib/authGuards";
 import { recordAdminAction } from "./adminAudit";
 
 /**
@@ -13,6 +13,7 @@ import { recordAdminAction } from "./adminAudit";
 export const seedCatalog = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireOwner(ctx);
     const existing = await ctx.db.query("catalogProducts").collect();
     if (existing.length > 0) {
       return {
@@ -95,6 +96,7 @@ export const seedCatalog = mutation({
 export const linkAdminAsMember = mutation({
   args: { clerkUserId: v.string() },
   handler: async (ctx, args) => {
+    await requireOwner(ctx);
     // Look up the admin record to get name/email
     const adminRecord = await ctx.db
       .query("adminUsers")
@@ -192,6 +194,7 @@ export const setTestStripeIds = mutation({
     }),
   },
   handler: async (ctx, args) => {
+    await requireOwner(ctx);
     const product = await ctx.db
       .query("catalogProducts")
       .withIndex("by_slug", (q) => q.eq("slug", args.slug))
@@ -207,6 +210,76 @@ export const setTestStripeIds = mutation({
     });
 
     return { success: true, productId: product._id, slug: args.slug };
+  },
+});
+
+/**
+ * ONE-OFF FIX: terminate a memberProfile that was created in error (e.g. by a
+ * Stripe sync that pulled in a subscription for a product belonging to a
+ * different site). Convex-only — does not touch Stripe.
+ * No auth required — intended to be run once via:
+ * `npx convex run admin/devTools:terminateMemberProfile '{"memberId":"...","reason":"..."}'`
+ */
+export const terminateMemberProfile = mutation({
+  args: { memberId: v.id("memberProfiles"), reason: v.string() },
+  handler: async (ctx, args) => {
+    await requireOwner(ctx);
+    const member = await ctx.db.get(args.memberId);
+    if (!member) throw new Error(`Member profile not found: ${args.memberId}`);
+
+    await ctx.db.patch(args.memberId, { status: "terminated", updatedAt: Date.now() });
+
+    await ctx.db.insert("memberActivities", {
+      memberProfileId: args.memberId,
+      siteId: member.siteId,
+      groupId: member.groupId,
+      activityType: "status_changed",
+      title: `Status changed: ${member.status} → terminated`,
+      description: args.reason,
+      metadata: { oldStatus: member.status, newStatus: "terminated", reason: args.reason },
+      actorType: "admin",
+      createdAt: Date.now(),
+    });
+
+    return { success: true, memberId: args.memberId, previousStatus: member.status };
+  },
+});
+
+/**
+ * ONE-OFF FIX: rename a site's slug. For a rebrand mismatch where code was
+ * updated to look up the DTC site by a new slug but the site document itself
+ * was never renamed, which makes direct /health/checkout purchases (no
+ * enrollmentSessionId) fail DTC hierarchy resolution and silently skip plan
+ * activation.
+ *
+ * Guards against creating a duplicate site if `toSlug` is already taken.
+ * No auth required — intended to be run once via:
+ * `npx convex run admin/devTools:renameSiteSlug '{"fromSlug":"old-slug","toSlug":"ideal-health"}'`
+ */
+export const renameSiteSlug = mutation({
+  args: { fromSlug: v.string(), toSlug: v.string() },
+  handler: async (ctx, args) => {
+    await requireOwner(ctx);
+    const existingWithNewSlug = await ctx.db
+      .query("sites")
+      .withIndex("by_slug", (q) => q.eq("slug", args.toSlug))
+      .first();
+    if (existingWithNewSlug) {
+      throw new Error(
+        `A site with slug "${args.toSlug}" already exists (${existingWithNewSlug._id}) — aborting to avoid duplicates`
+      );
+    }
+
+    const site = await ctx.db
+      .query("sites")
+      .withIndex("by_slug", (q) => q.eq("slug", args.fromSlug))
+      .first();
+    if (!site) {
+      throw new Error(`No site found with slug "${args.fromSlug}"`);
+    }
+
+    await ctx.db.patch(site._id, { slug: args.toSlug, updatedAt: Date.now() });
+    return { success: true, siteId: site._id, oldSlug: args.fromSlug, newSlug: args.toSlug };
   },
 });
 

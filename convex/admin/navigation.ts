@@ -6,6 +6,7 @@ import { requireAdmin } from "../lib/authGuards";
 export const getAll = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     return await ctx.db.query("navigationItems").withIndex("by_order").collect();
   },
 });
@@ -116,6 +117,7 @@ export const reorder = mutation({
 export const seedInitialData = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     const existing = await ctx.db.query("navigationItems").first();
     if (existing) return;
 

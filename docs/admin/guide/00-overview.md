@@ -9,15 +9,15 @@ Read [`05-known-issues.md`](05-known-issues.md) before you rely on anything desc
 | File | Covers |
 |---|---|
 | [00-overview.md](00-overview.md) | This file — role model, hierarchy, dashboard, vocabulary |
-| [01-members-partners.md](01-members-partners.md) | Members, Distribution (Brokers), Partner Applications, Rep Codes |
+| [01-members-partners.md](01-members-partners.md) | Members, Brokers, Partner Applications, Rep Codes, Partner Kit Leads |
 | [02-operations.md](02-operations.md) | Hierarchy, Eligibility Files, Vendor Files |
-| [03-finance.md](03-finance.md) | Billing, List-Bill, List-Bill Invoices, Invoice Calculator, Commissions |
-| [04-support-system.md](04-support-system.md) | Customer Service, Admin Users, User Audit, Audit Log, Site Settings, Dev Tools |
+| [03-finance.md](03-finance.md) | Billing, List-Bill, List-Bill Invoices, Revenue & Dispersal, Commissions |
+| [04-support-system.md](04-support-system.md) | Customer Service, Admin Users, User Lookup, Audit Log, Site Settings, Dev Tools |
 | [05-known-issues.md](05-known-issues.md) | Every bug, stub, and dead code path found while researching this guide, severity-tagged |
 
 ---
 
-## 1. The permission model — read this first
+## 1. The permission model (read this first)
 
 The admin suite has two "roles" shown in the UI: **Owner** and **Editor**. The Admin Users page describes Owner as able to "manage other admins, billing, site settings" and Editor as more limited, operational access.
 
@@ -32,11 +32,11 @@ It never inspects the `role` field. There is no `requireOwner` helper anywhere i
 
 The **one** real exception is **Dev Tools** (`/admin/dev-tools`): that page checks `role === "owner"` client-side before rendering. But most of the mutations it calls are still only `requireAdmin`-gated on the backend — the owner check is a UI convenience, not a server-side wall.
 
-**Active Distribution Partners also count as "admin."** Any broker/agency with an active portal login satisfies `requireAdmin` too, in addition to internal `adminUsers` rows. There is no code-level restriction that keeps a logged-in partner from calling internal-admin mutations directly, beyond the fact that the UI doesn't link them there.
+**Active Brokers (distribution partners) also count as "admin."** Any broker/agency with an active portal login satisfies `requireAdmin` too, in addition to internal `adminUsers` rows. There is no code-level restriction that keeps a logged-in partner from calling internal-admin mutations directly, beyond the fact that the UI doesn't link them there.
 
 **Practical takeaway for SOPs:** unless a procedure explicitly says "Owner only," assume any admin — Owner or Editor — can perform it. Treat "Owner" as a title, not a security boundary, until engineering closes this gap.
 
-### First-admin bootstrapping — two different paths, one of them risky
+### First-admin bootstrapping: two different paths, one of them risky
 
 - **`/admin/users` → "Initialize First Admin"** — correctly gated: only works if the `adminUsers` table is completely empty.
 - **`/bootstrap`** — a separate page that calls `grantFreeAccess.bootstrapFirstAdmin`. This mutation only checks whether *the calling user* is already an admin, **not** whether any admins already exist. Any signed-in Clerk user who finds this URL can insert themselves as `owner` at any time, even on a platform that already has owners, and it also grants them a free 365-day subscription. Treat this as an open item for engineering, not a documented workflow — see [05-known-issues.md](05-known-issues.md).
@@ -72,19 +72,20 @@ From `src/components/admin/AdminSidebar.tsx` — the authoritative list of what'
 |---|---|---|---|
 | Overview | Dashboard | `/admin` | Daily snapshot, alerts, quick links |
 | Members & Partners | Members | `/admin/members` | The member roster — search, edit, terminate, notes |
-| Members & Partners | Brokers | `/admin/brokers` | Program Managers / FMOs / Agencies (page itself is titled "Distribution Management") |
-| Members & Partners | Applications | `/admin/partner-applications` | Review broker/agency/rep self-registrations |
+| Members & Partners | Brokers | `/admin/brokers` | The sales/commission chain: Program Managers / FMOs / Agencies |
 | Members & Partners | Rep Codes | `/admin/rep-codes` | Attribution codes for sales reps |
-| Operations | Hierarchy | `/admin/hierarchy` | Site → Account → Group tree (page titled "Brokers & Organizations") |
+| Members & Partners | Partner Kit Leads | `/admin/partnerkit` | Public `/register` partner-kit inquiries, upstream of Applications |
+| Members & Partners | Partner Applications | `/admin/partner-applications` | Review broker/agency/rep self-registrations from `/register/rep` |
+| Operations | Hierarchy | `/admin/hierarchy` | Site → Account → Group tree (page titled "Sites, Accounts & Organizations") |
 | Operations | Eligibility Files | `/admin/eligibility` | Upload member rosters |
-| Operations | Vendor Files | `/admin/vendor-files` | Generate outbound files for Careington/DialCare/DDN |
+| Operations | Vendor Files | `/admin/vendor-files` | Generate & download outbound files for Careington/DialCare/DDN (manual delivery) |
 | Finance | Billing | `/admin/billing` | Self-pay revenue reporting, E123 export |
 | Finance | List-Bill Invoices | `/admin/list-bill-invoices` | Itemized employer invoice generator + lifecycle |
-| Finance | Invoice Calculator | `/admin/invoice-calculator` | Internal revenue/dispersal reconciliation |
+| Finance | Revenue & Dispersal | `/admin/invoice-calculator` | Internal revenue/dispersal reconciliation (formerly "Invoice Calculator") |
 | Finance | Commissions | `/admin/commissions` | ⚠️ Explicitly "Coming Soon" — read-only, numbers unreliable |
 | Support | Customer Service | `/admin/customer-service` | Per-member Stripe refunds/cancellations |
 | System | Admin Users | `/admin/users` | Manage admin access and roles |
-| System | User Audit | `/admin/user-audit` | Cross-system (Clerk/Convex/Toothlens) identity lookup |
+| System | User Lookup | `/admin/user-audit` | Cross-system (Clerk/Convex/Toothlens) identity lookup (formerly "User Audit") |
 | System | Audit Log | `/admin/audit-log` | ⚠️ Broken — see known issues |
 | System | Site Settings | `/admin/settings` | Brand/contact text fields only (no domain/logo config) |
 | System | Dev Tools | `/admin/dev-tools` | Owner-only (UI-enforced) migration/seed utilities |
@@ -95,13 +96,13 @@ From `src/components/admin/AdminSidebar.tsx` — the authoritative list of what'
 
 ---
 
-## 4. Distribution hierarchy vocabulary
+## 4. Hierarchy vocabulary
 
-The platform organizes every member under a three-level tree. The UI, the database, and older comments use different names for the same things — this table reconciles them.
+The platform organizes every member under a three-level tree, managed on the **Hierarchy** page. Historically two different things were both called "Broker," which caused endless confusion. They are now cleanly split: **Account** = a tier in this tree; **Broker** = the separate sales/commission page. This table is the single source of truth.
 
 ```
 Site (Carrier)
- └─ Account (Broker)
+ └─ Account
      └─ Group (Organization / Employer)
          └─ Members
 ```
@@ -109,11 +110,11 @@ Site (Carrier)
 | UI term | Also called | What it is |
 |---|---|---|
 | **Site** | Carrier, Whitelabel | Top-level brand (e.g., "Ideal Health"). Usually just one. |
-| **Account** | Broker, Distribution Partner | The producer/broker managing a book of business under a Site. |
+| **Account** | *(formerly also "Broker" — no longer)* | The **middle tier** of the Hierarchy: the entity that owns a book of business (Groups) under a Site. Created on **Hierarchy → Accounts**. |
 | **Group** | Organization, Employer | A specific employer/association whose members enroll. Has a globally-unique **Group Code** and an **Organization Code (Subscriber ID)**. |
 | **Rep Code** | Tracking Code | A code attached to an individual sales rep, independent of the Account tree, used for enrollment attribution and commissions. |
 
-Separately, **Distribution Partners** (Program Managers / FMOs / Agencies, managed on the "Brokers" page at `/admin/brokers`) are the sales/commission chain — a *different* concept from the Site→Account→Group tree above, even though both use the word "Broker" in different places. See [01-members-partners.md](01-members-partners.md) for the distinction.
+**"Broker" now means one thing only:** the sales/commission chain (Program Managers / FMOs / Agencies), managed on the **[Brokers](01-members-partners.md#brokers-adminbrokers)** page (`/admin/brokers`; backend table `distributionPartners`). That is a *separate* system from the Site → Account → Group tree above. Never confuse a **Broker** (a sales/commission partner) with an **Account** (the Hierarchy tier that owns Groups).
 
 ## 5. Member lifecycle
 

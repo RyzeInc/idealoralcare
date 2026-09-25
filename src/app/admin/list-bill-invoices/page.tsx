@@ -333,14 +333,20 @@ export default function ListBillInvoicesPage() {
     return { count: active.length, totalOutstanding, totalCollected, overdueCount };
   }, [invoices]);
 
-  function ThHeader({ label, k }: { label: string; k: SortKey }) {
+  function ThHeader({ label, k, tooltip }: { label: string; k: SortKey; tooltip?: string }) {
     return (
       <th
         className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer select-none hover:text-slate-700"
         onClick={() => handleSort(k)}
       >
         <span className="flex items-center gap-1">
-          {label}
+          {tooltip ? (
+            <Tooltip text={tooltip} width="lg">
+              <span className="cursor-help border-b border-dashed border-slate-400">{label}</span>
+            </Tooltip>
+          ) : (
+            label
+          )}
           <SortIcon active={sortKey === k} dir={sortDir} />
         </span>
       </th>
@@ -357,7 +363,7 @@ export default function ListBillInvoicesPage() {
           />
           <h1 className="text-2xl font-bold text-slate-900 mt-1 flex items-center gap-2">
             <FileText size={24} className="text-blue-600" />
-            List-Bill Invoice Generator
+            List-Bill Invoices
           </h1>
           <p className="text-sm text-slate-500 mt-1">
             Employer-facing monthly invoices for payroll-deducted groups

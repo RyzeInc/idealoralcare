@@ -35,10 +35,11 @@ export default function AdminHelpPage() {
       </header>
 
       {/* Hierarchy */}
-      <Section icon={<Building2 size={20} />} title="Distribution Hierarchy">
+      <Section icon={<Building2 size={20} />} title="Organization Hierarchy (Sites → Accounts → Groups)">
         <p>
-          The platform organizes business relationships into a three-level tree.
-          You will see these terms throughout the admin UI.
+          The platform organizes business relationships into a three-level tree,
+          managed on the <strong>Hierarchy</strong> page. You will see these terms
+          throughout the admin UI.
         </p>
         <DefList
           items={[
@@ -47,12 +48,16 @@ export default function AdminHelpPage() {
               def: 'The top-level brand or insurance carrier (e.g., "Ideal Health"). Usually only one. Lives at the top of the hierarchy.',
             },
             {
-              term: 'Account (a.k.a. Broker / Distribution Partner)',
-              def: 'The producer or broker that manages a book of business under a Site. Used for commission tracking and group ownership.',
+              term: 'Account',
+              def: 'The middle tier: the producer that manages a book of business under a Site. Used for group ownership and reporting rollups. NOTE: this is a different thing from the "Brokers" page — see below.',
             },
             {
               term: 'Group (a.k.a. Organization / Employer)',
               def: 'A specific employer, association, or affinity group whose members enroll. Each Group has a unique Group Code used in eligibility files and enrollment links.',
+            },
+            {
+              term: 'Broker (the "Brokers" page — separate from Accounts)',
+              def: 'The sales/commission chain: Program Managers, FMOs, and agencies that resell your plans. Managed on the Brokers page. This is NOT the Account tier above — they are two separate systems that happen to both involve partners.',
             },
             {
               term: 'Rep Code',
@@ -62,7 +67,7 @@ export default function AdminHelpPage() {
         />
         <pre className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs overflow-x-auto">
 {`Site (Carrier)
- └─ Account (Broker)
+ └─ Account
      └─ Group (Employer)
          └─ Members`}
         </pre>
@@ -108,8 +113,8 @@ export default function AdminHelpPage() {
         <Workflow
           title="Onboard a new employer group"
           steps={[
-            'Go to Distribution → confirm the Account (broker) exists, or create it.',
-            'Go to Brokers & Organizations → create a Group under that Account. Assign a unique Group Code.',
+            'Go to Hierarchy → Accounts tab → confirm the Account exists, or create it.',
+            'Go to Hierarchy → Organizations tab → create a Group under that Account. Assign a unique Group Code.',
             'Optional: assign a Rep Code for attribution.',
             'Send the group their branded enrollment URL OR upload an eligibility file (next workflow).',
           ]}
@@ -129,7 +134,7 @@ export default function AdminHelpPage() {
           steps={[
             'Members → search by name, email, or member ID.',
             'Open the member to see status, plan, billing history, and notes.',
-            'For login/identity issues, use User Audit to see Clerk + Convex + Toothlens linkage.',
+            'For login/identity issues, use User Lookup to see Clerk + Convex + Toothlens linkage.',
             'For payment issues, use Customer Service to view Stripe billing history and issue refunds/cancellations.',
           ]}
         />
@@ -139,7 +144,7 @@ export default function AdminHelpPage() {
             'Go to Vendor Files.',
             'Select the vendor (e.g., DialCare, Dental Discount Network).',
             'Generate file → review summary → download.',
-            'Mark as delivered after sending to the vendor SFTP / portal.',
+            'Send the downloaded file to the vendor yourself (SFTP / portal) — this page is download-only. To push to Careington over SFTP automatically, use Eligibility Files → Send to Careington instead.',
           ]}
         />
       </Section>
@@ -150,18 +155,19 @@ export default function AdminHelpPage() {
           items={[
             { term: 'Dashboard (/admin)', def: 'Real-time KPIs, alerts, and shortcuts to common tasks.' },
             { term: 'Members', def: 'The member roster. Search, edit, terminate, add notes, generate ID cards, send re-enroll links.' },
-            { term: 'Brokers & Organizations (Hierarchy)', def: 'Create and edit Sites, Accounts, and Groups.' },
-            { term: 'Distribution', def: 'Broker-facing distribution partner management and invites.' },
+            { term: 'Hierarchy (Sites, Accounts & Organizations)', def: 'Create and edit Sites, Accounts, and Groups — plus per-Site branding & integrations via Edit Site.' },
+            { term: 'Brokers', def: 'The sales/commission chain: Program Managers, FMOs, and agencies that resell your plans. Manage partners and send invites here.' },
             { term: 'Rep Codes', def: 'Manage attribution codes for sales reps and marketing sources.' },
             { term: 'Eligibility Files', def: 'Bulk-upload member CSVs. Provisions accounts. Generates downstream vendor files.' },
             { term: 'Billing', def: 'Period-by-period revenue and member counts. Used for E123 imports.' },
-            { term: 'List-Bill', def: 'Manage list-billed groups (employer pays one invoice for many members).' },
-            { term: 'Commissions', def: 'Broker payout tracking and payroll exports.' },
+            { term: 'List-Bill Invoices', def: 'Generate itemized invoices for list-billed groups (employer pays one invoice for many members).' },
+            { term: 'Revenue & Dispersal', def: 'Reconcile how each dollar of revenue splits across Toothlens, Careington, processing, and partner vendors. (Formerly "Invoice Calculator" — it does not generate invoices.)' },
+            { term: 'Commissions', def: 'Broker payout tracking and payroll exports. (Coming soon — figures not yet reliable.)' },
             { term: 'Customer Service', def: 'Per-member Stripe billing actions (refunds, cancellations).' },
-            { term: 'Vendor Files', def: 'Generate downstream eligibility files (DialCare, DDN, etc.).' },
-            { term: 'User Audit', def: 'Cross-system user lookup across Clerk, Convex, Toothlens.' },
+            { term: 'Vendor Files', def: 'Generate & download downstream eligibility files (DialCare, DDN, etc.) for manual delivery.' },
+            { term: 'User Lookup', def: 'Cross-system identity lookup across Clerk, Convex, Toothlens; fix or delete identity records. (Formerly "User Audit".)' },
             { term: 'Admin Users', def: 'Manage who has admin access and at what role.' },
-            { term: 'Settings', def: 'Site-level branding and configuration.' },
+            { term: 'Site Settings', def: 'Global site text (name, contact, social links). Branding/domain/integrations live on Hierarchy → Edit Site.' },
             { term: 'Dev Tools', def: 'Owner-only utilities for migrations, seeding, diagnostics.' },
           ]}
         />

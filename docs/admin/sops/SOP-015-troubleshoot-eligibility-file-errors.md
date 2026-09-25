@@ -4,7 +4,7 @@
 
 **Who can do this:** Any admin (Owner or Editor).
 
-**Trigger:** A file's status in Upload History isn't a clean `completed`.
+**When you'd do this:** A file's status in Upload History isn't a clean `completed`.
 
 **Related guide:** [Eligibility Files](../guide/02-operations.md#eligibility-files-admineligibility)
 
@@ -27,7 +27,7 @@
 
 ## If something goes wrong
 
-- **You're not sure why a member ended up merged into an existing profile instead of creating a new one (or vice versa)** — remember the match order above; a coincidental match on SSN or name+DOB across two people can cause an unintended merge. If you suspect this happened, use [User Audit](../guide/04-support-system.md#user-audit-adminuser-audit) ([SOP-011](SOP-011-investigate-member-identity-issue.md)) to inspect the resulting profile in detail and correct it manually if needed.
+- **You're not sure why a member ended up merged into an existing profile instead of creating a new one (or vice versa)** — remember the match order above; a coincidental match on SSN or name+DOB across two people can cause an unintended merge. If you suspect this happened, use [User Lookup](../guide/04-support-system.md#user-lookup-adminuser-audit) ([SOP-011](SOP-011-investigate-member-identity-issue.md)) to inspect the resulting profile in detail and correct it manually if needed.
 - **The file keeps failing the same way after multiple retries** — stop retrying and escalate; a persistent failure usually means the file's actual layout doesn't match any of the four auto-detected formats, which needs an engineering look (extending the parser), not more retries.
 - **You want to delete the failed file entirely and start clean** — there's currently no working delete-file button for this (the backend mutation exists but isn't wired to the UI, and even it doesn't clean up storage). Leave the failed entry in history and just re-upload a corrected file as a new entry instead.
 

@@ -18,3 +18,5 @@ export * as eligibility from "./eligibility";
 export * as vendorFiles from "./vendorFiles";
 export * as idMaintenance from "./idMaintenance";
 export * as unifiedData from "./unifiedData";
+export * as integrations from "./integrations";
+export * as fileStorage from "./fileStorage";

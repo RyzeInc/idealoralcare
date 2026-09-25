@@ -113,7 +113,7 @@ export default function VendorFilesPage() {
     <div className="space-y-6">
       <Breadcrumbs items={[{ label: 'Vendor Files' }]} />
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">Vendor File Management</h1>
+        <h1 className="text-3xl font-bold text-slate-900">Vendor Files</h1>
         <p className="text-slate-600">Generate and download eligibility files for vendors</p>
       </div>
 

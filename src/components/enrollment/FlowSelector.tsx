@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { ArrowRight, User, Users, Building2, Briefcase } from "lucide-react";
+import { useSiteThemeOptional } from "@/components/providers/SiteThemeProvider";
 
 export type EnrollmentFlow =
   | "dtc"
@@ -92,6 +93,8 @@ const FLOWS: FlowOption[] = [
 
 export function FlowSelector() {
   const router = useRouter();
+  const theme = useSiteThemeOptional();
+  const brandName = theme?.site?.name ?? "Ideal Oral Health";
 
   const handleSelect = (flow: EnrollmentFlow) => {
     router.push(`/health/enroll?flow=${flow}`);
@@ -133,7 +136,9 @@ export function FlowSelector() {
             <div className="flow-card__body">
               <p className="flow-card__who">{flow.who}</p>
               <h2 className="flow-card__title">{flow.title}</h2>
-              <p className="flow-card__description">{flow.description}</p>
+              <p className="flow-card__description">
+                {flow.id === "dtc" ? `Sign up directly for the ${brandName} Savings Plan.` : flow.description}
+              </p>
 
               <ul className="flow-card__details">
                 {flow.details.map((d, i) => (

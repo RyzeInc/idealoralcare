@@ -1,35 +1,36 @@
-import { Metadata } from "next";
+"use client";
+
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-export const metadata: Metadata = {
-  title: "Terms of Use | Ideal Health",
-  description: "Terms of use for Ideal Health discount program by Ideal.",
-};
+import { useSiteThemeOptional } from "@/components/providers/SiteThemeProvider";
 
 export default function IdealHealthTermsPage() {
+  const theme = useSiteThemeOptional();
+  const brandName = theme?.site?.name ?? "Ideal Oral Health";
+  const supportEmail = theme?.site?.enrollmentDefaults?.supportEmail ?? "support@getidealoh.com";
+  const supportPhone = theme?.site?.enrollmentDefaults?.supportPhone ?? "";
+  const address = theme?.site?.branding?.footerText ?? "1846 Fernando Ln, Tallahassee, FL 32303";
+
   return (
     <main className="min-h-screen">
-      {/* Header */}
       <section className="py-16 md:py-20">
         <div className="container mx-auto max-w-4xl px-4">
           <Button asChild variant="ghost" size="sm" className="mb-6 bg-white/50 hover:bg-white/70">
             <Link href="/health">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Ideal Health
+              Back to {brandName}
             </Link>
           </Button>
           <h1 className="font-[family-name:var(--font-playfair)] text-4xl font-medium tracking-tight text-[#0F1320] md:text-5xl">
             Terms of Use
           </h1>
           <p className="mt-4 text-[#64748B]">
-            Ideal Health Discount Program
+            {brandName} Discount Program
           </p>
         </div>
       </section>
 
-      {/* Content */}
       <section className="py-12">
         <div className="container mx-auto max-w-4xl px-4">
           <div className="prose prose-sm max-w-none space-y-6 text-[#354158]">
@@ -59,8 +60,7 @@ export default function IdealHealthTermsPage() {
                 Program Overview
               </h2>
               <p>
-                Ideal Health is a discount program offered by Ideal LLC that provides access to 
-                discounted health services through a network of participating providers.
+                {brandName} is a discount program that provides access to discounted health services through a network of participating providers.
               </p>
             </div>
 
@@ -104,9 +104,7 @@ export default function IdealHealthTermsPage() {
                 Limitation of Liability
               </h2>
               <p>
-                Ideal LLC and the Ideal Health program are not responsible for the quality, 
-                timeliness, or appropriateness of services provided by participating healthcare 
-                providers. Members should verify provider credentials and quality independently.
+                {brandName} is not responsible for the quality, timeliness, or appropriateness of services provided by participating healthcare providers. Members should verify provider credentials and quality independently.
               </p>
             </div>
 
@@ -115,9 +113,7 @@ export default function IdealHealthTermsPage() {
                 Fees and Payment
               </h2>
               <p>
-                Membership fees, where applicable, are non-refundable except as provided by this 
-                agreement or applicable law. Discounted services are paid directly to providers at 
-                the point of service.
+                Membership fees, where applicable, are non-refundable except as provided by this agreement or applicable law. Discounted services are paid directly to providers at the point of service.
               </p>
             </div>
 
@@ -126,8 +122,7 @@ export default function IdealHealthTermsPage() {
                 Changes to Terms
               </h2>
               <p>
-                Ideal LLC reserves the right to modify these terms at any time. Continued membership 
-                in the program constitutes acceptance of any modifications.
+                We reserve the right to modify these terms at any time. Continued membership in the program constitutes acceptance of any modifications.
               </p>
             </div>
 
@@ -136,13 +131,13 @@ export default function IdealHealthTermsPage() {
                 Contact Information
               </h2>
               <p>
-                For questions about these terms or the Ideal Health program, please contact:
+                For questions about these terms or the {brandName} program, please contact:
               </p>
               <p className="mt-4">
-                <strong>Ideal (Ideal LLC)</strong><br />
-                1846 Fernando Ln<br />
-                Tallahassee, FL 32303<br />
-                Email: support@getidealoh.com
+                <strong>{brandName}</strong><br />
+                {address}<br />
+                Email: {supportEmail}
+                {supportPhone && <><br />Phone: {supportPhone}</>}
               </p>
             </div>
 

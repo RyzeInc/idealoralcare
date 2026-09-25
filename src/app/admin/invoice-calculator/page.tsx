@@ -170,14 +170,14 @@ export default function InvoiceCalculatorPage() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumbs items={[{ label: 'Admin', href: '/admin' }, { label: 'Invoice Calculator' }]} />
+      <Breadcrumbs items={[{ label: 'Admin', href: '/admin' }, { label: 'Revenue & Dispersal' }]} />
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
             <Calculator size={28} className="text-blue-600" />
-            Invoice Calculator
+            Revenue &amp; Dispersal
           </h1>
           <p className="text-slate-600 mt-1 max-w-3xl">
             Per-member revenue and dispersal breakdown. Primary Individual = $14.99/mo,

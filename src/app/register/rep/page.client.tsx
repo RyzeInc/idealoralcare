@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { useMutation } from 'convex/react';
+import { useState, useMemo, useEffect } from 'react';
+import { useMutation, useAction, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
-import { CheckCircle2, ShieldAlert, Loader2 } from 'lucide-react';
+import { CheckCircle2, ShieldAlert, Loader2, FileSignature } from 'lucide-react';
+import { W9SignModal, W9SignData } from './W9SignModal';
 
 type SubmissionType = 'agency' | 'rep' | 'both';
 
@@ -26,8 +27,6 @@ interface FormState {
   commissionTier: string;
   agencyEffectiveDate: string;
   agencyStatus: string;
-  w9Status: string;
-  w9ReceivedDate: string;
   paymentMethod: string;
   achAuthorizationStatus: string;
   // Rep
@@ -50,7 +49,6 @@ const initialState: FormState = {
   programManager: '', physicalAddress: '', mailingAddress: '',
   agencyLicenses: '', eoCarrier: '', eoExpiration: '',
   commissionTier: '', agencyEffectiveDate: '', agencyStatus: 'pending',
-  w9Status: 'pending', w9ReceivedDate: '',
   paymentMethod: '', achAuthorizationStatus: 'pending',
   repFirstName: '', repLastName: '', repEmail: '', repPhone: '',
   repNpn: '', assignedAgency: '', repLicenses: '',
@@ -59,10 +57,36 @@ const initialState: FormState = {
 
 export default function RepRegistrationClient() {
   const submit = useMutation(api.repOnboarding.submit);
+  const submitW9 = useAction(api.legal.w9Forms.submitW9);
   const [form, setForm] = useState<FormState>(initialState);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [w9ModalOpen, setW9ModalOpen] = useState(false);
+  const [w9Data, setW9Data] = useState<W9SignData | null>(null);
+
+  // ── Partner Kit Lead invite: prefill from ?leadToken=… ────────────────
+  const [leadToken, setLeadToken] = useState<string | null>(null);
+  const [prefilled, setPrefilled] = useState(false);
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get('leadToken');
+    if (t) setLeadToken(t);
+  }, []);
+  const leadPrefill = useQuery(
+    api.partnerPipeline.getLeadByInviteToken,
+    leadToken ? { token: leadToken } : 'skip',
+  );
+  useEffect(() => {
+    if (!leadPrefill || prefilled) return;
+    setForm((f) => ({
+      ...f,
+      agencyName: f.agencyName || leadPrefill.business || '',
+      primaryContactName: f.primaryContactName || leadPrefill.name || '',
+      primaryContactEmail: f.primaryContactEmail || leadPrefill.email || '',
+      primaryContactPhone: f.primaryContactPhone || leadPrefill.phone || '',
+    }));
+    setPrefilled(true);
+  }, [leadPrefill, prefilled]);
 
   const showAgency = useMemo(
     () => form.submissionType === 'agency' || form.submissionType === 'both',
@@ -80,9 +104,22 @@ export default function RepRegistrationClient() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (showAgency && !w9Data) {
+      setError('Please complete and sign the W-9 before submitting.');
+      return;
+    }
     setSubmitting(true);
     try {
-      await submit(form);
+      const result = await submit({ ...form, leadToken: leadToken ?? undefined });
+      if (w9Data && result?.id) {
+        try {
+          await submitW9({ repSubmissionId: result.id, ...w9Data });
+        } catch (w9Err) {
+          // Non-fatal — the application itself was received; the partnerships
+          // team can follow up on the W-9 manually if this fails.
+          console.error('W-9 submission failed:', w9Err);
+        }
+      }
       setSubmitted(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
@@ -102,7 +139,7 @@ export default function RepRegistrationClient() {
             Thank you. Our partnerships team will review your submission and reach out within 1–2 business days.
           </p>
           <button
-            onClick={() => { setForm(initialState); setSubmitted(false); }}
+            onClick={() => { setForm(initialState); setW9Data(null); setSubmitted(false); }}
             className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
           >
             Submit another
@@ -130,6 +167,20 @@ export default function RepRegistrationClient() {
 
       {/* Body */}
       <div className="max-w-4xl mx-auto px-4 py-10">
+        {/* Prefilled-from-lead banner */}
+        {leadPrefill && (
+          <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex gap-3">
+            <CheckCircle2 className="flex-shrink-0 text-emerald-600 mt-0.5" size={22} />
+            <div>
+              <p className="text-sm font-semibold text-emerald-900">Welcome back{leadPrefill.name ? `, ${leadPrefill.name}` : ''}</p>
+              <p className="text-sm text-emerald-800 mt-1">
+                We&apos;ve pre-filled your details from your earlier registration. Review, complete the
+                remaining fields, and submit to finish your partner application.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Security Notice */}
         <div className="mb-8 bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3">
           <ShieldAlert className="flex-shrink-0 text-amber-600 mt-0.5" size={22} />
@@ -137,7 +188,8 @@ export default function RepRegistrationClient() {
             <p className="text-sm font-semibold text-amber-900">Secure submission</p>
             <p className="text-sm text-amber-800 mt-1">
               This form is reviewed by Ideal Oral Health staff. Do not include Social Security numbers,
-              banking credentials, or any other sensitive information that is not explicitly requested below.
+              banking credentials, or any other sensitive information anywhere in the fields below other
+              than the dedicated, encrypted W-9 signing step.
             </p>
           </div>
         </div>
@@ -237,17 +289,18 @@ export default function RepRegistrationClient() {
                     <option value="inactive">Inactive</option>
                   </select>
                 </Field>
-                <Field label="W-9 Status">
-                  <select className={inputClass}
-                    value={form.w9Status} onChange={(e) => update('w9Status', e.target.value)}>
-                    <option value="pending">Pending</option>
-                    <option value="received">Received</option>
-                    <option value="not_required">Not required</option>
-                  </select>
-                </Field>
-                <Field label="W-9 Received Date">
-                  <input type="date" className={inputClass}
-                    value={form.w9ReceivedDate} onChange={(e) => update('w9ReceivedDate', e.target.value)} />
+                <Field label="Form W-9" full>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setW9ModalOpen(true)}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 border border-slate-300 rounded-lg text-sm font-medium hover:bg-slate-200"
+                    >
+                      <FileSignature size={16} />
+                      {w9Data ? 'Re-sign W-9' : 'Complete & Sign W-9'}
+                    </button>
+                    {w9Data && <span className="text-sm text-emerald-700">✓ W-9 signed</span>}
+                  </div>
                 </Field>
                 <Field label="Preferred Payment Method">
                   <select className={inputClass}
@@ -334,6 +387,15 @@ export default function RepRegistrationClient() {
           </div>
         </form>
       </div>
+
+      <W9SignModal
+        isOpen={w9ModalOpen}
+        onClose={() => setW9ModalOpen(false)}
+        onSigned={(data) => { setW9Data(data); setW9ModalOpen(false); }}
+        defaultLegalName={form.primaryContactName}
+        defaultBusinessName={form.agencyName}
+        defaultAddress={form.physicalAddress}
+      />
     </div>
   );
 }

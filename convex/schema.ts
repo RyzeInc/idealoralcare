@@ -1,5 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { shopNetworkValidator } from "./shop/constants";
+import { promoLinkValidator } from "./lib/promoLinks";
 
 export default defineSchema({
   // ============================================
@@ -246,6 +248,74 @@ export default defineSchema({
     .index("by_clerk_id", ["clerkUserId"]),
 
   // ============================================
+  // BROKER / AGENCY / REP ONBOARDING SUBMISSIONS
+  // ============================================
+  // Public submissions captured at /register/rep. Admins review these and then
+  // promote into distributionPartners + partnerLeaders.
+  repOnboardingSubmissions: defineTable({
+    submissionType: v.union(
+      v.literal("agency"),
+      v.literal("rep"),
+      v.literal("both"),
+    ),
+    // Broker / Agency fields
+    agencyName: v.optional(v.string()),
+    dba: v.optional(v.string()),
+    ein: v.optional(v.string()),
+    agencyNpn: v.optional(v.string()),
+    primaryContactName: v.optional(v.string()),
+    primaryContactEmail: v.optional(v.string()),
+    primaryContactPhone: v.optional(v.string()),
+    programManager: v.optional(v.string()),
+    physicalAddress: v.optional(v.string()),
+    mailingAddress: v.optional(v.string()),
+    agencyLicenses: v.optional(v.string()),
+    eoCarrier: v.optional(v.string()),
+    eoExpiration: v.optional(v.string()),
+    commissionTier: v.optional(v.string()),
+    agencyEffectiveDate: v.optional(v.string()),
+    agencyStatus: v.optional(v.string()),
+    w9Status: v.optional(v.string()),
+    w9ReceivedDate: v.optional(v.string()),
+    paymentMethod: v.optional(v.string()),
+    achAuthorizationStatus: v.optional(v.string()),
+    // Front-line rep fields
+    repFirstName: v.optional(v.string()),
+    repLastName: v.optional(v.string()),
+    repEmail: v.optional(v.string()),
+    repPhone: v.optional(v.string()),
+    repNpn: v.optional(v.string()),
+    assignedAgency: v.optional(v.string()),
+    repLicenses: v.optional(v.string()),
+    repEffectiveDate: v.optional(v.string()),
+    repStatus: v.optional(v.string()),
+    writingNumber: v.optional(v.string()),
+    // Workflow
+    status: v.union(
+      v.literal("new"),
+      v.literal("reviewing"),
+      v.literal("approved"),
+      v.literal("rejected"),
+    ),
+    notes: v.optional(v.string()),
+    submittedFromIp: v.optional(v.string()),
+    // Set during approval — links back to the created distributionPartners row
+    approvedPartnerId: v.optional(v.string()),
+    approvedRepLeaderId: v.optional(v.string()),
+    // PIPELINE LINKS
+    sourceLeadId: v.optional(v.id("partnerRegistrations")),          // lead this application was invited from
+    partnerKitSubmissionId: v.optional(v.id("partnerKitSubmissions")), // matched signed Partner Kit (agreement + W-9)
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status", ["status"])
+    .index("by_type", ["submissionType"])
+    .index("by_email", ["primaryContactEmail"])
+    .index("by_rep_email", ["repEmail"])
+    // Partner → their application, for the "your signed agreement" lookup.
+    .index("by_approved_partner", ["approvedPartnerId"]),
+
+  // ============================================
   // FORM SUBMISSIONS (existing)
   // ============================================
 
@@ -312,6 +382,32 @@ export default defineSchema({
     status: v.union(v.literal("active"), v.literal("unsubscribed")),
   }).index("by_email", ["email"]),
 
+  // Partner / agency registration leads (from /register page)
+  partnerRegistrations: defineTable({
+    name: v.string(),
+    email: v.string(),
+    phone: v.string(),
+    business: v.string(),
+    wantsPartnerKit: v.boolean(),
+    status: v.union(
+      v.literal("new"),
+      v.literal("contacted"),
+      v.literal("closed"),
+      v.literal("invited"),   // application invite sent, awaiting submission
+      v.literal("converted"), // lead completed a Partner Application
+    ),
+    createdAt: v.number(),
+
+    // PIPELINE LINKS (Lead → Application via self-serve invite)
+    inviteToken: v.optional(v.string()),        // token embedded in /register/rep?leadToken=…
+    inviteStatus: v.optional(v.union(v.literal("pending"), v.literal("claimed"))),
+    invitedAt: v.optional(v.number()),
+    convertedToApplicationId: v.optional(v.id("repOnboardingSubmissions")), // set when the lead submits an application
+  })
+    .index("by_status", ["status"])
+    .index("by_email", ["email"])
+    .index("by_invite_token", ["inviteToken"]),
+
   // ============================================
   // NEXUS BENEFITS PORTAL
   // ============================================
@@ -377,6 +473,119 @@ export default defineSchema({
     .index("by_email", ["email"])
     .index("by_status", ["status"])
     .index("by_access", ["lastAccessedAt"]),
+
+  // ============================================
+  // PREVENTATIVE CARE SHOP (affiliate retail)
+  //
+  // Curated third-party products we link out to for commission. We never sell,
+  // stock, or ship any of it. Deliberately separate from catalogProducts
+  // (plans/entitlements) and nexusProducts (B2B partner collateral): a shop
+  // item must never be presented as a plan benefit.
+  // Rules: docs/internal/SHOP_DESIGN.md
+  // ============================================
+
+  // Master on/off switch for the whole storefront (single document, key "main").
+  //
+  // Absent means ON. The shop is live today, so the row-less state a deploy
+  // lands in must not read as "off" — only an explicit toggle writes `false`.
+  // This is the inverse default from `sites.shopEnabled`, which is opt-in for
+  // partners who never had a shop to begin with. See SHOP_DESIGN.md rule 7.
+  shopSettings: defineTable({
+    key: v.string(), // "main" — only one document
+    isEnabled: v.boolean(),
+    updatedAt: v.number(),
+    updatedBy: v.optional(v.string()), // Clerk user ID
+  }).index("by_key", ["key"]),
+
+  // Editorial grouping — "Daily Care", "Interdental", "Whitening", "Kids"
+  shopCategories: defineTable({
+    name: v.string(),
+    slug: v.string(),
+    description: v.optional(v.string()),
+    icon: v.optional(v.string()), // Lucide icon name
+    order: v.number(),
+    isVisible: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_visible", ["isVisible"])
+    .index("by_order", ["order"]),
+
+  shopProducts: defineTable({
+    // IDENTITY
+    categoryId: v.id("shopCategories"),
+    name: v.string(),
+    slug: v.string(),
+    brand: v.string(),
+
+    // COPY
+    // Descriptive only. No therapeutic or disease claims — a shop item is a
+    // cosmetic or a device, and claiming it treats a condition converts it into
+    // an unapproved drug claim. See SHOP_DESIGN.md hard rule 2.
+    shortDescription: v.string(), // Card
+    description: v.optional(v.string()), // Detail view
+    highlights: v.optional(v.array(v.string())),
+
+    // IMAGERY
+    imageUrl: v.optional(v.string()),
+    imageStorageId: v.optional(v.id("_storage")),
+
+    // AFFILIATE
+    affiliateUrl: v.string(), // Fully tagged destination, rendered as-is
+    merchant: v.string(), // Display name: "Amazon", "Boka"
+    network: shopNetworkValidator,
+    // Internal economics — never rendered to a shopper. These are our terms
+    // with the network, not the shopper's business.
+    commissionRate: v.optional(v.number()), // Percent, e.g. 15 for 15%
+    cookieWindowDays: v.optional(v.number()),
+
+    // PRICE DISPLAY
+    // A snapshot for orientation only, entered by an admin (no scraping). We
+    // don't control merchant pricing, so this always renders as an
+    // approximation qualified by priceCapturedAt.
+    priceCents: v.optional(v.number()),
+    priceCapturedAt: v.optional(v.number()),
+
+    // MERCHANDISING
+    order: v.number(),
+    isVisible: v.boolean(),
+    isFeatured: v.boolean(),
+
+    // COUNTERS (denormalized for admin lists; shopClicks is the source of truth)
+    clickCount: v.number(),
+    lastClickedAt: v.optional(v.number()),
+
+    // AUDIT
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    createdBy: v.optional(v.string()), // Clerk user ID
+    updatedBy: v.optional(v.string()),
+  })
+    .index("by_category", ["categoryId"])
+    .index("by_slug", ["slug"])
+    .index("by_visible", ["isVisible"])
+    .index("by_featured", ["isFeatured"])
+    .index("by_order", ["order"])
+    .index("by_network", ["network"]),
+
+  // Append-only outbound click log. Networks report conversions but never our
+  // own funnel, so this is the only attribution data we own. No IP or
+  // user-agent is stored — no product need, and needless PII.
+  shopClicks: defineTable({
+    productId: v.id("shopProducts"),
+    productSlug: v.string(), // Denormalized so the row outlives the product
+    siteSlug: v.optional(v.string()), // Which tenant the click came from
+    network: shopNetworkValidator,
+    // Recorded when a logged-in member clicks, for funnel analysis only.
+    // Never used to personalize what a member is shown (hard rule 3).
+    clerkUserId: v.optional(v.string()),
+    referrerPath: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_product", ["productId"])
+    .index("by_created", ["createdAt"])
+    .index("by_site", ["siteSlug"]),
 
   // ============================================
   // HEALTH PLANS CATALOG & SUBSCRIPTION SYSTEM
@@ -713,6 +922,7 @@ export default defineSchema({
     branding: v.object({
       logoUrl: v.optional(v.string()),
       logoStorageId: v.optional(v.id("_storage")),
+      logoWidth: v.optional(v.number()), // display width in px (height scales automatically)
       faviconUrl: v.optional(v.string()),
       primaryColor: v.optional(v.string()), // CSS color
       secondaryColor: v.optional(v.string()),
@@ -728,7 +938,23 @@ export default defineSchema({
     allowedPlanIds: v.array(v.id("catalogProducts")), // Which products available at this site
     defaultCadence: v.optional(v.union(v.literal("monthly"), v.literal("annual"))),
     defaultPaymentMethod: v.optional(v.union(v.literal("card"), v.literal("ach"))),
-    
+
+    // PREVENTATIVE CARE SHOP
+    // Opt-in per site. White-label partners inherit our pages, and some have a
+    // compliance posture that forbids affiliate retail — so absent/false means
+    // the shop 404s for that site. See docs/internal/SHOP_DESIGN.md rule 6.
+    shopEnabled: v.optional(v.boolean()),
+
+    // THIRD-PARTY PROMO LINKS
+    // A white-label partner may want to surface an offer we neither sell nor
+    // underwrite — e.g. a vision carrier's own co-branded landing page. Held
+    // per-site, never hardcoded into the shared pages, because every brand
+    // inherits those pages: a link stored here cannot leak onto another
+    // brand's site the way the hardcoded `networks` block in
+    // subscriptions/queries.ts currently does.
+    promoLinks: v.optional(v.array(promoLinkValidator)),
+
+
     // ENROLLMENT FLOW CONFIGURATION
     enrollmentDefaults: v.object({
       requireGroupCode: v.boolean(), // Must user enter a group code?
@@ -1157,7 +1383,35 @@ export default defineSchema({
       v.literal("suspended"),
       v.literal("terminated")
     ),
-    
+
+    // DENORMALIZED REP ATTRIBUTION (cache — see convex/lib/repAttribution.ts)
+    //
+    // "Which rep owns this member?" is authoritatively answered by
+    // RepAttributionResolver, which reads enrollmentSessions and groups. That
+    // costs a full scan of both tables, so the answer is also stamped here and
+    // indexed. The resolver stays the source of truth; these fields are a cache
+    // that convex/insights/* reads to avoid scanning. Drift is detectable via
+    // admin/repAttributionBackfill.getAttributionDrift.
+    //
+    // Written by: lib/memberCreation.ts (on create), enrollment/sessions.ts (on
+    // session completion), admin/hierarchy.ts (when a group's broker changes),
+    // and admin/repAttributionBackfill.ts (retroactively).
+    attributedRepId: v.optional(v.string()),        // partnerLeaders._id
+    attributedAgencyId: v.optional(v.string()),     // distributionPartners._id
+    attributedCode: v.optional(v.string()),         // brokerTrackingCodes.code
+    attributionSource: v.optional(v.union(
+      v.literal("enrollment"),                      // Scenario A — rep sold direct
+      v.literal("group"),                           // Scenario B — rep owns the employer deal
+      v.literal("none")
+    )),
+    attributionUpdatedAt: v.optional(v.number()),
+
+    // LIFECYCLE EXIT
+    // Set when memberType moves to terminated/inactive; cleared on reactivation.
+    // Without this there is no way to build a retention cohort — see
+    // admin/invoiceCalculator.ts, which cannot reconstruct historical rosters.
+    terminatedAt: v.optional(v.number()),
+
     // AUDIT
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -1176,7 +1430,11 @@ export default defineSchema({
     .index("by_email", ["email"])
     .index("by_group_email", ["groupId", "email"])
     .index("by_careington_id", ["careingtonUniqueId"])
-    .index("by_essentials_member_number", ["essentialsMemberNumber"]),
+    .index("by_essentials_member_number", ["essentialsMemberNumber"])
+    .index("by_attributed_rep", ["attributedRepId"])
+    .index("by_attributed_agency", ["attributedAgencyId"])
+    .index("by_attributed_rep_type", ["attributedRepId", "memberType"])
+    .index("by_attributed_agency_type", ["attributedAgencyId", "memberType"]),
 
   // MEMBER ACTIVITIES (Timeline/activity log)
   memberActivities: defineTable({
@@ -1374,6 +1632,7 @@ export default defineSchema({
     .index("by_status", ["status"]),
 
   // ENROLLMENT SESSIONS (Temporary state during checkout)
+
   enrollmentSessions: defineTable({
     // SESSION IDENTITY
     sessionId: v.string(), // UUID
@@ -1638,6 +1897,25 @@ export default defineSchema({
     amount: v.number(), // Commission amount in cents
     period: v.string(), // "2026-03" YYYY-MM format for monthly reconciliation
     
+    // KEY SPACE
+    // Historically the Stripe webhook wrote the raw rep TRACKING CODE string
+    // into `brokerId`, which does not join to partnerLeaders or commissionRates
+    // — and it applied a hardcoded 15% rather than the contracted rate. Those
+    // rows are unusable for reporting, so rather than invent values for them we
+    // mark which key space each row was written in:
+    //
+    //   "leader_id"   — brokerId is a partnerLeaders._id and rateApplied came
+    //                   from commissionRates. Trustworthy; safe to report on.
+    //   "legacy_code" — brokerId held a code string and/or the rate was the
+    //                   hardcoded default. Quarantined; excluded from reads.
+    //
+    // Rows with no keySpace predate the flag and are treated as "legacy_code".
+    // See admin/repAttributionBackfill.ts for the re-keying pass.
+    keySpace: v.optional(v.union(
+      v.literal("leader_id"),
+      v.literal("legacy_code")
+    )),
+
     // STATUS
     status: v.union(
       v.literal("pending"), // Commission earned, awaiting approval
@@ -1711,6 +1989,98 @@ export default defineSchema({
     expiresAt: v.number(),                  // ms epoch — token TTL (conservative)
     updatedAt: v.number(),
   }).index("by_auth_company", ["authCompany"]),
+
+  // W-9 FORMS (Signed substitute Form W-9 for distributor partners/reps)
+  // The raw TIN is embedded only in the generated PDF (storageId, access-gated
+  // + audit-logged on view) — never stored as a plaintext DB field. Only a
+  // masked version is kept here for display purposes.
+  w9Forms: defineTable({
+    repSubmissionId: v.optional(v.id("repOnboardingSubmissions")),
+    partnerId: v.optional(v.id("distributionPartners")),
+    legalName: v.string(),
+    businessName: v.optional(v.string()),
+    taxClassification: v.union(
+      v.literal("individual"),
+      v.literal("c_corp"),
+      v.literal("s_corp"),
+      v.literal("partnership"),
+      v.literal("trust_estate"),
+      v.literal("llc"),
+      v.literal("other"),
+    ),
+    llcTaxClassification: v.optional(v.string()), // "C" | "S" | "P" — only when taxClassification === "llc"
+    address: v.string(),
+    city: v.string(),
+    state: v.string(),
+    zip: v.string(),
+    tinType: v.union(v.literal("ssn"), v.literal("ein")),
+    maskedTin: v.string(), // e.g. "***-**-6789"
+    storageId: v.string(), // Convex _storage ID of the signed PDF (contains the full TIN)
+    signedAt: v.number(),
+    signerIp: v.optional(v.string()),
+    status: v.union(v.literal("signed"), v.literal("superseded")),
+    createdAt: v.number(),
+  })
+    .index("by_repSubmissionId", ["repSubmissionId"])
+    .index("by_partnerId", ["partnerId"]),
+
+  // PARTNER KIT — "Section 7: Partner Agreement & Acknowledgment" submissions.
+  // Public intake (no account required), mirrors the fillable Partner Kit PDF.
+  // Partners can complete & sign online OR upload a completed PDF, plus attach
+  // a W-9 (e-signed via w9Forms, or uploaded as a file).
+  partnerKitSubmissions: defineTable({
+    // Section 7 fillable fields
+    partnerAgencyName: v.string(),
+    dba: v.optional(v.string()),
+    primaryContactName: v.string(),
+    email: v.string(),
+    phone: v.optional(v.string()),
+    npnLicenseInfo: v.optional(v.string()),
+    effectiveDate: v.optional(v.string()),
+    // Signature block (online path)
+    signatureDataUrl: v.optional(v.string()),
+    printedName: v.optional(v.string()),
+    title: v.optional(v.string()),
+    signedDate: v.optional(v.string()),
+    acknowledged: v.boolean(),
+    // How the agreement was provided
+    method: v.union(v.literal("online"), v.literal("upload")),
+    // Uploaded completed Partner Kit PDF (upload path or supplemental)
+    partnerKitFileId: v.optional(v.string()),
+    partnerKitFileName: v.optional(v.string()),
+    // W-9: either an e-signed w9Forms row, or an uploaded file
+    w9FormId: v.optional(v.id("w9Forms")),
+    w9FileId: v.optional(v.string()),
+    w9FileName: v.optional(v.string()),
+    // Workflow
+    status: v.union(
+      v.literal("new"),
+      v.literal("reviewing"),
+      v.literal("approved"),
+      v.literal("rejected"),
+    ),
+    notes: v.optional(v.string()),
+    submittedFromIp: v.optional(v.string()),
+    // PIPELINE LINKS
+    matchedApplicationId: v.optional(v.id("repOnboardingSubmissions")), // auto-matched by email
+    matchedLeadId: v.optional(v.id("partnerRegistrations")),           // auto-matched by email
+    approvedPartnerId: v.optional(v.string()),      // set on standalone promotion → distributionPartners
+    approvedRepLeaderId: v.optional(v.string()),
+    /**
+     * Rendered executed agreement for the ONLINE path, cached after first
+     * download. The upload path already has a signed PDF (`partnerKitFileId`);
+     * an online signature is only field values + a signature image, so the
+     * document has to be composed. Generated once, then reused.
+     */
+    executedAgreementFileId: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status", ["status"])
+    .index("by_email", ["email"])
+    // Serves the partner-facing "your signed agreement" lookup, which matches
+    // on partner id — never on email, which is neither unique nor verified.
+    .index("by_approved_partner", ["approvedPartnerId"]),
 
   // ============================================
   // MEMBERSHIP AGREEMENTS & LEGAL DOCUMENTS
@@ -1932,6 +2302,12 @@ export default defineSchema({
     // SCOPE
     groupId: v.id("groups"),
     accountId: v.id("accounts"),
+    // Which brand this group's revenue belongs to, denormalized from the group
+    // at close time so a statement can be scoped to one white-label site without
+    // re-reading every group. Optional: rows closed before multi-site scoping
+    // shipped have none, and readers fall back to `groups.siteId` for those
+    // (run `backfillInvoicePeriodSiteIds` to fill them in permanently).
+    siteId: v.optional(v.id("sites")),
     isListBill: v.boolean(),       // employer-paid flag at close time
 
     // DENORMALIZED METADATA (frozen at close time)
@@ -2047,6 +2423,7 @@ export default defineSchema({
   })
     .index("by_period", ["period"])
     .index("by_period_group", ["period", "groupId"])
+    .index("by_period_site", ["period", "siteId"])
     .index("by_group", ["groupId"])
     .index("by_account", ["accountId"]),
 
@@ -2170,6 +2547,18 @@ export default defineSchema({
     ),
     vendorName: v.string(),               // frozen display name at generation
 
+    // ── SITE SCOPE ────────────────────────────────────────────────────────
+    // Absent = book-wide: every site's close rows for the month. That is what a
+    // vendor contracted with the carrier rather than with one brand is owed, and
+    // it is the default. Set = only that site's close rows, for a white-label
+    // brand that settles its own revenue share.
+    //
+    // Within one (vendor, period) the two are mutually exclusive: either one
+    // live book-wide statement OR live per-site statements, never both, or the
+    // same dollar is remitted twice. `createStatement` enforces that.
+    siteId: v.optional(v.id("sites")),
+    siteName: v.optional(v.string()),     // frozen display name at generation
+
     // ── COVERAGE ──────────────────────────────────────────────────────────
     period: v.string(),                   // "YYYY-MM"
     coverageStart: v.number(),            // UTC ms, inclusive (first instant of the month)
@@ -2281,6 +2670,8 @@ export default defineSchema({
     .index("by_period", ["period"])
     .index("by_vendor", ["vendor"])
     .index("by_vendor_period", ["vendor", "period"])
+    .index("by_vendor_period_site", ["vendor", "period", "siteId"])
+    .index("by_site_period", ["siteId", "period"])
     .index("by_status", ["status"]),
 
   // ============================================
@@ -2342,8 +2733,13 @@ export default defineSchema({
       department: v.optional(v.string()),
       effectiveDate: v.optional(v.string()),
       groupMemberId: v.optional(v.string()),
-      monthlyPremiumCents: v.optional(v.number()), // per-member premium captured from the eligibility file (source of rateCents when present)
-      tierCode: v.optional(v.string()),            // raw tier code from the eligibility file (e.g. "EMP", "ESP", "ECH")
+      // buildInvoiceLines writes both of these, but the validator did not
+      // declare them — so a group whose eligibility file supplied an
+      // "Approved EE Cost" or a "Tier" column (exactly the case these fields
+      // exist for) would fail document validation on invoice generation.
+      // Tests passed only because seeded members have neither field set.
+      monthlyPremiumCents: v.optional(v.number()),
+      tierCode: v.optional(v.string()),
     })),
 
     // ── HEAD COUNTS ───────────────────────────────────────────────────────
@@ -2430,65 +2826,1306 @@ export default defineSchema({
   }).index("by_name", ["name"]),
 
   // ============================================
-  // BROKER / AGENCY / REP ONBOARDING SUBMISSIONS
+  // SITE INTEGRATIONS (per-brand vendor config)
   // ============================================
-  // Public submissions captured at /register/rep. Admins review these and then
-  // promote into distributionPartners + partnerLeaders.
-  repOnboardingSubmissions: defineTable({
-    submissionType: v.union(
-      v.literal("agency"),
-      v.literal("rep"),
-      v.literal("both"),
+  siteIntegrations: defineTable({
+    siteId: v.id("sites"),
+
+    // Toothlens AI oral scanning
+    toothlensCompany: v.optional(v.string()),     // e.g. "idealhealth"
+    toothlensAccessKey: v.optional(v.string()),   // encrypted access key
+
+    // Email sender
+    emailFromName: v.optional(v.string()),        // e.g. "Ideal Oral Health"
+    emailFromAddress: v.optional(v.string()),     // e.g. "noreply@getidealoh.com"
+    emailReplyTo: v.optional(v.string()),         // e.g. "support@getidealoh.com"
+
+    // Stripe
+    stripeMode: v.optional(v.union(v.literal("single"), v.literal("connect"))),
+    stripeConnectAccountId: v.optional(v.string()),
+    stripePriceMap: v.optional(v.any()),          // { productId -> { monthly, annual } }
+
+    // Vendor group codes (if brand has its own Careington/DialCare group)
+    careingtonGroupCode: v.optional(v.string()),
+    dialcareGroupCode: v.optional(v.string()),
+
+    // Legal entity overrides
+    legalEntityName: v.optional(v.string()),
+    legalAddress: v.optional(v.string()),
+    carrierName: v.optional(v.string()),
+
+    updatedAt: v.number(),
+  }).index("by_site", ["siteId"]),
+
+  // ============================================
+  // INSIGHTS — rep link tracking & daily rollups
+  // ============================================
+
+  // REP LINK VISITS (top of the production funnel)
+  //
+  // Until now the only signal a rep code produced was a completed enrollment —
+  // `brokerTrackingCodes.usageCount` was declared but never incremented, so
+  // every "code usage" figure read zero and there was no way to tell a code
+  // that nobody clicked from one that converted badly.
+  //
+  // Written from two places, mirroring how the code reaches us:
+  //   - src/proxy.ts            vanity URL  /{slug}   (server-side redirect)
+  //   - /api/track/rep-visit    ?ref=CODE landing     (sendBeacon)
+  //
+  // Rows are recorded raw. Bot filtering happens at READ time so the rule can
+  // change later without having thrown data away.
+  repLinkVisits: defineTable({
+    code: v.string(),                      // brokerTrackingCodes.code
+    slug: v.optional(v.string()),          // vanity slug, when that was the entry
+    siteSlug: v.optional(v.string()),      // white-label brand the visit landed on
+    path: v.string(),                      // where they arrived
+    referrer: v.optional(v.string()),
+    sessionId: v.optional(v.string()),     // browser session, for dedupe at read time
+    source: v.union(
+      v.literal("vanity_url"),
+      v.literal("ref_param")
     ),
-    // Broker / Agency fields
-    agencyName: v.optional(v.string()),
-    dba: v.optional(v.string()),
-    ein: v.optional(v.string()),
-    agencyNpn: v.optional(v.string()),
-    primaryContactName: v.optional(v.string()),
-    primaryContactEmail: v.optional(v.string()),
-    primaryContactPhone: v.optional(v.string()),
-    programManager: v.optional(v.string()),
-    physicalAddress: v.optional(v.string()),
-    mailingAddress: v.optional(v.string()),
-    agencyLicenses: v.optional(v.string()),
-    eoCarrier: v.optional(v.string()),
-    eoExpiration: v.optional(v.string()),
-    commissionTier: v.optional(v.string()),
-    agencyEffectiveDate: v.optional(v.string()),
-    agencyStatus: v.optional(v.string()),
-    w9Status: v.optional(v.string()),
-    w9ReceivedDate: v.optional(v.string()),
-    paymentMethod: v.optional(v.string()),
-    achAuthorizationStatus: v.optional(v.string()),
-    // Front-line rep fields
-    repFirstName: v.optional(v.string()),
-    repLastName: v.optional(v.string()),
-    repEmail: v.optional(v.string()),
-    repPhone: v.optional(v.string()),
-    repNpn: v.optional(v.string()),
-    assignedAgency: v.optional(v.string()),
-    repLicenses: v.optional(v.string()),
-    repEffectiveDate: v.optional(v.string()),
-    repStatus: v.optional(v.string()),
-    writingNumber: v.optional(v.string()),
-    // Workflow
-    status: v.union(
-      v.literal("new"),
-      v.literal("reviewing"),
-      v.literal("approved"),
-      v.literal("rejected"),
+    isBot: v.optional(v.boolean()),        // best-effort UA classification
+    createdAt: v.number(),
+  })
+    .index("by_code_created", ["code", "createdAt"])
+    .index("by_created", ["createdAt"])
+    .index("by_session", ["sessionId"]),
+
+  // INSIGHTS DAILY ROLLUP
+  //
+  // Trend charts read this instead of the member table, so a chart costs
+  // O(days) rather than O(members) and the portal stays inside Convex's
+  // per-query document read limit as the book grows.
+  //
+  // Written nightly by the `insights-daily-rollup` cron (convex/crons.ts),
+  // idempotent per (scopeKind, scopeId, date). Today's figures are always
+  // computed live and merged on top, so the dashboard is never stale.
+  insightsDaily: defineTable({
+    scopeKind: v.union(
+      v.literal("global"),                 // whole book — the admin view
+      v.literal("agency"),                 // one distributionPartners row
+      v.literal("rep")                     // one partnerLeaders row
     ),
+    scopeId: v.string(),                   // "" for global
+    date: v.string(),                      // "YYYY-MM-DD" (UTC)
+
+    // Membership
+    activeMembers: v.number(),             // point-in-time, end of day
+    newMembers: v.number(),                // enrolled that day
+    terminatedMembers: v.number(),         // exited that day
+
+    // Revenue
+    mrrCents: v.number(),                  // combined, all billing mechanisms
+    // Split so the mix is queryable historically, not just live. Optional
+    // because rows written before list-bill support have no split to report —
+    // absent means "unknown", which is honest; zero would be a claim.
+    mrrCentsDirect: v.optional(v.number()),
+    mrrCentsListBill: v.optional(v.number()),
+    // Members counted on the invoice generator's definition (active +
+    // enrolling + eligible). `activeMembers` predates that reconciliation.
+    billableMembers: v.optional(v.number()),
+
+    // Funnel
+    visits: v.number(),
+    cartsCreated: v.number(),
+    cartsCompleted: v.number(),
+    enrollmentsStarted: v.number(),
+    enrollmentsCompleted: v.number(),
+
+    computedAt: v.number(),
+  })
+    .index("by_scope_date", ["scopeKind", "scopeId", "date"])
+    .index("by_date", ["date"]),
+  // ============================================
+  // B2B SALES CRM  —  internal sales only (convex/crm/guards.ts)
+  //
+  // Separate from memberProfiles by necessity: memberActivities requires
+  // siteId + groupId, which a prospect does not have. Links to the member /
+  // partner world are optional pointers only — never joins we authorise
+  // through, never cascades.
+  // ============================================
+
+  crmCompanies: defineTable({
+    name: v.string(),
+    /** Lowercased, suffix-stripped ("Acme Inc." → "acme"). Dedupe key. */
+    nameKey: v.string(),
+    /** Bare host, lowercased, no scheme/www. Second dedupe key. */
+    domain: v.optional(v.string()),
+    website: v.optional(v.string()),
+
+    companyType: v.union(
+      v.literal("employer"), v.literal("broker"), v.literal("agency"),
+      v.literal("fmo"), v.literal("association"), v.literal("vendor"),
+      v.literal("other"),
+    ),
+    industry: v.optional(v.string()),
+    employeeCount: v.optional(v.number()),
+    phone: v.optional(v.string()),
+    phoneE164: v.optional(v.string()),
+
+    address: v.optional(v.object({
+      line1: v.optional(v.string()), line2: v.optional(v.string()),
+      city: v.optional(v.string()), state: v.optional(v.string()),
+      postalCode: v.optional(v.string()), country: v.optional(v.string()),
+    })),
+    /** Denormalised out of `address` so the list filters without a join. */
+    city: v.optional(v.string()),
+    state: v.optional(v.string()),
+
+    // PIPELINE — one open opportunity per company. For a benefits sale the
+    // employer IS the deal. A crmDeals table (phase 4) can be layered on
+    // without breaking this; these become the "primary deal" cache.
+    stage: v.union(
+      v.literal("unqualified"), v.literal("prospect"), v.literal("contacted"),
+      v.literal("engaged"), v.literal("proposal"), v.literal("verbal"),
+      v.literal("won"), v.literal("lost"), v.literal("dormant"),
+    ),
+    stageChangedAt: v.number(),
+    /** Covered lives — the unit a benefits deal is actually sized in. */
+    estimatedLives: v.optional(v.number()),
+    estimatedMrrCents: v.optional(v.number()),
+    /** 0–100. Falls back to STAGE_DEFAULT_PROBABILITY when unset. */
+    winProbability: v.optional(v.number()),
+    expectedCloseDate: v.optional(v.string()), // ISO "2026-10-01"
+    lostReason: v.optional(v.string()),
+
+    ownerClerkUserId: v.optional(v.string()),
+    /** Denormalised cache for render + AND-filter. crmContactTags is truth. */
+    tagIds: v.array(v.id("crmTags")),
+
+    // SOFT LINKS — pointers only
+    linkedAccountId: v.optional(v.id("accounts")),
+    linkedGroupId: v.optional(v.id("groups")),
+    linkedPartnerId: v.optional(v.id("distributionPartners")),
+
+    source: v.optional(v.string()),
     notes: v.optional(v.string()),
-    submittedFromIp: v.optional(v.string()),
-    // Set during approval — links back to the created distributionPartners row
-    approvedPartnerId: v.optional(v.string()),
-    approvedRepLeaderId: v.optional(v.string()),
+    isArchived: v.boolean(),
+
+    firstTouchAt: v.optional(v.number()),
+    convertedAt: v.optional(v.number()),
+    lastActivityAt: v.optional(v.number()),
+
+    /** name + domain + industry + city/state. Rebuilt on every write. */
+    searchText: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    createdBy: v.optional(v.string()),
+  })
+    .index("by_name_key", ["nameKey"])
+    .index("by_domain", ["domain"])
+    .index("by_stage", ["stage", "stageChangedAt"])
+    .index("by_owner_stage", ["ownerClerkUserId", "stage"])
+    .index("by_updated", ["updatedAt"])
+    .index("by_last_activity", ["lastActivityAt"])
+    .index("by_converted", ["convertedAt"])
+    .index("by_linked_account", ["linkedAccountId"])
+    .index("by_linked_partner", ["linkedPartnerId"])
+    .searchIndex("search_companies", {
+      searchField: "searchText",
+      filterFields: ["stage", "companyType", "ownerClerkUserId", "isArchived", "state", "industry"],
+    }),
+
+  // ============================================
+  // DEAL PIPELINE — configurable stages over a fixed canonical spine
+  // ============================================
+  // A company used to BE the deal (the hardcoded `stage` column above). It
+  // still carries those columns, but they are now a CACHE of the company's
+  // PRIMARY deal — crmDeals is the truth, and convex/crm/deals.ts's
+  // syncPrimaryDealCache is the only writer. Two writers to one rollup is the
+  // exact drift crmActivities' single-writer rule exists to prevent.
+  //
+  // WHY STAGES ARE TWO-LAYERED. Sales ops wants to rename, recolour, reorder
+  // and insert stages without a deploy. But `crmCompanies.stage` is a
+  // search-index filterField, the key of by_stage/by_owner_stage, AND the
+  // string persisted in crmSegments.filters.stages — so it cannot become a
+  // free-form string without a search-index migration plus a silent break in
+  // every saved segment. Hence: a stage ROW is freely editable, but each row
+  // declares the `canonicalStage` it rolls up into. Display and pipeline maths
+  // read the row; indexes, segments and funnel analytics read the canonical
+  // value. A custom stage therefore never lands on analytics' 0% fallback.
+  crmPipelines: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    /** Exactly one row should be true. Enforced in pipelines.ts, not here. */
+    isDefault: v.boolean(),
+    isArchived: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    createdBy: v.optional(v.string()),
+  })
+    .index("by_default", ["isDefault"])
+    .index("by_archived", ["isArchived"]),
+
+  crmPipelineStages: defineTable({
+    pipelineId: v.id("crmPipelines"),
+    name: v.string(),
+    /** Ascending left-to-right board order. Gaps are fine; ties break by _id. */
+    order: v.number(),
+    /**
+     * Default win % for deals sitting in this stage, 0–100. A deal's own
+     * winProbability overrides it. THIS is what pipelineSummary weights by —
+     * the hardcoded STAGE_DEFAULT_PROBABILITY map is only the fallback for a
+     * canonical value with no stage row.
+     */
+    probability: v.number(),
+    /**
+     * The fixed spine every configurable stage must map to. Keeps
+     * crmCompanies.stage a typed union, so the search index, by_stage, and
+     * saved segments keep working while the display layer stays editable.
+     */
+    canonicalStage: v.union(
+      v.literal("unqualified"), v.literal("prospect"), v.literal("contacted"),
+      v.literal("engaged"), v.literal("proposal"), v.literal("verbal"),
+      v.literal("won"), v.literal("lost"), v.literal("dormant"),
+    ),
+    /** Terminal markers — drive win-rate maths and "closed" filtering. */
+    isWon: v.boolean(),
+    isLost: v.boolean(),
+    /** Palette key resolved by CRM_TAG_COLORS, not a raw Tailwind class. */
+    color: v.optional(v.string()),
+    /** Collapsed by default on the board when empty (long-tail stages). */
+    isFolded: v.boolean(),
+    isArchived: v.boolean(),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
+    .index("by_pipeline_order", ["pipelineId", "order"])
+    .index("by_pipeline_archived", ["pipelineId", "isArchived"])
+    .index("by_canonical", ["canonicalStage"]),
+
+  crmDeals: defineTable({
+    pipelineId: v.id("crmPipelines"),
+    stageId: v.id("crmPipelineStages"),
+    stageChangedAt: v.number(),
+    /**
+     * Required. A benefits deal without an employer/agency on it is not a
+     * deal, and the primary-deal cache needs somewhere to write.
+     */
+    companyId: v.id("crmCompanies"),
+    /** Optional champion — the person actually being worked. */
+    primaryContactId: v.optional(v.id("crmContacts")),
+
+    name: v.string(),
+    ownerClerkUserId: v.optional(v.string()),
+
+    /** Annualised or one-off contract value in cents. */
+    amountCents: v.optional(v.number()),
+    /** Recurring value in cents — what the company cache mirrors. */
+    mrrCents: v.optional(v.number()),
+    /** Covered lives — the unit a benefits deal is actually sized in. */
+    estimatedLives: v.optional(v.number()),
+    /** 0–100 override. Unset falls back to the STAGE ROW's probability. */
+    winProbability: v.optional(v.number()),
+    expectedCloseDate: v.optional(v.string()), // ISO "2026-10-01"
+    lostReason: v.optional(v.string()),
+    closedAt: v.optional(v.number()),
+
+    /**
+     * THE primary deal for its company — the one whose values mirror onto
+     * crmCompanies. At most one non-archived primary per company (enforced in
+     * deals.ts). Upsells and renewals are additional non-primary deals.
+     */
+    isPrimary: v.boolean(),
+    /** Manual drag order WITHIN a stage column. Sparse; midpoint-inserted. */
+    boardPosition: v.number(),
+
+    source: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    isArchived: v.boolean(),
+
+    lastActivityAt: v.optional(v.number()),
+    /** name + company name + owner. Rebuilt on every write. */
+    searchText: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    createdBy: v.optional(v.string()),
+  })
+    .index("by_stage_position", ["stageId", "boardPosition"])
+    .index("by_company", ["companyId"])
+    .index("by_company_primary", ["companyId", "isPrimary"])
+    .index("by_pipeline_stage", ["pipelineId", "stageId"])
+    .index("by_owner_stage", ["ownerClerkUserId", "stageId"])
+    .index("by_updated", ["updatedAt"])
+    .index("by_closed", ["closedAt"])
+    .searchIndex("search_deals", {
+      searchField: "searchText",
+      filterFields: ["pipelineId", "stageId", "ownerClerkUserId", "isArchived"],
+    }),
+
+  crmContacts: defineTable({
+    firstName: v.string(),
+    lastName: v.string(),
+    /** Precomputed. Every list row and every mail-merge needs it. */
+    fullName: v.string(),
+
+    /** THE targeting field — Jon segments primarily by title + tags. Verbatim. */
+    jobTitle: v.optional(v.string()),
+    /**
+     * Bucketed title from crm/lib/jobTitles.ts. Free text alone can't be
+     * segmented reliably ("VP People Ops" vs "Dir., Human Resources"), so keep
+     * both: title for display + contains-filter, function for a clean facet.
+     */
+    jobFunction: v.optional(v.union(
+      v.literal("hr"), v.literal("benefits"), v.literal("finance"),
+      v.literal("operations"), v.literal("executive"), v.literal("owner"),
+      v.literal("broker_producer"), v.literal("broker_principal"),
+      v.literal("office_manager"), v.literal("other"),
+    )),
+    seniority: v.optional(v.union(
+      v.literal("c_suite"), v.literal("vp"), v.literal("director"),
+      v.literal("manager"), v.literal("individual_contributor"), v.literal("unknown"),
+    )),
+
+    // COMPANY — optional on purpose. An imported row has a company *string* and
+    // no org identity; forcing a crmCompanies row per row manufactures junk.
+    companyId: v.optional(v.id("crmCompanies")),
+    companyName: v.optional(v.string()),
+
+    email: v.optional(v.string()),
+    /** Lowercased+trimmed. THE dedupe key. Only ever set via normalizeEmail(). */
+    emailLower: v.optional(v.string()),
+    secondaryEmail: v.optional(v.string()),
+    mobilePhone: v.optional(v.string()),
+    /** +1XXXXXXXXXX. Click-to-dial target and phone dedupe key. */
+    mobilePhoneE164: v.optional(v.string()),
+    officePhone: v.optional(v.string()),
+    /** Indexed for lookup but NEVER auto-dedupe — it's a switchboard. */
+    officePhoneE164: v.optional(v.string()),
+    officePhoneExt: v.optional(v.string()),
+    linkedinUrl: v.optional(v.string()),
+
+    city: v.optional(v.string()),
+    state: v.optional(v.string()),
+    postalCode: v.optional(v.string()),
+
+    /**
+     * RELATIONSHIP STATUS — see crm/lib/contactStatus.ts for the meaning of
+     * each value and why drip progress and deliverability are separate fields
+     * rather than more members of this union.
+     *
+     * The trailing five are the pre-redesign values, kept accepted so the
+     * deploy can land before migrateContactStatuses has rewritten every row
+     * (Convex validates the entire table at deploy time). Drop them in a
+     * follow-up once that migration reports zero remaining.
+     */
+    status: v.union(
+      v.literal("prospect"), v.literal("contacted"), v.literal("nurturing"),
+      v.literal("interested_qualified"), v.literal("meeting_scheduled"),
+      v.literal("agreement_sent"), v.literal("partner"),
+      v.literal("inactive_partner"), v.literal("not_interested"),
+      v.literal("disqualified"),
+      // Legacy — migrated by internal.crm.maintenance.migrateContactStatuses.
+      v.literal("new"), v.literal("working"), v.literal("qualified"),
+      v.literal("customer"), v.literal("unresponsive"),
+    ),
+    statusChangedAt: v.number(),
+    /** What the rep does next. The list's day-to-day "what do I do" column. */
+    nextAction: v.optional(v.union(
+      v.literal("send_follow_up"), v.literal("call"), v.literal("schedule_meeting"),
+      v.literal("send_partner_kit"), v.literal("send_agreement"), v.literal("awaiting_response"),
+    )),
+    disqualifiedReason: v.optional(v.string()),
+    ownerClerkUserId: v.optional(v.string()),
+
+    tagIds: v.array(v.id("crmTags")),
+
+    // CONSENT / DELIVERABILITY — READ on every send. Unlike
+    // memberProfiles.communicationPrefs, which is declared and never read.
+    emailOptOut: v.boolean(),
+    callOptOut: v.boolean(),
+    /**
+     * Deliverability. crm/lib/contactStatus.ts:BLOCKING_EMAIL_STATUSES decides
+     * which of these stop a send — `bounced_soft` deliberately does not.
+     */
+    emailStatus: v.union(
+      v.literal("unknown"), v.literal("valid"), v.literal("bounced_soft"),
+      v.literal("bounced_hard"), v.literal("complained"), v.literal("unsubscribed"),
+      v.literal("blocked"), v.literal("invalid"), v.literal("do_not_contact"),
+    ),
+    phoneStatus: v.union(
+      v.literal("unknown"), v.literal("valid"), v.literal("wrong_number"),
+      v.literal("disconnected"), v.literal("dnc"),
+    ),
+
+    // SOFT LINKS
+    linkedMemberProfileId: v.optional(v.id("memberProfiles")),
+    linkedPartnerLeaderId: v.optional(v.id("partnerLeaders")),
+    linkedPartnerId: v.optional(v.id("distributionPartners")),
+
+    source: v.union(
+      v.literal("manual"), v.literal("csv_import"), v.literal("nexus_lead"),
+      v.literal("inquiry"), v.literal("partner_registration"), v.literal("partner_kit"),
+      v.literal("rep_onboarding"), v.literal("account_contact"), v.literal("web_form"),
+      v.literal("referral"), v.literal("event"),
+    ),
+    sourceDetail: v.optional(v.string()),
+    importBatchId: v.optional(v.id("crmImportBatches")),
+
+    // ROLLUPS — maintained by the single activity writer so the list never
+    // joins. Reconciled nightly by internal.crm.maintenance.reconcileCounters.
+    lastActivityAt: v.optional(v.number()),
+    lastActivityType: v.optional(v.string()),
+    /** Last OUTBOUND touch — Jon's "who has been in recent contact". */
+    lastContactedAt: v.optional(v.number()),
+    lastContactedByName: v.optional(v.string()),
+    firstTouchAt: v.optional(v.number()),
+    emailsSentCount: v.number(),
+    callsMadeCount: v.number(),
+    callsConnectedCount: v.number(),
+    nextTaskAt: v.optional(v.number()),
+
+    // EMAIL SEQUENCE — written by the send paths and the Resend webhook, via
+    // crm/lib/emailProgress.ts. Optional throughout because every one of them
+    // has an honest "hasn't happened yet" state that a zero would fake.
+    /** 0-5. The number automation keys off; dripStatus gives it meaning. */
+    dripStep: v.optional(v.number()),
+    dripStatus: v.optional(v.union(
+      v.literal("not_started"), v.literal("in_progress"), v.literal("completed"),
+      v.literal("paused"), v.literal("replied_removed"),
+    )),
+    /**
+     * WHICH campaigns this contact is on. crmDripEnrollments is the source of
+     * truth; this array is a denormalized cache so the contact list can filter
+     * by campaign without a join — exactly the role tagIds plays for tags.
+     * Written only by crm/lib/dripCache.ts.
+     */
+    dripCampaignIds: v.optional(v.array(v.id("crmDripCampaigns"))),
+    /**
+     * The enrollment that dripStep/dripStatus above mirror. A contact can be on
+     * several campaigns at once, so those two columns show the primary (most
+     * recently enrolled active) one — the same primary-row cache shape
+     * crmCompanies.stage uses for its primary deal.
+     */
+    primaryDripCampaignId: v.optional(v.id("crmDripCampaigns")),
+    lastEmailSentAt: v.optional(v.number()),
+    /** Set by whoever schedules the next step; cleared when that send lands. */
+    nextEmailScheduledAt: v.optional(v.number()),
+    lastEmailOpenedAt: v.optional(v.number()),
+    lastLinkClickedAt: v.optional(v.number()),
+    /** A reply is the signal that ends a sequence — see advanceDrip. */
+    hasReplied: v.optional(v.boolean()),
+    repliedAt: v.optional(v.number()),
+    /** Free-text scratchpad on the row itself, for the things a timeline note is too heavy for. */
+    notes: v.optional(v.string()),
+
+    // CONVERSION — materialised at conversion so "avg touches before convert"
+    // is a pure indexed read, not an O(converts × activities) scan.
+    convertedAt: v.optional(v.number()),
+    convertEmailCount: v.optional(v.number()),
+    convertCallCount: v.optional(v.number()),
+    convertTouchCount: v.optional(v.number()),
+    convertDaysToClose: v.optional(v.number()),
+
+    isArchived: v.boolean(),
+    /** nameKey|companyKey — fuzzy dedupe fallback when there is no email. */
+    dedupeKey: v.optional(v.string()),
+    /** fullName + email + companyName + jobTitle + phone digits. */
+    searchText: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    createdBy: v.optional(v.string()),
+  })
+    .index("by_email_lower", ["emailLower"])
+    .index("by_mobile_e164", ["mobilePhoneE164"])
+    .index("by_office_e164", ["officePhoneE164"])
+    .index("by_dedupe_key", ["dedupeKey"])
+    .index("by_company", ["companyId", "lastName"])
+    .index("by_status", ["status", "statusChangedAt"])
+    .index("by_owner_status", ["ownerClerkUserId", "status"])
+    .index("by_last_activity", ["lastActivityAt"])
+    .index("by_last_contacted", ["lastContactedAt"])
+    .index("by_updated", ["updatedAt"])
+    .index("by_job_function", ["jobFunction", "state"])
+    .index("by_import_batch", ["importBatchId"])
+    .index("by_linked_member", ["linkedMemberProfileId"])
+    .index("by_next_task", ["nextTaskAt"])
+    .index("by_converted", ["convertedAt"])
+    /** "Who is due email N" — the query the whole drip model exists to make cheap. */
+    .index("by_drip", ["dripStatus", "dripStep"])
+    .index("by_primary_drip_campaign", ["primaryDripCampaignId", "dripStep"])
+    /** Deliverability triage: every blocked/bounced address in one scan. */
+    .index("by_email_status", ["emailStatus"])
+    .searchIndex("search_contacts", {
+      searchField: "searchText",
+      filterFields: [
+        "status", "ownerClerkUserId", "isArchived", "jobFunction",
+        "seniority", "state", "companyId", "emailOptOut",
+      ],
+    }),
+
+  // Jon's "tags AND tag categories": Location and Industry are CATEGORIES;
+  // "Texas" and "Manufacturing" are tags inside them.
+  crmTagCategories: defineTable({
+    name: v.string(),          // "Location", "Industry", "Persona"
+    slug: v.string(),
+    description: v.optional(v.string()),
+    /** Palette key resolved by CRM_TAG_COLORS, not a raw Tailwind class. */
+    color: v.string(),
+    /** Single-select: a second tag from this category replaces the first. */
+    isExclusive: v.boolean(),
+    /** Render as its own facet block on the list filter rail. */
+    isPrimaryFilter: v.boolean(),
+    order: v.number(),
+    appliesTo: v.union(v.literal("contact"), v.literal("company"), v.literal("both")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_order", ["order"]),
+
+  crmTags: defineTable({
+    categoryId: v.id("crmTagCategories"),
+    name: v.string(),
+    slug: v.string(),
+    description: v.optional(v.string()),
+    color: v.optional(v.string()), // overrides category colour
+    /** Display-only. Reconciled nightly — never trusted for a send. */
+    contactCount: v.number(),
+    companyCount: v.number(),
+    isArchived: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    createdBy: v.optional(v.string()),
+  })
+    .index("by_category", ["categoryId", "name"])
+    .index("by_category_slug", ["categoryId", "slug"])
+    .index("by_archived", ["isArchived", "name"]),
+
+  /** Source of truth for "who has tag X". The tagIds arrays are a cache. */
+  crmContactTags: defineTable({
+    tagId: v.id("crmTags"),
+    categoryId: v.id("crmTagCategories"),
+    /** Exactly one of contactId / companyId is set. */
+    contactId: v.optional(v.id("crmContacts")),
+    companyId: v.optional(v.id("crmCompanies")),
+    createdAt: v.number(),
+    createdBy: v.optional(v.string()),
+  })
+    .index("by_tag_contact", ["tagId", "contactId"])
+    .index("by_tag_company", ["tagId", "companyId"])
+    .index("by_contact", ["contactId"])
+    .index("by_company", ["companyId"])
+    .index("by_contact_category", ["contactId", "categoryId"]),
+
+  // THE TIMELINE. Notes are activities with activityType "note" — no separate
+  // notes table. memberNotes/memberActivities being split is exactly why
+  // memberNotes.isPinned was stored and never rendered.
+  crmActivities: defineTable({
+    /** At least one set. Both when the contact has a company. */
+    contactId: v.optional(v.id("crmContacts")),
+    companyId: v.optional(v.id("crmCompanies")),
+    /**
+     * Set on deal-scoped events. A deal activity MUST also set companyId —
+     * stageVelocity groups stage_changed events by companyId, so a
+     * deal-only row would silently vanish from velocity analytics.
+     */
+    dealId: v.optional(v.id("crmDeals")),
+
+    activityType: v.union(
+      v.literal("note"), v.literal("call"),
+      v.literal("email_outbound"), v.literal("email_inbound"),
+      v.literal("email_delivered"), v.literal("email_bounced"),
+      v.literal("email_complained"), v.literal("email_opened"),
+      v.literal("email_clicked"), v.literal("email_unsubscribed"),
+      v.literal("meeting"), v.literal("linkedin"),
+      v.literal("task_created"), v.literal("task_completed"),
+      v.literal("stage_changed"), v.literal("status_changed"),
+      v.literal("owner_changed"), v.literal("tag_added"), v.literal("tag_removed"),
+      v.literal("contact_created"), v.literal("imported"),
+      v.literal("merged"), v.literal("system"),
+    ),
+    /** Counts as a human touch? Drives touches-to-convert + leaderboards. */
+    isTouch: v.boolean(),
+    direction: v.optional(v.union(v.literal("outbound"), v.literal("inbound"))),
+
+    title: v.string(),
+    body: v.optional(v.string()),
+
+    // CALL
+    callOutcome: v.optional(v.union(
+      v.literal("connected"), v.literal("no_answer"), v.literal("voicemail"),
+      v.literal("gatekeeper"), v.literal("wrong_number"), v.literal("bad_number"),
+      v.literal("callback_requested"), v.literal("not_interested"), v.literal("do_not_call"),
+    )),
+    callDurationSeconds: v.optional(v.number()),
+    callNumberDialed: v.optional(v.string()),
+    /**
+     * True while the call-log composer is open. Drafts are excluded from the
+     * timeline and every count. Exists because clicking a dial URI may hand the
+     * browser to another app — losing typed notes once will kill adoption.
+     */
+    isDraft: v.optional(v.boolean()),
+
+    // TELEPHONY — phase 4 (Twilio). Declared now so the upgrade is not a
+    // migration. Do NOT build UI against these yet.
+    telephonyProvider: v.optional(v.string()),
+    externalCallId: v.optional(v.string()),
+    recordingUrl: v.optional(v.string()),
+
+    // EMAIL
+    resendEmailId: v.optional(v.string()),
+    emailSubject: v.optional(v.string()),
+    emailTo: v.optional(v.string()),
+    emailEvent: v.optional(v.string()),
+    campaignId: v.optional(v.id("crmCampaigns")),
+
+    isPinned: v.boolean(),
+    metadata: v.optional(v.any()),
+
+    actorType: v.union(v.literal("staff"), v.literal("system"), v.literal("contact")),
+    actorClerkUserId: v.optional(v.string()),
+    actorName: v.optional(v.string()),
+
+    /** Real-world event time; may precede createdAt for a backdated log. */
+    occurredAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
+  })
+    .index("by_contact", ["contactId", "occurredAt"])
+    .index("by_company", ["companyId", "occurredAt"])
+    .index("by_contact_pinned", ["contactId", "isPinned"])
+    .index("by_type_occurred", ["activityType", "occurredAt"])
+    .index("by_actor_occurred", ["actorClerkUserId", "occurredAt"])
+    .index("by_touch_occurred", ["isTouch", "occurredAt"])
+    .index("by_resend_email_id", ["resendEmailId"])
+    .index("by_external_call_id", ["externalCallId"])
+    .index("by_deal", ["dealId", "occurredAt"])
+    .index("by_campaign", ["campaignId"]),
+
+  crmTasks: defineTable({
+    contactId: v.optional(v.id("crmContacts")),
+    companyId: v.optional(v.id("crmCompanies")),
+    dealId: v.optional(v.id("crmDeals")),
+    title: v.string(),
+    body: v.optional(v.string()),
+    taskType: v.union(
+      v.literal("call"), v.literal("email"), v.literal("follow_up"),
+      v.literal("meeting"), v.literal("other"),
+    ),
+    dueAt: v.number(),
+    status: v.union(v.literal("open"), v.literal("done"), v.literal("cancelled")),
+    completedAt: v.optional(v.number()),
+    assigneeClerkUserId: v.string(),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_assignee_status_due", ["assigneeClerkUserId", "status", "dueAt"])
+    .index("by_contact_status", ["contactId", "status"])
+    .index("by_deal_status", ["dealId", "status"])
+    .index("by_status_due", ["status", "dueAt"]),
+
+  // SAVED SEGMENTS. Filters are a TYPED object, not v.any() — a stored segment
+  // is an input to a mass send, so typing it is the difference between a
+  // validation error and mailing the wrong people.
+  crmSegments: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    entity: v.union(v.literal("contact"), v.literal("company")),
+    filters: v.object({
+      searchTerm: v.optional(v.string()),
+      statuses: v.optional(v.array(v.string())),
+      stages: v.optional(v.array(v.string())),
+      companyTypes: v.optional(v.array(v.string())),
+      jobFunctions: v.optional(v.array(v.string())),
+      seniorities: v.optional(v.array(v.string())),
+      /** OR across entries, case-insensitive substring on jobTitle. */
+      jobTitleContains: v.optional(v.array(v.string())),
+      jobTitleExcludes: v.optional(v.array(v.string())),
+      states: v.optional(v.array(v.string())),
+      /** AND across groups; OR across tagIds within a group. */
+      tagGroups: v.optional(v.array(v.object({
+        categoryId: v.optional(v.id("crmTagCategories")),
+        tagIds: v.array(v.id("crmTags")),
+      }))),
+      excludeTagIds: v.optional(v.array(v.id("crmTags"))),
+      ownerClerkUserIds: v.optional(v.array(v.string())),
+      hasEmail: v.optional(v.boolean()),
+      hasMobile: v.optional(v.boolean()),
+      /** Not opted out, not hard-bounced, not suppressed. */
+      emailable: v.optional(v.boolean()),
+      callable: v.optional(v.boolean()),
+      neverContacted: v.optional(v.boolean()),
+      lastContactedBeforeDays: v.optional(v.number()),
+      createdAfter: v.optional(v.number()),
+      importBatchId: v.optional(v.id("crmImportBatches")),
+      isArchived: v.optional(v.boolean()),
+    }),
+    isShared: v.boolean(),
+    ownerClerkUserId: v.string(),
+    lastCount: v.optional(v.number()),
+    lastCountAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_owner", ["ownerClerkUserId", "name"])
+    .index("by_shared", ["isShared", "name"])
+    .index("by_entity", ["entity", "name"]),
+
+  crmEmailTemplates: defineTable({
+    name: v.string(),
+    subject: v.string(),
+    bodyHtml: v.string(),
+    category: v.optional(v.string()),
+    /** Merge fields referenced, extracted at save so the composer can warn. */
+    mergeFields: v.array(v.string()),
+    isArchived: v.boolean(),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_name", ["name"])
+    .index("by_archived", ["isArchived", "name"]),
+
+  crmCampaigns: defineTable({
+    name: v.string(),
+    subject: v.string(),
+    /** Merge tokens: {{firstName}} {{lastName}} {{companyName}} {{jobTitle}} */
+    bodyHtml: v.string(),
+    fromName: v.string(),
+    fromEmail: v.string(),
+    replyTo: v.string(),
+
+    segmentId: v.optional(v.id("crmSegments")),
+    /**
+     * Frozen copy of the segment filters at build time. A segment edited later
+     * must not retroactively change what this campaign claims it sent to.
+     */
+    filtersSnapshot: v.optional(v.any()),
+
+    /**
+     * Binds this blast to one phase of a drip campaign. When set, sending it
+     * advances every recipient's enrollment to that phase — which is what
+     * makes "Email 3 Sent" mean "phase 3 of THIS campaign" rather than a
+     * free-floating counter. Unset for a standalone one-off blast.
+     */
+    dripCampaignId: v.optional(v.id("crmDripCampaigns")),
+    dripPhase: v.optional(v.number()),
+
+    status: v.union(
+      v.literal("draft"), v.literal("ready"), v.literal("sending"),
+      v.literal("paused"), v.literal("sent"), v.literal("cancelled"), v.literal("failed"),
+    ),
+
+    scheduledAt: v.optional(v.number()),
+    startedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+
+    totalRecipients: v.number(),
+    sentCount: v.number(),
+    deliveredCount: v.number(),
+    bouncedCount: v.number(),
+    complainedCount: v.number(),
+    openedCount: v.number(),
+    clickedCount: v.number(),
+    unsubscribedCount: v.number(),
+    failedCount: v.number(),
+    skippedCount: v.number(),
+
+    createdBy: v.string(),
+    approvedBy: v.optional(v.string()),
+    approvedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status_created", ["status", "createdAt"])
+    .index("by_created", ["createdAt"])
+    .index("by_segment", ["segmentId"]),
+
+  crmCampaignRecipients: defineTable({
+    campaignId: v.id("crmCampaigns"),
+    contactId: v.id("crmContacts"),
+    /** Frozen at build — a later contact edit must not redirect a send. */
+    email: v.string(),
+    mergeData: v.optional(v.any()),
+    status: v.union(
+      v.literal("queued"), v.literal("sending"), v.literal("sent"),
+      v.literal("delivered"), v.literal("bounced"), v.literal("complained"),
+      v.literal("failed"), v.literal("skipped"), v.literal("cancelled"),
+    ),
+    skipReason: v.optional(v.string()),
+    resendEmailId: v.optional(v.string()),
+    /** Per-recipient unsubscribe token (nanoid). Unguessable. */
+    token: v.string(),
+    error: v.optional(v.string()),
+    attempts: v.number(),
+    sentAt: v.optional(v.number()),
+    deliveredAt: v.optional(v.number()),
+    firstOpenedAt: v.optional(v.number()),
+    openCount: v.number(),
+    firstClickedAt: v.optional(v.number()),
+    clickCount: v.number(),
+    unsubscribedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_campaign_status", ["campaignId", "status"])
+    .index("by_campaign_contact", ["campaignId", "contactId"])
+    .index("by_contact", ["contactId", "createdAt"])
+    .index("by_resend_email_id", ["resendEmailId"])
+    .index("by_token", ["token"]),
+
+  /**
+   * DRIP CAMPAIGNS — a named, multi-phase outreach track a contact is enrolled
+   * in, e.g. "Broker Outreach 2026" with five phases.
+   *
+   * WHY THIS IS NOT crmCampaigns. A crmCampaigns row is ONE blast: one subject,
+   * one body, and a recipient list that buildRecipients deletes and rebuilds
+   * from a filter every time it runs. That makes it a point-in-time send
+   * record, structurally incapable of answering "who is on the broker campaign
+   * right now, and at which phase" — the recipient rows for phase 1 are gone by
+   * the time phase 2 is built.
+   *
+   * WHY NOT A TAG. The relationship-type taxonomy is a tag category precisely
+   * because it carries no per-contact state (see lib/relationshipTags.ts). A
+   * campaign does: a phase, an enrolment date, a paused/replied status. A tag
+   * cannot hold any of that, so this is a real table.
+   */
+  crmDripCampaigns: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    /** Number of phases (emails) in the track. The broker drip is 5. */
+    phaseCount: v.number(),
+    /**
+     * Optional display names per phase; index 0 is phase 1. Display only — a
+     * configured crmDripPhases row for the same order overrides this, and is
+     * the only thing that can carry a template or a delay.
+     */
+    phaseLabels: v.optional(v.array(v.string())),
+
+    /**
+     * AUTOMATION. "manual" is the shipped behaviour: phases move only when a
+     * human moves them, or when a bound blast goes out. "running" hands the
+     * campaign to crm/dripEngine.ts, which sends each configured phase on its
+     * own delay. Paused stops the engine without losing anyone's position.
+     *
+     * Deliberately NOT a boolean: "paused" has to be distinguishable from
+     * "never automated", or resuming would have to guess whether the campaign
+     * was ever running.
+     */
+    automation: v.union(v.literal("manual"), v.literal("running"), v.literal("paused")),
+    /**
+     * Quiet hours, in UTC. A cold sequence that fires at 3am local reads as
+     * machine-sent and hurts deliverability. Both unset means no restriction.
+     */
+    sendWindowStartHour: v.optional(v.number()),
+    sendWindowEndHour: v.optional(v.number()),
+    /** Allowed weekdays, 0=Sunday. Unset means every day. */
+    sendDays: v.optional(v.array(v.number())),
+    isArchived: v.boolean(),
+    /** Display-only rollups, reconciled nightly. Never trusted for a send. */
+    activeCount: v.number(),
+    completedCount: v.number(),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_archived_name", ["isArchived", "name"])
+    .index("by_created", ["createdAt"]),
+
+  /**
+   * THE SOURCE OF TRUTH for campaign membership. One row per contact per
+   * campaign, so a contact can sit on a nurture track and an event invite at
+   * once, each at its own phase.
+   */
+  crmDripEnrollments: defineTable({
+    dripCampaignId: v.id("crmDripCampaigns"),
+    contactId: v.id("crmContacts"),
+    /** 0 = enrolled, nothing sent yet. 1..phaseCount = that phase has gone out. */
+    phase: v.number(),
+    status: v.union(
+      v.literal("active"), v.literal("completed"), v.literal("paused"),
+      v.literal("replied"), v.literal("removed"),
+    ),
+    enrolledAt: v.number(),
+    enrolledBy: v.optional(v.string()),
+    lastPhaseSentAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    /** Set when status becomes removed/replied — kept, not deleted, so history survives a re-enrolment. */
+    exitedAt: v.optional(v.number()),
+    exitReason: v.optional(v.string()),
+
+    /**
+     * When the NEXT phase is due to send. The engine's work queue.
+     *
+     * Cleared the moment dripEngine claims this row, which is what stops two
+     * overlapping ticks from sending the same phase twice — the claim is a
+     * transactional patch, not an in-memory lock.
+     */
+    nextPhaseDueAt: v.optional(v.number()),
+    sendAttempts: v.optional(v.number()),
+    lastSendError: v.optional(v.string()),
+    updatedAt: v.number(),
+  })
+    .index("by_campaign_status", ["dripCampaignId", "status"])
+    /** The engine's claim query: active enrollments whose next phase is due. */
+    .index("by_due", ["status", "nextPhaseDueAt"])
+    .index("by_campaign_contact", ["dripCampaignId", "contactId"])
+    .index("by_campaign_phase", ["dripCampaignId", "phase"])
+    .index("by_contact", ["contactId"]),
+
+  /**
+   * PER-PHASE CONFIGURATION — what each phase sends, and how long after the
+   * previous one.
+   *
+   * Optional by design: a campaign with no phase rows is the manual mode that
+   * already shipped (a human moves people through, or a bound blast does).
+   * Adding a row with a template is what makes a phase automatable, so a team
+   * can automate phases 1-3 and still hand-send 4 and 5.
+   *
+   * Shaped after crmWorkflowSteps (order + delay + a template reference)
+   * because it is the same idea, and the two should read alike.
+   */
+  crmDripPhases: defineTable({
+    dripCampaignId: v.id("crmDripCampaigns"),
+    /** 1-based, matching crmDripEnrollments.phase. */
+    order: v.number(),
+    label: v.optional(v.string()),
+    templateId: v.optional(v.id("crmEmailTemplates")),
+    /** Days to wait after the previous phase landed before this one sends. */
+    delayDays: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_campaign_order", ["dripCampaignId", "order"]),
+
+  crmSuppressions: defineTable({
+    /** Lowercased email, or bare domain when scope === "domain". */
+    value: v.string(),
+    scope: v.union(v.literal("email"), v.literal("domain")),
+    reason: v.union(
+      v.literal("unsubscribed"), v.literal("complained"), v.literal("hard_bounce"),
+      v.literal("manual"), v.literal("role_address"), v.literal("competitor"),
+      v.literal("member"), // already enrolled — never outreach-blast a customer
+    ),
+    note: v.optional(v.string()),
+    campaignId: v.optional(v.id("crmCampaigns")),
+    contactId: v.optional(v.id("crmContacts")),
+    createdBy: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_value", ["value"])
+    .index("by_scope_value", ["scope", "value"])
+    .index("by_created", ["createdAt"]),
+
+  /**
+   * One row per UTC day. A cheap read+patch gives a HARD global cap on CRM
+   * sends. At 20–100 recipients this will never bind in normal use — it exists
+   * purely so a fat-fingered 5,000-recipient send cannot eat the Resend quota
+   * that enrollment confirmations and payment receipts depend on.
+   */
+  crmSendCounters: defineTable({
+    day: v.string(), // "2026-08-24"
+    sentCount: v.number(),
+    updatedAt: v.number(),
+  }).index("by_day", ["day"]),
+
+  crmImportBatches: defineTable({
+    filename: v.string(),
+    entity: v.union(v.literal("contact"), v.literal("company")),
+    /** Confirmed header → field mapping, incl. header→tag rules. */
+    columnMapping: v.any(),
+    defaultTagIds: v.array(v.id("crmTags")),
+    defaultOwnerClerkUserId: v.optional(v.string()),
+    defaultSourceDetail: v.optional(v.string()),
+    dedupeStrategy: v.union(
+      v.literal("skip_existing"), v.literal("fill_blanks_only"),
+      v.literal("update_existing"), v.literal("create_duplicates"),
+    ),
+    status: v.union(
+      v.literal("staged"), v.literal("importing"), v.literal("completed"),
+      v.literal("failed"), v.literal("rolled_back"),
+    ),
+    totalRows: v.number(),
+    processedRows: v.number(),
+    createdCount: v.number(),
+    updatedCount: v.number(),
+    skippedCount: v.number(),
+    errorCount: v.number(),
+    /** First 100 row errors verbatim; remainder counted only. */
+    errors: v.optional(v.array(v.object({ row: v.number(), message: v.string() }))),
+    storageId: v.optional(v.id("_storage")),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_created", ["createdAt"])
+    .index("by_status_created", ["status", "createdAt"]),
+
+  /**
+   * Adoption ledger for the orphan inbound tables. Lives here rather than as a
+   * crmContactId column on each source table, so the CRM adds ZERO schema
+   * changes to nexusLeads / inquiries / partnerRegistrations / partnerKit.
+   * (sourceTable, sourceId, sourceSlot) makes ingest idempotent.
+   */
+  crmIngestLinks: defineTable({
+    sourceTable: v.union(
+      v.literal("nexusLeads"), v.literal("inquiries"),
+      v.literal("partnerRegistrations"), v.literal("partnerKitSubmissions"),
+      v.literal("repOnboardingSubmissions"), v.literal("accountContacts"),
+    ),
+    sourceId: v.string(),
+    /** repOnboardingSubmissions holds two people per row: "primary" | "rep". */
+    sourceSlot: v.optional(v.string()),
+    contactId: v.id("crmContacts"),
+    companyId: v.optional(v.id("crmCompanies")),
+    action: v.union(v.literal("created"), v.literal("merged"), v.literal("skipped")),
+    createdBy: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_source", ["sourceTable", "sourceId", "sourceSlot"])
+    .index("by_contact", ["contactId"]),
+
+  crmUserSettings: defineTable({
+    clerkUserId: v.string(),
+    dialProvider: v.union(
+      v.literal("tel"), v.literal("ringcentral"), v.literal("dialpad"),
+      v.literal("zoom"), v.literal("twilio"), v.literal("custom"),
+      v.literal("manual"), // copy-to-clipboard only
+    ),
+    /** {e164} and {digits} substituted. */
+    dialUrlTemplate: v.string(),
+    emailSignatureHtml: v.optional(v.string()),
+    assignSelfOnCreate: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_clerk_id", ["clerkUserId"]),
+
+  // ============================================
+  // WORKFLOW AUTOMATION — rules as data
+  // ============================================
+  // A workflow is a trigger plus an ORDERED LIST of steps, stored as parent +
+  // child rows rather than one JSON blob: individual steps stay queryable and
+  // individually debuggable, and a malformed step can't corrupt the whole
+  // rule. Config objects are TYPED unions, never v.any() — same reasoning as
+  // crmSegments.filters: a stored rule is an input to automated outbound, so
+  // typing it is the difference between a validation error and mailing the
+  // wrong people unattended.
+  //
+  // Deliberately a linear sequence, not a branching DAG. Sequences ("touch →
+  // wait 3 days → touch again") are what a benefits sales team actually runs;
+  // a node canvas is a large UI surface for a capability nobody has asked for.
+  crmWorkflows: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    isActive: v.boolean(),
+    entity: v.union(v.literal("contact"), v.literal("company"), v.literal("deal")),
+
+    triggerType: v.union(
+      v.literal("contact_created"),
+      v.literal("company_created"),
+      v.literal("deal_created"),
+      v.literal("stage_entered"),
+      v.literal("tag_applied"),
+      v.literal("status_changed"),
+      v.literal("no_activity_days"),
+      v.literal("manual"),
+    ),
+    /** Typed per triggerType; validated by workflows.ts on write. */
+    triggerConfig: v.object({
+      stageId: v.optional(v.id("crmPipelineStages")),
+      tagId: v.optional(v.id("crmTags")),
+      status: v.optional(v.string()),
+      /** no_activity_days: fire when lastActivityAt is older than this. */
+      days: v.optional(v.number()),
+    }),
+
+    /** Rollups for the list view; recomputed on each run, never authoritative. */
+    runCount: v.number(),
+    lastRunAt: v.optional(v.number()),
+
+    createdBy: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_active_trigger", ["isActive", "triggerType"])
+    .index("by_entity", ["entity"])
+    .index("by_created", ["createdAt"]),
+
+  crmWorkflowSteps: defineTable({
+    workflowId: v.id("crmWorkflows"),
+    /** Ascending execution order. */
+    order: v.number(),
+    /** 0 runs immediately after the previous step; >0 schedules a resume. */
+    delayMinutes: v.number(),
+
+    actionType: v.union(
+      v.literal("create_task"),
+      v.literal("apply_tag"),
+      v.literal("remove_tag"),
+      v.literal("update_deal_stage"),
+      v.literal("send_email_template"),
+      v.literal("notify_owner"),
+      v.literal("add_note"),
+    ),
+    actionConfig: v.object({
+      // create_task
+      taskType: v.optional(v.string()),
+      taskTitle: v.optional(v.string()),
+      dueInDays: v.optional(v.number()),
+      assignTo: v.optional(v.string()), // clerkUserId, or "owner"
+      // apply_tag / remove_tag
+      tagId: v.optional(v.id("crmTags")),
+      // update_deal_stage
+      stageId: v.optional(v.id("crmPipelineStages")),
+      // send_email_template
+      templateId: v.optional(v.id("crmEmailTemplates")),
+      // notify_owner / add_note
+      message: v.optional(v.string()),
+    }),
+
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_workflow_order", ["workflowId", "order"]),
+
+  /**
+   * Execution ledger — idempotency AND the "why didn't this fire" audit trail.
+   *
+   * The unique key is (workflowId, targetId, occurrenceKey), NOT
+   * (workflowId, targetId). Keying on the record alone would be wrong: a deal
+   * that legitimately re-enters a stage should re-fire. The occurrence key is
+   * trigger-specific and computed in workflowEngine.ts — for stage_entered it
+   * is the stage id + stageChangedAt, so genuine re-entry produces a new key
+   * while a duplicate event of the SAME entry collides and is dropped.
+   */
+  crmWorkflowRuns: defineTable({
+    workflowId: v.id("crmWorkflows"),
+    targetType: v.union(v.literal("contact"), v.literal("company"), v.literal("deal")),
+    targetId: v.string(),
+    occurrenceKey: v.string(),
+
+    status: v.union(
+      v.literal("pending_steps"), v.literal("completed"),
+      v.literal("failed"), v.literal("cancelled"),
+    ),
+    /** Order of the NEXT step to run. */
+    currentStepOrder: v.number(),
+    nextStepAt: v.optional(v.number()),
+
+    /** Per-step outcome log — what makes a skipped send explainable. */
+    stepLog: v.array(v.object({
+      order: v.number(),
+      actionType: v.string(),
+      outcome: v.union(v.literal("done"), v.literal("skipped"), v.literal("failed")),
+      detail: v.optional(v.string()),
+      at: v.number(),
+    })),
+    lastError: v.optional(v.string()),
+
+    firedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_dedupe", ["workflowId", "targetId", "occurrenceKey"])
+    .index("by_due", ["status", "nextStepAt"])
+    .index("by_workflow_fired", ["workflowId", "firedAt"])
+    .index("by_target", ["targetId"]),
+
+  // ============================================
+  // PARTNER RESOURCE LIBRARY
+  // ============================================
+  // Marketing collateral, the partner kit, training material and forms that
+  // partners download from /partner/resources.
+  //
+  // WHITE-LABEL IS THE CONSTRAINT THAT SHAPES THIS TABLE. A Flourish XV agency
+  // must never be handed Ideal-branded flyers. But `distributionPartners` has
+  // no `siteId` — a partner is not bound to a brand, they sell into whichever
+  // sites their groups and members belong to. So brand restriction is expressed
+  // per RESOURCE (`siteIds`) and matched at read time against the set of sites
+  // the viewer's own book actually touches.
+  partnerResources: defineTable({
+    title: v.string(),
+    description: v.optional(v.string()),
+
+    // Only the first three are offered to admins — see ACTIVE_CATEGORIES in
+    // resources/library.ts, which is the single source for the picker and the
+    // filter rail. The rest are RETIRED, not removed: dropping a literal from
+    // this union would fail validation for any row already carrying it. They
+    // still display, and can be un-retired by listing them again.
+    category: v.union(
+      v.literal("partner_kit"),     // agreement, W-9, onboarding paperwork
+      v.literal("partner_pieces"),  // flyers, one-pagers, anything partners hand out
+      v.literal("other"),
+      // ── retired ───────────────────────────────────────────────────────
+      v.literal("marketing"),
+      v.literal("collateral"),
+      v.literal("training"),
+      v.literal("compliance"),
+      v.literal("forms"),
+    ),
+
+    // A resource is either an uploaded file or a link out (a video, a shared
+    // drive). Links avoid re-hosting large media we don't own.
+    kind: v.union(v.literal("file"), v.literal("link")),
+    storageId: v.optional(v.id("_storage")),
+    fileName: v.optional(v.string()),
+    contentType: v.optional(v.string()),
+    fileSizeBytes: v.optional(v.number()),
+    externalUrl: v.optional(v.string()),
+
+    // ── VISIBILITY ──────────────────────────────────────────────────────
+    audience: v.union(
+      v.literal("all"),            // every partner and rep
+      v.literal("partner_types"),  // e.g. FMOs only
+      v.literal("specific"),       // named partners
+    ),
+    partnerTypes: v.optional(v.array(v.union(
+      v.literal("program_manager"),
+      v.literal("fmo"),
+      v.literal("agency"),
+    ))),
+    /** distributionPartners._id values, when audience is "specific". */
+    partnerIds: v.optional(v.array(v.string())),
+    /**
+     * Brand restriction. ABSENT OR EMPTY MEANS ALL BRANDS — the common case.
+     * When set, only viewers whose book touches one of these sites may see it.
+     */
+    siteIds: v.optional(v.array(v.id("sites"))),
+
+    status: v.union(
+      v.literal("draft"),      // staged, not visible to partners
+      v.literal("published"),
+      v.literal("archived"),   // hidden, retained for the download record
+    ),
+    featured: v.optional(v.boolean()),
+    /** Manual ordering within a category; lower sorts first. */
+    sortOrder: v.optional(v.number()),
+
+    // Superseding rather than overwriting keeps a prior version's download
+    // history meaningful — "who has the old flyer?" stays answerable.
+    version: v.optional(v.number()),
+    supersedesId: v.optional(v.id("partnerResources")),
+
+    downloadCount: v.number(),
+    lastDownloadedAt: v.optional(v.number()),
+
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    createdBy: v.optional(v.string()),
+    publishedAt: v.optional(v.number()),
+  })
     .index("by_status", ["status"])
-    .index("by_type", ["submissionType"])
-    .index("by_email", ["primaryContactEmail"])
-    .index("by_rep_email", ["repEmail"]),
+    .index("by_category", ["category", "status"])
+    .index("by_created", ["createdAt"]),
+
+  // Append-only download log. Answers "which agencies actually use what" and,
+  // for compliance material, "who has taken this and when".
+  partnerResourceDownloads: defineTable({
+    resourceId: v.id("partnerResources"),
+    /** Denormalized so a deleted resource still reports meaningfully. */
+    resourceTitle: v.string(),
+    clerkUserId: v.string(),
+    partnerId: v.optional(v.string()),
+    partnerName: v.optional(v.string()),
+    leaderId: v.optional(v.string()),
+    viewerKind: v.union(
+      v.literal("admin"),
+      v.literal("partner"),
+      v.literal("rep"),
+    ),
+    downloadedAt: v.number(),
+  })
+    .index("by_resource", ["resourceId", "downloadedAt"])
+    .index("by_partner", ["partnerId", "downloadedAt"])
+    .index("by_downloaded", ["downloadedAt"]),
+
 });

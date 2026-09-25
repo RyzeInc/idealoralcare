@@ -4,9 +4,9 @@
 
 **Who can do this:** Any admin (Owner or Editor).
 
-**Trigger:** A new employer has signed a list-bill / payroll-deduction agreement.
+**When you'd do this:** A new employer has signed a list-bill / payroll-deduction agreement.
 
-**Prerequisites:** Same as [SOP-001](SOP-001-onboard-selfpay-employer-group.md), plus: the employer's payment method (check/ACH/wire), their preferred invoice due day, a billing contact name/email, and — if negotiated — custom per-tier rates (Member Only / Member+Spouse / Member+Family).
+**Before you begin:** Same as [SOP-001](SOP-001-onboard-selfpay-employer-group.md), plus: the employer's payment method (check/ACH/wire), their preferred invoice due day, a billing contact name/email, and — if negotiated — custom per-tier rates (Member Only / Member+Spouse / Member+Family).
 
 **Related guide:** [Hierarchy](../guide/02-operations.md#hierarchy-adminhierarchy), [List-Bill Invoices](../guide/03-finance.md#list-bill-invoices-adminlist-bill-invoices), [§6 Known structural gaps](../guide/03-finance.md#6-known-structural-gaps-read-before-trusting-any-number-here)
 

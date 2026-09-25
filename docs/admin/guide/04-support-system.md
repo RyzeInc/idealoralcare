@@ -1,6 +1,6 @@
 # Support & System
 
-Covers: [Customer Service](#customer-service-admincustomer-service) · [Admin Users](#admin-users-adminusers) · [User Audit](#user-audit-adminuser-audit) · [Audit Log](#audit-log-adminaudit-log) · [Site Settings](#site-settings-adminsettings) · [Dev Tools](#dev-tools-admindev-tools)
+Covers: [Customer Service](#customer-service-admincustomer-service) · [Admin Users](#admin-users-adminusers) · [User Lookup](#user-lookup-adminuser-audit) · [Audit Log](#audit-log-adminaudit-log) · [Site Settings](#site-settings-adminsettings) · [Dev Tools](#dev-tools-admindev-tools)
 
 Permission note: read [00-overview.md §1](00-overview.md#1-the-permission-model-read-this-first) before this file — it matters more here than anywhere else in the suite, since this is where admin access itself is managed.
 
@@ -60,7 +60,9 @@ Permission note: read [00-overview.md §1](00-overview.md#1-the-permission-model
 
 ---
 
-## User Audit (`/admin/user-audit`)
+## User Lookup (`/admin/user-audit`)
+
+> Labeled **"User Lookup"** in the sidebar and page header. The route is still `/admin/user-audit` (unchanged), and it was previously called "User Audit" / "User Investigation" — don't confuse it with the separate [Audit Log](#audit-log-adminaudit-log) page.
 
 **Purpose**: cross-system identity reconciliation — merges Clerk, Convex (`memberProfiles`), and Toothlens records into one table so you can spot orphaned/incomplete accounts, validate census data, and — unlike the plain Members page — directly edit *any* field or permanently delete a record.
 

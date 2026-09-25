@@ -369,6 +369,7 @@ export const getDeliveryById = query({
   args: { deliveryId: v.id("vendorDeliveries") },
   // NOTE: No admin gate — consumed by /api/admin/vendor-deliver which gates itself.
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     return await ctx.db.get(args.deliveryId);
   },
 });

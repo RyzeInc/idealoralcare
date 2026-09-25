@@ -78,12 +78,14 @@ export interface AuditEntry {
   _id: Id<"adminAuditLog">;
   _creationTime: number;
   adminId: string;
-  adminEmail?: string;
+  adminName?: string;
+  adminRole?: string;
   action: string;
-  resourceType?: string;
-  resourceId?: string;
-  changes?: Record<string, any>;
-  reason?: string;
+  targetType?: string;
+  targetId?: string;
+  metadata?: Record<string, any>;
+  summary: string;
+  createdAt: number;
 }
 
 export interface DashboardMetrics {
@@ -333,16 +335,21 @@ export async function getRecentAuditTrail(ctx: QueryCtx, args: { limit?: number 
     .order("desc")
     .take(limit);
 
+  // Field names here previously did not match adminAuditLog at all —
+  // adminEmail/resourceType/resourceId/changes/reason are not columns on that
+  // table, so every one rendered undefined and the audit log looked empty.
   return entries.map((e) => ({
     _id: e._id,
     _creationTime: e._creationTime,
-    adminId: (e as any).actorClerkUserId as string,
-    adminEmail: (e as any).adminEmail,
+    adminId: e.actorClerkUserId,
+    adminName: e.actorName,
+    adminRole: e.actorRole,
     action: e.action,
-    resourceType: (e as any).resourceType,
-    resourceId: (e as any).resourceId,
-    changes: (e as any).changes,
-    reason: (e as any).reason,
+    targetType: e.targetType,
+    targetId: e.targetId,
+    metadata: e.metadata,
+    summary: e.summary,
+    createdAt: e.createdAt,
   }));
 }
 
@@ -388,10 +395,10 @@ export async function getDashboardMetrics(ctx: QueryCtx, args: any): Promise<Das
 
   // Extract recent activity from audit log
   const recentActivity = auditEntries.slice(0, 10).map((e) => ({
-    timestamp: e._creationTime,
+    timestamp: e.createdAt ?? e._creationTime,
     action: e.action,
-    memberId: (e as any).resourceId,
-    details: (e as any).reason,
+    memberId: e.targetId,
+    details: e.summary,
   }));
 
   return {

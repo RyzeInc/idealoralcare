@@ -12,7 +12,10 @@
 
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useUser, useSignIn, useSignUp } from "@clerk/nextjs";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { PROVIDER_GROUP_CODE } from '@/lib/constants';
 import { 
   ArrowLeft, 
@@ -43,6 +46,7 @@ import { formatPrice, getPrice } from "@/lib/health-plans/types";
 import { CadenceModal } from "@/components/health/catalog";
 import { MembershipAgreementModal, TermsAndConditionsModal } from "@/components/legal";
 import "@/app/health/health.css";
+import { useBrandName, rebrand } from "@/lib/branding";
 
 /* ─── Inline auth (sign-in / sign-up) used in checkout Step 3 ─────────────── */
 function AppleIcon() {
@@ -703,15 +707,63 @@ function InlineAuth() {
 
 function CheckoutContent() {
   const { user, isLoaded, isSignedIn } = useUser();
-  const { 
-    cart, 
-    itemCount, 
-    subtotalCents, 
+  // This component is also rendered under /[siteSlug]/checkout (a re-export
+  // of this page). useParams() reflects the matched route regardless of
+  // which file the component is physically defined in, so this correctly
+  // captures which white-label site the shopper checked out under.
+  const routeParams = useParams();
+  const siteSlug = typeof routeParams?.siteSlug === "string" ? routeParams.siteSlug : undefined;
+  const {
+    cart,
+    itemCount,
+    subtotalCents,
     setPaymentMethod,
     setCadence,
     removeItem,
-    setReferralCode 
+    setReferralCode,
+    isLoaded: cartLoaded,
+    addItem,
+    syncProductPricing,
   } = useCart();
+  const brandName = useBrandName();
+
+  // Live catalog — used to auto-select a plan when the shopper arrives
+  // straight from an "Enroll Now" button (e.g. /health/checkout?plan=individual)
+  // and to keep cart pricing fresh.
+  const products = useQuery(api.catalog.queries.list, {});
+
+  // Detect an "Enroll Now" intent from the URL (?plan=individual|family).
+  // Read on the client after mount to avoid any SSR/hydration mismatch.
+  const [enrollIntent, setEnrollIntent] = useState<null | "individual" | "family">(null);
+  const [intentResolved, setIntentResolved] = useState(false);
+  useEffect(() => {
+    const plan = new URLSearchParams(window.location.search).get("plan");
+    setEnrollIntent(plan === "family" ? "family" : plan === "individual" ? "individual" : null);
+    setIntentResolved(true);
+  }, []);
+
+  // Keep cart item pricing in sync with live catalog data.
+  useEffect(() => {
+    if (products && (products as any[]).length > 0) {
+      syncProductPricing(products as any[]);
+    }
+  }, [products, syncProductPricing]);
+
+  // If the shopper landed here via "Enroll Now" with an empty cart, add the
+  // matching plan automatically so they go straight to a ready-to-pay checkout.
+  useEffect(() => {
+    if (!cartLoaded || !intentResolved || !enrollIntent) return;
+    if (itemCount > 0) return; // respect any plan already chosen on the Plans page
+    if (!products || (products as any[]).length === 0) return;
+
+    const list = products as any[];
+    const dental = list.filter((p) => p.category === "dental");
+    const pool = dental.length > 0 ? dental : list;
+    const family = pool.find((p) => p.slug?.includes("family"));
+    const individual = pool.find((p) => !p.slug?.includes("family"));
+    const chosen = enrollIntent === "family" ? (family || pool[0]) : (individual || pool[0]);
+    if (chosen) addItem(chosen);
+  }, [cartLoaded, intentResolved, enrollIntent, itemCount, products, addItem]);
   
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [agreedToNotInsurance, setAgreedToNotInsurance] = useState(false);
@@ -720,6 +772,7 @@ function CheckoutContent() {
   // Legal modal state
   const [membershipModalOpen, setMembershipModalOpen] = useState(false);
   const [termsModalOpen, setTermsModalOpen] = useState(false);
+  const createMembershipAgreement = useMutation(api.legal.membershipAgreements.createMembershipAgreement);
   
   const periodLabel = cart.cadence === "monthly" ? "Monthly" : "Annual";
   const periodShort = cart.cadence === "monthly" ? "/mo" : "/yr";
@@ -771,6 +824,7 @@ function CheckoutContent() {
           cadence: cart.cadence,
           paymentMethod: cart.paymentMethod,
           referralCode: cart.referralCode || undefined,
+          siteSlug,
           ...(memberProfile ? { memberProfile } : {}),
         }),
       });
@@ -796,10 +850,41 @@ function CheckoutContent() {
   
   // Empty cart state
   if (itemCount === 0) {
+    // Arriving from "Enroll Now" (?plan=…): we're about to auto-add the plan.
+    // Show a friendly "setting up" state instead of flashing "cart is empty".
+    const settingUp =
+      !intentResolved ||
+      (enrollIntent !== null && products === undefined) ||
+      (enrollIntent !== null && Array.isArray(products) && products.length > 0);
+
+    if (settingUp) {
+      return (
+        <div className="health-landing">
+          <HealthHeader />
+          <section className="section bg--white" style={{ paddingTop: "8rem", minHeight: "70vh" }}>
+            <div className="container" style={{ textAlign: "center", maxWidth: "500px" }}>
+              <Loader
+                size={40}
+                color="#0066CC"
+                style={{ animation: "spin 1s linear infinite", margin: "0 auto 1.5rem", display: "block" }}
+              />
+              <h2 style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "0.75rem", color: "#0f172a" }}>
+                Setting up your enrollment…
+              </h2>
+              <p style={{ color: "#64748b", lineHeight: 1.7 }}>
+                One moment while we get your plan ready.
+              </p>
+            </div>
+          </section>
+          <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+        </div>
+      );
+    }
+
     return (
       <div className="health-landing">
         <HealthHeader />
-        
+
         <section className="section bg--white" style={{ paddingTop: "8rem", minHeight: "70vh" }}>
           <div className="container" style={{ textAlign: "center", maxWidth: "500px" }}>
             <div style={{
@@ -840,13 +925,8 @@ function CheckoutContent() {
       {/* Main Checkout Grid */}
       <section className="section bg--white" style={{ paddingTop: "2rem", paddingBottom: "4rem" }}>
         <div className="container" style={{ maxWidth: "1200px" }}>
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 400px",
-            gap: "2.5rem",
-            alignItems: "start"
-          }}>
-            
+          <div className="checkout-grid">
+
             {/* Left Column - Steps */}
             <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
               
@@ -911,7 +991,7 @@ function CheckoutContent() {
                             {item.product.slug?.includes("family") ? "Family Plan" : "Individual Plan"}
                           </span>
                           <span style={{ fontWeight: 600, color: "#0f172a" }}>
-                            {item.product.name}
+                            {rebrand(item.product.name, brandName)}
                           </span>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
@@ -1334,7 +1414,7 @@ function CheckoutContent() {
             </div>
             
             {/* Right Column - Order Summary */}
-            <div style={{ position: "sticky", top: "100px" }}>
+            <div className="checkout-summary">
               <div className="glass-card" style={{ 
                 padding: "2rem",
                 background: "linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.9))"
@@ -1365,7 +1445,7 @@ function CheckoutContent() {
                         alignItems: "center"
                       }}>
                         <span style={{ color: "#475569" }}>
-                          {item.product.name}
+                          {rebrand(item.product.name, brandName)}
                         </span>
                         <span style={{ fontWeight: 600, color: "#0f172a" }}>
                           {formatPrice(itemPrice)}
@@ -1428,6 +1508,54 @@ function CheckoutContent() {
                     fontSize: "0.875rem"
                   }}>
                     {checkoutError}
+                  </div>
+                )}
+
+                {/* What's left before you can pay — removes the
+                    "why is this button greyed out?" confusion */}
+                {(!isSignedIn || !agreedToTerms || !agreedToNotInsurance) && (
+                  <div style={{
+                    marginTop: "1.5rem",
+                    padding: "1rem 1.25rem",
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "12px"
+                  }}>
+                    <p style={{ margin: "0 0 0.75rem", fontSize: "0.875rem", fontWeight: 600, color: "#0f172a" }}>
+                      Before you can pay, please:
+                    </p>
+                    <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+                      {[
+                        { done: isSignedIn, label: "Create your account or sign in (Step 3)" },
+                        { done: agreedToTerms, label: "Review & sign the membership agreement (Step 4)" },
+                        { done: agreedToNotInsurance, label: "Confirm you understand this is not insurance (Step 4)" },
+                      ].map((s, i) => (
+                        <li key={i} style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.6rem",
+                          fontSize: "0.875rem",
+                          color: s.done ? "#16a34a" : "#475569"
+                        }}>
+                          <span style={{
+                            width: "20px",
+                            height: "20px",
+                            borderRadius: "50%",
+                            flexShrink: 0,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            background: s.done ? "#22c55e" : "#e2e8f0",
+                            color: s.done ? "#fff" : "#94a3b8",
+                            fontSize: "0.75rem",
+                            fontWeight: 700
+                          }}>
+                            {s.done ? <Check size={13} /> : i + 1}
+                          </span>
+                          <span style={{ textDecoration: s.done ? "line-through" : "none" }}>{s.label}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
 
@@ -1502,16 +1630,41 @@ function CheckoutContent() {
       <MembershipAgreementModal
         isOpen={membershipModalOpen}
         onClose={() => setMembershipModalOpen(false)}
-        onAccept={(_signature: string) => {
+        onAccept={(signature: string) => {
           setAgreedToTerms(true);
           setMembershipModalOpen(false);
+          if (user?.id) {
+            const planName = cart.items?.[0]?.product?.name || `${brandName} Savings Plan`;
+            createMembershipAgreement({
+              userId: user.id,
+              memberId: user.id, // placeholder — linked to the real member ID by the Stripe webhook once enrollment completes
+              memberName: user?.fullName || user?.emailAddresses?.[0]?.emailAddress || "Member",
+              memberAddress: "Address on file",
+              email: user?.emailAddresses?.[0]?.emailAddress || "",
+              planName,
+              groupCode: PROVIDER_GROUP_CODE,
+              term: periodLabel,
+              classification: planName.toLowerCase().includes("family") ? "Member and Family" : "Member Only",
+              paymentMode: cart.paymentMethod === "ach" ? "Bank Draft" : "Credit Card",
+              periodicCharge: `$${(subtotalCents / 100).toFixed(2)}`,
+              processingFee: "$0.00",
+              membershipTermsAgreed: true,
+              termsAndConditionsAgreed: true,
+              memberSignature: signature,
+              signatureTimestamp: Date.now(),
+            }).catch((err) => {
+              // Non-fatal — the signed agreement not persisting shouldn't block checkout,
+              // but we log it so it's visible in monitoring.
+              console.error("[checkout] Failed to persist membership agreement:", err);
+            });
+          }
         }}
         memberData={{
           memberId: user?.id || "TBD",
           memberName: user?.fullName || user?.emailAddresses?.[0]?.emailAddress || "Member",
           memberAddress: "Address on file",
           email: user?.emailAddresses?.[0]?.emailAddress || "",
-          planName: cart.items?.[0]?.product?.name || "Ideal Oral Savings Plan",
+          planName: cart.items?.[0]?.product?.name || `${brandName} Savings Plan`,
           groupCode: PROVIDER_GROUP_CODE,
           effectiveDate: new Date().toISOString().split("T")[0],
           billingInterval: cart.cadence,

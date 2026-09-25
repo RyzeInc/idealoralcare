@@ -6,6 +6,8 @@
  */
 
 import { useState } from "react";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { useEnrollmentStep, useEnrollment, useEnrollmentPricing } from "@/components/enrollment/EnrollmentProvider";
 import { ArrowRight, AlertCircle, Loader, ChevronDown } from "lucide-react";
 import styles from "./steps.module.css";
@@ -14,6 +16,7 @@ import reviewStyles from "./review-step.module.css";
 export function ReviewStep() {
   const { nextStep, setError, setLoading, isLoading } = useEnrollmentStep();
   const { state, dispatch } = useEnrollment();
+  const updateEnrollmentSession = useMutation(api.enrollment.sessions.updateEnrollmentSession);
   const { selectedPlans, total } = useEnrollmentPricing();
   const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({
     broker: true,
@@ -46,6 +49,27 @@ export function ReviewStep() {
       const cadence = planData.cadence || "monthly";
       const paymentMethod = planData.paymentMethod || "card";
 
+      // Persist the census data collected across the wizard (name, DOB,
+      // phone, address, dependents) onto the enrollment session so the
+      // Stripe webhook can attach it to the member record it creates on
+      // payment success. Best-effort: if this is a locally-generated session
+      // (Convex was unreachable earlier in the wizard) there's nothing to
+      // update — checkout still proceeds and the webhook falls back to
+      // whatever Stripe collected directly.
+      if (state?.sessionId) {
+        try {
+          await updateEnrollmentSession({
+            sessionId: state.sessionId,
+            stepData: {
+              personalInfo: state.personalInfo,
+              address: state.address,
+            },
+          });
+        } catch {
+          // Non-fatal — see comment above.
+        }
+      }
+
       // Call Stripe checkout API
       const response = await fetch("/api/stripe/checkout", {
         method: "POST",
@@ -57,6 +81,9 @@ export function ReviewStep() {
           enrollmentSessionId: state?.sessionId,
           brokerCode: state?.brokerCode,
           groupId: state?.group?._id,
+          // Defensive fallback for the webhook's DTC path in case the
+          // enrollment session lookup ever misses (e.g. it expired).
+          siteSlug: state?.site?.slug,
         }),
       });
 

@@ -24,6 +24,10 @@
 import type { MutationCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import { generateEssentialsMemberNumber } from "./essentialsCodes";
+import {
+  resolveAttributionForNewMember,
+  stampFromAttribution,
+} from "./repAttribution";
 
 /* ------------------------------------------------------------------ */
 /* ID generation                                                      */
@@ -265,6 +269,18 @@ export async function createMemberProfile(
     }
   }
 
+  // ── Rep attribution stamp ───────────────────────────────────────────
+  // Cached here so insights can query by index. Scenario A (the enrollment
+  // session that drove this signup) wins over Scenario B (the group's own
+  // broker deal), matching resolveRepAttribution's precedence.
+  const attributionStamp = stampFromAttribution(
+    await resolveAttributionForNewMember(ctx, {
+      enrollmentSessionId: input.enrollmentSessionId,
+      group,
+    }),
+    now,
+  );
+
   const _id = await ctx.db.insert("memberProfiles", {
     memberId,
     subscriberId,
@@ -310,6 +326,11 @@ export async function createMemberProfile(
     assignedStaffId: input.assignedStaffId,
     assignedStaffName: input.assignedStaffName,
     assignedAt: input.assignedStaffId ? now : undefined,
+    attributedRepId: attributionStamp.attributedRepId,
+    attributedAgencyId: attributionStamp.attributedAgencyId,
+    attributedCode: attributionStamp.attributedCode,
+    attributionSource: attributionStamp.attributionSource,
+    attributionUpdatedAt: attributionStamp.attributionUpdatedAt,
     status: input.status ?? "active",
     communicationPrefs: input.communicationPrefs ?? {
       emailOptIn: true,

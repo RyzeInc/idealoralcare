@@ -4,11 +4,11 @@
 
 **Who can do this:** Any admin (Owner or Editor).
 
-**Trigger:** New members enrolled since the last vendor send; a scheduled monthly send; a specific employer's onboarding needs their roster pushed immediately.
+**When you'd do this:** New members enrolled since the last vendor send; a scheduled monthly send; a specific employer's onboarding needs their roster pushed immediately.
 
 **Related guide:** [Eligibility Files](../guide/02-operations.md#eligibility-files-admineligibility), [Vendor Files](../guide/02-operations.md#vendor-files-adminvendor-files)
 
-**⚠️ Read this first: there are two different places to "generate" a vendor file, and only one of them can actually deliver it.**
+**Read this first — there are two different places to "generate" a vendor file, and only one of them can actually deliver it.**
 
 | If you want to... | Go to | Because... |
 |---|---|---|

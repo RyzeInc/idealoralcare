@@ -4,13 +4,13 @@
 
 **Who can do this:** Any admin (Owner or Editor) — including permanent deletion, so be deliberate.
 
-**Trigger:** A support escalation that a simple Members-page lookup didn't resolve, or a data-quality sweep.
+**When you'd do this:** A support escalation that a simple Members-page lookup didn't resolve, or a data-quality sweep.
 
-**Related guide:** [User Audit](../guide/04-support-system.md#user-audit-adminuser-audit), [Members — Member Inspector](../guide/01-members-partners.md#members-adminmembers)
+**Related guide:** [User Lookup](../guide/04-support-system.md#user-lookup-adminuser-audit), [Members — Member Inspector](../guide/01-members-partners.md#members-adminmembers)
 
 ## Steps — general investigation
 
-1. Go to **User Audit** (`/admin/user-audit`).
+1. Go to **User Lookup** (`/admin/user-audit`).
 2. Search by name/email/member ID/Clerk ID/Careington ID, or use the 7 stat-card filters (All / Active (Both) / Linked-No-Sub / Clerk Only / Convex Only / Missing Census / Toothlens) to find the category of problem you're chasing:
    - **Clerk Only** — signed up but no Convex member profile exists (usually an incomplete enrollment or an orphaned account).
    - **Convex Only** — a member profile exists (e.g., loaded via eligibility file) with no matching Clerk login (expected/normal for `eligible`-status members with no email — see [guide/00-overview.md §5](../guide/00-overview.md#5-member-lifecycle)).
@@ -20,7 +20,7 @@
 
 ## Steps — fix incorrect data
 
-5. Back in the expanded row on User Audit, click **Edit all fields** — this exposes the *complete* field set (unlike the Members page's 5-field inline edit).
+5. Back in the expanded row on User Lookup, click **Edit all fields** — this exposes the *complete* field set (unlike the Members page's 5-field inline edit).
 6. Correct the field(s), click **Save changes**.
 
 ## Steps — permanently delete a member record (rare, deliberate action)
@@ -33,7 +33,7 @@
 ## Verification
 
 - Re-search for the member after an edit — the corrected fields should be reflected immediately (Convex is live-reactive).
-- After a permanent delete, confirm the member no longer appears anywhere in User Audit or Members — but also separately confirm in Stripe/Clerk that you don't have a dangling paid subscription or login for someone with no Convex record, if that matters for your case.
+- After a permanent delete, confirm the member no longer appears anywhere in User Lookup or Members — but also separately confirm in Stripe/Clerk that you don't have a dangling paid subscription or login for someone with no Convex record, if that matters for your case.
 
 ## If something goes wrong
 

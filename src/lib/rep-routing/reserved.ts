@@ -3,8 +3,9 @@
  * A slug matching any of these would shadow a real site section.
  *
  * Used by:
- *  - src/app/[agentSlug]/page.tsx  (route guard)
- *  - convex/admin/repCodes.ts      (create / update validation)
+ *  - src/proxy.ts                  (vanity-URL guard)
+ *  - convex/admin/repCodes.ts      (create / update validation — keeps its
+ *    own copy of this list; see that file's SLUG_RESERVED constant)
  */
 export const RESERVED_PATHS = new Set([
   // Next.js internals
@@ -15,9 +16,12 @@ export const RESERVED_PATHS = new Set([
   "manifest.json",
   // Top-level app sections
   "admin",
+  "partner",
   "api",
   "health",
   "newideal",
+  "register",
+  "unsubscribe",
   "bootstrap",
   "debug",
   // Auth routes

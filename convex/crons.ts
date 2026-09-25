@@ -72,4 +72,93 @@ crons.cron(
   internal.subscriptions.reconcile.reconcileStripeSubscriptions,
 );
 
+// ---------------------------------------------------------------------------
+// Insights daily rollup
+// Fires at 09:00 UTC — after the 08:30 Stripe reconciliation, so it reads
+// bundle statuses that have already been corrected against Stripe rather than
+// rolling up drift. Rolls up YESTERDAY, which is complete by then.
+// Idempotent per (scopeKind, scopeId, date).
+// ---------------------------------------------------------------------------
+crons.cron(
+  "insights-daily-rollup",
+  "0 9 * * *",
+  internal.insights.rollups.rollupYesterday,
+);
+
+// ---------------------------------------------------------------------------
+// CRM tag counter reconciliation — nightly self-heal
+// contactCount/companyCount on crmTags are a display cache maintained
+// incrementally on every tag write; this catches any drift.
+// ---------------------------------------------------------------------------
+crons.cron(
+  "crm-reconcile-counters",
+  "0 9 * * *",
+  internal.crm.maintenance.reconcileCounters,
+);
+
+// ---------------------------------------------------------------------------
+// CRM stale call-draft cleanup — hourly
+// A dial URI can hand the browser to another app before a rep closes out
+// the call-log composer; sweeps up anything left open >24h.
+// ---------------------------------------------------------------------------
+crons.cron(
+  "crm-expire-call-drafts",
+  "0 * * * *",
+  internal.crm.maintenance.expireStaleCallDrafts,
+);
+
+// ---------------------------------------------------------------------------
+// CRM primary-deal cache reconciliation — nightly self-heal
+// crmCompanies' stage columns mirror the company's primary deal. This is the
+// same role crm-reconcile-counters plays for tag counts: catch drift from a
+// crashed mutation or a manual edit rather than trusting the cache forever.
+// ---------------------------------------------------------------------------
+crons.cron(
+  "crm-reconcile-deal-cache",
+  "30 9 * * *",
+  internal.crm.maintenance.reconcilePrimaryDealCache,
+  {},
+);
+
+// ---------------------------------------------------------------------------
+// CRM workflow time triggers — every 15 minutes
+// Drives the `no_activity_days` trigger only; event triggers fire inline from
+// the mutations that cause them. 15 minutes is deliberate: the finest
+// granularity any time-based rule here expresses is a day, so a tighter
+// interval would just re-scan the same rows for nothing.
+// ---------------------------------------------------------------------------
+crons.interval(
+  "crm-workflow-time-triggers",
+  { minutes: 15 },
+  internal.crm.workflowTriggers.sweepTimeTriggers,
+);
+
+// ---------------------------------------------------------------------------
+// CRM workflow drain — every 5 minutes
+// A safety net, not the primary path: enqueueing a run schedules the engine
+// immediately. This catches delayed steps whose resume time has arrived and
+// any run orphaned by a failed scheduler call.
+// ---------------------------------------------------------------------------
+crons.interval(
+  "crm-workflow-drain",
+  { minutes: 5 },
+  internal.crm.workflowEngine.tick,
+  {},
+);
+
+// ---------------------------------------------------------------------------
+// CRM drip campaign drain — every 15 minutes
+// Sends the next due phase of any running drip campaign. 15 minutes matches
+// the workflow time-trigger sweep and is finer than any delay the UI can
+// express (whole days), so a tighter interval would only re-scan the same
+// rows. Starting a campaign also schedules this directly, so phase 1 does not
+// wait for the next tick.
+// ---------------------------------------------------------------------------
+crons.interval(
+  "crm-drip-drain",
+  { minutes: 15 },
+  internal.crm.dripEngine.tick,
+  {},
+);
+
 export default crons;

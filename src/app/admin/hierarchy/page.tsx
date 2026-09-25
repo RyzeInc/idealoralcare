@@ -2,15 +2,30 @@
 
 import { useState, Fragment } from 'react';
 import Link from 'next/link';
-import { useQuery, useMutation } from 'convex/react';
+import { useQuery, useMutation, useConvex } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
-import { Plus, Edit, Trash2, X, Info, Users, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Edit, Trash2, X, Info, Users, ChevronDown, ChevronRight, Palette, Settings, Plug, Building2, Upload } from 'lucide-react';
 import { useToast, Breadcrumbs, RequiredMark, Tooltip } from '@/components/admin/ui';
 import { useEffect, useRef } from 'react';
 import { PROVIDER_GROUP_CODE } from '@/lib/constants';
+import {
+  PROMO_PLACEMENTS,
+  PROMO_PLACEMENT_LABELS,
+  type PromoPlacement,
+} from '@/convex/lib/promoLinks';
 
 type TabType = 'sites' | 'accounts' | 'groups';
+
+/** Editor row for a site promo link. Empty strings stand in for unset optionals. */
+type PromoLinkForm = {
+  text: string;
+  ctaText: string;
+  url: string;
+  disclosure: string;
+  placements: PromoPlacement[];
+  enabled: boolean;
+};
 
 export default function HierarchyAdmin() {
   const [activeTab, setActiveTab] = useState<TabType>('sites');
@@ -22,15 +37,15 @@ export default function HierarchyAdmin() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumbs items={[{ label: 'Brokers & Organizations' }]} />
+      <Breadcrumbs items={[{ label: 'Sites, Accounts & Organizations' }]} />
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-slate-900">Brokers & Organizations</h1>
+        <h1 className="text-3xl font-bold text-slate-900">Sites, Accounts &amp; Organizations</h1>
         <button
           onClick={() => setShowCreateModal(true)}
           className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
         >
           <Plus size={18} />
-          Create {activeTab === 'sites' ? 'Site (Carrier)' : activeTab === 'accounts' ? 'Broker' : 'Organization'}
+          Create {activeTab === 'sites' ? 'Site (Carrier)' : activeTab === 'accounts' ? 'Account' : 'Organization'}
         </button>
       </div>
 
@@ -44,7 +59,7 @@ export default function HierarchyAdmin() {
               activeTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
-            {(tab === 'sites' ? 'Sites (Carrier)' : tab === 'accounts' ? 'Brokers' : 'Organizations')}
+            {(tab === 'sites' ? 'Sites (Carrier)' : tab === 'accounts' ? 'Accounts' : 'Organizations')}
             {' '}({tab === 'sites' ? sites.length : tab === 'accounts' ? accounts.length : groups.length})
           </button>
         ))}
@@ -226,7 +241,7 @@ function GroupsList({ groups, accounts, sites }: { groups: any[]; accounts: any[
             <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Name</th>
             <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Org Code (Subscriber ID)</th>
             <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Provider Group Code</th>
-            <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Broker</th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Account</th>
             <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Members</th>
             <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Status</th>
             <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">Actions</th>
@@ -335,35 +350,599 @@ function CreateSiteModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+async function resizeImageBlob(file: File | Blob, maxW: number, maxH: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxW || height > maxH) {
+        const r = Math.min(maxW / width, maxH / height);
+        width = Math.round(width * r);
+        height = Math.round(height * r);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(objUrl);
+      canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png', 0.92);
+    };
+    img.onerror = () => { URL.revokeObjectURL(objUrl); reject(new Error('Failed to load image')); };
+    img.src = objUrl;
+  });
+}
+
 function EditSiteModal({ site, onClose }: { site: any; onClose: () => void }) {
   const updateSite = useMutation(api.admin.hierarchy.updateSite);
+  const upsertIntegrations = useMutation(api.admin.integrations.upsertSiteIntegrations);
+  const generateUploadUrl = useMutation(api.admin.fileStorage.generateUploadUrl);
+  const existingIntg = useQuery(api.admin.integrations.getSiteIntegrations, { siteId: site._id });
+  const convex = useConvex();
   const toast = useToast();
-  const [form, setForm] = useState({ name: site.name, domain: site.domain || '', type: site.type });
+  const [uploading, setUploading] = useState({ logo: false, favicon: false });
+
+  type WizardTab = 'identity' | 'branding' | 'enrollment' | 'integrations';
+  const [activeTab, setActiveTab] = useState<WizardTab>('identity');
   const [saving, setSaving] = useState(false);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const [identity, setIdentity] = useState({
+    name: site.name || '',
+    domain: site.domain || '',
+    type: site.type || 'whitelabel',
+    status: site.status || 'onboarding',
+  });
+
+  const [branding, setBranding] = useState({
+    logoUrl: site.branding?.logoUrl || '',
+    logoWidth: site.branding?.logoWidth || 260,
+    faviconUrl: site.branding?.faviconUrl || '',
+    primaryColor: site.branding?.primaryColor || '#1e3a5f',
+    secondaryColor: site.branding?.secondaryColor || '#14b8a6',
+    accentColor: site.branding?.accentColor || '#0ea5e9',
+    heroHeadline: site.branding?.heroHeadline || '',
+    heroSubtext: site.branding?.heroSubtext || '',
+    footerText: site.branding?.footerText || '',
+    customCSS: site.branding?.customCSS || '',
+  });
+
+  // Third-party offers rendered on this brand's public pages. Stored on the
+  // site so one partner's vendor link never reaches another brand — the shared
+  // page components carry no links of their own.
+  const [promoLinks, setPromoLinks] = useState<PromoLinkForm[]>(
+    (site.promoLinks ?? []).map((p: Partial<PromoLinkForm>) => ({
+      text: p.text || '',
+      ctaText: p.ctaText || '',
+      url: p.url || '',
+      disclosure: p.disclosure || '',
+      placements: p.placements ?? [],
+      enabled: p.enabled ?? true,
+    }))
+  );
+
+  const patchPromo = (i: number, patch: Partial<PromoLinkForm>) =>
+    setPromoLinks(list => list.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
+
+  const togglePromoPlacement = (i: number, placement: PromoPlacement) =>
+    setPromoLinks(list => list.map((p, idx) => idx !== i ? p : {
+      ...p,
+      placements: p.placements.includes(placement)
+        ? p.placements.filter(x => x !== placement)
+        : [...p.placements, placement],
+    }));
+
+  const [enrollment, setEnrollment] = useState({
+    supportEmail: site.enrollmentDefaults?.supportEmail || '',
+    supportPhone: site.enrollmentDefaults?.supportPhone || '',
+    welcomeMessage: site.enrollmentDefaults?.welcomeMessage || '',
+    requireGroupCode: site.enrollmentDefaults?.requireGroupCode ?? false,
+    allowSelfEnrollment: site.enrollmentDefaults?.allowSelfEnrollment ?? true,
+    requirePayment: site.enrollmentDefaults?.requirePayment ?? true,
+    autoActivate: site.enrollmentDefaults?.autoActivate ?? false,
+    collectDependents: site.enrollmentDefaults?.collectDependents ?? true,
+    termsDocumentUrl: site.enrollmentDefaults?.termsDocumentUrl || '',
+    privacyPolicyUrl: site.enrollmentDefaults?.privacyPolicyUrl || '',
+  });
+
+  const [intg, setIntg] = useState({
+    toothlensCompany: '',
+    toothlensAccessKey: '',
+    emailFromName: '',
+    emailFromAddress: '',
+    emailReplyTo: '',
+    careingtonGroupCode: '',
+    dialcareGroupCode: '',
+    legalEntityName: '',
+    legalAddress: '',
+    carrierName: '',
+  });
+
+  useEffect(() => {
+    if (existingIntg) {
+      setIntg({
+        toothlensCompany: existingIntg.toothlensCompany || '',
+        toothlensAccessKey: existingIntg.toothlensAccessKey || '',
+        emailFromName: existingIntg.emailFromName || '',
+        emailFromAddress: existingIntg.emailFromAddress || '',
+        emailReplyTo: existingIntg.emailReplyTo || '',
+        careingtonGroupCode: existingIntg.careingtonGroupCode || '',
+        dialcareGroupCode: existingIntg.dialcareGroupCode || '',
+        legalEntityName: existingIntg.legalEntityName || '',
+        legalAddress: existingIntg.legalAddress || '',
+        carrierName: existingIntg.carrierName || '',
+      });
+    }
+  }, [existingIntg]);
+
+  const uploadRaw = async (file: File | Blob): Promise<string> => {
+    const uploadUrl = await generateUploadUrl();
+    const res = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': file.type || 'image/png' },
+      body: file,
+    });
+    if (!res.ok) throw new Error(`Upload failed: ${res.statusText}`);
+    const { storageId } = await res.json();
+    const url = await convex.query(api.admin.fileStorage.getFileUrl, { storageId });
+    if (!url) throw new Error('Could not resolve storage URL');
+    return url;
+  };
+
+  const uploadImage = async (file: File | Blob, maxW: number, maxH: number): Promise<string> => {
+    const blob = await resizeImageBlob(file, maxW, maxH);
+    const uploadUrl = await generateUploadUrl();
+    const res = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'image/png' },
+      body: blob,
+    });
+    if (!res.ok) throw new Error(`Upload failed: ${res.statusText}`);
+    const { storageId } = await res.json();
+    const url = await convex.query(api.admin.fileStorage.getFileUrl, { storageId });
+    if (!url) throw new Error('Could not resolve storage URL');
+    return url;
+  };
+
+  const handleLogoUpload = async (file: File | undefined) => {
+    if (!file) return;
+    setUploading(s => ({ ...s, logo: true }));
+    try {
+      const logoUrl = await uploadRaw(file);
+      setBranding(s => ({ ...s, logoUrl }));
+      // Auto-generate favicon from the same file if none exists
+      if (!branding.faviconUrl) {
+        setUploading(s => ({ ...s, favicon: true }));
+        try {
+          const faviconUrl = await uploadImage(file, 64, 64);
+          setBranding(s => ({ ...s, faviconUrl }));
+        } finally {
+          setUploading(s => ({ ...s, favicon: false }));
+        }
+      }
+    } catch (err) {
+      toast.fromError(err, 'Logo upload failed');
+    } finally {
+      setUploading(s => ({ ...s, logo: false }));
+    }
+  };
+
+  const handleFaviconUpload = async (file: File | undefined) => {
+    if (!file) return;
+    setUploading(s => ({ ...s, favicon: true }));
+    try {
+      const faviconUrl = await uploadImage(file, 64, 64);
+      setBranding(s => ({ ...s, faviconUrl }));
+    } catch (err) {
+      toast.fromError(err, 'Favicon upload failed');
+    } finally {
+      setUploading(s => ({ ...s, favicon: false }));
+    }
+  };
+
+  const handleAutoFavicon = async () => {
+    if (!branding.logoUrl) return;
+    setUploading(s => ({ ...s, favicon: true }));
+    try {
+      const res = await fetch(branding.logoUrl);
+      const blob = await res.blob();
+      const faviconUrl = await uploadImage(blob, 64, 64);
+      setBranding(s => ({ ...s, faviconUrl }));
+    } catch (err) {
+      toast.fromError(err, 'Could not generate favicon from logo');
+    } finally {
+      setUploading(s => ({ ...s, favicon: false }));
+    }
+  };
+
+  const handleSave = async () => {
     setSaving(true);
     try {
-      await updateSite({ siteId: site._id, name: form.name, domain: form.domain || undefined, type: form.type });
+      await updateSite({
+        siteId: site._id,
+        name: identity.name,
+        domain: identity.domain || undefined,
+        type: identity.type,
+        status: identity.status,
+        branding: {
+          logoUrl: branding.logoUrl || undefined,
+          logoWidth: branding.logoWidth || undefined,
+          faviconUrl: branding.faviconUrl || undefined,
+          primaryColor: branding.primaryColor || undefined,
+          secondaryColor: branding.secondaryColor || undefined,
+          accentColor: branding.accentColor || undefined,
+          heroHeadline: branding.heroHeadline || undefined,
+          heroSubtext: branding.heroSubtext || undefined,
+          footerText: branding.footerText || undefined,
+          customCSS: branding.customCSS || undefined,
+        },
+        // Blank rows are how an admin clears a promo, so drop them rather than
+        // persisting a link with no text or destination.
+        promoLinks: promoLinks
+          .filter(p => p.text.trim() && p.ctaText.trim() && p.url.trim())
+          .map(p => ({
+            text: p.text.trim(),
+            ctaText: p.ctaText.trim(),
+            url: p.url.trim(),
+            disclosure: p.disclosure.trim() || undefined,
+            placements: p.placements,
+            enabled: p.enabled,
+          })),
+        enrollmentDefaults: {
+          supportEmail: enrollment.supportEmail || undefined,
+          supportPhone: enrollment.supportPhone || undefined,
+          welcomeMessage: enrollment.welcomeMessage || undefined,
+          requireGroupCode: enrollment.requireGroupCode,
+          allowSelfEnrollment: enrollment.allowSelfEnrollment,
+          requirePayment: enrollment.requirePayment,
+          autoActivate: enrollment.autoActivate,
+          collectDependents: enrollment.collectDependents,
+          requireEligibilityMatch: site.enrollmentDefaults?.requireEligibilityMatch ?? false,
+          collectAddress: site.enrollmentDefaults?.collectAddress ?? true,
+          collectPhone: site.enrollmentDefaults?.collectPhone ?? true,
+          collectEmployeeId: site.enrollmentDefaults?.collectEmployeeId ?? false,
+          termsDocumentUrl: enrollment.termsDocumentUrl || undefined,
+          privacyPolicyUrl: enrollment.privacyPolicyUrl || undefined,
+        },
+      });
+      await upsertIntegrations({
+        siteId: site._id,
+        toothlensCompany: intg.toothlensCompany || undefined,
+        toothlensAccessKey: intg.toothlensAccessKey || undefined,
+        emailFromName: intg.emailFromName || undefined,
+        emailFromAddress: intg.emailFromAddress || undefined,
+        emailReplyTo: intg.emailReplyTo || undefined,
+        careingtonGroupCode: intg.careingtonGroupCode || undefined,
+        dialcareGroupCode: intg.dialcareGroupCode || undefined,
+        legalEntityName: intg.legalEntityName || undefined,
+        legalAddress: intg.legalAddress || undefined,
+        carrierName: intg.carrierName || undefined,
+      });
       onClose();
     } catch (err) {
-      toast.fromError(err, 'Could not update site');
+      toast.fromError(err, 'Could not save brand configuration');
     } finally {
       setSaving(false);
     }
   };
 
+  const TABS: { id: WizardTab; label: string; Icon: React.ElementType }[] = [
+    { id: 'identity', label: 'Identity', Icon: Building2 },
+    { id: 'branding', label: 'Branding', Icon: Palette },
+    { id: 'enrollment', label: 'Enrollment', Icon: Settings },
+    { id: 'integrations', label: 'Integrations', Icon: Plug },
+  ];
+
   return (
-    <ModalWrapper title={`Edit Site: ${site.name}`} onClose={onClose}>
-      <form onSubmit={handleSave} className="space-y-4">
-        <Field label="Name" value={form.name} onChange={v => setForm({ ...form, name: v })} required />
-        <Field label="Domain" value={form.domain} onChange={v => setForm({ ...form, domain: v })} />
-        <div className="flex gap-2 pt-2">
-          <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50">Cancel</button>
-          <button type="submit" disabled={saving} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">Save</button>
-        </div>
-      </form>
+    <ModalWrapper title={`Brand Config: ${site.name}`} onClose={onClose} wide="2xl">
+      <div className="flex gap-1 border-b border-slate-200 -mx-6 px-6 mb-5">
+        {TABS.map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setActiveTab(id)}
+            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === id ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Icon size={14} />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+        {activeTab === 'identity' && (
+          <>
+            <Field label="Brand Name" value={identity.name} onChange={v => setIdentity(s => ({ ...s, name: v }))} required />
+            <div>
+              <LabelRow label="Type" />
+              <select value={identity.type} onChange={e => setIdentity(s => ({ ...s, type: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                <option value="primary">Primary (your main brand)</option>
+                <option value="whitelabel">White-label (partner brand)</option>
+                <option value="channel">Channel (distribution partner)</option>
+              </select>
+            </div>
+            <Field label="Custom Domain" value={identity.domain} onChange={v => setIdentity(s => ({ ...s, domain: v }))} placeholder="e.g. acme-dental.com" tooltip="Leave blank to use path-based routing (/{slug}/...)." />
+            <div>
+              <LabelRow label="Status" />
+              <select value={identity.status} onChange={e => setIdentity(s => ({ ...s, status: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                <option value="onboarding">Onboarding</option>
+                <option value="active">Active</option>
+                <option value="suspended">Suspended</option>
+                <option value="terminated">Terminated</option>
+              </select>
+            </div>
+          </>
+        )}
+
+        {activeTab === 'branding' && (
+          <>
+            {/* Logo upload */}
+            <div>
+              <LabelRow label="Logo" tooltip="PNG or SVG. Resized to max 400×150. A 64×64 favicon is auto-generated from this if none is set." />
+              <div className="flex items-center gap-3 mt-1">
+                {branding.logoUrl && (
+                  <img src={branding.logoUrl} alt="Logo preview" className="h-10 max-w-[120px] object-contain border rounded p-1 bg-white" />
+                )}
+                <label className={`flex items-center gap-2 px-3 py-2 border border-slate-300 rounded-lg text-sm cursor-pointer hover:bg-slate-50 ${uploading.logo ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <Upload size={14} />
+                  {uploading.logo ? 'Uploading…' : branding.logoUrl ? 'Replace' : 'Upload Logo'}
+                  <input type="file" accept="image/*" className="hidden" onChange={e => handleLogoUpload(e.target.files?.[0])} />
+                </label>
+                {branding.logoUrl && (
+                  <button type="button" onClick={() => setBranding(s => ({ ...s, logoUrl: '' }))} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+                )}
+              </div>
+              {branding.logoUrl && (
+                <div className="flex items-center gap-3 mt-2">
+                  <span className="text-xs text-slate-500 w-24 shrink-0">Width: {branding.logoWidth}px</span>
+                  <input
+                    type="range"
+                    min={40}
+                    max={400}
+                    step={5}
+                    value={branding.logoWidth}
+                    onChange={e => setBranding(s => ({ ...s, logoWidth: Number(e.target.value) }))}
+                    className="flex-1"
+                  />
+                  <div
+                    className="border rounded p-1 bg-white shrink-0 overflow-hidden flex items-center justify-center"
+                    style={{ width: 128, height: 48 }}
+                  >
+                    <img
+                      src={branding.logoUrl}
+                      alt="Logo preview"
+                      style={{
+                        width: branding.logoWidth,
+                        height: 'auto',
+                        zoom: Math.min(1, 128 / branding.logoWidth),
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Favicon upload */}
+            <div>
+              <LabelRow label="Favicon" tooltip="Resized to 64×64. Auto-generated from your logo if left blank." />
+              <div className="flex items-center gap-3 mt-1">
+                {branding.faviconUrl && (
+                  <img src={branding.faviconUrl} alt="Favicon preview" className="h-8 w-8 object-contain border rounded p-0.5 bg-white" />
+                )}
+                <label className={`flex items-center gap-2 px-3 py-2 border border-slate-300 rounded-lg text-sm cursor-pointer hover:bg-slate-50 ${uploading.favicon ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <Upload size={14} />
+                  {uploading.favicon ? 'Uploading…' : branding.faviconUrl ? 'Replace' : 'Upload Favicon'}
+                  <input type="file" accept="image/*" className="hidden" onChange={e => handleFaviconUpload(e.target.files?.[0])} />
+                </label>
+                {branding.faviconUrl && (
+                  <button type="button" onClick={() => setBranding(s => ({ ...s, faviconUrl: '' }))} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+                )}
+                {branding.logoUrl && !branding.faviconUrl && !uploading.favicon && (
+                  <button type="button" onClick={handleAutoFavicon} className="text-xs text-blue-600 hover:text-blue-800 underline">
+                    Auto-generate from logo
+                  </button>
+                )}
+              </div>
+            </div>
+            <div>
+              <LabelRow label="Brand Colors" />
+              <div className="grid grid-cols-3 gap-2 mt-1">
+                {([
+                  ['Primary', 'primaryColor', 'Buttons & CTAs'] as const,
+                  ['Secondary', 'secondaryColor', 'Accents'] as const,
+                  ['Accent', 'accentColor', 'Highlights'] as const,
+                ]).map(([label, key, tip]) => (
+                  <div key={key}>
+                    <p className="text-xs text-slate-500 mb-1">{label} <span className="text-slate-400">— {tip}</span></p>
+                    <div className="flex gap-1">
+                      <input type="color" value={branding[key]} onChange={e => setBranding(s => ({ ...s, [key]: e.target.value }))} className="h-9 w-10 rounded border border-slate-300 cursor-pointer p-0.5" />
+                      <input type="text" value={branding[key]} onChange={e => setBranding(s => ({ ...s, [key]: e.target.value }))} className="flex-1 px-2 py-1.5 border border-slate-300 rounded-lg text-xs font-mono" placeholder="#000000" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <Field label="Hero Headline" value={branding.heroHeadline} onChange={v => setBranding(s => ({ ...s, heroHeadline: v }))} placeholder="e.g. Oral Health Savings Made Simple" tooltip="Main heading on the brand's landing page." />
+            <Field label="Hero Subtext" value={branding.heroSubtext} onChange={v => setBranding(s => ({ ...s, heroSubtext: v }))} placeholder="e.g. AI scanning, teledentistry, and dental discounts." />
+            <Field label="Footer Address / Text" value={branding.footerText} onChange={v => setBranding(s => ({ ...s, footerText: v }))} placeholder="e.g. 123 Main St, City, ST 00000" tooltip="Replaces the default office address in the footer." />
+            <div>
+              <LabelRow label="Custom CSS" tooltip="Advanced. Injected on all brand pages." />
+              <textarea value={branding.customCSS} onChange={e => setBranding(s => ({ ...s, customCSS: e.target.value }))} rows={3} placeholder=":root { --brand-primary: #007bff; }" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono" />
+            </div>
+
+            <div className="pt-2 border-t border-slate-200">
+              <LabelRow label="Promo Links" tooltip="Third-party offers shown on this brand's public pages. Only this brand sees them." />
+              <p className="text-xs text-slate-500 mb-2">
+                A sentence with one linked phrase — e.g. &ldquo;Interested in Exploring Vision?&rdquo; + &ldquo;Click Here!&rdquo;. Opens in a new tab.
+              </p>
+
+              {promoLinks.length === 0 ? (
+                <p className="text-xs text-slate-400 mb-2">No promo links on this brand.</p>
+              ) : (
+                <div className="space-y-3 mb-2">
+                  {promoLinks.map((promo, i) => (
+                    <div key={i} className="border border-slate-200 rounded-lg p-3 space-y-2 bg-slate-50">
+                      <div className="flex items-center justify-between">
+                        <label className="flex items-center gap-2 text-xs text-slate-600">
+                          <input
+                            type="checkbox"
+                            checked={promo.enabled}
+                            onChange={() => patchPromo(i, { enabled: !promo.enabled })}
+                          />
+                          Enabled
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setPromoLinks(list => list.filter((_, idx) => idx !== i))}
+                          className="text-xs text-red-600 hover:text-red-700"
+                        >
+                          Remove
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          value={promo.text}
+                          onChange={e => patchPromo(i, { text: e.target.value })}
+                          placeholder="Interested in Exploring Vision?"
+                          className="px-2 py-1.5 border border-slate-300 rounded-lg text-sm"
+                        />
+                        <input
+                          type="text"
+                          value={promo.ctaText}
+                          onChange={e => patchPromo(i, { ctaText: e.target.value })}
+                          placeholder="Click Here!"
+                          className="px-2 py-1.5 border border-slate-300 rounded-lg text-sm"
+                        />
+                      </div>
+
+                      <input
+                        type="url"
+                        value={promo.url}
+                        onChange={e => patchPromo(i, { url: e.target.value })}
+                        placeholder="https://www.example.com/partner/welcome"
+                        className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-sm font-mono"
+                      />
+
+                      <input
+                        type="text"
+                        value={promo.disclosure}
+                        onChange={e => patchPromo(i, { disclosure: e.target.value })}
+                        placeholder="Optional fine print — e.g. offered by a third party, not part of your plan"
+                        className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs"
+                      />
+
+                      <div className="flex flex-wrap gap-3">
+                        {PROMO_PLACEMENTS.map(placement => (
+                          <label key={placement} className="flex items-center gap-1.5 text-xs text-slate-600">
+                            <input
+                              type="checkbox"
+                              checked={promo.placements.includes(placement)}
+                              onChange={() => togglePromoPlacement(i, placement)}
+                            />
+                            {PROMO_PLACEMENT_LABELS[placement]}
+                          </label>
+                        ))}
+                      </div>
+
+                      {promo.placements.length === 0 && (
+                        <p className="text-xs text-amber-600">Pick at least one page, or this won&apos;t appear anywhere.</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setPromoLinks(list => [...list, {
+                  text: '', ctaText: '', url: '', disclosure: '',
+                  placements: [...PROMO_PLACEMENTS], enabled: true,
+                }])}
+                className="text-sm text-blue-600 hover:text-blue-700"
+              >
+                + Add promo link
+              </button>
+            </div>
+          </>
+        )}
+
+        {activeTab === 'enrollment' && (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Support Email" value={enrollment.supportEmail} onChange={v => setEnrollment(s => ({ ...s, supportEmail: v }))} placeholder="support@yourbrand.com" />
+              <Field label="Support Phone" value={enrollment.supportPhone} onChange={v => setEnrollment(s => ({ ...s, supportPhone: v }))} placeholder="(800) 000-0000" />
+            </div>
+            <div>
+              <LabelRow label="Welcome Message" tooltip="Shown to members at the top of the enrollment flow." />
+              <textarea value={enrollment.welcomeMessage} onChange={e => setEnrollment(s => ({ ...s, welcomeMessage: e.target.value }))} rows={2} placeholder="Shown at the start of enrollment…" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+            </div>
+            <Field label="Terms of Service URL" value={enrollment.termsDocumentUrl} onChange={v => setEnrollment(s => ({ ...s, termsDocumentUrl: v }))} placeholder="https://..." tooltip="Leave blank to use the platform default terms." />
+            <Field label="Privacy Policy URL" value={enrollment.privacyPolicyUrl} onChange={v => setEnrollment(s => ({ ...s, privacyPolicyUrl: v }))} placeholder="https://..." />
+            <div className="border-t border-slate-200 pt-3 space-y-2">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Enrollment Rules</p>
+              {([
+                ['requireGroupCode', 'Require group code to enroll'] as const,
+                ['allowSelfEnrollment', 'Allow self-enrollment (direct-to-consumer)'] as const,
+                ['requirePayment', 'Require payment at checkout'] as const,
+                ['autoActivate', 'Auto-activate membership on enrollment'] as const,
+                ['collectDependents', 'Collect dependent information'] as const,
+              ]).map(([key, label]) => (
+                <label key={key} className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={enrollment[key]} onChange={e => setEnrollment(s => ({ ...s, [key]: e.target.checked }))} className="rounded" />
+                  <span className="text-sm text-slate-700">{label}</span>
+                </label>
+              ))}
+            </div>
+          </>
+        )}
+
+        {activeTab === 'integrations' && (
+          <>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide pb-1">Toothlens (AI Oral Scanning)</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Company Slug" value={intg.toothlensCompany} onChange={v => setIntg(s => ({ ...s, toothlensCompany: v }))} placeholder="e.g. idealhealth" tooltip="Lowercase slug registered with Toothlens for this brand." />
+              <Field label="Access Key" value={intg.toothlensAccessKey} onChange={v => setIntg(s => ({ ...s, toothlensAccessKey: v }))} placeholder="API key from Toothlens" />
+            </div>
+            <div className="border-t border-slate-200 pt-3">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide pb-2">Email Sender</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="From Name" value={intg.emailFromName} onChange={v => setIntg(s => ({ ...s, emailFromName: v }))} placeholder="e.g. Acme Dental Benefits" />
+                <Field label="From Address" value={intg.emailFromAddress} onChange={v => setIntg(s => ({ ...s, emailFromAddress: v }))} placeholder="noreply@yourbrand.com" tooltip="Must be a verified Resend sender domain." />
+              </div>
+              <div className="mt-3">
+                <Field label="Reply-To Address" value={intg.emailReplyTo} onChange={v => setIntg(s => ({ ...s, emailReplyTo: v }))} placeholder="support@yourbrand.com" />
+              </div>
+            </div>
+            <div className="border-t border-slate-200 pt-3">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide pb-2">Vendor Groups</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Careington Group Code" value={intg.careingtonGroupCode} onChange={v => setIntg(s => ({ ...s, careingtonGroupCode: v }))} placeholder="e.g. RYZEDO" tooltip="Leave blank to use the platform-wide default." />
+                <Field label="DialCare Group Code" value={intg.dialcareGroupCode} onChange={v => setIntg(s => ({ ...s, dialcareGroupCode: v }))} placeholder="e.g. RYZEDO" />
+              </div>
+            </div>
+            <div className="border-t border-slate-200 pt-3">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide pb-2">Legal Entity</p>
+              <Field label="Legal Entity Name" value={intg.legalEntityName} onChange={v => setIntg(s => ({ ...s, legalEntityName: v }))} placeholder="e.g. Acme Benefits LLC" tooltip="Used in membership agreements and legal disclosures." />
+              <div className="mt-3">
+                <Field label="Legal Address" value={intg.legalAddress} onChange={v => setIntg(s => ({ ...s, legalAddress: v }))} placeholder="123 Main St, City, ST 00000" />
+              </div>
+              <div className="mt-3">
+                <Field label="Carrier / Plan Name" value={intg.carrierName} onChange={v => setIntg(s => ({ ...s, carrierName: v }))} placeholder="e.g. Acme Oral Savings Plan" tooltip="Plan name used in legal docs and membership cards." />
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="flex gap-2 pt-4 border-t border-slate-200 mt-4">
+        <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-sm">Cancel</button>
+        <button type="button" onClick={handleSave} disabled={saving} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium">
+          {saving ? 'Saving…' : 'Save Brand Config'}
+        </button>
+      </div>
     </ModalWrapper>
   );
 }
@@ -395,7 +974,7 @@ function CreateAccountModal({ sites, onClose }: { sites: any[]; onClose: () => v
   };
 
   return (
-    <ModalWrapper title="Create Broker" onClose={onClose}>
+    <ModalWrapper title="Create Account" onClose={onClose}>
       <form onSubmit={handleSave} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Carrier (Site)</label>
@@ -405,7 +984,7 @@ function CreateAccountModal({ sites, onClose }: { sites: any[]; onClose: () => v
         </div>
         <Field label="Slug" value={form.slug} onChange={v => setForm({ ...form, slug: v })} required placeholder="e.g. acme-corp" />
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Broker Type</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Account Type</label>
           <select value={form.accountType} onChange={e => setForm({ ...form, accountType: e.target.value as any })} className="w-full px-3 py-2 border border-slate-300 rounded-lg">
             {['owner','employer','broker','franchisee','partner','individual'].map(t => <option key={t} value={t}>{t}</option>)}
           </select>
@@ -477,10 +1056,10 @@ function CreateGroupModal({ sites, accounts, onClose }: { sites: any[]; accounts
         </div>
         <div>
           <label className="block">
-            <LabelRow label="Broker" tooltip="The Broker/Account that owns this organization. Controls billing model and reporting rollups." />
+            <LabelRow label="Account" tooltip="The Account that owns this organization. Controls billing model and reporting rollups." />
           </label>
           <select value={form.accountId} onChange={e => setForm({ ...form, accountId: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg">
-            <option value="">Select broker...</option>
+            <option value="">Select account...</option>
             {filteredAccounts.map((a: any) => <option key={a._id} value={a._id}>{a.slug}</option>)}
           </select>
         </div>
@@ -829,7 +1408,7 @@ function MemberBreakdownPanel({ groupId }: { groupId: string }) {
 
 /* ─── Shared helpers ─── */
 
-function ModalWrapper({ title, children, onClose, wide }: { title: string; children: React.ReactNode; onClose: () => void; wide?: boolean }) {
+function ModalWrapper({ title, children, onClose, wide }: { title: string; children: React.ReactNode; onClose: () => void; wide?: boolean | '2xl' }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -843,6 +1422,7 @@ function ModalWrapper({ title, children, onClose, wide }: { title: string; child
     focusable?.focus();
     return () => document.removeEventListener('keydown', handleKey);
   }, [onClose]);
+  const widthClass = wide === '2xl' ? 'max-w-2xl' : wide ? 'max-w-xl' : 'max-w-md';
   return (
     <div
       className="fixed inset-0 bg-slate-900/10 flex items-center justify-center z-50"
@@ -851,7 +1431,7 @@ function ModalWrapper({ title, children, onClose, wide }: { title: string; child
     >
       <div
         ref={dialogRef}
-        className={`bg-white rounded-lg p-6 w-full mx-4 shadow-2xl ring-1 ring-slate-200 ${wide ? 'max-w-xl' : 'max-w-md'}`}
+        className={`bg-white rounded-lg p-6 w-full mx-4 shadow-2xl ring-1 ring-slate-200 ${widthClass}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

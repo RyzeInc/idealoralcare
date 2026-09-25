@@ -1,6 +1,6 @@
 # Members & Partners
 
-Covers: [Members](#members-adminmembers) · [Distribution / "Brokers"](#distribution-adminbrokers) · [Partner Applications](#partner-applications-adminpartner-applications) · [Rep Codes](#rep-codes-adminrep-codes)
+Covers: [Members](#members-adminmembers) · [Brokers](#brokers-adminbrokers) · [Partner Applications](#partner-applications-adminpartner-applications) · [Rep Codes](#rep-codes-adminrep-codes) · [Partner Kit Leads](#partner-kit-leads-adminpartnerkit)
 
 Permission note: every action in this file is gated by plain `requireAdmin` — Owner and Editor have identical access to every button described below, including permanent deletes. See [00-overview.md §1](00-overview.md#1-the-permission-model-read-this-first).
 
@@ -24,9 +24,9 @@ Permission note: every action in this file is gated by plain `requireAdmin` — 
 
 - **Change status**: `updateMemberStatus` — writes an activity log entry and an admin-audit entry.
 - **Bulk status change**: `bulkUpdateMemberStatus` — tolerant of individual failures; the toast reports "N of M succeeded."
-- **Terminate**: `removeMember` — a **soft delete** (flips `memberType`/`status` to `terminated`, logged). A separate `hardDeleteMember` mutation does exist and permanently deletes the profile + activities + notes, but no button on this page calls it — it's only reachable from the [User Audit](04-support-system.md#user-audit-adminuser-audit) page.
+- **Terminate**: `removeMember` — a **soft delete** (flips `memberType`/`status` to `terminated`, logged). A separate `hardDeleteMember` mutation does exist and permanently deletes the profile + activities + notes, but no button on this page calls it — it's only reachable from the [User Lookup](04-support-system.md#user-lookup-adminuser-audit) page.
 - **Add Member**: `createAdminMember` — requires Group, First Name, Last Name.
-- **Edit profile** (drawer): `updateMemberProfile` — the inline form only exposes First/Last/Email/Phone/DOB, even though the mutation itself supports far more fields (address, gender, vendor IDs, SSN). Anything beyond those five fields currently has to be edited from [User Audit's](04-support-system.md#user-audit-adminuser-audit) "Edit all fields" panel instead.
+- **Edit profile** (drawer): `updateMemberProfile` — the inline form only exposes First/Last/Email/Phone/DOB, even though the mutation itself supports far more fields (address, gender, vendor IDs, SSN). Anything beyond those five fields currently has to be edited from [User Lookup's](04-support-system.md#user-lookup-adminuser-audit) "Edit all fields" panel instead.
 - **Add note**: `addMemberNote` — appears in the drawer's Notes list and is logged as an activity.
 - **Term from List-Bill**: `termListBillMember` — sets `listBillStatus: "termed"`, generates a re-enrollment token, flips the member to `inactive`.
 - **Send Re-enrollment Link**: `sendReenrollmentLink` — verifies the member is termed and has an email, then emails a 30-day re-enrollment link via Gmail SMTP.
@@ -36,15 +36,15 @@ Permission note: every action in this file is gated by plain `requireAdmin` — 
 - ⚠️ **"Download ID Card" is broken.** It calls a function name (`admin/memberCards:generateMemberIdCardPdf`) that doesn't exist anywhere in `convex/admin/memberCards.ts` — clicking it will error. Don't rely on it; there's no working ID-card export from this page today.
 - Apple/Google/Samsung wallet-pass generation is fully built server-side (`convex/admin/walletPasses.ts`) but not wired into any page — effectively unreachable/"coming soon."
 - The census-completeness field list is duplicated in three places in the codebase (frontend, `userAudit.ts`, `eligibility.ts`) — if one is ever updated, check the others.
-- `hardDeleteMember` exists but isn't reachable from this page (see User Audit instead) — that's intentional; don't look for a permanent-delete button here.
+- `hardDeleteMember` exists but isn't reachable from this page (see User Lookup instead) — that's intentional; don't look for a permanent-delete button here.
 
 The **Member Inspector** (`/admin/members/[id]`) is a separate, read-only deep-dive page: full profile, dependents (with their Careington/Toothlens vendor IDs), subscription/entitlements, Toothlens scan history, and a live Clerk account panel (sign-in history, verified emails, OAuth accounts, ban status). No mutation buttons live here — it's for looking, not changing.
 
 ---
 
-## Distribution (`/admin/brokers`)
+## Brokers (`/admin/brokers`)
 
-The sidebar calls this **"Brokers"**; the page itself is titled **"Distribution Management."** This is *not* the Site/Account/Group hierarchy (that's [Hierarchy](02-operations.md#hierarchy-adminhierarchy)) — it's the separate sales/commission chain: Program Managers → FMOs/Agencies → their Leader contacts.
+This is the **sales/commission chain**: Program Managers → FMOs/Agencies → their Leader contacts. It is *not* the Site/Account/Group hierarchy (that's [Hierarchy](02-operations.md#hierarchy-adminhierarchy)) — even though the Hierarchy tree has its own middle tier. The two are separate systems that both involve partners: **Brokers** here = the commission chain; **Accounts** in Hierarchy = who owns which Group. Backend table: `distributionPartners`.
 
 > Note for anyone reading the source: `src/components/admin/BrokersAdmin.tsx` exists in the repo but is **not** imported anywhere — the live page renders `DistributionAdmin.tsx` instead. Don't document screenshots from the unused file.
 
@@ -65,13 +65,24 @@ The sidebar calls this **"Brokers"**; the page itself is titled **"Distribution 
 
 - Deleting a partner cascades to all its leaders with only a generic confirm — no leader-count warning.
 - None of the read queries here (`getAllWithStats`, `getAll`, `getLeadersByPartner`) have a server-side auth check; access relies entirely on the `/admin` layout gate.
-- No audit-log entries are written for any Distribution mutation (create/update/delete partner or leader) — there's no built-in history of who added or removed a broker.
+- No audit-log entries are written for any Brokers-page mutation (create/update/delete partner or leader) — there's no built-in history of who added or removed a broker.
 
 ---
 
 ## Partner Applications (`/admin/partner-applications`)
 
-Review queue for public self-registration submissions from the `/register/rep` form, before they become live Distribution Partners. Despite the page name, there's no file literally called `partnerApplications.ts` in the backend — submissions live in `convex/repOnboarding.ts` (table `repOnboardingSubmissions`).
+Review queue for public self-registration submissions from the `/register/rep` form, before they become live Brokers. Despite the page name, there's no file literally called `partnerApplications.ts` in the backend — submissions live in `convex/repOnboarding.ts` (table `repOnboardingSubmissions`). In the sidebar this page sits in **Members & Partners** (alongside [Partner Kit Leads](#partner-kit-leads-adminpartnerkit)) — see the nav map in [00-overview.md §3](00-overview.md#3-full-navigation-map).
+
+### Public entry point (`/register/rep`)
+
+A longer, unauthenticated formal-application form (`src/app/register/rep/page.client.tsx`) than [`/register`](#public-entry-point-register) — this is the real licensing/onboarding submission, not a general-interest lead. A **Submission Type** selector (Broker/Agency Only, Front-Line Rep Only, or Both) conditionally reveals two field groups:
+
+- **Agency**: Agency Name*, DBA, EIN, Agency NPN, Primary Contact Name*/Email*/Phone, Program Manager, Physical/Mailing Address, Agency Licenses (free text), E&O Carrier + Expiration, requested Compensation Tier, Agency Effective Date/Status, W-9 Status + Received Date, Preferred Payment Method, ACH Authorization Status. (* = required when Agency or Both is selected.)
+- **Rep**: First/Last Name*, Email*, Phone, Rep NPN, Assigned Agency (free text, not a lookup), Rep Licenses (free text), Rep Effective Date/Status, Writing Number. (* = required when Rep or Both is selected.)
+
+On submit, `repOnboarding.submit` does real server-side validation before inserting — this is a step up from `/register`'s form, which has no backend validation at all beyond the args' basic types: it trims and drops empty strings, enforces the required-presence rules above based on `submissionType`, validates email format (both agency and rep email), validates EIN and NPN format (normalizing EIN to `XX-XXXXXXX`), and normalizes phone numbers. It does **not** dedupe against an existing submission for the same agency/rep — resubmitting creates a second row with status `new`, same as `/register`.
+
+⚠️ **Until this session, this page had zero links from anywhere in the app** — no nav, no footer, no link from `/register` itself — reachable only by typing the URL. It's now linked from the bottom of [`/register`](#public-entry-point-register) ("Already a licensed broker, agency, or rep ready to onboard?"), but there's still no link to it from the main site nav/footer if you want broader discoverability.
 
 ### What's on the page
 
@@ -90,7 +101,7 @@ Review queue for public self-registration submissions from the `/register/rep` f
 ### Known limitations
 
 - **Approval is not reversible in this UI.** There's no "un-approve" or edit-after-approve — the only follow-up action is code provisioning.
-- If the invite email fails during Approve, the partner/leader are still created silently — you have to notice the toast wording and go resend from the [Distribution](#distribution-adminbrokers) page yourself.
+- If the invite email fails during Approve, the partner/leader are still created silently — you have to notice the toast wording and go resend from the [Brokers](#brokers-adminbrokers) page yourself.
 - Auto-provisioning of codes on approval can fail silently (caught and logged, not surfaced) — check the Approved tab afterward; if no code is shown, use "Provision Agency Code + Rep Codes" manually.
 - No owner-only gate on Approve, despite it being the most consequential action in this section (creates real partner/leader records and fires emails).
 
@@ -123,3 +134,38 @@ Manages the individual tracking codes (and vanity URL slugs) that attribute a co
 - Deleting a rep code is permanent and irreversible.
 - No audit-log entries are written for Rep Code mutations (create/update/revoke/delete).
 - The "Commission" column can show `—` even for a rate that legitimately exists, because rate lookup tries three different matching paths (current Leader ID, legacy Clerk-ID form, agency-level rate) — don't assume a blank means no rate was ever set without checking [Commissions](03-finance.md#commissions-admincommissions) directly.
+
+---
+
+## Partner Kit Leads (`/admin/partnerkit`)
+
+In the sidebar it sits in the **Members & Partners** section — see the nav map in [00-overview.md §3](00-overview.md#3-full-navigation-map).
+
+**Purpose**: review queue for public partner/agency inquiries submitted via `/register` — separate from, and upstream of, [Partner Applications](#partner-applications-adminpartner-applications). This page captures the initial "we're interested" contact; Partner Applications is the formal licensing/onboarding submission that may follow later. Backed by `convex/contacts.ts` and the `partnerRegistrations` table (not `repOnboardingSubmissions`).
+
+### Public entry point (`/register`)
+
+A short, unauthenticated lead-capture form (`src/app/register/PartnerRegistrationForm.tsx`): Full Name, Email, Phone, Business/Agency Name (all required), and a "Send me the Partner Kit" checkbox (`wantsPartnerKit`) — that checkbox is the only thing that distinguishes a kit request from a general inquiry, and it's what the admin page's "N requested kit" pill counts. On submit it calls `contacts.submitPartnerRegistration` and redirects to `/health` after a few seconds.
+
+- **Linked from**: two "Schedule a Demo" buttons (`src/app/health/page.tsx`, `src/app/health/dental/page.tsx`) and the `AscendConferencePopup` component. ⚠️ The button label says "Schedule a Demo" but the destination is this partner-registration form, not a scheduling tool — a copy/link mismatch worth fixing if it causes confused submissions.
+- Below the form, a link to [`/register/rep`](#public-entry-point-registerrep) points anyone who's already a licensed broker/agency/rep straight at the formal application instead of the general-interest form.
+
+### What's on the page
+
+- A "N requested kit" stat pill, counting rows where `wantsPartnerKit` is true.
+- **Add Leads** — a bulk-entry modal (5 blank rows by default: Name/Business/Email/Phone) for manually keying in leads collected outside the web form (e.g., a trade show sign-up sheet).
+- **Export CSV** — Name/Email/Phone/Business/Wants Partner Kit/Status/Submitted.
+- Status filter (All / New / Contacted / Closed).
+- Table: Name, Business, Contact, Partner Kit (yes/no), Submitted, Status (inline dropdown).
+
+### How it works
+
+- **Public submission**: `contacts.submitPartnerRegistration` — the `/register` page's form, unauthenticated. Always creates a new row with `status: "new"`; there's no dedupe against an existing email/phone.
+- **Bulk Add Leads**: `contacts.bulkAddPartnerRegistrations` — same, but admin-authenticated and always sets `wantsPartnerKit: false` regardless of what's typed (the bulk form has no field for it, since it's for leads collected in person, not through the kit-request form).
+- **Status change**: `contacts.updatePartnerRegistrationStatus` — fires immediately on dropdown change, no confirmation, no audit-log entry.
+
+### Known limitations
+
+- No dedupe on either submission path — the same person filling out `/register` twice (or a bulk-add re-entering a lead already on the list) creates a second row rather than updating the first.
+- No audit-log entries for status changes, same gap as Rep Codes and Brokers elsewhere in this file.
+- No link from a Partner Kit Leads row to a corresponding [Partner Applications](#partner-applications-adminpartner-applications) submission if the lead later formally applies — the two flows aren't connected in the data model, only in intent.

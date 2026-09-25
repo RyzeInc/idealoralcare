@@ -19,6 +19,10 @@ const mockPush = vi.fn();
 vi.mock("next/navigation", () => ({
   useSearchParams: vi.fn(() => ({ get: (key: string) => (key === "token" ? "test-invite-token-abc" : null) })),
   useRouter: vi.fn(() => ({ push: mockPush })),
+  // The page (and the footer it renders) read the pathname; without this the
+  // whole file throws before any assertion runs.
+  usePathname: vi.fn(() => "/health/claim-invite"),
+  useParams: vi.fn(() => ({})),
 }));
 
 // Mock next/link
