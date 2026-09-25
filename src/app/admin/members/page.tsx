@@ -676,7 +676,7 @@ export default function MembersAdmin() {
                     <Link
                       href={`/admin/members/${selectedMemberId}`}
                       className="p-1 hover:bg-slate-100 rounded text-slate-600"
-                      title="View Full Details"
+                      title="Open Member Workspace"
                     >
                       <ExternalLink size={15} />
                     </Link>
@@ -691,6 +691,9 @@ export default function MembersAdmin() {
               </div>
             </div>
 
+            <div className="px-6 pt-4">
+              <Link href={`/admin/members/${selectedMemberId}`} className="block rounded-lg bg-teal-700 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-teal-800">Open member workspace →</Link>
+            </div>
             {/* Profile */}
             <div className="px-6 py-4 border-b border-slate-100">
               <h4 className="text-lg font-semibold text-slate-900">

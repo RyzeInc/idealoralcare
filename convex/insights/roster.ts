@@ -10,8 +10,8 @@
  */
 
 import { v } from "convex/values";
-import { query } from "../_generated/server";
-import { Doc } from "../_generated/dataModel";
+import { query, type QueryCtx } from "../_generated/server";
+import { Doc, type Id } from "../_generated/dataModel";
 import { resolveViewerScope, scopeLabel, isAdminScope, attributionInScope } from "./scope";
 import {
   loadScopedMembers,
@@ -22,6 +22,11 @@ import {
 import { hasExited } from "../lib/memberLifecycle";
 import { billingFor } from "./revenue";
 import { TIER_LABEL } from "../lib/memberBilling";
+
+// Fixed operational labels contain no member-entered or staff-entered text.
+const SAFE_OPERATION_TITLES = new Set([
+  "Member note added", "Member alert created", "Member alert resolved", "Member document linked",
+]);
 
 export const ROSTER_PAGE_SIZE = 25;
 export const MAX_ROSTER_PAGE_SIZE = 200;
@@ -182,96 +187,100 @@ export const getRosterFilters = query({
  */
 export const getMemberDetail = query({
   args: { memberId: v.id("memberProfiles") },
-  handler: async (ctx, args) => {
-    const scope = await resolveViewerScope(ctx);
-    const member = await ctx.db.get(args.memberId);
-    if (!member) return null;
-
-    const inScope = attributionInScope(scope, {
-      repId: member.attributedRepId ?? null,
-      agencyId: member.attributedAgencyId ?? null,
-    });
-    if (!inScope) {
-      // Indistinguishable from "does not exist", deliberately — a different
-      // error here would confirm the id belongs to somebody.
-      return null;
-    }
-
-    const pctx = await buildProjectionContext(ctx, [member]);
-    const view = toBrokerMemberView(member, pctx);
-
-    const activities = await ctx.db
-      .query("memberActivities")
-      .withIndex("by_member", (q) => q.eq("memberProfileId", args.memberId))
-      .order("desc")
-      .take(100);
-
-    const bundle = member.customerId
-      ? pctx.billing.bundlesByCustomer.get(member.customerId)
-      : undefined;
-    const facts = billingFor(member, pctx.billing);
-
-    // An employer-billed member has no Stripe subscription, so the drawer used
-    // to render nothing at all for them — implying no coverage. Their billing
-    // story lives on the employer's invoice instead.
-    let listBill = null;
-    if (facts.source === "list_bill") {
-      const group = pctx.billing.groupsById.get(String(member.groupId));
-      const invoices = await ctx.db
-        .query("listBillInvoices")
-        .withIndex("by_group", (q) => q.eq("groupId", member.groupId))
-        .order("desc")
-        .take(1);
-      const latest = invoices[0];
-      listBill = {
-        rateCents: facts.mrrCents,
-        tier: facts.tier,
-        tierLabel: facts.tier ? TIER_LABEL[facts.tier] : null,
-        dependentCount: facts.dependentCount,
-        rateLabel: facts.rateLabel ?? null,
-        // check | ach — the employer's remittance method, never a card.
-        employerPaymentMethod: group?.listBill?.paymentMethod ?? null,
-        coveragePeriod: latest?.coveragePeriod ?? null,
-        invoiceStatus: latest?.status ?? null,
-        invoiceNumber: latest?.invoiceNumber ?? null,
-        listBillStatus: member.listBillStatus ?? "active",
-      };
-    }
-
-    return {
-      billingSource: facts.source,
-      employerPays: facts.employerPays,
-      listBill,
-      member: view,
-      /** Admins additionally get the raw record for the internal detail page. */
-      raw: isAdminScope(scope) ? (member as Doc<"memberProfiles">) : null,
-      hasExited: hasExited(member.memberType),
-      timeline: activities.map((a) => ({
-        _id: a._id,
-        activityType: a.activityType,
-        title: a.title,
-        description: a.description,
-        actorType: a.actorType,
-        actorName: a.actorName,
-        emailEvent: a.emailEvent,
-        createdAt: a.createdAt,
-      })),
-      subscription: bundle
-        ? {
-            status: bundle.status,
-            cadence: bundle.cadence,
-            paymentMethod: bundle.paymentMethod,
-            totalCents: bundle.pricingSnapshot?.totalCents ?? 0,
-            currentPeriodStart: bundle.currentPeriodStart,
-            currentPeriodEnd: bundle.currentPeriodEnd,
-            cancelledAt: bundle.cancelledAt,
-            cancellationReason: bundle.cancellationReason,
-            pastDueAt: bundle.pastDueAt,
-          }
-        : null,
-    };
-  },
+  handler: (ctx, args) => readMemberDetail(ctx, args.memberId),
 });
+
+export async function readMemberDetail(ctx: QueryCtx, memberId: Id<"memberProfiles">) {
+  const scope = await resolveViewerScope(ctx);
+  const member = await ctx.db.get(memberId);
+  if (!member) return null;
+
+  const inScope = attributionInScope(scope, {
+    repId: member.attributedRepId ?? null,
+    agencyId: member.attributedAgencyId ?? null,
+  });
+  if (!inScope) {
+    // Indistinguishable from "does not exist", deliberately — a different
+    // error here would confirm the id belongs to somebody.
+    return null;
+  }
+
+  const pctx = await buildProjectionContext(ctx, [member]);
+  const view = toBrokerMemberView(member, pctx);
+
+  const activities = await ctx.db
+    .query("memberActivities")
+    .withIndex("by_member", (q) => q.eq("memberProfileId", memberId))
+    .order("desc")
+    .take(100);
+
+  const bundle = member.customerId
+    ? pctx.billing.bundlesByCustomer.get(member.customerId)
+    : undefined;
+  const facts = billingFor(member, pctx.billing);
+
+  // An employer-billed member has no Stripe subscription, so the drawer used
+  // to render nothing at all for them — implying no coverage. Their billing
+  // story lives on the employer's invoice instead.
+  let listBill = null;
+  if (facts.source === "list_bill") {
+    const group = pctx.billing.groupsById.get(String(member.groupId));
+    const invoices = await ctx.db
+      .query("listBillInvoices")
+      .withIndex("by_group", (q) => q.eq("groupId", member.groupId))
+      .order("desc")
+      .take(1);
+    const latest = invoices[0];
+    listBill = {
+      rateCents: facts.mrrCents,
+      tier: facts.tier,
+      tierLabel: facts.tier ? TIER_LABEL[facts.tier] : null,
+      dependentCount: facts.dependentCount,
+      rateLabel: facts.rateLabel ?? null,
+      // check | ach — the employer's remittance method, never a card.
+      employerPaymentMethod: group?.listBill?.paymentMethod ?? null,
+      coveragePeriod: latest?.coveragePeriod ?? null,
+      invoiceStatus: latest?.status ?? null,
+      invoiceNumber: latest?.invoiceNumber ?? null,
+      listBillStatus: member.listBillStatus ?? "active",
+    };
+  }
+
+  return {
+    billingSource: facts.source,
+    employerPays: facts.employerPays,
+    listBill,
+    member: view,
+    /** Admins additionally get the raw record for the internal detail page. */
+    raw: isAdminScope(scope) ? (member as Doc<"memberProfiles">) : null,
+    hasExited: hasExited(member.memberType),
+    timeline: activities.map((a) => ({
+      _id: a._id,
+      activityType: a.activityType,
+      title: isAdminScope(scope) || SAFE_OPERATION_TITLES.has(a.title)
+        ? a.title
+        : a.activityType.replaceAll("_", " "),
+      description: isAdminScope(scope) ? a.description : undefined,
+      actorType: a.actorType,
+      actorName: a.actorName,
+      emailEvent: a.emailEvent,
+      createdAt: a.createdAt,
+    })),
+    subscription: bundle
+      ? {
+          status: bundle.status,
+          cadence: bundle.cadence,
+          paymentMethod: bundle.paymentMethod,
+          totalCents: bundle.pricingSnapshot?.totalCents ?? 0,
+          currentPeriodStart: bundle.currentPeriodStart,
+          currentPeriodEnd: bundle.currentPeriodEnd,
+          cancelledAt: bundle.cancelledAt,
+          cancellationReason: bundle.cancellationReason,
+          pastDueAt: bundle.pastDueAt,
+        }
+      : null,
+  };
+}
 
 /**
  * The whole filtered book for export.

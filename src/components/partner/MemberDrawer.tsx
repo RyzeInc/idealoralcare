@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -71,6 +72,7 @@ export function MemberDrawer({
 
         {data && (
           <div className="px-6 py-5 space-y-6">
+            <Link href={`/partner/members/${memberId}`} className="block rounded-lg bg-teal-700 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-teal-800">Open member workspace →</Link>
             <section className="space-y-2">
               <div className="flex items-center gap-2 text-sm text-slate-700">
                 <Mail size={14} className="text-slate-400" />

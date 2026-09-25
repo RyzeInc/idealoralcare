@@ -1517,6 +1517,8 @@ export default defineSchema({
     siteId: v.id("sites"),
     
     content: v.string(),
+    // Existing notes remain internal unless explicitly shared.
+    visibility: v.optional(v.union(v.literal("admin"), v.literal("shared"))),
     noteType: v.union(
       v.literal("general"),
       v.literal("enrollment"),
@@ -1536,6 +1538,31 @@ export default defineSchema({
   })
     .index("by_member", ["memberProfileId"])
     .index("by_pinned", ["isPinned"]),
+
+  // Operational alerts and document references for the member workspace.
+  memberAlerts: defineTable({
+    memberProfileId: v.id("memberProfiles"),
+    title: v.string(),
+    severity: v.union(v.literal("info"), v.literal("warning"), v.literal("urgent")),
+    visibility: v.union(v.literal("admin"), v.literal("shared")),
+    expiresAt: v.optional(v.number()),
+    resolvedAt: v.optional(v.number()),
+    resolvedBy: v.optional(v.string()),
+    authorId: v.string(),
+    authorName: v.string(),
+    createdAt: v.number(),
+  }).index("by_member", ["memberProfileId"]),
+
+  memberDocuments: defineTable({
+    memberProfileId: v.id("memberProfiles"),
+    name: v.string(),
+    category: v.union(v.literal("agreement"), v.literal("enrollment"), v.literal("correspondence"), v.literal("other")),
+    url: v.string(),
+    visibility: v.union(v.literal("admin"), v.literal("shared")),
+    authorId: v.string(),
+    authorName: v.string(),
+    createdAt: v.number(),
+  }).index("by_member", ["memberProfileId"]),
 
   // ── MEMBER COMMUNICATIONS ────────────────────────────────────────────
   //

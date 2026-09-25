@@ -13,7 +13,7 @@ export default function MemberPage({
     <MemberWorkspace
       key={id}
       memberId={id as Id<"memberProfiles">}
-      portal="admin"
+      portal="partner"
     />
   );
 }

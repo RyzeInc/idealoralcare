@@ -17,7 +17,7 @@ Permission note: every action in this file is gated by plain `requireAdmin` — 
 - **Filters**: search (name/email/member ID), status dropdown, organization dropdown, and a **Terminated hidden / Showing terminated** toggle — terminated members are hidden by default.
 - **Row actions**: View (opens detail drawer), Edit/Change Status (pencil), Terminate (trash).
 - **Bulk actions**: select multiple rows → **Bulk Status Change**.
-- **Detail drawer** (click a row): profile fields, a **View Full Details** link to the read-only Member Inspector (`/admin/members/[id]`), inline Edit (name/email/phone/DOB only — see gotcha), **Download ID Card** (⚠️ broken, see below), entitlements, Notes (typed: General/Enrollment/Billing/Support/Follow Up), Activity Timeline.
+- **Detail drawer** (click a row): profile fields, an **Open member workspace** link to the Member Workspace (`/admin/members/[id]`), inline Edit (name/email/phone/DOB only — see gotcha), **Download ID Card**, entitlements, Notes (typed: General/Enrollment/Billing/Support/Follow Up), Activity Timeline.
 - **List-Bill section** (only for full-time employees): **Term from List-Bill**, or if already termed, **Send Re-enrollment Link**.
 
 ### How it works
@@ -33,12 +33,12 @@ Permission note: every action in this file is gated by plain `requireAdmin` — 
 
 ### Known limitations
 
-- ⚠️ **"Download ID Card" is broken.** It calls a function name (`admin/memberCards:generateMemberIdCardPdf`) that doesn't exist anywhere in `convex/admin/memberCards.ts` — clicking it will error. Don't rely on it; there's no working ID-card export from this page today.
+- **Download ID Card** uses the authenticated `/api/admin/members/[memberId]/id-card` PDF route. It is available from the drawer and the workspace Documents section.
 - Apple/Google/Samsung wallet-pass generation is fully built server-side (`convex/admin/walletPasses.ts`) but not wired into any page — effectively unreachable/"coming soon."
 - The census-completeness field list is duplicated in three places in the codebase (frontend, `userAudit.ts`, `eligibility.ts`) — if one is ever updated, check the others.
 - `hardDeleteMember` exists but isn't reachable from this page (see User Lookup instead) — that's intentional; don't look for a permanent-delete button here.
 
-The **Member Inspector** (`/admin/members/[id]`) is a separate, read-only deep-dive page: full profile, dependents (with their Careington/Toothlens vendor IDs), subscription/entitlements, Toothlens scan history, and a live Clerk account panel (sign-in history, verified emails, OAuth accounts, ban status). No mutation buttons live here — it's for looking, not changing.
+The **Member Workspace** (`/admin/members/[id]`) now provides an overview and detailed sections for personal information, household, coverage, agreements, billing, invoices, notes, alerts, activity, and documents. It includes contact/address editing, saved notes, and alerts. The original inspector remains under **Account & diagnostics**, and email history/composition is under **Communications**. Brokers have a scoped workspace at `/partner/members/[id]`. See the [member workspace guide](../member-workspace.md) for permissions and current integration boundaries.
 
 ---
 

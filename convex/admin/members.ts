@@ -964,6 +964,14 @@ export const hardDeleteMember = mutation({
       await ctx.db.delete(n._id);
     }
 
+    // Workspace records are owned by the profile, just like notes.
+    const alerts = await ctx.db.query("memberAlerts")
+      .withIndex("by_member", (q) => q.eq("memberProfileId", args.memberId)).collect();
+    const documents = await ctx.db.query("memberDocuments")
+      .withIndex("by_member", (q) => q.eq("memberProfileId", args.memberId)).collect();
+    for (const alert of alerts) await ctx.db.delete(alert._id);
+    for (const document of documents) await ctx.db.delete(document._id);
+
     // Record the deletion BEFORE removing the profile (audit log is independent)
     await recordAdminAction(ctx, identity, {
       action: "member.hardDelete",
@@ -977,6 +985,8 @@ export const hardDeleteMember = mutation({
         careingtonUniqueId: member.careingtonUniqueId ?? null,
         deletedActivities: activities.length,
         deletedNotes: notes.length,
+        deletedAlerts: alerts.length,
+        deletedDocuments: documents.length,
       },
     });
 

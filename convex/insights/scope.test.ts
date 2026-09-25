@@ -233,7 +233,7 @@ describe("attributionInScope", () => {
     expect(attributionInScope(rep, { repId: "leader_other" })).toBe(false);
   });
 
-  test("group-attributed members fall back to the agency", async () => {
+  test("unassigned group members are not exposed to every rep in the agency", async () => {
     const rep = {
       kind: "rep" as const,
       clerkUserId: "r",
@@ -242,8 +242,9 @@ describe("attributionInScope", () => {
       partnerId: "agency_me" as any,
       codes: [],
     };
-    // No rep on the member, but the employer deal belongs to their agency.
-    expect(attributionInScope(rep, { repId: null, agencyId: "agency_me" })).toBe(true);
+    // No rep on the member: only the agency scope may open the record.
+    expect(attributionInScope(rep, { repId: null, agencyId: "agency_me" })).toBe(false);
+    expect(attributionInScope(rep, { repId: "leader_other", agencyId: "agency_me" })).toBe(false);
     expect(attributionInScope(rep, { repId: null, agencyId: "agency_other" })).toBe(false);
   });
 

@@ -289,6 +289,9 @@ export function attributionInScope(
     return true;
   }
 
+  // Reps may only open the same members returned by their roster index.
+  if (scope.kind === "rep") return false;
+
   // Fall back to the agency when member-level attribution is missing — a
   // Scenario B (employer deal) member has no rep of its own.
   const agencyIds = scopeAgencyIds(scope);

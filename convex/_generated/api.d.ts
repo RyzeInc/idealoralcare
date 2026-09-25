@@ -111,6 +111,7 @@ import type * as inquiries from "../inquiries.js";
 import type * as insights_book from "../insights/book.js";
 import type * as insights_downline from "../insights/downline.js";
 import type * as insights_funnel from "../insights/funnel.js";
+import type * as insights_memberWorkspace from "../insights/memberWorkspace.js";
 import type * as insights_metrics from "../insights/metrics.js";
 import type * as insights_retention from "../insights/retention.js";
 import type * as insights_revenue from "../insights/revenue.js";
@@ -278,6 +279,7 @@ declare const fullApi: ApiFromModules<{
   "insights/book": typeof insights_book;
   "insights/downline": typeof insights_downline;
   "insights/funnel": typeof insights_funnel;
+  "insights/memberWorkspace": typeof insights_memberWorkspace;
   "insights/metrics": typeof insights_metrics;
   "insights/retention": typeof insights_retention;
   "insights/revenue": typeof insights_revenue;
