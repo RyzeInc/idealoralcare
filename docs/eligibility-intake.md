@@ -10,7 +10,7 @@ For nontechnical training and organization onboarding, see the [illustrated comp
 - `/employer/sign-in` and `/employer/sign-up`: dedicated account entry points. Contacts may use an existing Clerk account.
 - `/admin/eligibility/intake` (**Operations → Employer Intake**): browser/email allowlists, per-organization aliases, expiring API credentials, preview, approval, rejection, private download, and processing through the existing importer.
 - Convex HTTP actions: machine upload sessions, binary upload, receipt status, signed email bridge, and authenticated staff downloads.
-- `infra/eligibility-gmail/Code.gs`: Google Apps Script that runs inside the dedicated `eligibility@getidealoh.com` Workspace mailbox and forwards authenticated attachments to the signed Convex bridge.
+- `infra/eligibility-gmail/Code.gs`: Google Apps Script that runs inside the shared eligibility Workspace mailbox and forwards authenticated attachments to the matching site's signed Convex bridge. Every site's repository keeps the same copy.
 - `scripts/eligibility-upload.mjs`: dependency-free employer upload/status client.
 
 ## Launch browser/API uploads first
@@ -69,18 +69,22 @@ A 201/200 receipt means received, not approved/processed. On an uncertain networ
 
 Email runs on the existing Google Workspace account; no AWS, extra domain, or DNS change is needed.
 
-- **Mailbox:** a dedicated Workspace *user* `eligibility@getidealoh.com`. Not a Google Group: Apps Script can only read a user mailbox, and Groups rewrite the From of DMARC-strict senders ("X via eligibility"), which breaks the sender allowlist. Do not use it for human mail; everything in its Inbox is processed and then trashed.
+- **Mailbox:** one dedicated Workspace *user* serves every site (currently `eligibility@nexusoralhealth.com`). Add `eligibility@getidealoh.com` to it as an alias (Admin console → Users → the mailbox → Alternate email addresses), so no extra paid user is needed. getidealoh.com must be in the same Workspace account. Not a Google Group: Apps Script can only read a user mailbox, and Groups rewrite the From of DMARC-strict senders ("X via eligibility"), which breaks the sender allowlist. Do not use it for human mail; everything in its Inbox is processed and then trashed.
+- **Send mail as:** in the mailbox's Gmail settings (Accounts → Send mail as), add `eligibility@getidealoh.com` so Ideal receipts come from Ideal's address. `setup()` refuses to finish until every site address can be sent from.
 - **Addresses:** each organization gets `eligibility+org-<random>@getidealoh.com`, shown in **Employer Intake** once email is enabled for a contact. Gmail delivers plus-addresses to the mailbox automatically.
-- **Convex settings (production):** `ELIGIBILITY_INBOUND_ADDRESS=eligibility@getidealoh.com` and `ELIGIBILITY_EMAIL_BRIDGE_SECRET` (64 hex chars). The same secret is embedded in the mailbox's copy of the script; the committed `Code.gs` holds only placeholders for it and the production `.convex.site` URL.
-- **Script copy:** run `ELIGIBILITY_CONVEX_SITE_URL=https://<production-deployment>.convex.site scripts/setup-eligibility-email.sh`. It sets both Convex variables and writes the filled-in script to the Desktop.
-- **Script install:** signed in as the mailbox, create a project at script.google.com, paste the secret-bearing `Code.gs`, run `setup()` and authorize. `setup()` refuses to run as any other user, verifies the secret against Convex, and installs a 5-minute trigger.
-- **Rotation:** set a new secret on Convex, paste the updated constant into the script, and run `setup()` again.
+- **Convex settings (production):** `ELIGIBILITY_INBOUND_ADDRESS=eligibility@getidealoh.com` and `ELIGIBILITY_EMAIL_BRIDGE_SECRET` (64 hex chars).
+- **Site entry:** run `ELIGIBILITY_CONVEX_SITE_URL=https://<production-deployment>.convex.site scripts/setup-eligibility-email.sh`. It sets both Convex variables and writes the `SITE_IDEAL` script property value (address, brand, portal link, `.convex.site` URL and secret) to the Desktop. The committed `Code.gs` holds no site settings or secrets.
+- **Script install:** signed in as the mailbox, open the eligibility project at script.google.com (create it the first time), paste `Code.gs`, add each site's `SITE_` value under Project Settings → Script properties, then run `setup()` and authorize. `setup()` checks every site's send-as address and secret against its Convex deployment, then installs a 5-minute trigger.
+- **Rotation:** re-run the setup script, replace `SITE_IDEAL` with the new value, and run `setup()` again.
+- **Adding a site:** add its domain to the Workspace account, add `eligibility@<domain>` as a mailbox alias and send-as address, run that site's setup script, add its `SITE_` property, and run `setup()` again. No script change is needed.
 
-The script trusts only Google's topmost `Authentication-Results` (`mx.google.com`) and requires `dmarc=pass`; spam never reaches the Inbox and Gmail blocks malware before delivery. The recipient is Google's topmost `Delivered-To`. It accepts one From mailbox, at most five CSV/XLSX/TXT/JSON attachments of 10 MB each, and never follows links. Unapproved senders, wrong aliases, and failed authentication are trashed with no reply. Accepted mail gets an opaque receipt from the mailbox (no filenames or member data). Convex outages leave mail in the Inbox for the next run. Trashed mail is purged by Gmail after 30 days.
+Each message goes to the site whose domain appears in Google's topmost `Delivered-To`. If that site does not recognize the sender and organization, the script asks the other sites with the same plus-tag, in case Google reports the mailbox's primary domain instead of the alias. A refusal stores nothing and organization tags are random per site, so at most one site accepts; a refusing site sees only the sender, recipient, file name and size.
 
-Messages sent from inside the getidealoh.com domain may lack Google's authentication header and are refused; test from an outside address. DMARC authenticates the sender domain, not an uncompromised mailbox, so the allowlist and staff review remain necessary.
+The script trusts only Google's topmost `Authentication-Results` (`mx.google.com`) and requires `dmarc=pass`; spam never reaches the Inbox and Gmail blocks malware before delivery. The recipient is Google's topmost `Delivered-To`. It accepts one From mailbox, at most five CSV/XLSX/TXT/JSON attachments of 10 MB each, and never follows links. Unapproved senders, wrong aliases, and failed authentication are trashed with no reply. Accepted mail gets an opaque receipt from the accepting site's address (no filenames or member data). Convex outages leave mail in the Inbox for the next run. Trashed mail is purged by Gmail after 30 days.
 
-For PHI, accept the Google Workspace BAA (Admin console → Account → Account settings → Legal and compliance) and confirm Gmail and Apps Script are on Google's covered-services list.
+Messages sent from inside the Workspace account (any of its domains) may lack Google's authentication header and are refused; test from an outside address. DMARC authenticates the sender domain, not an uncompromised mailbox, so the allowlist and staff review remain necessary.
+
+For PHI, accept the Google Workspace BAA (Admin console → Account → Account settings → Legal and compliance) and confirm Gmail and Apps Script are on Google's covered-services list. The shared mailbox holds every site's submissions, so the BAA must cover each site's data.
 
 ## Verification performed locally
 
