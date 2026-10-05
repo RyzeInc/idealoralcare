@@ -17,7 +17,9 @@ import {
 } from "./lib/authGuards";
 import {
   fail,
-  inboundDomain,
+  aliasFromRecipient,
+  inboundMailbox,
+  intakeAddress,
   MAX_SESSIONS_PER_HOUR,
   SESSION_TTL_MS,
   secretToken,
@@ -238,9 +240,8 @@ export const myOrganizations = query({
         emailAddress:
           grant.emailEnabled &&
           route &&
-          inboundDomain() &&
           process.env.ELIGIBILITY_EMAIL_BRIDGE_SECRET
-            ? `${route.alias}@${inboundDomain()}`
+            ? intakeAddress(route.alias)
             : null,
       });
     }
@@ -355,8 +356,7 @@ export const beginEmail = internalMutation({
   ) => {
     if (dmarc !== "PASS" || spam !== "PASS" || virus !== "PASS")
       fail("FORBIDDEN", "Email authentication or scanning failed.");
-    const domain = inboundDomain();
-    if (!domain) fail("UNAVAILABLE", "Email intake is not configured.");
+    if (!inboundMailbox()) fail("UNAVAILABLE", "Email intake is not configured.");
     if (!messageId || messageId.length > 200 || recipients.length > 30)
       fail("BAD_REQUEST", "Invalid email metadata.");
     const email = normalizeEmail(sender);
@@ -367,8 +367,8 @@ export const beginEmail = internalMutation({
     const groups = new Map<string, Doc<"eligibilityIntakeAccess">>();
     for (const recipient of recipients) {
       const address = normalizeEmail(recipient);
-      const [alias, receivedDomain] = address.split("@");
-      if (receivedDomain !== domain) continue;
+      const alias = aliasFromRecipient(address);
+      if (!alias) continue;
       const route = await ctx.db
         .query("eligibilityIntakeRoutes")
         .withIndex("by_alias", (q) => q.eq("alias", alias))
@@ -523,11 +523,11 @@ export const adminConfiguration = query({
       })),
       routes: routes.map((r) => ({
         ...r,
-        address: inboundDomain() ? `${r.alias}@${inboundDomain()}` : null,
+        address: intakeAddress(r.alias),
       })),
       apiBase: process.env.CONVEX_SITE_URL ?? null,
       emailConfigured:
-        !!inboundDomain() && !!process.env.ELIGIBILITY_EMAIL_BRIDGE_SECRET,
+        !!inboundMailbox() && !!process.env.ELIGIBILITY_EMAIL_BRIDGE_SECRET,
       browserConfigured: !!process.env.CLERK_SECRET_KEY,
     };
   },

@@ -335,7 +335,7 @@ export default function EmployerIntakeAdminPage() {
                 : "CLERK_SECRET_KEY needed on Convex"}
               . Email adapter:{" "}
               {config?.emailConfigured
-                ? "settings present; AWS and DNS must also be deployed"
+                ? "settings present; the Gmail intake script must also be running"
                 : "not configured"}
               .
             </p>

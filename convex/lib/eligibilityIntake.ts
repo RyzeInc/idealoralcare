@@ -20,9 +20,22 @@ export function normalizeEmail(value: string): string {
     fail("BAD_REQUEST", "Enter a valid email address.");
   return email;
 }
-export function inboundDomain(): string | undefined {
-  const value = process.env.ELIGIBILITY_INBOUND_DOMAIN?.trim().toLowerCase();
-  return value && /^[a-z0-9.-]+\.[a-z]{2,}$/.test(value) ? value : undefined;
+// Organizations email a plus-address of one Workspace mailbox, e.g.
+// eligibility+org-abc@getidealoh.com, so no separate mail domain is needed.
+export function inboundMailbox(): { local: string; domain: string } | undefined {
+  const value = process.env.ELIGIBILITY_INBOUND_ADDRESS?.trim().toLowerCase();
+  const match = value?.match(/^([a-z0-9._-]+)@([a-z0-9.-]+\.[a-z]{2,})$/);
+  return match ? { local: match[1], domain: match[2] } : undefined;
+}
+export function intakeAddress(alias: string): string | null {
+  const box = inboundMailbox();
+  return box ? `${box.local}+${alias}@${box.domain}` : null;
+}
+export function aliasFromRecipient(recipient: string): string | undefined {
+  const box = inboundMailbox();
+  const [local, domain] = recipient.split("@");
+  if (!box || domain !== box.domain || !local.startsWith(`${box.local}+`)) return undefined;
+  return local.slice(box.local.length + 1);
 }
 export function validateMetadata(
   fileName: string,

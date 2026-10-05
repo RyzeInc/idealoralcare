@@ -134,7 +134,7 @@ async function upload(
 }
 beforeEach(() => {
   vi.stubEnv("CONVEX_SITE_URL", "https://test.convex.site");
-  vi.stubEnv("ELIGIBILITY_INBOUND_DOMAIN", "intake.ideal.test");
+  vi.stubEnv("ELIGIBILITY_INBOUND_ADDRESS", "eligibility@ideal.test");
   vi.stubEnv("ELIGIBILITY_EMAIL_BRIDGE_SECRET", "bridge-secret-".repeat(4));
 });
 afterEach(() => {
@@ -554,7 +554,7 @@ describe("automated and email intake", () => {
     const w = await world();
     const base = {
       sender: "hr@employer.test",
-      recipients: ["org-a@intake.ideal.test"],
+      recipients: ["eligibility+org-a@ideal.test"],
       messageId: "message:0",
       tokenHash: await sha256(token),
       dmarc: "PASS",
@@ -572,9 +572,13 @@ describe("automated and email intake", () => {
     await expect(
       w.t.mutation(internal.eligibilityIntake.beginEmail, {
         ...base,
-        recipients: ["org-b@intake.ideal.test"],
+        recipients: ["eligibility+org-b@ideal.test"],
       }),
     ).rejects.toThrow(/approved address/);
+    for (const recipient of ["org-a@ideal.test", "sales+org-a@ideal.test", "eligibility+org-a@other.test"])
+      await expect(
+        w.t.mutation(internal.eligibilityIntake.beginEmail, { ...base, recipients: [recipient] }),
+      ).rejects.toThrow(/approved address/);
     await expect(
       w.t.mutation(internal.eligibilityIntake.beginEmail, {
         ...base,

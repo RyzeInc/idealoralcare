@@ -21,8 +21,6 @@ pnpm-debug.log*
 
 # test output
 /coverage/
-infra/eligibility-email/dist/
-infra/eligibility-email/node_modules/
 
 # typescript
 *.tsbuildinfo
