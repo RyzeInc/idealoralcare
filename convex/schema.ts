@@ -1727,6 +1727,42 @@ export default defineSchema({
     .index("by_created", ["createdAt"])
     .index("by_broker", ["brokerId"]),
 
+  // External intake never grants admin access or changes member coverage.
+  eligibilityIntakeAccess: defineTable({
+    groupId: v.id("groups"), email: v.string(), clerkUserId: v.optional(v.string()),
+    browserEnabled: v.boolean(), emailEnabled: v.boolean(), active: v.boolean(),
+    createdAt: v.number(), updatedAt: v.number(), createdBy: v.string(),
+  }).index("by_email", ["email"]).index("by_clerk", ["clerkUserId"]).index("by_group", ["groupId"]),
+  eligibilityIntakeRoutes: defineTable({
+    groupId: v.id("groups"), alias: v.string(),
+  }).index("by_group", ["groupId"]).index("by_alias", ["alias"]),
+  eligibilityIntakeKeys: defineTable({
+    groupId: v.id("groups"), label: v.string(), tokenHash: v.string(), prefix: v.string(),
+    active: v.boolean(), expiresAt: v.number(), createdAt: v.number(), createdBy: v.string(),
+  }).index("by_hash", ["tokenHash"]).index("by_group", ["groupId"]),
+  eligibilityUploadSessions: defineTable({
+    groupId: v.id("groups"), tokenHash: v.string(),
+    source: v.union(v.literal("browser"), v.literal("api"), v.literal("email")),
+    accessId: v.optional(v.id("eligibilityIntakeAccess")), keyId: v.optional(v.id("eligibilityIntakeKeys")),
+    actor: v.string(), externalId: v.optional(v.string()),
+    fileName: v.string(), fileType: v.union(v.literal("csv"), v.literal("xlsx"), v.literal("txt"), v.literal("json")),
+    fileBytes: v.number(), sourceDate: v.optional(v.string()), createdAt: v.number(), expiresAt: v.number(),
+    state: v.union(v.literal("pending"), v.literal("receiving"), v.literal("completed"), v.literal("failed")),
+    receiptId: v.optional(v.id("eligibilitySubmissions")),
+  }).index("by_hash", ["tokenHash"]).index("by_group_created", ["groupId", "createdAt"]).index("by_expiry", ["expiresAt"]),
+  eligibilitySubmissions: defineTable({
+    groupId: v.id("groups"), storageId: v.optional(v.id("_storage")),
+    fileName: v.string(), fileType: v.union(v.literal("csv"), v.literal("xlsx"), v.literal("txt"), v.literal("json")),
+    fileBytes: v.number(), sha256: v.string(), sourceDate: v.optional(v.string()),
+    source: v.union(v.literal("browser"), v.literal("api"), v.literal("email")),
+    submittedBy: v.string(), externalId: v.optional(v.string()), createdAt: v.number(),
+    status: v.union(v.literal("submitted"), v.literal("approved"), v.literal("rejected"), v.literal("expired")),
+    reviewedBy: v.optional(v.string()), reviewedAt: v.optional(v.number()), reviewNote: v.optional(v.string()),
+    validationWarningsAcknowledged: v.optional(v.boolean()),
+    eligibilityFileId: v.optional(v.id("eligibilityFiles")),
+  }).index("by_group_created", ["groupId", "createdAt"]).index("by_group_hash", ["groupId", "sha256", "sourceDate"])
+    .index("by_status_created", ["status", "createdAt"]).index("by_created", ["createdAt"]),
+
   // ELIGIBILITY FILES (Uploaded member lists)
   eligibilityFiles: defineTable({
     siteId: v.id("sites"),

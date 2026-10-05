@@ -109,6 +109,7 @@ export const ADMIN_NAVIGATION: AdminNavSection[] = [
     items: [
       { label: "Hierarchy", href: "/admin/hierarchy", icon: "Building2", tooltip: "Sites → Accounts → Organizations: the partner & member tree.", keywords: ["sites", "organizations", "accounts", "branding", "white label", "domain"] },
       { label: "Eligibility Files", href: "/admin/eligibility", icon: "FileText", tooltip: "Upload member rosters from groups/employers.", keywords: ["roster", "census", "upload", "import"] },
+      { label: "Employer Intake", href: "/admin/eligibility/intake", icon: "Inbox", tooltip: "Review employer submissions and manage upload permissions.", keywords: ["email", "allowlist", "api", "uploads", "employer"] },
       { label: "Vendor Files", href: "/admin/vendor-files", icon: "FileOutput", tooltip: "Generate & download outbound vendor files (manual delivery).", keywords: ["careington", "toothlens", "export", "sftp"] },
     ],
   },

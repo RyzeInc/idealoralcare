@@ -13,6 +13,7 @@ import { isReservedPath } from "@/lib/rep-routing/reserved";
  * Route Strategy:
  * - /admin/*             → Requires authentication (admin role checked in layout)
  * - /partner/*           → Requires authentication (partner scope checked in layout)
+ * - /employer/*          → Requires authentication (org access checked in Convex), except sign-in/sign-up
  * - /health/dashboard/*  → Requires authentication (subscription + admin checked in layout)
  * - /health/checkout/*   → Public (inline auth handled on the Account step of checkout)
  * - /health/*            → Public (catalog browsing)
@@ -20,18 +21,27 @@ import { isReservedPath } from "@/lib/rep-routing/reserved";
  * - Everything else      → Public
  *
  * Sign-in redirect:
- * Unauthenticated users are redirected to NEXT_PUBLIC_CLERK_SIGN_IN_URL (env var)
- * which defaults to /health/sign-in. This keeps all redirects on localhost when
- * developing locally, rather than bouncing to the live Clerk-hosted sign-in page.
+ * Unauthenticated users are redirected to /employer/sign-in for employer routes,
+ * or NEXT_PUBLIC_CLERK_SIGN_IN_URL (env var), which defaults to /health/sign-in.
+ * This keeps all redirects on localhost when developing locally, rather than
+ * bouncing to the live Clerk-hosted sign-in page.
  */
 
 // Routes that require authentication
 const isProtectedRoute = createRouteMatcher([
   "/admin(.*)",
   "/partner(.*)",
+  "/employer(.*)",
   "/health/dashboard(.*)",
   // White-label brand dashboards at /{siteSlug}/dashboard
   "/:siteSlug/dashboard(.*)",
+]);
+
+// Sign-in pages sit at portal-shaped URLs but must remain reachable before a
+// session exists. Check these before the broader /employer guard.
+const isAuthRoute = createRouteMatcher([
+  "/employer/sign-in(.*)",
+  "/employer/sign-up(.*)",
 ]);
 
 // Routes that should never be blocked (webhooks, public API)
@@ -111,6 +121,10 @@ export default clerkMiddleware(async (auth, request) => {
     return NextResponse.next();
   }
 
+  if (isAuthRoute(request)) {
+    return NextResponse.next();
+  }
+
   // Agent vanity-URL resolution: /{slug} (single segment, not reserved)
   // Resolves rep codes / slugs and redirects to the rep's landing page with ?ref=...
   // (/230001, /allenjackson, /230001?to=essentials)
@@ -126,7 +140,10 @@ export default clerkMiddleware(async (auth, request) => {
   if (isProtectedRoute(request)) {
     const { userId } = await auth();
     if (!userId) {
-      const signInUrl = new URL(SIGN_IN_URL, request.url);
+      const signInPath = request.nextUrl.pathname.startsWith("/employer")
+        ? "/employer/sign-in"
+        : SIGN_IN_URL;
+      const signInUrl = new URL(signInPath, request.url);
       // A path, not request.url: the sign-in page refuses absolute URLs so an
       // attacker cannot use this parameter to bounce a newly signed-in session
       // off-site, and behind Vercel's proxy request.url does not necessarily

@@ -17,6 +17,7 @@ export const RESERVED_PATHS = new Set([
   // Top-level app sections
   "admin",
   "partner",
+  "employer",
   "api",
   "health",
   "newideal",

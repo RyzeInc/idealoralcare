@@ -1,0 +1,8 @@
+{
+  "name": "ideal-eligibility-email-bridge",
+  "private": true,
+  "type": "module",
+  "scripts": { "build": "node build.mjs", "test": "node --test handler.checks.mjs" },
+  "dependencies": { "@aws-sdk/client-s3": "^3.0.0", "@aws-sdk/client-sesv2": "^3.0.0", "mailparser": "^3.7.0" },
+  "devDependencies": { "esbuild": "^0.25.0" }
+}

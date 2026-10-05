@@ -31,7 +31,7 @@ export const getByAgent = query({
 // this one blocks creation, that one blocks the vanity-URL redirect. Keep them
 // in step.
 const SLUG_RESERVED = new Set([
-  "admin","partner","api","health","newideal","register","unsubscribe","bootstrap","debug",
+  "admin","partner","employer","api","health","newideal","register","unsubscribe","bootstrap","debug",
   "login","signup","sign-in","sign-up","sign-out","sso-callback",
   "about","contact","privacy","terms","legal",
   "plans","checkout","enroll","dashboard","claim-invite",

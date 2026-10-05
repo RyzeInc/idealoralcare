@@ -29,6 +29,7 @@ export type RouteArea =
   | "Registration"
   | "White-label"
   | "Partner portal"
+  | "Employer portal"
   | "Admin console"
   | "CRM"
   | "System"
@@ -43,6 +44,7 @@ export type RouteAuth =
   | "none"
   | "member"
   | "partner"
+  | "employer"
   | "staff"
   | "owner"
   | "webhook";
@@ -441,6 +443,12 @@ export const SITE_ROUTES: SiteRoute[] = [
     auth: "partner",
   },
 
+  // ─── Employer eligibility intake ────────────────────────────────────────
+  { path: "/employer", title: "Employer entry", purpose: "Redirects signed-in contacts to the eligibility upload page.", area: "Employer portal", auth: "employer" },
+  { path: "/employer/upload", title: "Eligibility upload", purpose: "Approved contacts submit rosters and see receipts for their authorized organizations.", area: "Employer portal", auth: "employer", notes: "Account creation grants no organization access; staff authorize verified contact addresses." },
+  { path: "/employer/sign-in/*", title: "Employer sign in", purpose: "Clerk sign-in for employer and broker upload contacts.", area: "Employer portal", auth: "none" },
+  { path: "/employer/sign-up/*", title: "Employer account creation", purpose: "Create and verify a contact account before using staff-approved upload access.", area: "Employer portal", auth: "none" },
+
   // ─── Admin console ─────────────────────────────────────────────────────
   {
     path: "/admin",
@@ -519,6 +527,7 @@ export const SITE_ROUTES: SiteRoute[] = [
     area: "Admin console",
     auth: "staff",
   },
+  { path: "/admin/eligibility/intake", title: "Employer intake", purpose: "Authorize contacts and upload credentials, review submissions, and start approved eligibility imports.", area: "Admin console", auth: "staff" },
   {
     path: "/admin/vendor-files",
     title: "Vendor files",
@@ -957,6 +966,7 @@ export const API_GROUPS: ApiGroup[] = [
  * search results.
  */
 export const ROBOTS_DISALLOW: string[] = [
+  "/employer",
   "/admin",
   "/partner",
   "/api",

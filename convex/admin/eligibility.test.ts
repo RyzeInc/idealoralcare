@@ -140,6 +140,24 @@ async function countGroupMembers(t: ReturnType<typeof convexTest>, world: World)
 }
 
 describe("internalBatchCreateMembers — no-email member re-match on re-upload", () => {
+  test("a roster cannot update another organization's family by vendor ID", async () => {
+    const t = convexTest(schema);
+    const original = await seedWorld(t);
+    const originalFile = await seedFile(t, original);
+    await runBatch(t, original, originalFile, baseRecord({ uniqueId: "family-shared-id", dependents: [{ firstName: "Child", lastName: "Original", relationship: "child", seqNum: "01" }] }));
+    const before = await countGroupMembers(t, original);
+    expect(before).toHaveLength(2);
+    const other = await seedWorld(t);
+    const otherFile = await seedFile(t, other);
+    const result = await runBatch(t, other, otherFile, baseRecord({ uniqueId: "family-shared-id", firstName: "Changed", dependents: [{ firstName: "Changed", lastName: "Dependent", relationship: "child", seqNum: "01" }] }));
+    expect(result.created).toBe(0);
+    expect(result.updated).toBe(0);
+    expect(result.failed).toBe(1);
+    expect(result.errors.some((error) => /another organization/.test(error.error ?? ""))).toBe(true);
+    expect(await countGroupMembers(t, original)).toEqual(before);
+    expect(await countGroupMembers(t, other)).toEqual([]);
+  });
+
   test("matches by name + DOB when no email, uniqueId, groupMemberId, or SSN present", async () => {
     const t = convexTest(schema);
     const world = await seedWorld(t);

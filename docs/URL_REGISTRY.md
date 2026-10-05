@@ -11,6 +11,7 @@ Every URL the platform serves, what it is for, and who can reach it. Production 
 | Public | No account required. |
 | Member | Requires a signed-in member with an active membership. |
 | Partner | Requires a distribution partner with a resolved scope; each partner sees only their own book. |
+| Employer contact | Requires sign-in; organization uploads and history require staff-approved contact access. |
 | Staff | Requires an internal `adminUsers` record. |
 | Owner | Requires the `owner` role specifically. |
 | Signed webhook | Machine-to-machine. Unauthenticated by design, verified by provider signature. |
@@ -105,6 +106,17 @@ Distribution partners see their own book here, and only their own book. Partners
 | `/partner/watchlist` | Accounts and members needing action today. | Partner | — |
 | `/partner/resources` | Marketing material, partner kit, collateral, and forms. | Partner | — |
 
+## Employer portal
+
+Employer and broker contacts submit eligibility rosters for their authorized organizations. Verified Clerk accounts require separate staff approval before uploading.
+
+| Path | Purpose | Access | Sitemap |
+| --- | --- | --- | --- |
+| `/employer` | Redirects signed-in contacts to the eligibility upload page. | Employer contact | — |
+| `/employer/upload` | Approved contacts submit rosters and see receipts for their authorized organizations.<br><em>Account creation grants no organization access; staff authorize verified contact addresses.</em> | Employer contact | — |
+| `/employer/sign-in/*` | Clerk sign-in for employer and broker upload contacts. | Public | — |
+| `/employer/sign-up/*` | Create and verify a contact account before using staff-approved upload access. | Public | — |
+
 ## Admin console
 
 Internal staff only. Ordered below as the sidebar orders it.
@@ -133,6 +145,7 @@ Internal staff only. Ordered below as the sidebar orders it.
 | --- | --- | --- | --- |
 | `/admin/hierarchy` | Sites → accounts → organizations. Also where a site's branding, domain, and integrations are edited. | Staff | — |
 | `/admin/eligibility` | Upload and reconcile employer member rosters. | Staff | — |
+| `/admin/eligibility/intake` | Authorize contacts and upload credentials, review submissions, and start approved eligibility imports. | Staff | — |
 | `/admin/vendor-files` | Generate and download outbound vendor files for manual delivery. | Staff | — |
 
 ### Finance
@@ -352,6 +365,7 @@ POST /api/test-email
 `robots.txt` disallows:
 
 ```
+Disallow: /employer
 Disallow: /admin
 Disallow: /partner
 Disallow: /api

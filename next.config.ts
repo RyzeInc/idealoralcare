@@ -56,6 +56,10 @@ const nextConfig: NextConfig = {
 
   async headers() {
     return [
+      ...["/employer/:path*", "/admin/eligibility/:path*"].map((source) => ({ source, headers: [
+        { key: "Cache-Control", value: "private, no-store" },
+        { key: "X-Robots-Tag", value: "noindex, nofollow" },
+      ] })),
       {
         // Apply security headers to all routes
         source: "/(.*)",
@@ -111,7 +115,7 @@ const nextConfig: NextConfig = {
               // Fonts: local + Google Fonts CDN
               "font-src 'self' data: https://fonts.gstatic.com",
               // API connections: Convex + Clerk (dev + prod) + Stripe + Clerk telemetry
-              "connect-src 'self' https://*.convex.cloud wss://*.convex.cloud https://*.clerk.accounts.dev https://clerk.getidealoh.com https://api.stripe.com https://r.stripe.com https://www.google-analytics.com https://analytics.google.com https://clerk-telemetry.com",
+              "connect-src 'self' https://*.convex.cloud https://*.convex.site wss://*.convex.cloud https://*.clerk.accounts.dev https://clerk.getidealoh.com https://api.stripe.com https://r.stripe.com https://www.google-analytics.com https://analytics.google.com https://clerk-telemetry.com",
               // Iframes: Clerk + Stripe + Cloudflare + Toothlens SmileScan + Ryze telemedicine
               // ⚠️  CRITICAL: selfcheck.toothlens.com MUST remain in frame-src.
               // Removing it breaks the SmileScan iframe (core product feature).

@@ -1,4 +1,7 @@
+"use client";
 import Script from "next/script";
+import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 
 /**
  * Google Analytics component.
@@ -11,6 +14,12 @@ import Script from "next/script";
  */
 export function GoogleAnalytics() {
   const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+  const pathname = usePathname();
+  const privateIntake = pathname?.startsWith("/employer") || pathname?.startsWith("/admin/eligibility");
+  useEffect(() => {
+    if (gaId) (window as unknown as Record<string, unknown>)[`ga-disable-${gaId}`] = !!privateIntake;
+  }, [gaId, privateIntake]);
+  if (privateIntake) return null;
   if (!gaId) return null;
 
   return (

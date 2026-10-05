@@ -24,6 +24,7 @@ export function RepVisitTracker() {
   const params = useParams();
 
   useEffect(() => {
+    if (pathname?.startsWith("/employer") || pathname?.startsWith("/admin/eligibility")) return;
     const code = searchParams?.get("ref");
     if (!code) return;
 

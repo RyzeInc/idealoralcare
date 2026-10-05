@@ -161,4 +161,6 @@ crons.interval(
   {},
 );
 
+crons.interval("eligibility-intake-cleanup", { hours: 1 }, internal.eligibilityIntake.cleanup, {});
+
 export default crons;

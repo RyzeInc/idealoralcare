@@ -1870,6 +1870,16 @@ export const internalBatchCreateMembers = internalMutation({
       }
 
       try {
+        // External employer rosters must never update another organization's
+        // family through a globally matched vendor ID, even after staff review.
+        const sameUniqueId = record.uniqueId
+          ? await ctx.db.query("memberProfiles")
+              .withIndex("by_careington_id", (q) => q.eq("careingtonUniqueId", record.uniqueId))
+              .collect()
+          : [];
+        if (sameUniqueId.some((member) => member.groupId !== args.groupId)) {
+          throw new Error("Unique ID belongs to another organization; review the source roster before importing.");
+        }
         // Check for existing member by email within the same group (use the new index)
         let existing = null;
         if (record.email) {
@@ -1878,18 +1888,13 @@ export const internalBatchCreateMembers = internalMutation({
             .withIndex("by_group_email", (q: any) =>
               q.eq("groupId", args.groupId).eq("email", record.email)
             )
+            .filter((q) => q.neq(q.field("memberRole"), "dependent"))
             .first();
         }
 
         // Also match by Careington Unique ID (seqNum "00" = primary)
         if (!existing && record.uniqueId) {
-          const sameUniqueId = await ctx.db
-            .query("memberProfiles")
-            .withIndex("by_careington_id", (q: any) =>
-              q.eq("careingtonUniqueId", record.uniqueId)
-            )
-            .collect();
-          existing = sameUniqueId.find((m: any) => (m.careingtonSeqNum ?? "00") === "00") ?? null;
+          existing = sameUniqueId.find((m) => m.groupId === args.groupId && (m.careingtonSeqNum ?? "00") === "00") ?? null;
         }
 
         // Also match by the employer's internal employee ID (groupMemberId),
@@ -2051,7 +2056,7 @@ export const internalBatchCreateMembers = internalMutation({
               )
               .collect();
             let existingDep: any = existingWithSameUniqueId.find(
-              (m: any) => m.careingtonSeqNum === depSeqNum
+              (m: any) => m.groupId === args.groupId && m.primaryMemberId === primaryProfileId && m.careingtonSeqNum === depSeqNum
             ) ?? null;
 
             // NOTE: We intentionally do NOT fall back to email lookup for dependents.

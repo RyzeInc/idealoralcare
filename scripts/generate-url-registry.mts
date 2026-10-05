@@ -42,6 +42,7 @@ const AUTH_LABEL: Record<RouteAuth, string> = {
   none: "Public",
   member: "Member",
   partner: "Partner",
+  employer: "Employer contact",
   staff: "Staff",
   owner: "Owner",
   webhook: "Signed webhook",
@@ -72,6 +73,7 @@ const AREA_ORDER = [
   "Registration",
   "White-label",
   "Partner portal",
+  "Employer portal",
   "Admin console",
   "CRM",
   "System",
@@ -83,6 +85,7 @@ const AREA_BLURB: Record<(typeof AREA_ORDER)[number], string> = {
   Registration: "Public lead capture. These feed the Partner Kit Leads and Partner Applications queues in the admin console.",
   "White-label": "Partner-branded mirrors of the marketing and member pages, themed per site from the `sites` table.",
   "Partner portal": "Distribution partners see their own book here, and only their own book. Partners have no CRM access at all — that boundary is enforced per Convex function, not just per route.",
+  "Employer portal": "Employer and broker contacts submit eligibility rosters for their authorized organizations. Verified Clerk accounts require separate staff approval before uploading.",
   "Admin console": "Internal staff only. Ordered below as the sidebar orders it.",
   CRM: "Internal staff only, gated a second time on top of the admin gate: some CRM contacts are themselves brokers.",
   System: "Operational and development endpoints.",
@@ -179,6 +182,7 @@ function renderMarkdown(): string {
   out.push("| Public | No account required. |");
   out.push("| Member | Requires a signed-in member with an active membership. |");
   out.push("| Partner | Requires a distribution partner with a resolved scope; each partner sees only their own book. |");
+  out.push("| Employer contact | Requires sign-in; organization uploads and history require staff-approved contact access. |");
   out.push("| Staff | Requires an internal `adminUsers` record. |");
   out.push("| Owner | Requires the `owner` role specifically. |");
   out.push("| Signed webhook | Machine-to-machine. Unauthenticated by design, verified by provider signature. |", "");

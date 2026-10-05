@@ -1,0 +1,204 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Ideal eligibility email adapter using standard SES receiving (no Mail Manager endpoint).
+Parameters:
+  InboundDomain:
+    Type: String
+    AllowedPattern: '[a-z0-9.-]+\.[a-z]{2,}'
+  ConvexSiteUrl:
+    Type: String
+    AllowedPattern: 'https://[a-z0-9.-]+\.convex\.site'
+  BridgeSecret:
+    Type: String
+    NoEcho: true
+    MinLength: 32
+  CodeBucket:
+    Type: String
+  CodeKey:
+    Type: String
+  AlertEmail:
+    Type: String
+    Default: ""
+  EnableReceiptRule:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Enable only after the SES domain identity is verified.
+Conditions:
+  HasAlertEmail: !Not [!Equals [!Ref AlertEmail, ""]]
+  CreateReceiptRule: !Equals [!Ref EnableReceiptRule, "true"]
+Resources:
+  Identity:
+    Type: AWS::SES::EmailIdentity
+    Properties:
+      EmailIdentity: !Ref InboundDomain
+  RawEmailBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      LifecycleConfiguration:
+        Rules:
+          - Id: RemoveRawEmails
+            Status: Enabled
+            Prefix: raw/
+            ExpirationInDays: 1
+  RawBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref RawEmailBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ses.amazonaws.com }
+            Action: s3:PutObject
+            Resource: !Sub "${RawEmailBucket.Arn}/raw/*"
+            Condition:
+              StringEquals: { "AWS:SourceAccount": !Ref "AWS::AccountId" }
+              ArnEquals:
+                "AWS:SourceArn": !Sub "arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:receipt-rule-set/${RuleSet}:receipt-rule/ideal-intake"
+          - Effect: Deny
+            Principal: "*"
+            Action: s3:*
+            Resource:
+              [!GetAtt RawEmailBucket.Arn, !Sub "${RawEmailBucket.Arn}/*"]
+            Condition:
+              Bool: { "aws:SecureTransport": "false" }
+  BridgeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        [
+          !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+        ]
+      Policies:
+        - PolicyName: EmailIntake
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [s3:GetObject, s3:DeleteObject]
+                Resource: !Sub "${RawEmailBucket.Arn}/raw/*"
+              - Effect: Allow
+                Action: ses:SendEmail
+                Resource: !Sub "arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:identity/${InboundDomain}"
+  Bridge:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: nodejs22.x
+      Handler: index.handler
+      Timeout: 180
+      MemorySize: 512
+      Role: !GetAtt BridgeRole.Arn
+      Code: { S3Bucket: !Ref CodeBucket, S3Key: !Ref CodeKey }
+      Environment:
+        Variables:
+          CONVEX_SITE_URL: !Ref ConvexSiteUrl
+          INTAKE_BRIDGE_SECRET: !Ref BridgeSecret
+          RAW_EMAIL_BUCKET: !Ref RawEmailBucket
+          RECEIPT_FROM: !Sub "eligibility-receipts@${InboundDomain}"
+  BridgeLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${Bridge}"
+      RetentionInDays: 14
+  BridgePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Bridge
+      Action: lambda:InvokeFunction
+      Principal: ses.amazonaws.com
+      SourceAccount: !Ref "AWS::AccountId"
+      SourceArn: !Sub "arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:receipt-rule-set/${RuleSet}:receipt-rule/ideal-intake"
+  RuleSet:
+    Type: AWS::SES::ReceiptRuleSet
+    Properties: { RuleSetName: !Sub "${AWS::StackName}-rules" }
+  ReceiptRule:
+    Type: AWS::SES::ReceiptRule
+    Condition: CreateReceiptRule
+    DependsOn: [RawBucketPolicy, BridgePermission]
+    Properties:
+      RuleSetName: !Ref RuleSet
+      Rule:
+        Name: ideal-intake
+        Enabled: true
+        ScanEnabled: true
+        TlsPolicy: Require
+        Recipients: [!Ref InboundDomain]
+        Actions:
+          - S3Action: { BucketName: !Ref RawEmailBucket, ObjectKeyPrefix: raw/ }
+          - LambdaAction:
+              { FunctionArn: !GetAtt Bridge.Arn, InvocationType: Event }
+  Alerts:
+    Type: AWS::SNS::Topic
+    Condition: HasAlertEmail
+    Properties:
+      Subscription: [{ Protocol: email, Endpoint: !Ref AlertEmail }]
+  ProcessingFailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasAlertEmail
+    Properties:
+      AlarmDescription: Eligibility email adapter failures. Inspect logs without copying roster contents.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions: [{ Name: FunctionName, Value: !Ref Bridge }]
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref Alerts]
+  ReceiptFailureMetric:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref BridgeLogs
+      FilterPattern: '"eligibility_receipt_delivery_failed"'
+      MetricTransformations:
+        [
+          {
+            MetricNamespace: IdealEligibilityIntake,
+            MetricName: ReceiptDeliveryFailures,
+            MetricValue: "1",
+          },
+        ]
+  ReceiptFailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasAlertEmail
+    Properties:
+      AlarmDescription: Email files were received, but submission receipts could not be sent.
+      Namespace: IdealEligibilityIntake
+      MetricName: ReceiptDeliveryFailures
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref Alerts]
+Outputs:
+  ReceivingRuleCreated: { Value: !If [CreateReceiptRule, "true", "false"] }
+  ReceiptRuleSet: { Value: !Ref RuleSet }
+  MXValue: { Value: !Sub "10 inbound-smtp.${AWS::Region}.amazonaws.com" }
+  DkimName1: { Value: !GetAtt Identity.DkimDNSTokenName1 }
+  DkimValue1: { Value: !GetAtt Identity.DkimDNSTokenValue1 }
+  DkimName2: { Value: !GetAtt Identity.DkimDNSTokenName2 }
+  DkimValue2: { Value: !GetAtt Identity.DkimDNSTokenValue2 }
+  DkimName3: { Value: !GetAtt Identity.DkimDNSTokenName3 }
+  DkimValue3: { Value: !GetAtt Identity.DkimDNSTokenValue3 }
+  RawEmailBucket: { Value: !Ref RawEmailBucket }
+  LambdaFunction: { Value: !Ref Bridge }
