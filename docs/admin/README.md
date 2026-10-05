@@ -9,6 +9,8 @@ Both were written by reading the current source code directly (not by summarizin
 
 ## Start here
 
+- Managing employer eligibility submissions? Use the [Program Manager companion guide](/api/admin/eligibility-guide) and share the separate [Organization submission guide](/guides/eligibility/organization-guide.pdf) or [Organization onboarding kit](/guides/eligibility/organization-onboarding-kit.zip) with approved contacts. Both guides include visual walkthroughs; the organization PDF has a fillable onboarding card.
+
 - New to the admin suite? Read [guide/00-overview.md](guide/00-overview.md) first — it covers the permission model (which is not what the UI implies), the Site/Account/Group hierarchy, and the member lifecycle. Everything else assumes you've read it.
 - Need to do something specific right now? Go straight to [sops/README.md](sops/README.md) and find the matching procedure.
 - Wondering whether something you're looking at actually works? Check [guide/05-known-issues.md](guide/05-known-issues.md) before assuming a broken result is your mistake.

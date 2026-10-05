@@ -11,6 +11,9 @@ const nextConfig: NextConfig = {
   // ssh2 ships a native .node binary (sshcrypto.node) that webpack cannot parse;
   // listing it here makes Next require() it at runtime instead.
   serverExternalPackages: ["ssh2", "ssh2-sftp-client"],
+  outputFileTracingIncludes: {
+    "/api/admin/eligibility-guide": ["./docs/eligibility-companion/program-manager-guide.pdf"],
+  },
 
   // The admin SOP Library / docs viewer (src/lib/admin-docs-content.ts) imports
   // docs/admin/**/*.md files directly so their content is compiled into the JS

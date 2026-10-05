@@ -1,0 +1,505 @@
+[
+  {
+    "slug": "program-manager-guide",
+    "title": "Program Manager companion guide",
+    "audience": "INTERNAL · PROGRAM MANAGER",
+    "share": "Internal operational guide",
+    "pages": [
+      {
+        "title": "Run eligibility intake",
+        "subtitle": "A practical companion for onboarding organizations, reviewing rosters, and verifying the next steps.",
+        "blocks": [
+          {
+            "type": "callout",
+            "title": "Start here",
+            "text": "Open <a href=\"https://www.getidealoh.com/admin/eligibility/intake\" color=\"#155EAD\"><b>Operations → Employer Intake</b></a>. Intake is the delivery and review stage; invitations and vendor fulfillment remain separate.",
+            "tone": "blue"
+          },
+          {
+            "type": "diagram",
+            "name": "workflow",
+            "caption": "The shared workflow. Browser, Google Workspace email, and automated HTTPS submissions enter the same review queue."
+          },
+          {
+            "type": "table",
+            "headers": [
+              "Owner",
+              "What they do"
+            ],
+            "rows": [
+              [
+                "Organization contact",
+                "Prepares the agreed roster, submits it, keeps the receipt, and corrects source data."
+              ],
+              [
+                "Program Manager / authorized staff",
+                "Authorizes contacts, checks counts and organization, approves or rejects, starts processing, and verifies outcomes."
+              ],
+              [
+                "Technical administrator",
+                "Keeps sign-in, the Gmail intake script, and automation available; manages technical setup and credential issues."
+              ]
+            ],
+            "widths": [
+              0.29,
+              0.71
+            ]
+          },
+          {
+            "type": "callout",
+            "title": "Four milestones to keep separate",
+            "text": "<b>Received → approved → processed → invited / delivered.</b> None is a substitute for confirmation of the next milestone.",
+            "tone": "amber"
+          },
+          {
+            "type": "p",
+            "text": "Agree a submission cadence, roster format, review turnaround, and exception contact with each organization. These are program arrangements; the system does not set a review SLA."
+          }
+        ]
+      },
+      {
+        "title": "Onboard an organization",
+        "subtitle": "Give each contact only the organizations and delivery methods they need.",
+        "blocks": [
+          {
+            "type": "diagram",
+            "name": "access-walkthrough",
+            "caption": "Illustrated UI with fictitious data. Save the contact, then use Approved contacts to obtain the assigned email address."
+          },
+          {
+            "type": "steps",
+            "items": [
+              [
+                "Check the destination",
+                "The organization and its site must be active; its account must be active or onboarding. Set its Organization Code in Hierarchy before approving a roster."
+              ],
+              [
+                "Authorize the exact email",
+                "In <b>Upload access → Authorize a contact</b>, choose Organization, enter Email, select Browser uploads and/or Email attachments from this exact address, then click <b>Save upload access</b>."
+              ],
+              [
+                "Share the upload details",
+                "Send the portal link, approved sign-in/sender address, template, assigned email address if enabled, agreed cadence, and your support contact. Complete the onboarding card in the Organization guide."
+              ],
+              [
+                "Verify the first submission",
+                "Ask for a fictitious test roster first. Browser users must verify their approved sign-in email. Email-only contacts do not need a portal account to send; enable browser access if they need portal history."
+              ]
+            ]
+          },
+          {
+            "type": "callout",
+            "title": "Brokers and contact changes",
+            "text": "Authorize each organization separately for a broker. Revoke the old contact when staff change; revocation also invalidates unfinished upload sessions. Reassigned email addresses may require a technical access reset. Do not share a former contact’s login.",
+            "tone": "blue"
+          }
+        ]
+      },
+      {
+        "title": "Review before approval",
+        "subtitle": "Check the destination and roster before allowing member records to change.",
+        "blocks": [
+          {
+            "type": "diagram",
+            "name": "review-walkthrough",
+            "caption": "Illustration, not a live screenshot. The review dialog uses the exact Preview and Approve file labels."
+          },
+          {
+            "type": "steps",
+            "items": [
+              [
+                "Find the submission",
+                "Use <b>Review queue → Show: Awaiting review</b>. It shows up to 100 oldest pending submissions. Confirm organization, sender, filename, roster date if supplied, and receipt ID."
+              ],
+              [
+                "Preview and compare",
+                "Click <b>Preview</b>. Compare primary and dependent counts with the organization’s expected totals. Check sample members and the displayed parsing and validation issues. Intake allows files up to 10 MB; the importer caps files at 10,000 primaries."
+              ],
+              [
+                "Resolve issues or approve deliberately",
+                "Zero primaries, parsing issues, or the member limit block approval. Request a corrected source file when needed. Missing-field warnings require the explicit acknowledgement checkbox; accept them only after assessing effects on invitations and vendor fulfillment."
+              ],
+              [
+                "Approve or reject",
+                "Click <b>Approve file</b> to create the linked Eligibility Files record. Or click <b>Reject</b>, enter a reason visible to the organization, and confirm <b>Reject and delete attachment</b>. Rejection schedules source-file deletion."
+              ]
+            ]
+          },
+          {
+            "type": "callout",
+            "title": "After approval, change the filter",
+            "text": "The approved row leaves Awaiting review. Switch <b>Show → Latest 100 submissions</b> to find <b>Process approved file</b>. Use Eligibility Files to follow an older approved file.",
+            "tone": "amber"
+          },
+          {
+            "type": "p",
+            "text": "Suggested rejection note: “Please use the agreed template and include a birth date for each employee. Upload a corrected file for review.” Keep names, birth dates, and other member details out of review notes."
+          }
+        ]
+      },
+      {
+        "title": "Process and verify",
+        "subtitle": "Finish the import, then decide which follow-up actions the program needs.",
+        "blocks": [
+          {
+            "type": "steps",
+            "items": [
+              [
+                "Start the approved import",
+                "In Latest 100 submissions, click <b>Process approved file</b>. Processing starts separately from approval. Follow the processing status or open <b>Eligibility Files</b>."
+              ],
+              [
+                "Verify counts and errors",
+                "At <a href=\"https://www.getidealoh.com/admin/eligibility\" color=\"#155EAD\"><b>Eligibility Files</b></a>, find the linked upload in Upload History. Check final status, new/updated counts, and row issues. Spot-check a few members in the correct organization. A partial result needs review before closing the task."
+              ],
+              [
+                "Grant member access when appropriate",
+                "On the processed file’s row, click <b>Grant Access</b>. Review the member list, select the members ready to invite, then click <b>Send invite to N member(s)</b>. Members without email cannot be invited through this action. Confirm the invitation result."
+              ],
+              [
+                "Coordinate vendor delivery",
+                "Follow Ideal’s vendor delivery procedure. A generated/downloaded file is not proof of delivery. Confirm the actual send result or vendor receipt before telling the organization that fulfillment is complete."
+              ]
+            ]
+          },
+          {
+            "type": "table",
+            "headers": [
+              "Processing status",
+              "Program Manager action"
+            ],
+            "rows": [
+              [
+                "uploaded",
+                "Approved; awaiting processing. Start the import when ready."
+              ],
+              [
+                "validating / processing",
+                "In progress. Monitor; avoid starting a second import."
+              ],
+              [
+                "completed",
+                "Import finished. Check counts and any reported issues before follow-up."
+              ],
+              [
+                "completed_with_errors",
+                "Review row issues; some members may have been imported. Correct affected data."
+              ],
+              [
+                "failed",
+                "Investigate first. Retry processing after the cause is fixed; escalate persistent failures."
+              ]
+            ],
+            "widths": [
+              0.32,
+              0.68
+            ]
+          },
+          {
+            "type": "callout",
+            "title": "Removals are a separate workflow",
+            "text": "Omitting a person from a roster does not terminate them. Term Date is not an automated termination instruction in this importer. Follow the approved member-status procedure; address billing and vendor updates separately where applicable.",
+            "tone": "amber"
+          }
+        ]
+      },
+      {
+        "title": "Email and automation",
+        "subtitle": "Use the assigned address; keep mailbox and automation operations with the technical owner.",
+        "blocks": [
+          {
+            "type": "diagram",
+            "name": "email-routing",
+            "caption": "Current email intake runs in the dedicated Google Workspace eligibility mailbox. The alias shown here is fictitious."
+          },
+          {
+            "type": "section",
+            "title": "What to tell organizations",
+            "text": "Email the original attachment from the exact approved sender to the complete assigned plus-address. The plain eligibility@getidealoh.com mailbox address does not identify an organization. Use one organization’s alias per submission. Supported attachments: CSV, XLSX, TXT or JSON; at most five supported attachments, each ≤10 MB. Gmail’s overall message limits still apply."
+          },
+          {
+            "type": "section",
+            "title": "Email is checked periodically",
+            "text": "When installed, the Gmail script is scheduled every five minutes. Accepted files enter the queue and the sender is emailed a receipt; this is not an instantaneous delivery or review promise. Gmail filtering and sender-domain authentication are required. Forwarded messages, group mail, or unapproved senders can be refused without a reply."
+          },
+          {
+            "type": "section",
+            "title": "If receipt delivery looks wrong",
+            "text": "Check Ideal’s queue before asking for another upload. A receipt email can fail even after the file is received. Confirm the sender and exact alias. If email fails for several organizations, escalate to the technical owner to check the Gmail script’s trigger/executions and mailbox. A “settings present” message in the admin screen does not confirm that the script is running."
+          },
+          {
+            "type": "section",
+            "title": "For payroll automation",
+            "text": "In Upload access, create an automated upload credential for one organization, with a descriptive label and 1–365 day expiry. Copy it once and share through the approved secure channel. The technical owner supplies the HTTPS endpoint/client instructions. Rotate by creating a replacement, updating the job, then revoking the old key."
+          },
+          {
+            "type": "callout",
+            "title": "Keep the inbox purpose-specific",
+            "text": "The dedicated eligibility mailbox is for file intake. Handled or refused messages are moved to Trash; Gmail normally purges Trash after 30 days. Do not use it for human support conversations.",
+            "tone": "blue"
+          }
+        ]
+      },
+      {
+        "title": "Daily reference & handoff",
+        "subtitle": "A short operating routine and a message you can adapt for every organization.",
+        "blocks": [
+          {
+            "type": "table",
+            "headers": [
+              "Check",
+              "Action"
+            ],
+            "rows": [
+              [
+                "Each workday",
+                "Review pending files; compare counts; resolve corrections; process approved files; follow exceptions to closure."
+              ],
+              [
+                "No organization / no access",
+                "Verify the approved email and organization grant. Ask the user to verify that email and check access again."
+              ],
+              [
+                "Rejected / expired",
+                "Explain the correction or expiry; request a fresh submission. Unreviewed source files expire after 30 days."
+              ],
+              [
+                "Already received",
+                "Find the existing receipt. Do not change dates merely to force a duplicate import."
+              ],
+              [
+                "Vendor ID belongs to another organization",
+                "Stop and verify the roster with the sender; escalate the ID conflict. Do not bypass organization isolation."
+              ],
+              [
+                "Failed automation",
+                "Check expiry/revocation, file size and format. Involve the technical owner; do not ask for keys in email."
+              ]
+            ],
+            "widths": [
+              0.33,
+              0.67
+            ]
+          },
+          {
+            "type": "callout",
+            "title": "Welcome message · replace every bracketed field",
+            "text": "<b>Subject:</b> [Organization] eligibility submission instructions<br/><br/>Your approved contact address is [email]. Submit your roster at <a href=\"https://www.getidealoh.com/employer/upload\" color=\"#155EAD\">https://www.getidealoh.com/employer/upload</a>. [If enabled: You may also attach the file to [assigned organization email address].]<br/><br/>Use the attached blank CSV template or the format agreed with Ideal. Send files up to 10 MB. Our agreed schedule is [cadence]; the review turnaround is [agreed turnaround]. Keep your submission receipt.<br/><br/>A receipt confirms delivery for review. Ideal will confirm any corrections and next steps. Send questions to [Program Manager contact], using your organization name and receipt ID; keep member information out of the subject and message body.",
+            "tone": "blue"
+          },
+          {
+            "type": "p",
+            "text": "Retention and handling: rejected attachments are deleted; pending files expire after 30 days. Approved files follow Ideal’s separate retention policy. Handle downloaded rosters through the approved data-handling process."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "slug": "organization-guide",
+    "title": "Organization submission guide",
+    "audience": "ORGANIZATION CONTACTS",
+    "share": "Share with employers, brokers, and payroll contacts",
+    "pages": [
+      {
+        "title": "Send your eligibility roster",
+        "subtitle": "Your guide to preparing a file, submitting it to Ideal, and checking what happens next.",
+        "blocks": [
+          {
+            "type": "callout",
+            "title": "Start with the upload portal",
+            "text": "<a href=\"https://www.getidealoh.com/employer/upload\" color=\"#155EAD\"><b>https://www.getidealoh.com/employer/upload</b></a><br/>Use the email address Ideal approved for your organization. Creating an account alone does not give upload access.",
+            "tone": "blue"
+          },
+          {
+            "type": "fields",
+            "title": "Your upload details · Ideal completes before sharing",
+            "fields": [
+              [
+                "organization",
+                "Organization"
+              ],
+              [
+                "sender",
+                "Approved contact / sender email"
+              ],
+              [
+                "assigned_email",
+                "Assigned organization email address (if enabled)"
+              ],
+              [
+                "contact",
+                "Program Manager / support contact"
+              ],
+              [
+                "cadence",
+                "Agreed submission schedule"
+              ],
+              [
+                "turnaround",
+                "Agreed review turnaround"
+              ]
+            ]
+          },
+          {
+            "type": "diagram",
+            "name": "organization-workflow",
+            "caption": "Your delivery receipt confirms that the file reached the review queue. It does not confirm member coverage or benefit activation."
+          },
+          {
+            "type": "table",
+            "headers": [
+              "Option",
+              "Use it when"
+            ],
+            "rows": [
+              [
+                "Browser portal",
+                "You want a guided upload and recent submission history. Recommended for manual submissions."
+              ],
+              [
+                "Email attachments",
+                "Ideal enabled your sender address and provided an organization-specific recipient address."
+              ],
+              [
+                "Automated HTTPS upload",
+                "Your payroll/HR team arranged an organization credential and technical setup with Ideal."
+              ]
+            ],
+            "widths": [
+              0.3,
+              0.7
+            ]
+          },
+          {
+            "type": "p",
+            "text": "Use one delivery option per submission. Confirm enabled methods and your schedule with Ideal."
+          }
+        ]
+      },
+      {
+        "title": "Prepare a clean roster",
+        "subtitle": "Download the blank CSV template from the portal, or use the file layout agreed with your Program Manager.",
+        "blocks": [
+          {
+            "type": "diagram",
+            "name": "family-example",
+            "caption": "Fictitious example. Names are combined for readability; the CSV template has separate first-name and last-name columns."
+          },
+          {
+            "type": "steps",
+            "items": [
+              [
+                "Use one row per covered person",
+                "Enter Employee, Spouse, or Child in <b>Covered Member Relationship</b>. Repeat the employee’s first/last name, Employee DOB and Employee ID on each family row; enter each covered person’s own name and DOB."
+              ],
+              [
+                "Keep identifiers and dates consistent",
+                "A stable Employee ID helps match updates to the same person. Keep headers unchanged. Use YYYY-MM-DD dates, such as 2026-10-05. Preserve leading zeros in identifiers and ZIP codes. The blank template does not ask for SSNs."
+              ],
+              [
+                "Check the whole file",
+                "Confirm expected employee and dependent counts, names, birth dates and the agreed contact/address fields. Confirm effective dates with your Program Manager. Keep each family together when splitting files."
+              ],
+              [
+                "Save in an accepted format",
+                "CSV, XLSX, TXT or JSON; maximum 10 MB per file. A recognized extension alone does not guarantee the layout can be processed. Avoid macros and encrypted/password-protected workbooks. Use UTF-8 when exporting CSV or other text."
+              ]
+            ]
+          },
+          {
+            "type": "callout",
+            "title": "For removals and changes",
+            "text": "Tell your Program Manager about terminations through the agreed process. Leaving someone out of a new roster, or filling Term Date, does not automatically terminate their membership.",
+            "tone": "amber"
+          },
+          {
+            "type": "p",
+            "text": "Suggested filename: Example-Org_Eligibility_2026-10-05.csv. Use your organization name and roster date; avoid member names, birth dates or other personal details in filenames."
+          }
+        ]
+      },
+      {
+        "title": "Upload in the browser",
+        "subtitle": "Sign in with your approved email, choose the correct organization, and keep the receipt.",
+        "blocks": [
+          {
+            "type": "diagram",
+            "name": "portal-walkthrough",
+            "caption": "Illustrated walkthrough with example data. Use the labels on your live screen; its appearance may vary."
+          },
+          {
+            "type": "steps",
+            "items": [
+              [
+                "Sign in and verify your email",
+                "Open the portal. Create an account if needed and complete email verification. If no organization appears, ask your Program Manager to confirm the approved address, then use <b>check access again</b>."
+              ],
+              [
+                "Choose and submit",
+                "Confirm Organization. Add the optional Roster date if you know the file’s as-of date. Choose your file, then click <b>Submit for review</b>. Wait for the receipt before leaving the page."
+              ],
+              [
+                "Check Recent submissions",
+                "Keep the receipt ID for follow-up. Submitted means awaiting review. Approved; awaiting processing means Ideal accepted the file but has not started the import. Completed refers to the import; Ideal confirms benefit and access next steps separately."
+              ]
+            ]
+          },
+          {
+            "type": "callout",
+            "title": "“This file was already received.”",
+            "text": "Keep the existing receipt and check its status. You do not need to upload the same file by another method. For a correction, submit a corrected file. Use the true roster date rather than changing it to force another submission.",
+            "tone": "blue"
+          },
+          {
+            "type": "p",
+            "text": "Rejected: correct and resubmit. Expired: unreviewed after 30 days; contact your Program Manager about resubmitting."
+          }
+        ]
+      },
+      {
+        "title": "Email, automation & help",
+        "subtitle": "Choose the delivery method enabled by Ideal, then confirm the submission was received.",
+        "blocks": [
+          {
+            "type": "diagram",
+            "name": "email-routing",
+            "caption": "This address is an illustration. Copy the actual assigned address from your onboarding card, the portal, or your Program Manager."
+          },
+          {
+            "type": "steps",
+            "items": [
+              [
+                "For email, use your approved sender",
+                "Attach the original file to a new message from the exact address Ideal approved. Use the full assigned recipient, including the +org-… portion. Do not send only to the plain eligibility@ mailbox. Avoid forwarding another person’s message or sending from a different shared/group address unless Ideal approved it."
+              ],
+              [
+                "Send attachments, then check for a receipt",
+                "At most five supported attachments per message, each up to 10 MB; your email provider’s message limit also applies. Use a subject such as “Example Organization — eligibility roster — 2026-10-05.” Do not put member details in the subject/body or send cloud-drive links instead of attachments. Email is checked periodically; allow a few minutes."
+              ],
+              [
+                "No receipt? Check before resending",
+                "Check Recent submissions if you have portal access. If the file appears, keep that receipt even if the email reply is missing. Otherwise confirm sender, assigned recipient, file size and format; use the portal or ask your Program Manager for help. Refused email may receive no reply."
+              ]
+            ]
+          },
+          {
+            "type": "section",
+            "title": "If your payroll/HR system sends files automatically",
+            "text": "Ask your Program Manager for automated HTTPS access and an organization-specific credential. Your IT team configures the endpoint and receipt checks with Ideal. Keep the credential in your secret store. This is HTTPS file delivery; an SFTP-only export needs a separately agreed connection."
+          },
+          {
+            "type": "callout",
+            "title": "What to send when asking for help",
+            "text": "Organization name, receipt ID if available, submission time/method, and the error message. Keep member data and credentials out of ordinary support messages. If Ideal needs a corrected roster, submit it through the approved intake method.",
+            "tone": "blue"
+          },
+          {
+            "type": "p",
+            "text": "Completed with errors or Failed? Contact your Program Manager to confirm the next steps."
+          }
+        ]
+      }
+    ]
+  }
+]

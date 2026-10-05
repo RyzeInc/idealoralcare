@@ -2,6 +2,8 @@
 
 Ideal accepts browser uploads, automated HTTPS uploads, and email attachments into one staff review queue. These are file delivery options; uploading never grants member access, changes coverage, or triggers vendor delivery. This is not the SFTP protocol. Partners with SFTP-only exporters still need a gateway.
 
+For nontechnical training and organization onboarding, see the [illustrated companion guides](eligibility-companion/README.md). This document remains the engineering setup reference.
+
 ## What is implemented
 
 - `/employer/upload`: Clerk sign-in, authorized organization selection, roster date, file upload, receipt, organization submission history, and approved email address where enabled.
