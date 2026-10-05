@@ -13,7 +13,7 @@
 
 import { QueryCtx, query } from "../_generated/server";
 import { v } from "convex/values";
-import { requireAdmin } from "../lib/authGuards";
+import { requireAccess } from "../lib/authGuards";
 import { Doc, Id } from "../_generated/dataModel";
 
 // ============================================================================
@@ -426,7 +426,7 @@ export async function getDashboardMetrics(ctx: QueryCtx, args: any): Promise<Das
 export const getHierarchyQuery = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "groups.view");
     return getHierarchy(ctx, {});
   },
 });
@@ -438,7 +438,7 @@ export const getHierarchyQuery = query({
 export const getAllMembersEnrichedQuery = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     return getAllMembersEnriched(ctx, args);
   },
 });
@@ -450,7 +450,7 @@ export const getAllMembersEnrichedQuery = query({
 export const getBillingDataQuery = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     return getBillingData(ctx, {});
   },
 });
@@ -462,7 +462,7 @@ export const getBillingDataQuery = query({
 export const getRecentAuditTrailQuery = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "audit.view");
     return getRecentAuditTrail(ctx, args);
   },
 });
@@ -474,7 +474,7 @@ export const getRecentAuditTrailQuery = query({
 export const getDashboardMetricsQuery = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "insights.view");
     return getDashboardMetrics(ctx, {});
   },
 });

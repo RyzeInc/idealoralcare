@@ -1,11 +1,11 @@
 import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
 import { Id } from "../_generated/dataModel";
-import { requireAdmin } from "../lib/authGuards";
+import { requireAccess } from "../lib/authGuards";
 
 export const generateUploadUrl = mutation({
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "groups.manage");
     return await ctx.storage.generateUploadUrl();
   },
 });
@@ -26,7 +26,7 @@ export const generateUploadUrl = mutation({
 export const getFileUrl = query({
   args: { storageId: v.string() },
   handler: async (ctx, { storageId }) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "groups.manage");
     return await ctx.storage.getUrl(storageId as Id<"_storage">);
   },
 });

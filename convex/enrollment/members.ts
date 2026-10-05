@@ -1,7 +1,7 @@
 import { mutation, query, internalMutation } from "../_generated/server";
 import { MutationCtx, QueryCtx } from "../_generated/server";
 import { v } from "convex/values";
-import { requireAuth, requireAdmin, requireSelf } from "../lib/authGuards";
+import { requireAuth, requireAccess } from "../lib/authGuards";
 import { createMemberProfile as createMemberProfileShared } from "../lib/memberCreation";
 
 /**
@@ -341,7 +341,7 @@ export const updateMemberProfile = mutation({
     
     if (!isOwner) {
       // If not owner, must be admin
-      await requireAdmin(ctx);
+      await requireAccess(ctx, "members.edit");
     }
 
     const updates: any = { updatedAt: Date.now() };

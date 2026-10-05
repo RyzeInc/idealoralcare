@@ -1,23 +1,21 @@
 import { action, internalMutation, mutation, query } from "../_generated/server";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
-import { requireAdmin, requireAuth } from "../lib/authGuards";
+import { requireAccess, requireAuth, requireCallerAccess, requireStaffAdmin } from "../lib/authGuards";
+import { hasAnyPortalPermission, resolveAccess } from "../lib/access/resolve";
+import { assertOwnersRemain, reconcileStaffFromAdmin } from "../lib/access/provision";
 import { getBaseUrl } from "../lib/env";
 import { autoGrantFreeAccess } from "./grantFreeAccess";
 import { recordAdminAction } from "./adminAudit";
 
-// Check if user is admin (adminUsers table OR active distribution partner)
+// Check if user is internal staff (an active staff role, or an adminUsers row before import)
 export const isAdmin = query({
   args: { clerkUserId: v.string() },
   handler: async (ctx, args) => {
-    const admin = await ctx.db
-      .query("adminUsers")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", args.clerkUserId))
-      .first();
     // Internal staff only. Distribution partners used to pass here, which is
     // what let a broker into /admin and every whole-book query behind it.
     // They now belong in /partner — see getMyPortal below for the routing.
-    return !!admin;
+    return (await resolveAccess(ctx, args.clerkUserId)).isStaff;
   },
 });
 
@@ -37,27 +35,12 @@ export const getMyPortal = query({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return null;
     const clerkUserId = identity.tokenIdentifier.split("|").pop() ?? "";
-
-    const admin = await ctx.db
-      .query("adminUsers")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", clerkUserId))
-      .first();
-    if (admin) return { portal: "admin" as const, role: admin.role };
-
-    const partner = await ctx.db
-      .query("distributionPartners")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", clerkUserId))
-      .first();
-    if (partner && partner.status === "active") {
-      return { portal: "partner" as const, role: null };
+    const access = await resolveAccess(ctx, clerkUserId);
+    if (access.isStaff && hasAnyPortalPermission(access, "admin")) {
+      return { portal: "admin" as const, role: access.isOwner ? ("owner" as const) : ("editor" as const) };
     }
-
-    const leader = await ctx.db
-      .query("partnerLeaders")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", clerkUserId))
-      .first();
-    if (leader) return { portal: "partner" as const, role: null };
-
+    if (hasAnyPortalPermission(access, "partner")) return { portal: "partner" as const, role: null };
+    if (hasAnyPortalPermission(access, "employer")) return { portal: "employer" as const, role: null };
     return null;
   },
 });
@@ -79,7 +62,7 @@ export const getByClerkId = query({
 export const getAll = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireStaffAdmin(ctx);
     // Public - the /admin layout already verifies admin role
     // This prevents auth dependency issues on client-side component mount
     return await ctx.db.query("adminUsers").collect();
@@ -90,12 +73,21 @@ export const getAll = query({
 export const getMyAdminProfile = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await requireAuth(ctx);
+    // The sidebar and command palette hide pages using `permissions`. Hiding
+    // is a convenience; every function checks its own permission.
+    const { identity, access } = await requireCallerAccess(ctx);
+    if (!access.isStaff) return null;
     const admin = await ctx.db
       .query("adminUsers")
       .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", identity.clerkUserId))
       .first();
-    return admin || null;
+    if (!admin) return null;
+    return {
+      ...admin,
+      role: access.isOwner ? ("owner" as const) : ("editor" as const),
+      isOwner: access.isOwner,
+      permissions: access.permissions,
+    };
   },
 });
 
@@ -103,7 +95,7 @@ export const getMyAdminProfile = query({
 export const getBrokersByDepartment = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireStaffAdmin(ctx);
     // Public query - fetch all users with broker department
     const allAdmins = await ctx.db.query("adminUsers").collect();
     return allAdmins.filter((admin) =>
@@ -134,7 +126,8 @@ export const add = mutation({
     commissionRate: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "access.manage");
+    if (args.role === "owner") await requireOwnerToGrantOwner(ctx);
     // Check if already exists
     const existing = await ctx.db
       .query("adminUsers")
@@ -163,6 +156,8 @@ export const add = mutation({
       `Auto-granted on team member addition (${args.departments.join(", ")})`
     );
 
+    await reconcileStaffFromAdmin(ctx, args.clerkUserId);
+
     return id;
   },
 });
@@ -174,10 +169,16 @@ export const updateRole = mutation({
     role: v.union(v.literal("owner"), v.literal("editor")),
   },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "access.manage");
     const target = await ctx.db.get(args.id);
-    const oldRole = target?.role;
+    if (!target) throw new Error("Admin user not found");
+    const oldRole = target.role;
+    if (args.role === "owner" || oldRole === "owner") await requireOwnerToGrantOwner(ctx);
+    if (oldRole === "owner" && args.role !== "owner") {
+      await assertOwnersRemain(ctx, await profileIdFor(ctx, target.clerkUserId), true);
+    }
     await ctx.db.patch(args.id, { role: args.role });
+    await reconcileStaffFromAdmin(ctx, target.clerkUserId);
     await recordAdminAction(ctx, identity, {
       action: "adminUser.role_change",
       targetType: "adminUsers",
@@ -211,7 +212,7 @@ export const updateAdmin = mutation({
     commissionRate: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "access.manage");
     const { id, ...updates } = args;
     await ctx.db.patch(id, updates);
   },
@@ -221,9 +222,16 @@ export const updateAdmin = mutation({
 export const remove = mutation({
   args: { id: v.id("adminUsers") },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "access.manage");
     const target = await ctx.db.get(args.id);
+    if (!target) throw new Error("Admin user not found");
+    if (target.clerkUserId === identity.clerkUserId) throw new Error("You cannot remove your own staff access.");
+    if (target.role === "owner") {
+      await requireOwnerToGrantOwner(ctx);
+      await assertOwnersRemain(ctx, await profileIdFor(ctx, target.clerkUserId), true);
+    }
     await ctx.db.delete(args.id);
+    await reconcileStaffFromAdmin(ctx, target.clerkUserId);
     await recordAdminAction(ctx, identity, {
       action: "adminUser.remove",
       targetType: "adminUsers",
@@ -305,7 +313,7 @@ const departmentValidator = v.union(
 export const getAllInvites = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "access.manage");
     return await ctx.db.query("adminInvites").collect();
   },
 });
@@ -367,9 +375,10 @@ export const _updateAdminInviteToken = internalMutation({
 
 /** Internal: verify admin (used by actions) */
 export const _verifyAdminForInvite = internalMutation({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await requireAdmin(ctx);
+  args: { role: v.optional(v.union(v.literal("owner"), v.literal("editor"))) },
+  handler: async (ctx, args) => {
+    const identity = await requireAccess(ctx, "access.manage");
+    if (args.role === "owner") await requireOwnerToGrantOwner(ctx);
     return identity;
   },
 });
@@ -475,7 +484,7 @@ export const inviteAdmin = action({
     inviteSent: boolean;
     inviteError?: string;
   }> => {
-    const identity = await ctx.runMutation(internal.admin.adminUsers._verifyAdminForInvite, {});
+    const identity = await ctx.runMutation(internal.admin.adminUsers._verifyAdminForInvite, { role: args.role });
 
     const token = `adm_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
     const expiry = Date.now() + 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -562,7 +571,7 @@ export const _getInviteById = internalMutation({
 export const cancelAdminInvite = mutation({
   args: { inviteId: v.id("adminInvites") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "access.manage");
     const invite = await ctx.db.get(args.inviteId);
     if (!invite) throw new Error("Invite not found");
     if (invite.inviteStatus === "claimed") throw new Error("Cannot cancel a claimed invite");
@@ -623,6 +632,21 @@ export const claimAdminInvite = mutation({
       `Auto-granted on admin invite claim (${invite.role} — ${invite.departments?.join(", ") ?? "admin"})`
     );
 
+    await reconcileStaffFromAdmin(ctx, identity.clerkUserId);
+
     return { name: invite.name, role: invite.role };
   },
 });
+/** Only owners can create owners, demote them, or remove them. */
+async function requireOwnerToGrantOwner(ctx: Parameters<typeof requireCallerAccess>[0]) {
+  const { access } = await requireCallerAccess(ctx);
+  if (!access.isOwner) throw new Error("Only an owner can grant or remove owner access.");
+}
+
+async function profileIdFor(ctx: Parameters<typeof requireCallerAccess>[0], clerkUserId: string) {
+  const profile = await ctx.db
+    .query("accessProfiles")
+    .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", clerkUserId))
+    .first();
+  return profile?._id ?? null;
+}

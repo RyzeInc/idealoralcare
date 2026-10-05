@@ -12,7 +12,7 @@
 import { mutation, query } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import { v } from "convex/values";
-import { requireAdmin } from "../lib/authGuards";
+import { requireAccess } from "../lib/authGuards";
 import { recordAdminAction } from "../admin/adminAudit";
 import { shopNetworkValidator } from "./constants";
 import { resolveShopEnabled } from "./queries";
@@ -110,7 +110,7 @@ function slugify(value: string) {
 export const getSettings = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "content.manage");
     const settings = await ctx.db
       .query("shopSettings")
       .withIndex("by_key", (q) => q.eq("key", "main"))
@@ -134,7 +134,7 @@ export const getSettings = query({
 export const setEnabled = mutation({
   args: { isEnabled: v.boolean() },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "content.manage");
 
     const existing = await ctx.db
       .query("shopSettings")
@@ -176,7 +176,7 @@ export const setEnabled = mutation({
 export const listCategories = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "content.manage");
     return (await ctx.db.query("shopCategories").withIndex("by_order").collect())
       .sort((a, b) => a.order - b.order);
   },
@@ -185,7 +185,7 @@ export const listCategories = query({
 export const listProducts = query({
   args: { categoryId: v.optional(v.id("shopCategories")) },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "content.manage");
     const products = args.categoryId
       ? await ctx.db
           .query("shopProducts")
@@ -210,7 +210,7 @@ export const createCategory = mutation({
     isVisible: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "content.manage");
     assertNoDiseaseClaims({
       name: args.name,
       description: args.description,
@@ -257,7 +257,7 @@ export const updateCategory = mutation({
     isVisible: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "content.manage");
     const { categoryId, ...patch } = args;
 
     const category = await ctx.db.get(categoryId);
@@ -283,7 +283,7 @@ export const updateCategory = mutation({
 export const deleteCategory = mutation({
   args: { categoryId: v.id("shopCategories") },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "content.manage");
     const category = await ctx.db.get(args.categoryId);
     if (!category) throw new Error("Shop category not found.");
 
@@ -336,7 +336,7 @@ export const createProduct = mutation({
     isFeatured: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "content.manage");
 
     const category = await ctx.db.get(args.categoryId);
     if (!category) throw new Error("Shop category not found.");
@@ -421,7 +421,7 @@ export const updateProduct = mutation({
     isFeatured: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "content.manage");
     const { productId, ...patch } = args;
 
     const product = await ctx.db.get(productId);
@@ -468,7 +468,7 @@ export const updateProduct = mutation({
 export const deleteProduct = mutation({
   args: { productId: v.id("shopProducts") },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "content.manage");
     const product = await ctx.db.get(args.productId);
     if (!product) throw new Error("Shop product not found.");
 

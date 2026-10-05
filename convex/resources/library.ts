@@ -170,7 +170,7 @@ export const listForViewer = query({
     search: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const scope = await resolveViewerScope(ctx);
+    const scope = await resolveViewerScope(ctx, { staff: ["content.manage", "partners.view"], partner: "partner.resources" });
 
     const all = await ctx.db
       .query("partnerResources")
@@ -251,7 +251,7 @@ export const listForViewer = query({
 export const getDownloadUrl = mutation({
   args: { resourceId: v.id("partnerResources") },
   handler: async (ctx, args) => {
-    const scope = await resolveViewerScope(ctx);
+    const scope = await resolveViewerScope(ctx, { staff: ["content.manage", "partners.view"], partner: "partner.resources" });
     const resource = await ctx.db.get(args.resourceId);
     if (!resource) return null;
 
@@ -291,7 +291,7 @@ export const getDownloadUrl = mutation({
 export const getCategoryCounts = query({
   args: {},
   handler: async (ctx) => {
-    const scope = await resolveViewerScope(ctx);
+    const scope = await resolveViewerScope(ctx, { staff: ["content.manage", "partners.view"], partner: "partner.resources" });
     const all = await ctx.db
       .query("partnerResources")
       .withIndex("by_status", (q) => q.eq("status", "published"))

@@ -42,7 +42,7 @@ import {
   QueryCtx,
 } from "../_generated/server";
 import { v } from "convex/values";
-import { requireAdmin } from "../lib/authGuards";
+import { requireAdmin, requireAccess } from "../lib/authGuards";
 import { DISPERSAL } from "../lib/dispersal";
 import {
   BILLABLE_MEMBER_TYPES,
@@ -397,7 +397,7 @@ async function allocateInvoiceNumber(ctx: MutationCtx): Promise<{
 export const previewInvoice = query({
   args: { groupId: v.id("groups"), coveragePeriod: v.string() },
   handler: async (ctx, { groupId, coveragePeriod }): Promise<InvoicePreview | null> => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     const group = await ctx.db.get(groupId);
     if (!group) return null;
     const account = await ctx.db.get(group.accountId);
@@ -433,7 +433,7 @@ export const previewInvoice = query({
 export const getInvoice = query({
   args: { invoiceId: v.id("listBillInvoices") },
   handler: async (ctx, { invoiceId }) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     const inv = await ctx.db.get(invoiceId);
     if (!inv) return null;
     const aging = computeAgingBucket(inv.balanceCents, inv.paymentDueDate);
@@ -450,7 +450,7 @@ export const listInvoices = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, { period, status, accountId, groupId, limit }) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     let rows: Doc<"listBillInvoices">[];
     if (groupId) {
       rows = await ctx.db
@@ -480,7 +480,7 @@ export const listInvoices = query({
 export const getGroupInvoiceHistory = query({
   args: { groupId: v.id("groups"), limit: v.optional(v.number()) },
   handler: async (ctx, { groupId, limit }) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     const rows = await ctx.db
       .query("listBillInvoices")
       .withIndex("by_group", (q) => q.eq("groupId", groupId))
@@ -507,7 +507,7 @@ export const getGroupAgingSummary = query({
     days91Plus: number;
     totalDue: number;
   }> => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     const rows = await ctx.db
       .query("listBillInvoices")
       .withIndex("by_group", (q) => q.eq("groupId", groupId))
@@ -550,7 +550,7 @@ export const getGroupAgingSummary = query({
 export const getInvoiceColumns = query({
   args: { groupId: v.id("groups") },
   handler: async (ctx, { groupId }): Promise<InvoiceColumn[]> => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     const group = await ctx.db.get(groupId);
     const stored = (group?.listBill as any)?.invoiceColumns as InvoiceColumn[] | undefined;
     return resolveInvoiceColumns(stored);
@@ -570,7 +570,7 @@ export const updateInvoiceColumns = mutation({
     ),
   },
   handler: async (ctx, { groupId, columns }) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.manage");
     const group = await ctx.db.get(groupId);
     if (!group) throw new Error(`Group not found: ${groupId}`);
 
@@ -610,7 +610,7 @@ export const generateInvoice = mutation({
     paymentDueDate: v.optional(v.number()),
   },
   handler: async (ctx, { groupId, coveragePeriod, billingDate, paymentDueDate: paymentDueDateOverride }) => {
-    const actor = await requireAdmin(ctx);
+    const actor = await requireAccess(ctx, "billing.manage");
 
     // Idempotency: return existing draft if already created
     const existing = await ctx.db
@@ -716,7 +716,7 @@ export const generateInvoice = mutation({
 export const issueInvoice = mutation({
   args: { invoiceId: v.id("listBillInvoices") },
   handler: async (ctx, { invoiceId }) => {
-    const actor = await requireAdmin(ctx);
+    const actor = await requireAccess(ctx, "billing.manage");
     const inv = await ctx.db.get(invoiceId);
     if (!inv) throw new Error("Invoice not found");
     if (inv.status !== "draft") throw new Error(`Cannot issue invoice in status: ${inv.status}`);
@@ -742,7 +742,7 @@ export const recordPayment = mutation({
     paidAt: v.optional(v.number()),
   },
   handler: async (ctx, { invoiceId, amountCents, paymentMethod, checkNumber, achConfirmationNumber, paidAt }) => {
-    const actor = await requireAdmin(ctx);
+    const actor = await requireAccess(ctx, "billing.manage");
     if (!Number.isInteger(amountCents) || amountCents <= 0)
       throw new Error("amountCents must be a positive integer");
 
@@ -798,7 +798,7 @@ export const patchInvoiceMeta = mutation({
     internalMemo: v.optional(v.string()),
   },
   handler: async (ctx, { invoiceId, ...updates }) => {
-    const actor = await requireAdmin(ctx);
+    const actor = await requireAccess(ctx, "billing.manage");
     const inv = await ctx.db.get(invoiceId);
     if (!inv) throw new Error("Invoice not found");
     if (inv.status === "voided") throw new Error("Cannot edit a voided invoice");
@@ -849,7 +849,7 @@ export const applyAdjustment = mutation({
     notes: v.string(),
   },
   handler: async (ctx, { invoiceId, adjustmentCents, notes }) => {
-    const actor = await requireAdmin(ctx);
+    const actor = await requireAccess(ctx, "billing.manage");
     if (!Number.isInteger(adjustmentCents)) throw new Error("adjustmentCents must be an integer");
     if (!notes.trim()) throw new Error("Notes are required for adjustments");
 
@@ -891,7 +891,7 @@ export const voidInvoice = mutation({
     reason: v.string(),
   },
   handler: async (ctx, { invoiceId, reason }) => {
-    const actor = await requireAdmin(ctx);
+    const actor = await requireAccess(ctx, "billing.manage");
     if (!reason.trim()) throw new Error("Void reason is required");
     const inv = await ctx.db.get(invoiceId);
     if (!inv) throw new Error("Invoice not found");
@@ -921,7 +921,7 @@ export const unvoidInvoice = mutation({
     invoiceId: v.id("listBillInvoices"),
   },
   handler: async (ctx, { invoiceId }) => {
-    const actor = await requireAdmin(ctx);
+    const actor = await requireAccess(ctx, "billing.manage");
     const inv = await ctx.db.get(invoiceId);
     if (!inv) throw new Error("Invoice not found");
     if (inv.status !== "voided") throw new Error("Invoice is not voided");
@@ -970,7 +970,7 @@ export const generateReplacementInvoice = mutation({
     coveragePeriod: v.optional(v.string()),
   },
   handler: async (ctx, { voidedInvoiceId, coveragePeriod }) => {
-    const actor = await requireAdmin(ctx);
+    const actor = await requireAccess(ctx, "billing.manage");
     const voided = await ctx.db.get(voidedInvoiceId);
     if (!voided) throw new Error("Voided invoice not found");
     if (voided.status !== "voided") throw new Error("Source invoice is not voided");
@@ -1043,7 +1043,7 @@ export const generateReplacementInvoice = mutation({
 export const disputeInvoice = mutation({
   args: { invoiceId: v.id("listBillInvoices") },
   handler: async (ctx, { invoiceId }) => {
-    const actor = await requireAdmin(ctx);
+    const actor = await requireAccess(ctx, "billing.manage");
     const inv = await ctx.db.get(invoiceId);
     if (!inv) throw new Error("Invoice not found");
     const allowed: string[] = ["issued", "partial", "overdue"];
@@ -1063,7 +1063,7 @@ export const disputeInvoice = mutation({
 export const resolveDispute = mutation({
   args: { invoiceId: v.id("listBillInvoices") },
   handler: async (ctx, { invoiceId }) => {
-    const actor = await requireAdmin(ctx);
+    const actor = await requireAccess(ctx, "billing.manage");
     const inv = await ctx.db.get(invoiceId);
     if (!inv) throw new Error("Invoice not found");
     if (inv.status !== "disputed") throw new Error("Invoice is not disputed");
@@ -1186,7 +1186,7 @@ export const markOverdueInvoices = internalMutation({
 export const triggerMonthlyGeneration = mutation({
   args: {},
   handler: async (ctx): Promise<{ generated: number; skipped: number }> => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.manage");
     const period = nextMonthPeriod();
     const { coverageStart: periodCoverageStart, coverageEnd: periodCoverageEnd } = periodWindow(period);
     const allGroups = await ctx.db.query("groups").collect();
@@ -1341,7 +1341,7 @@ async function performRefreshInvoiceLines(
 export const refreshInvoiceLines = mutation({
   args: { invoiceId: v.id("listBillInvoices") },
   handler: async (ctx, { invoiceId }): Promise<void> => {
-    const actor = await requireAdmin(ctx);
+    const actor = await requireAccess(ctx, "billing.manage");
     await performRefreshInvoiceLines(ctx, invoiceId, actor.clerkUserId);
   },
 });

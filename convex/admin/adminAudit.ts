@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { mutation, query, internalMutation } from "../_generated/server";
 import { v } from "convex/values";
-import { requireAdmin } from "../lib/authGuards";
+import { requireAccess, requireStaffAdmin } from "../lib/authGuards";
 
 /**
  * ADMIN AUDIT LOG
@@ -65,7 +65,7 @@ export const logAdminAction = mutation({
     metadata: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireStaffAdmin(ctx);
     const admin = await ctx.db
       .query("adminUsers")
       .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", identity.clerkUserId))
@@ -125,7 +125,7 @@ export const listRecent = query({
     targetId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "audit.view");
     const limit = Math.min(args.limit ?? 100, 500);
 
     let entries: any[];

@@ -9,7 +9,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
 import { Doc } from "../_generated/dataModel";
-import { requireStaffAdmin } from "../lib/authGuards";
+import { requireStaffAdmin, requireAccess } from "../lib/authGuards";
 import { ACTIVE_CATEGORIES, CATEGORY_LABEL } from "./library";
 
 // Narrower than the schema union on purpose: retired categories still
@@ -36,7 +36,7 @@ const partnerTypeValidator = v.union(
 export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
-    await requireStaffAdmin(ctx);
+    await requireAccess(ctx, "content.manage");
     return await ctx.storage.generateUploadUrl();
   },
 });
@@ -45,7 +45,7 @@ export const generateUploadUrl = mutation({
 export const listAll = query({
   args: { includeArchived: v.optional(v.boolean()) },
   handler: async (ctx, args) => {
-    await requireStaffAdmin(ctx);
+    await requireAccess(ctx, "content.manage");
 
     const [resources, partners, sites] = await Promise.all([
       ctx.db.query("partnerResources").withIndex("by_created").order("desc").collect(),
@@ -106,7 +106,7 @@ export const listAll = query({
 export const getVisibilityOptions = query({
   args: {},
   handler: async (ctx) => {
-    await requireStaffAdmin(ctx);
+    await requireAccess(ctx, "content.manage");
     const [partners, sites] = await Promise.all([
       ctx.db.query("distributionPartners").collect(),
       ctx.db.query("sites").collect(),
@@ -148,7 +148,7 @@ export const createResource = mutation({
     supersedesId: v.optional(v.id("partnerResources")),
   },
   handler: async (ctx, args) => {
-    const identity = await requireStaffAdmin(ctx);
+    const identity = await requireAccess(ctx, "content.manage");
 
     // Refuse a resource that can never resolve to anything downloadable,
     // rather than publishing a dead tile into every partner's library.
@@ -222,7 +222,7 @@ export const updateResource = mutation({
     externalUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireStaffAdmin(ctx);
+    await requireAccess(ctx, "content.manage");
     const { resourceId, ...rest } = args;
     const existing = await ctx.db.get(resourceId);
     if (!existing) throw new Error("Resource not found");
@@ -252,7 +252,7 @@ export const setStatus = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    await requireStaffAdmin(ctx);
+    await requireAccess(ctx, "content.manage");
     const existing = await ctx.db.get(args.resourceId);
     if (!existing) throw new Error("Resource not found");
 
@@ -272,7 +272,7 @@ export const setStatus = mutation({
 export const getAdminDownloadUrl = mutation({
   args: { resourceId: v.id("partnerResources") },
   handler: async (ctx, args) => {
-    await requireStaffAdmin(ctx);
+    await requireAccess(ctx, "content.manage");
     const resource = await ctx.db.get(args.resourceId);
     if (!resource) return null;
     if (resource.kind === "link") {
@@ -290,7 +290,7 @@ export const getAdminDownloadUrl = mutation({
 export const getDownloadActivity = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    await requireStaffAdmin(ctx);
+    await requireAccess(ctx, "content.manage");
     const limit = Math.min(args.limit ?? 50, 200);
 
     const recent = await ctx.db

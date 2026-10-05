@@ -14,7 +14,7 @@
 
 import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
-import { requireAdmin, getAuthenticatedUserId } from "../lib/authGuards";
+import { getAuthenticatedUserId, requireAccess } from "../lib/authGuards";
 
 /** Cap on stored referrer path length — a defensive bound, not a real limit. */
 const MAX_REFERRER_LENGTH = 512;
@@ -67,7 +67,7 @@ export const record = mutation({
 export const statsByProduct = query({
   args: { sinceMs: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "content.manage");
 
     const since = args.sinceMs ?? 0;
     const clicks = await ctx.db

@@ -8,6 +8,12 @@
  * @module
  */
 
+import type * as access_checks from "../access/checks.js";
+import type * as access_invites from "../access/invites.js";
+import type * as access_me from "../access/me.js";
+import type * as access_packs from "../access/packs.js";
+import type * as access_people from "../access/people.js";
+import type * as access_sync from "../access/sync.js";
 import type * as admin_adminAudit from "../admin/adminAudit.js";
 import type * as admin_adminUsers from "../admin/adminUsers.js";
 import type * as admin_backfillEssentialsCodes from "../admin/backfillEssentialsCodes.js";
@@ -126,6 +132,11 @@ import type * as insights_watchlist from "../insights/watchlist.js";
 import type * as legal_emailFulfillment from "../legal/emailFulfillment.js";
 import type * as legal_membershipAgreements from "../legal/membershipAgreements.js";
 import type * as legal_w9Forms from "../legal/w9Forms.js";
+import type * as lib_access_catalog from "../lib/access/catalog.js";
+import type * as lib_access_manage from "../lib/access/manage.js";
+import type * as lib_access_provision from "../lib/access/provision.js";
+import type * as lib_access_resolve from "../lib/access/resolve.js";
+import type * as lib_access_validators from "../lib/access/validators.js";
 import type * as lib_authGuards from "../lib/authGuards.js";
 import type * as lib_brokerResolve from "../lib/brokerResolve.js";
 import type * as lib_constants from "../lib/constants.js";
@@ -180,6 +191,12 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "access/checks": typeof access_checks;
+  "access/invites": typeof access_invites;
+  "access/me": typeof access_me;
+  "access/packs": typeof access_packs;
+  "access/people": typeof access_people;
+  "access/sync": typeof access_sync;
   "admin/adminAudit": typeof admin_adminAudit;
   "admin/adminUsers": typeof admin_adminUsers;
   "admin/backfillEssentialsCodes": typeof admin_backfillEssentialsCodes;
@@ -298,6 +315,11 @@ declare const fullApi: ApiFromModules<{
   "legal/emailFulfillment": typeof legal_emailFulfillment;
   "legal/membershipAgreements": typeof legal_membershipAgreements;
   "legal/w9Forms": typeof legal_w9Forms;
+  "lib/access/catalog": typeof lib_access_catalog;
+  "lib/access/manage": typeof lib_access_manage;
+  "lib/access/provision": typeof lib_access_provision;
+  "lib/access/resolve": typeof lib_access_resolve;
+  "lib/access/validators": typeof lib_access_validators;
   "lib/authGuards": typeof lib_authGuards;
   "lib/brokerResolve": typeof lib_brokerResolve;
   "lib/constants": typeof lib_constants;

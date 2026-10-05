@@ -1,7 +1,7 @@
 import { action, internalMutation, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
-import { requireAdmin, requireAdminAction } from "./lib/authGuards";
+import { requireAccess, requireAccessAction } from "./lib/authGuards";
 
 // ─── validation helpers ────────────────────────────────────────────────
 
@@ -196,7 +196,7 @@ export const listForAdmin = query({
   },
   handler: async (ctx, args) => {
     // Applications carry EINs, NPNs and banking status — staff only.
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.view");
     const q = args.status
       ? ctx.db.query("repOnboardingSubmissions").withIndex("by_status", (i) => i.eq("status", args.status as any))
       : ctx.db.query("repOnboardingSubmissions");
@@ -258,7 +258,7 @@ export const _patchStatus = internalMutation({  args: {
 export const markReviewing = mutation({
   args: { id: v.id("repOnboardingSubmissions") },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "partners.manage");
     const sub = await ctx.db.get(args.id);
     if (!sub) throw new Error("Submission not found");
     await ctx.db.patch(args.id, { status: "reviewing", updatedAt: Date.now() });
@@ -280,7 +280,7 @@ export const reject = mutation({
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "partners.manage");
     const sub = await ctx.db.get(args.id);
     if (!sub) throw new Error("Submission not found");
     const notes = args.reason
@@ -323,7 +323,7 @@ export const approve = action({
     inviteSent: boolean;
   }> => {
     // @ts-ignore
-    const identity = await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    const identity = await requireAccessAction(ctx, "partners.manage");
 
     // @ts-ignore
     const sub: any = await ctx.runQuery(api.repOnboarding.getById, { id: args.id });
@@ -496,7 +496,7 @@ export const approve = action({
 export const getById = query({
   args: { id: v.id("repOnboardingSubmissions") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.view");
     return ctx.db.get(args.id);
   },
 });

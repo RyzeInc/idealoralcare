@@ -1,7 +1,7 @@
 import { action, internalMutation, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
-import { requireAdmin, requireAdminAction } from "./lib/authGuards";
+import { requireAccess, requireAccessAction } from "./lib/authGuards";
 import { sendViaResend } from "./lib/resend";
 import { getBaseUrl } from "./lib/env";
 
@@ -125,8 +125,7 @@ export const sendApplicationInvite = action({
     ctx,
     args,
   ): Promise<{ ok: boolean; inviteSent: boolean; error?: string }> => {
-    // @ts-ignore — isAdmin query reference
-    const identity = await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    const identity = await requireAccessAction(ctx, "partners.manage");
 
     // @ts-ignore
     const lead: any = await ctx.runQuery(api.partnerPipeline.getLeadById, {
@@ -180,7 +179,7 @@ export const previewApplicationInviteEmail = query({
     business: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.view");
     const applyUrl = `${getBaseUrl()}/register/rep?leadToken=EXAMPLE_TOKEN`;
     return renderApplicationInviteEmail({
       recipientName: args.name?.trim() || "there",
@@ -202,8 +201,7 @@ export const sendTestApplicationInvite = action({
     ctx,
     args,
   ): Promise<{ ok: boolean; error?: string; to: string; subject: string; html: string; baseUrl: string }> => {
-    // @ts-ignore — isAdmin query reference
-    const identity = await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    const identity = await requireAccessAction(ctx, "partners.manage");
 
     const to = args.to.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(to)) {
@@ -267,7 +265,7 @@ export const getLeadById = query({
 export const backfillPipelineLinks = mutation({
   args: { dryRun: v.optional(v.boolean()) },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.manage");
     const dryRun = args.dryRun === true;
     const now = Date.now();
 

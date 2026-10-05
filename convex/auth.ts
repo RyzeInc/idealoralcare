@@ -11,6 +11,7 @@
 import { query } from "./_generated/server";
 import { v } from "convex/values";
 import type { QueryCtx } from "./_generated/server";
+import { resolveAccess } from "./lib/access/resolve";
 
 /**
  * Temporary debug query — call from browser console to verify auth:
@@ -30,38 +31,30 @@ export const debugAuth = query({
 });
 
 /**
- * Get current user's role based on adminUsers table lookup
+ * Get current user's role from their access (staff roles and packs)
  */
 export const getUserRole = query({
   args: {
     userId: v.string(),
   },
   handler: async (ctx: QueryCtx, args: { userId: string }) => {
-    const admin = await ctx.db
-      .query("adminUsers")
-      .withIndex("by_clerk_id", (q: any) => q.eq("clerkUserId", args.userId))
-      .first();
+    const access = await resolveAccess(ctx, args.userId);
 
     return {
       userId: args.userId,
-      role: admin ? (admin.role === "owner" ? "admin" : "editor") : "customer",
+      role: access.isStaff ? (access.isOwner ? "admin" : "editor") : "customer",
     };
   },
 });
 
 /**
- * Check if user is admin (has any record in adminUsers table)
+ * Check if user is internal staff
  */
 export const isUserAdmin = query({
   args: {
     userId: v.string(),
   },
   handler: async (ctx: QueryCtx, args: { userId: string }) => {
-    const admin = await ctx.db
-      .query("adminUsers")
-      .withIndex("by_clerk_id", (q: any) => q.eq("clerkUserId", args.userId))
-      .first();
-
-    return !!admin;
+    return (await resolveAccess(ctx, args.userId)).isStaff;
   },
 });

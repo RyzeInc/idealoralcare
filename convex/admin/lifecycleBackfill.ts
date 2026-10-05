@@ -22,7 +22,7 @@
 
 import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
-import { requireAdmin } from "../lib/authGuards";
+import { requireAccess } from "../lib/authGuards";
 import { hasExited } from "../lib/memberLifecycle";
 
 const BATCH_SIZE = 200;
@@ -94,7 +94,7 @@ export const backfillTerminatedAt = mutation({
     dryRun: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "system.manage");
     const dryRun = args.dryRun === true;
     const numItems = Math.min(args.batchSize ?? BATCH_SIZE, BATCH_SIZE);
 
@@ -145,7 +145,7 @@ export const backfillTerminatedAt = mutation({
 export const getLifecycleHealth = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "system.manage");
     const members = await ctx.db.query("memberProfiles").collect();
 
     let exited = 0;

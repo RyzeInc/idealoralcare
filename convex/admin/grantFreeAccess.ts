@@ -8,7 +8,7 @@
 import { mutation, query, internalMutation } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import { v } from "convex/values";
-import { requireAdmin } from "../lib/authGuards";
+import { requireAccess } from "../lib/authGuards";
 import { recordAdminAction } from "./adminAudit";
 import { createMemberProfile } from "../lib/memberCreation";
 
@@ -72,7 +72,6 @@ export async function autoGrantFreeAccess(
 
   return { skipped: false, bundleId };
 }
-import { api } from "../_generated/api";
 
 /**
  * CLI BOOTSTRAP — run via: npx convex run admin/grantFreeAccess:cliGrantAdmin '{"clerkUserId":"..."}'
@@ -165,7 +164,7 @@ export const createFreeBundle = mutation({
     durationDays: v.optional(v.number()), // How many days the free access lasts (default: 365)
   },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "members.edit");
     
     const now = Date.now();
     const durationMs = (args.durationDays ?? 365) * 24 * 60 * 60 * 1000;
@@ -219,7 +218,7 @@ export const grantFreePlanAccess = mutation({
     notes: v.optional(v.string()), // Why access was granted
   },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "members.edit");
     
     const now = Date.now();
     const durationMs = (args.durationDays ?? 365) * 24 * 60 * 60 * 1000;
@@ -265,7 +264,7 @@ export const grantFullFreeAccess = mutation({
     reason: v.optional(v.string()), // Reason for grant
   },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "members.edit");
     
     const now = Date.now();
     const durationMs = (args.durationDays ?? 365) * 24 * 60 * 60 * 1000;
@@ -349,7 +348,7 @@ export const grantFreeAccessAndEnroll = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "members.edit");
 
     const existingProfile = await ctx.db
       .query("memberProfiles")
@@ -473,7 +472,7 @@ export const grantFreeAccessAndEnroll = mutation({
 export const listFreeBundles = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     
     // Query bundles with free stripe IDs
     const freeBundles = await ctx.db
@@ -607,7 +606,7 @@ export const grantMeFullAccess = mutation({
     durationDays: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.edit");
     
     // Get current user (admin) from Clerk
     const userIdentity = await ctx.auth.getUserIdentity();

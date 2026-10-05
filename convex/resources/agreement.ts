@@ -36,7 +36,7 @@ import { tryResolveViewerScope } from "../insights/scope";
 async function findMyAgreement(
   ctx: QueryCtx,
 ): Promise<Doc<"partnerKitSubmissions"> | null> {
-  const scope = await tryResolveViewerScope(ctx);
+  const scope = await tryResolveViewerScope(ctx, { staff: ["content.manage", "partners.view"], partner: "partner.resources" });
   // Admins have no agreement of their own.
   if (!scope || scope.kind === "admin") return null;
 

@@ -2,7 +2,7 @@ import { defineTable } from "convex/server";
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "../_generated/server";
 import { MutationCtx, QueryCtx } from "../_generated/server";
-import { requireAdmin, requireSelf } from "../lib/authGuards";
+import { requireSelf, requireAccess } from "../lib/authGuards";
 
 /**
  * ENTITLEMENT LEDGER TABLE
@@ -84,7 +84,7 @@ export const activateEntitlement = mutation({
   },
   handler: async (ctx, args) => {
     // Admin-only access
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.edit");
     
     const entitlementId = await ctx.db.insert("entitlements", {
       customerId: args.customerId,
@@ -156,7 +156,7 @@ export const scheduleEntitlementCancellation = mutation({
     try {
       await requireSelf(ctx, args.customerId);
     } catch {
-      await requireAdmin(ctx);
+      await requireAccess(ctx, "members.edit");
     }
     
     const entitlement = await ctx.db.get(args.entitlementId);
@@ -182,7 +182,7 @@ export const suspendEntitlement = mutation({
   },
   handler: async (ctx, args) => {
     // Admin-only access
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.edit");
     
     const entitlement = await ctx.db.get(args.entitlementId);
     if (!entitlement) throw new Error("Entitlement not found");
@@ -229,7 +229,7 @@ export const revokeEntitlement = mutation({
   },
   handler: async (ctx, args) => {
     // Admin-only access
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.edit");
     
     const entitlement = await ctx.db.get(args.entitlementId);
     if (!entitlement) throw new Error("Entitlement not found");
@@ -255,7 +255,7 @@ export const reactivateEntitlement = mutation({
   },
   handler: async (ctx, args) => {
     // Admin-only access
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.edit");
     
     const entitlement = await ctx.db.get(args.entitlementId);
     if (!entitlement) throw new Error("Entitlement not found");

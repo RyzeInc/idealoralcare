@@ -23,14 +23,10 @@ import {
   internalQuery,
   type ActionCtx,
 } from "../_generated/server";
-import { internal, api } from "../_generated/api";
+import { internal } from "../_generated/api";
 import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
-import {
-  requireAuth,
-  requireAuthAction,
-  requireAdminAction,
-} from "../lib/authGuards";
+import { requireAuth, requireAuthAction, requireAccessAction } from "../lib/authGuards";
 
 const TOOTHLENS_API_BASE = "https://annotation.toothlens.com/api/v1";
 
@@ -752,7 +748,7 @@ export const migrateAllUsers = action({
     failed: { clerkUserId: string; error: string }[];
     error?: string;
   }> => {
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "system.manage");
 
     const company = process.env.RYZEHEALTH_COMPANY;
     const accessKey = process.env.RYZEHEALTH_ACCESS_KEY;
@@ -814,7 +810,7 @@ export const repairCurrentCompanyUsers = action({
     failed: { clerkUserId: string; error: string }[];
     error?: string;
   }> => {
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "system.manage");
 
     const company = process.env.RYZEHEALTH_COMPANY;
     const accessKey = process.env.RYZEHEALTH_ACCESS_KEY;

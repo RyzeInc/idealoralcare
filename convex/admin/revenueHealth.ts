@@ -18,7 +18,7 @@
  */
 
 import { query } from "../_generated/server";
-import { requireAdmin } from "../lib/authGuards";
+import { requireAccess } from "../lib/authGuards";
 import { classifyTier } from "../lib/dispersal";
 
 /**
@@ -28,7 +28,7 @@ import { classifyTier } from "../lib/dispersal";
 export const getTierClassificationHealth = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
 
     const bundles = await ctx.db
       .query("subscriptionBundles")

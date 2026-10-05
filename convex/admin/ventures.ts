@@ -1,13 +1,13 @@
 import { mutation, query } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import { v } from "convex/values";
-import { requireAdmin } from "../lib/authGuards";
+import { requireAccess } from "../lib/authGuards";
 
 // Get all ventures (for admin)
 export const getAll = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "content.manage");
     return await ctx.db.query("ventures").withIndex("by_order").collect();
   },
 });
@@ -104,7 +104,7 @@ export const create = mutation({
     isVisible: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "content.manage");
     // Get max order if not provided
     let order = args.order;
     if (order === undefined) {
@@ -172,7 +172,7 @@ export const update = mutation({
     isVisible: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "content.manage");
     const { id, ...updates } = args;
 
     // Remove undefined values
@@ -191,7 +191,7 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("ventures") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "content.manage");
     await ctx.db.delete(args.id);
   },
 });
@@ -200,7 +200,7 @@ export const remove = mutation({
 export const toggleVisibility = mutation({
   args: { id: v.id("ventures") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "content.manage");
     const venture = await ctx.db.get(args.id);
     if (venture) {
       await ctx.db.patch(args.id, {
@@ -217,7 +217,7 @@ export const reorder = mutation({
     orderedIds: v.array(v.id("ventures")),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "content.manage");
     for (let i = 0; i < args.orderedIds.length; i++) {
       await ctx.db.patch(args.orderedIds[i], {
         order: i,
@@ -231,7 +231,7 @@ export const reorder = mutation({
 export const resyncData = mutation({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "content.manage");
     // Delete all existing ventures
     const existing = await ctx.db.query("ventures").collect();
     for (const venture of existing) {
@@ -246,7 +246,7 @@ export const resyncData = mutation({
 export const seedInitialData = mutation({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "content.manage");
     const existing = await ctx.db.query("ventures").first();
     if (existing) return; // Already seeded
     await seedVentureData(ctx);

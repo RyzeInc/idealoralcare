@@ -31,6 +31,8 @@
 import { Doc, Id } from "../_generated/dataModel";
 import { query, QueryCtx } from "../_generated/server";
 import { requireAuth } from "../lib/authGuards";
+import { ADMIN_PERMISSIONS, type Permission } from "../lib/access/catalog";
+import { activePartnerRole, hasAnyPortalPermission, hasPermission, resolveAccess } from "../lib/access/resolve";
 
 /** Upline trees are shallow in practice; this only exists to bound a cycle. */
 export const MAX_DESCENDANT_DEPTH = 10;
@@ -158,103 +160,130 @@ async function collectCodes(
 }
 
 /**
- * Resolve the calling user's scope. Throws if they are not authenticated or
- * hold none of the three identities.
+ * Which access-pack permission a caller needs for a scope. Staff need the
+ * `staff` permission for the all-partners admin scope; everyone else needs
+ * the `partner` permission (or any partner permission, for "any") before
+ * their own book resolves. The default is the book-wide insights pair.
  */
-export async function resolveViewerScope(ctx: QueryCtx): Promise<ViewerScope> {
-  const scope = await tryResolveViewerScope(ctx);
+export interface ScopeNeed {
+  staff: Permission | Permission[];
+  partner: Permission | Permission[] | "any";
+}
+
+export const BOOK_SCOPE: ScopeNeed = { staff: "insights.view", partner: "partner.book" };
+
+/**
+ * Resolve the calling user's scope. Throws if they are not authenticated or
+ * hold no scope with the permissions `need` asks for.
+ */
+export async function resolveViewerScope(ctx: QueryCtx, need: ScopeNeed = BOOK_SCOPE): Promise<ViewerScope> {
+  const scope = await tryResolveViewerScope(ctx, need);
   if (!scope) {
     throw new Error("Unauthorized: no insights scope for this user");
   }
   return scope;
 }
 
+/** A partner's own scope: itself and every partner beneath it. */
+async function partnerScope(
+  ctx: QueryCtx,
+  clerkUserId: string,
+  partner: Doc<"distributionPartners">,
+  withDownline = true,
+): Promise<PartnerScope> {
+  const descendantPartnerIds = withDownline ? await collectDescendantPartnerIds(ctx, partner._id) : [];
+  const allPartnerIds = [partner._id, ...descendantPartnerIds];
+  const leaders = await collectLeaders(ctx, allPartnerIds);
+  return {
+    kind: "partner",
+    clerkUserId,
+    partnerId: partner._id,
+    partnerType: partner.type,
+    partnerName: partner.name,
+    overrideRate: partner.overrideRate ?? null,
+    descendantPartnerIds,
+    allPartnerIds,
+    leaderIds: leaders.map((l) => l._id),
+    codes: await collectCodes(ctx, leaders),
+  };
+}
+
+/**
+ * A partner team member's scope. `reportScope` is set by admins on the
+ * broker workspace; a missing value keeps the historical rep-only behaviour.
+ */
+async function leaderScope(
+  ctx: QueryCtx,
+  clerkUserId: string,
+  leader: Doc<"partnerLeaders">,
+): Promise<ViewerScope | null> {
+  if (leader.portalAccess === false) return null;
+  // A rep whose agency has been deactivated loses access with it.
+  const owningPartner = await ctx.db.get(leader.partnerId);
+  if (!owningPartner || owningPartner.status !== "active") return null;
+  if (leader.reportScope === "agency" || leader.reportScope === "downline") {
+    return await partnerScope(ctx, clerkUserId, owningPartner, leader.reportScope === "downline");
+  }
+  return {
+    kind: "rep",
+    clerkUserId,
+    leaderId: leader._id,
+    leaderName: leader.name,
+    partnerId: leader.partnerId,
+    codes: await collectCodes(ctx, [leader]),
+  };
+}
+
 /**
  * Non-throwing variant. Returns null when the user is unauthenticated or has
- * no admin / partner / rep identity.
+ * no admin / partner / rep identity with the permissions `need` asks for.
  */
 export async function tryResolveViewerScope(
   ctx: QueryCtx,
+  need: ScopeNeed = BOOK_SCOPE,
 ): Promise<ViewerScope | null> {
   const identity = await requireAuth(ctx);
   const clerkUserId = identity.clerkUserId;
+  const access = await resolveAccess(ctx, clerkUserId);
 
-  // 1. Internal staff.
-  const admin = await ctx.db
-    .query("adminUsers")
-    .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", clerkUserId))
-    .first();
-  if (admin) {
-    return { kind: "admin", clerkUserId, role: admin.role };
+  // 1. Internal staff holding the permission this surface needs.
+  if (access.isStaff && hasPermission(access, need.staff)) {
+    return { kind: "admin", clerkUserId, role: access.isOwner ? "owner" : "editor" };
   }
 
-  // 2. Program Manager / FMO / Agency. Suspended and inactive partners get
-  //    nothing — a revoked partner must not keep reading its old book.
+  const partnerAllowed =
+    need.partner === "any" ? hasAnyPortalPermission(access, "partner") : hasPermission(access, need.partner);
+  if (!partnerAllowed) return null;
+
+  // 2. People with access profiles see the partner role they are viewing as.
+  if (access.source === "profile") {
+    const role = activePartnerRole(access);
+    if (!role) return null;
+    if (role.leaderId) {
+      const leader = await ctx.db.get(role.leaderId);
+      return leader ? await leaderScope(ctx, clerkUserId, leader) : null;
+    }
+    const partner = role.partnerId ? await ctx.db.get(role.partnerId) : null;
+    return partner && partner.status === "active" ? await partnerScope(ctx, clerkUserId, partner) : null;
+  }
+
+  // 3. Program Manager / FMO / Agency contact, before import. Suspended and
+  //    inactive partners get nothing — a revoked partner must not keep
+  //    reading its old book.
   const partner = await ctx.db
     .query("distributionPartners")
     .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", clerkUserId))
     .first();
   if (partner && partner.status === "active") {
-    const descendantPartnerIds = await collectDescendantPartnerIds(ctx, partner._id);
-    const allPartnerIds = [partner._id, ...descendantPartnerIds];
-    const leaders = await collectLeaders(ctx, allPartnerIds);
-    const codes = await collectCodes(ctx, leaders);
-    return {
-      kind: "partner",
-      clerkUserId,
-      partnerId: partner._id,
-      partnerType: partner.type,
-      partnerName: partner.name,
-      overrideRate: partner.overrideRate ?? null,
-      descendantPartnerIds,
-      allPartnerIds,
-      leaderIds: leaders.map((l) => l._id),
-      codes,
-    };
+    return await partnerScope(ctx, clerkUserId, partner);
   }
 
-  // 3. Partner team member. `reportScope` is set by admins on the broker
-  //    workspace; a missing value keeps the historical rep-only behaviour.
+  // 4. Partner team member, before import.
   const leader = await ctx.db
     .query("partnerLeaders")
     .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", clerkUserId))
     .first();
-  if (leader && leader.portalAccess !== false) {
-    // A rep whose agency has been deactivated loses access with it.
-    const owningPartner = await ctx.db.get(leader.partnerId);
-    if (owningPartner && owningPartner.status === "active") {
-      if (leader.reportScope === "agency" || leader.reportScope === "downline") {
-        const descendantPartnerIds =
-          leader.reportScope === "downline"
-            ? await collectDescendantPartnerIds(ctx, owningPartner._id)
-            : [];
-        const allPartnerIds = [owningPartner._id, ...descendantPartnerIds];
-        const leaders = await collectLeaders(ctx, allPartnerIds);
-        return {
-          kind: "partner",
-          clerkUserId,
-          partnerId: owningPartner._id,
-          partnerType: owningPartner.type,
-          partnerName: owningPartner.name,
-          overrideRate: owningPartner.overrideRate ?? null,
-          descendantPartnerIds,
-          allPartnerIds,
-          leaderIds: leaders.map((l) => l._id),
-          codes: await collectCodes(ctx, leaders),
-        };
-      }
-      return {
-        kind: "rep",
-        clerkUserId,
-        leaderId: leader._id,
-        leaderName: leader.name,
-        partnerId: leader.partnerId,
-        codes: await collectCodes(ctx, [leader]),
-      };
-    }
-  }
-
-  return null;
+  return leader ? await leaderScope(ctx, clerkUserId, leader) : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -355,7 +384,7 @@ export function scopeLabel(scope: ViewerScope): string {
 export const getMyScope = query({
   args: {},
   handler: async (ctx) => {
-    const scope = await tryResolveViewerScope(ctx).catch(() => null);
+    const scope = await tryResolveViewerScope(ctx, { staff: ADMIN_PERMISSIONS, partner: "any" }).catch(() => null);
     if (!scope) return null;
 
     return {

@@ -2,7 +2,7 @@ import { mutation, query, internalQuery, internalMutation } from "../_generated/
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { createMemberProfile, deriveCareingtonUniqueId } from "../lib/memberCreation";
-import { requireAdmin, requireOwner } from "../lib/authGuards";
+import { requireOwner, requireAccess } from "../lib/authGuards";
 import { recordAdminAction } from "./adminAudit";
 
 /**
@@ -293,7 +293,7 @@ export const backfillSubscriberIds = mutation({
     dryRun: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "system.manage");
     const dryRun = args.dryRun ?? false;
 
     const groups = await ctx.db.query("groups").collect();
@@ -357,7 +357,7 @@ export const backfillVendorIds = mutation({
     dryRun: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "system.manage");
     const dryRun = args.dryRun ?? false;
 
     const members = await ctx.db.query("memberProfiles").collect();
@@ -453,7 +453,7 @@ export const deduplicateMemberProfiles = mutation({
     dryRun: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "system.manage");
     const dryRun = args.dryRun ?? false;
 
     const allProfiles = await ctx.db

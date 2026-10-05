@@ -25,20 +25,14 @@
  */
 
 import type { QueryCtx, MutationCtx, ActionCtx } from "../_generated/server";
-import { requireStaffAdmin, requireAuthAction, type AuthIdentity } from "../lib/authGuards";
+import { requireCallerAccess, requireAuthAction, type AuthIdentity } from "../lib/authGuards";
+import { hasPermission } from "../lib/access/resolve";
 import { internal } from "../_generated/api";
 
 type AnyCtx = QueryCtx | MutationCtx;
 
 export interface CrmIdentity extends AuthIdentity {
   isManager: boolean;
-}
-
-async function loadAdminUser(ctx: AnyCtx, clerkUserId: string) {
-  return await (ctx as QueryCtx).db
-    .query("adminUsers")
-    .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", clerkUserId))
-    .first();
 }
 
 /**
@@ -48,16 +42,15 @@ async function loadAdminUser(ctx: AnyCtx, clerkUserId: string) {
  * work, so a grep for "requireCrm" finds every CRM-gated function.
  */
 export async function requireCrmUser(ctx: AnyCtx): Promise<CrmIdentity> {
-  const identity = await requireStaffAdmin(ctx);
-  const admin = await loadAdminUser(ctx, identity.clerkUserId);
-  const isManager =
-    admin?.role === "owner" || !!admin?.departments?.includes("executive");
-  return { ...identity, isManager };
+  const { identity, access } = await requireCallerAccess(ctx);
+  if (!access.isStaff) throw new Error("Unauthorized: Admin role required");
+  if (!hasPermission(access, "crm.use")) throw new Error("Unauthorized: CRM access required");
+  return { ...identity, isManager: hasPermission(access, "crm.manage") };
 }
 
 /**
- * Require a CRM manager: owner, or staff whose `departments` includes
- * "executive". Required for anything destructive or bulk: merge/delete
+ * Require a CRM manager: the `crm.manage` permission (owners, the CRM
+ * manager pack, and editors in the "executive" department before import). Required for anything destructive or bulk: merge/delete
  * contacts, bulk ops over 500 rows, tag CATEGORY CRUD, campaign approval +
  * send, suppression removal, import rollback.
  */

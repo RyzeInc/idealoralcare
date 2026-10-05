@@ -1,7 +1,7 @@
 import { action } from "../_generated/server";
 import { v } from "convex/values";
 import { api } from "../_generated/api";
-import { requireAdminAction } from "../lib/authGuards";
+import { requireAccessAction } from "../lib/authGuards";
 import { resolveEssentialsMemberNumber } from "../lib/essentialsCodes";
 import { ESSENTIALS_RX_GROUP } from "../lib/constants";
 
@@ -273,7 +273,7 @@ export const generateEssentialsEligibilityFile = action({
     args,
   ): Promise<{ filename: string; content: string; memberCount: number; totalRecords: number; generatedAt: number }> => {
     // @ts-ignore - avoid deep type instantiation
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "eligibility.manage");
 
     const rows = await buildRows(ctx, args.groupId);
 

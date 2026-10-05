@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { query } from "../_generated/server";
 import { v } from "convex/values";
-import { requireAdmin } from "../lib/authGuards";
+import { requireAccess } from "../lib/authGuards";
 
 /**
  * ADMIN CUSTOMER SERVICE QUERIES
@@ -19,7 +19,7 @@ import { requireAdmin } from "../lib/authGuards";
 export const searchAllMembers = query({
   args: { query: v.string() },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "support.use");
 
     const q = args.query.toLowerCase().trim();
     if (q.length < 2) return [];
@@ -95,7 +95,7 @@ export const searchAllMembers = query({
 export const getMemberWithSubscription = query({
   args: { memberProfileId: v.id("memberProfiles") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "support.use");
 
     const member = await ctx.db.get(args.memberProfileId);
     if (!member) return null;
@@ -156,7 +156,7 @@ export const getMemberWithSubscription = query({
  */
 export const getFinancialSummary = query({
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "support.use");
 
     const allBundles = await ctx.db.query("subscriptionBundles")
       .withIndex("by_status")

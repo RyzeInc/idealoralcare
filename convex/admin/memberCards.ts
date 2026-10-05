@@ -1,7 +1,7 @@
 import { action } from "../_generated/server";
 import { v } from "convex/values";
 import { api } from "../_generated/api";
-import { requireAdminAction } from "../lib/authGuards";
+import { requireAccessAction } from "../lib/authGuards";
 import { PROVIDER_GROUP_CODE } from "../lib/constants";
 
 /** Returns the 1st of the month following the given timestamp (defaults to now). */
@@ -32,8 +32,7 @@ export const getMemberCardData: any = action({
     memberId: v.id("memberProfiles"),
   },
   handler: async (ctx, args) => {
-    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "members.view");
     const memberDetail = await ctx.runQuery(api.admin.members.getMemberDetail, { memberId: args.memberId });
     if (!memberDetail) throw new Error("Member not found");
     const member = memberDetail.member;

@@ -9,12 +9,7 @@ import {
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Id, Doc } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
-import {
-  requireAuth,
-  requireAuthAction,
-  requireStaffAdmin,
-  requireAdminAction,
-} from "./lib/authGuards";
+import { requireAuth, requireAuthAction, requireAccess, requireAccessAction } from "./lib/authGuards";
 import {
   fail,
   aliasFromRecipient,
@@ -91,6 +86,53 @@ async function ensureRoute(
   ) {
     await ctx.db.insert("eligibilityIntakeRoutes", { groupId, alias });
   }
+}
+/**
+ * Turn an organization contact's browser upload access on or off. Called by
+ * the access system (convex/lib/access/provision.ts) when an organization
+ * role with the eligibility-uploads pack is granted, suspended or removed.
+ * Returns false when the organization is not accepting submissions.
+ */
+export async function setOrganizationUploadAccess(
+  ctx: MutationCtx,
+  args: { groupId: Id<"groups">; email: string; active: boolean; actor: string },
+): Promise<boolean> {
+  const existing = (
+    await ctx.db
+      .query("eligibilityIntakeAccess")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .collect()
+  ).find((g) => g.groupId === args.groupId);
+  if (!args.active) {
+    if (existing?.active) {
+      await ctx.db.patch(existing._id, { active: false, updatedAt: Date.now() });
+      await audit(ctx, args.actor, "revoke_access", existing._id);
+    }
+    return true;
+  }
+  try {
+    await activeGroup(ctx, args.groupId);
+  } catch {
+    return false;
+  }
+  await ensureRoute(ctx, args.groupId, secretToken("org-").slice(0, 28));
+  if (existing) {
+    await ctx.db.patch(existing._id, { active: true, browserEnabled: true, updatedAt: Date.now() });
+    await audit(ctx, args.actor, "save_access", existing._id);
+    return true;
+  }
+  const id = await ctx.db.insert("eligibilityIntakeAccess", {
+    groupId: args.groupId,
+    email: args.email,
+    browserEnabled: true,
+    emailEnabled: false,
+    active: true,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    createdBy: args.actor,
+  });
+  await audit(ctx, args.actor, "save_access", id);
+  return true;
 }
 async function checkSessionAccess(
   ctx: MutationCtx,
@@ -506,7 +548,7 @@ export const machineStatus = internalQuery({
 export const adminConfiguration = query({
   args: {},
   handler: async (ctx) => {
-    await requireStaffAdmin(ctx);
+    await requireAccess(ctx, "eligibility.view");
     const access = await ctx.db.query("eligibilityIntakeAccess").collect();
     const keys = await ctx.db.query("eligibilityIntakeKeys").collect();
     const routes = await ctx.db.query("eligibilityIntakeRoutes").collect();
@@ -540,7 +582,7 @@ export const saveAccess = action({
     emailEnabled: v.boolean(),
   },
   handler: async (ctx, args): Promise<Id<"eligibilityIntakeAccess">> => {
-    const actor = await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    const actor = await requireAccessAction(ctx, "eligibility.manage");
     return ctx.runMutation(internal.eligibilityIntake.upsertAccess, {
       ...args,
       email: normalizeEmail(args.email),
@@ -592,7 +634,7 @@ export const upsertAccess = internalMutation({
 export const revokeAccess = mutation({
   args: { accessId: v.id("eligibilityIntakeAccess") },
   handler: async (ctx, args) => {
-    const actor = await requireStaffAdmin(ctx);
+    const actor = await requireAccess(ctx, "eligibility.manage");
     await ctx.db.patch(args.accessId, { active: false, updatedAt: Date.now() });
     await audit(ctx, actor.clerkUserId, "revoke_access", args.accessId);
   },
@@ -607,7 +649,7 @@ export const issueKey = action({
     ctx,
     args,
   ): Promise<{ token: string; keyId: Id<"eligibilityIntakeKeys"> }> => {
-    const actor = await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    const actor = await requireAccessAction(ctx, "eligibility.manage");
     if (
       !args.label.trim() ||
       args.label.length > 100 ||
@@ -655,7 +697,7 @@ export const insertKey = internalMutation({
 export const revokeKey = mutation({
   args: { keyId: v.id("eligibilityIntakeKeys") },
   handler: async (ctx, args) => {
-    const actor = await requireStaffAdmin(ctx);
+    const actor = await requireAccess(ctx, "eligibility.manage");
     await ctx.db.patch(args.keyId, { active: false });
     await audit(ctx, actor.clerkUserId, "revoke_key", args.keyId);
   },
@@ -663,7 +705,7 @@ export const revokeKey = mutation({
 export const adminInbox = query({
   args: { pendingOnly: v.optional(v.boolean()) },
   handler: async (ctx, args) => {
-    await requireStaffAdmin(ctx);
+    await requireAccess(ctx, "eligibility.view");
     const rows = args.pendingOnly
       ? await ctx.db
           .query("eligibilitySubmissions")
@@ -690,7 +732,7 @@ export const adminInbox = query({
 export const adminSubmission = query({
   args: { receiptId: v.id("eligibilitySubmissions") },
   handler: async (ctx, args) => {
-    await requireStaffAdmin(ctx);
+    await requireAccess(ctx, "eligibility.view");
     const row = await ctx.db.get(args.receiptId);
     if (!row) fail("BAD_REQUEST", "Submission not found.");
     return row;
@@ -711,7 +753,7 @@ export const previewSubmission = action({
     validationErrors: { row: number; field: string; message: string }[];
     sampleRecords: { firstName: string; lastName: string }[];
   }> => {
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "eligibility.manage");
     const row = await ctx.runQuery(api.eligibilityIntake.adminSubmission, args);
     if (!row.storageId) fail("BAD_REQUEST", "File is no longer available.");
     return ctx.runAction(api.admin.eligibility.previewEligibilityFile, {
@@ -727,7 +769,7 @@ export const approveSubmission = action({
     acknowledgeValidationWarnings: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<Id<"eligibilityFiles">> => {
-    const actor = await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    const actor = await requireAccessAction(ctx, "eligibility.manage");
     const preview = await ctx.runAction(
       api.eligibilityIntake.previewSubmission,
       { receiptId: args.receiptId },
@@ -824,7 +866,7 @@ export const claimProcessing = internalMutation({
 export const processApproved = action({
   args: { receiptId: v.id("eligibilitySubmissions") },
   handler: async (ctx, args): Promise<void> => {
-    const actor = await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    const actor = await requireAccessAction(ctx, "eligibility.manage");
     const fileId = await ctx.runMutation(
       internal.eligibilityIntake.claimProcessing,
       { ...args, actor: actor.clerkUserId },
@@ -845,7 +887,7 @@ export const processApproved = action({
 export const rejectSubmission = mutation({
   args: { receiptId: v.id("eligibilitySubmissions"), note: v.string() },
   handler: async (ctx, args) => {
-    const actor = await requireStaffAdmin(ctx);
+    const actor = await requireAccess(ctx, "eligibility.manage");
     const row = await ctx.db.get(args.receiptId);
     if (row?.status !== "submitted")
       fail("CONFLICT", "Submission is no longer awaiting review.");

@@ -2,6 +2,7 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { shopNetworkValidator } from "./shop/constants";
 import { promoLinkValidator } from "./lib/promoLinks";
+import { roleTypeValidator } from "./lib/access/validators";
 
 export default defineSchema({
   // ============================================
@@ -180,6 +181,73 @@ export default defineSchema({
     .index("by_actor", ["actorClerkUserId", "createdAt"])
     .index("by_action", ["action", "createdAt"])
     .index("by_target", ["targetType", "targetId", "createdAt"]),
+
+  // ============================================
+  // ACCESS — people, their roles, and access packs (see convex/lib/access)
+  // ============================================
+
+  // One row per person, keyed by email until they sign in through Clerk.
+  accessProfiles: defineTable({
+    email: v.string(), // lowercase
+    name: v.string(),
+    phone: v.optional(v.string()),
+    clerkUserId: v.optional(v.string()),
+    status: v.union(v.literal("invited"), v.literal("active"), v.literal("suspended")),
+    inviteTokenHash: v.optional(v.string()), // SHA-256 of the emailed claim token
+    inviteExpiry: v.optional(v.number()),
+    invitedAt: v.optional(v.number()),
+    invitedBy: v.optional(v.string()),
+    claimedAt: v.optional(v.number()),
+    // Which partner-portal role this person is currently viewing as.
+    activePartnerRoleId: v.optional(v.id("accessRoles")),
+    notes: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_email", ["email"])
+    .index("by_clerk_id", ["clerkUserId"])
+    .index("by_invite_token", ["inviteTokenHash"])
+    .index("by_status", ["status"]),
+
+  // A role a person holds, what it is linked to, and the packs it carries.
+  accessRoles: defineTable({
+    profileId: v.id("accessProfiles"),
+    role: roleTypeValidator,
+    partnerId: v.optional(v.id("distributionPartners")), // PM / FMO / agency, or a broker's or rep's agency
+    leaderId: v.optional(v.id("partnerLeaders")), // their person record at that partner (book, rep codes)
+    groupId: v.optional(v.id("groups")), // organization
+    label: v.optional(v.string()), // carrier name, or a note for the role
+    title: v.optional(v.string()),
+    packIds: v.array(v.id("accessPacks")),
+    status: v.union(v.literal("active"), v.literal("suspended")),
+    // Staff details kept while a staff role is suspended, so it can be restored.
+    staffDepartments: v.optional(v.array(v.string())),
+    staffCommissionRate: v.optional(v.number()),
+    createdBy: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_profile", ["profileId"])
+    .index("by_partner", ["partnerId"])
+    .index("by_leader", ["leaderId"])
+    .index("by_group", ["groupId"])
+    .index("by_role", ["role"]),
+
+  // Named bundles of permissions. Built-ins are seeded from the catalog and
+  // can be edited and reset; custom packs are created by admins.
+  accessPacks: defineTable({
+    key: v.string(),
+    name: v.string(),
+    description: v.string(),
+    roles: v.array(roleTypeValidator),
+    permissions: v.array(v.string()),
+    builtIn: v.boolean(),
+    archived: v.optional(v.boolean()),
+    createdBy: v.optional(v.string()),
+    updatedBy: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
 
   // ============================================
   // DISTRIBUTION PARTNERS (Program Managers, FMOs, Agencies)

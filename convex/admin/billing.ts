@@ -2,7 +2,7 @@ import { query, action, mutation } from "../_generated/server";
 import { v } from "convex/values";
 // @ts-ignore - Type instantiation too deep
 import { api as apiOriginal } from "../_generated/api";
-import { requireAdmin, requireAdminAction } from "../lib/authGuards";
+import { requireAccess, requireAccessAction } from "../lib/authGuards";
 import * as unifiedData from "./unifiedData";
 import { isListBillMember } from "../lib/memberBilling";
 
@@ -27,7 +27,7 @@ const getApi = () => {
  */
 export const getAllGroupBillingSummaries = query({
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     const billingData = await unifiedData.getBillingData(ctx, {});
 
     return billingData.groupSummaries.map((summary) => ({
@@ -65,7 +65,7 @@ export const getAllGroupBillingSummaries = query({
 export const getGroupMembersWithBillingStatus = query({
   args: { groupId: v.id("groups") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     const group = await ctx.db.get(args.groupId);
     const isListBillGroup = group?.listBill?.enabled === true;
 
@@ -151,7 +151,7 @@ export const getGroupBillingSummary = query({
     groupId: v.id("groups"),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     const group = await ctx.db.get(args.groupId);
     if (!group) throw new Error("Group not found");
 
@@ -270,8 +270,7 @@ export const generateBillingCsv: any = action({
   },
   handler: async (ctx, args) => {
     const api = getApi();
-    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "billing.view");
     const summary = await ctx.runQuery(api.admin.billing.getAccountBillingSummary, { accountId: args.accountId });
 
     let csv =
@@ -304,7 +303,7 @@ export const getSiteBillingSummary = query({
     siteId: v.id("sites"),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     const site = await ctx.db.get(args.siteId);
     if (!site) throw new Error("Site not found");
 
@@ -373,7 +372,7 @@ export const getSiteBillingSummary = query({
  */
 export const getUpcomingBillingDates = query({
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     const currentDate = new Date();
     const currentMonth = currentDate.getMonth();
     const currentYear = currentDate.getFullYear();
@@ -423,7 +422,7 @@ export const getUpcomingBillingDates = query({
  */
 export const getListBillGroups = query({
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     const groups = await ctx.db.query("groups").collect();
     return groups.filter((g: any) => g.listBill?.enabled === true);
   },
@@ -438,7 +437,7 @@ export const getListBillMonthlySummary = query({
     billingPeriod: v.string(), // "YYYY-MM"
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
 
     const groups = await ctx.db.query("groups").collect();
     const listBillGroups = groups.filter((g: any) => g.listBill?.enabled === true);
@@ -520,7 +519,7 @@ export const recordListBillPayment = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.manage");
 
     const group = await ctx.db.get(args.groupId);
     if (!group) throw new Error("Group not found");
@@ -594,7 +593,7 @@ export const recordListBillPayment = mutation({
 export const getListBillPaymentHistory = query({
   args: { groupId: v.id("groups") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     return await ctx.db
       .query("listBillPayments")
       .withIndex("by_group", (q: any) => q.eq("groupId", args.groupId))
@@ -613,7 +612,7 @@ export const generateListBillInvoiceCsv: any = action({
   handler: async (ctx, args) => {
     const api = getApi();
     // @ts-ignore
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "billing.view");
 
     const summaries = await ctx.runQuery(
       api.admin.billing.getListBillMonthlySummary,

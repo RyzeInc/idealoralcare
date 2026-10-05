@@ -1,6 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { requireAdmin } from "./lib/authGuards";
+import { requireAccess } from "./lib/authGuards";
 
 // Submit a partner / agency registration from /register
 export const submitPartnerRegistration = mutation({
@@ -46,7 +46,7 @@ export const getContactSubmissions = query({
   },
   handler: async (ctx, args) => {
     // Admin-only access
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "support.use");
     
     if (args.status) {
       return await ctx.db
@@ -74,7 +74,7 @@ export const getPartnerRegistrations = query({
     )),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.view");
     if (args.status) {
       return await ctx.db
         .query("partnerRegistrations")
@@ -93,7 +93,7 @@ export const updatePartnerRegistrationStatus = mutation({
     status: v.union(v.literal("new"), v.literal("contacted"), v.literal("closed")),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.manage");
     await ctx.db.patch(args.id, { status: args.status });
   },
 });
@@ -106,7 +106,7 @@ export const updateContactStatus = mutation({
   },
   handler: async (ctx, args) => {
     // Admin-only access
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "support.use");
     
     await ctx.db.patch(args.id, { status: args.status });
   },
@@ -125,7 +125,7 @@ export const bulkAddPartnerRegistrations = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.manage");
     const ids: string[] = [];
     
     for (const lead of args.leads) {

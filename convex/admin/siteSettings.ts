@@ -1,6 +1,6 @@
 import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
-import { requireAdmin } from "../lib/authGuards";
+import { requireAccess } from "../lib/authGuards";
 
 // Get site settings
 export const get = query({
@@ -27,7 +27,7 @@ export const update = mutation({
     socialGithub: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "content.manage");
     const existing = await ctx.db
       .query("siteSettings")
       .withIndex("by_key", (q) => q.eq("key", "main"))
@@ -72,7 +72,7 @@ export const update = mutation({
 export const initializeDefaults = mutation({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "content.manage");
     const existing = await ctx.db
       .query("siteSettings")
       .withIndex("by_key", (q) => q.eq("key", "main"))

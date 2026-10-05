@@ -9,7 +9,7 @@ import {
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { internal, api } from "./_generated/api";
-import { requireAdmin, requireAdminAction } from "./lib/authGuards";
+import { requireAccess, requireAccessAction } from "./lib/authGuards";
 import { getBaseUrl } from "./lib/env";
 
 /**
@@ -121,7 +121,7 @@ export const submit = mutation({
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.view");
     return await ctx.db.query("partnerKitSubmissions").order("desc").collect();
   },
 });
@@ -129,7 +129,7 @@ export const list = query({
 export const getWithFiles = query({
   args: { id: v.id("partnerKitSubmissions") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.view");
     const row = await ctx.db.get(args.id);
     if (!row) return null;
 
@@ -169,7 +169,7 @@ export const linkToApplication = mutation({
     applicationId: v.id("repOnboardingSubmissions"),
   },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "partners.manage");
     const kit = await ctx.db.get(args.id);
     if (!kit) throw new Error("Partner Kit submission not found");
     const app = await ctx.db.get(args.applicationId);
@@ -224,7 +224,7 @@ export const approveAsPartner = action({
     args,
   ): Promise<{ ok: boolean; partnerId: string; leaderId: string; inviteSent: boolean }> => {
     // @ts-ignore
-    const identity = await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    const identity = await requireAccessAction(ctx, "partners.manage");
 
     // @ts-ignore
     const kit: any = await ctx.runQuery(api.partnerKit.getById, { id: args.id });
@@ -430,7 +430,7 @@ export const _setExecutedAgreementFile = internalMutation({
 export const backfillExecutedAgreements = action({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args): Promise<{ scheduled: number }> => {
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "partners.manage");
 
     const pending: Id<"partnerKitSubmissions">[] = await ctx.runQuery(
       internal.partnerKit._listMissingExecutedAgreements,

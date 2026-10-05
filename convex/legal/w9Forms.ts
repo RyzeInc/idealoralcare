@@ -2,7 +2,7 @@ import { action, internalMutation, query } from "../_generated/server";
 import { v } from "convex/values";
 import { Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
-import { requireAdmin } from "../lib/authGuards";
+import { requireAccess } from "../lib/authGuards";
 import { getBaseUrl } from "../lib/env";
 
 const TIN_DIGITS_RE = /^\d{9}$/;
@@ -219,7 +219,7 @@ export const _linkPartnerByFormId = internalMutation({
 export const getW9ForSubmission = query({
   args: { repSubmissionId: v.id("repOnboardingSubmissions") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.view");
     const row = await ctx.db
       .query("w9Forms")
       .withIndex("by_repSubmissionId", (q) => q.eq("repSubmissionId", args.repSubmissionId))
@@ -233,7 +233,7 @@ export const getW9ForSubmission = query({
 export const getW9ForPartner = query({
   args: { partnerId: v.id("distributionPartners") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.view");
     const row = await ctx.db
       .query("w9Forms")
       .withIndex("by_partnerId", (q) => q.eq("partnerId", args.partnerId))

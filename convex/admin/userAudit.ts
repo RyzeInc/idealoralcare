@@ -1,7 +1,6 @@
 import { query, action } from "../_generated/server";
-import { api } from "../_generated/api";
 import { v } from "convex/values";
-import { requireAdmin, requireAdminAction } from "../lib/authGuards";
+import { requireAccess } from "../lib/authGuards";
 
 /**
  * All toothlens user records — for cross-system user investigation dashboard.
@@ -10,7 +9,7 @@ import { requireAdmin, requireAdminAction } from "../lib/authGuards";
 export const getAllToothlensUserRecords = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "audit.view");
     const records = await ctx.db.query("toothlensUsers").collect();
     // Also get per-user scan counts
     const result = await Promise.all(
@@ -44,7 +43,7 @@ export const getUserStatuses = query({
     clerkUserIds: v.array(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "audit.view");
     const results: Record<
       string,
       {
@@ -103,7 +102,7 @@ export const getUserStatuses = query({
 export const getUserDetail = query({
   args: { clerkUserId: v.string() },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "audit.view");
     const { clerkUserId } = args;
 
     // Admin record
@@ -237,7 +236,7 @@ export const getUserDetail = query({
 export const getMemberInspectorData = query({
   args: { memberProfileId: v.id("memberProfiles") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "audit.view");
 
     const member = await ctx.db.get(args.memberProfileId);
     if (!member) return null;

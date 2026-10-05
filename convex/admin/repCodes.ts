@@ -1,14 +1,14 @@
 import { mutation, query, internalMutation, action } from "../_generated/server";
 import { v } from "convex/values";
 import { Id } from "../_generated/dataModel";
-import { requireAdmin, requireAdminAction } from "../lib/authGuards";
+import { requireAccess, requireAccessAction } from "../lib/authGuards";
 import { internal, api } from "../_generated/api";
 
 /** All broker/agent rep tracking codes */
 export const getAll = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.view");
     return await ctx.db.query("brokerTrackingCodes").collect();
   },
 });
@@ -17,7 +17,7 @@ export const getAll = query({
 export const getByAgent = query({
   args: { brokerId: v.string() },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.view");
     return await ctx.db
       .query("brokerTrackingCodes")
       .withIndex("by_broker", (q) => q.eq("brokerId", args.brokerId))
@@ -91,7 +91,7 @@ export const create = mutation({
     repLastName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.manage");
     const identity = await ctx.auth.getUserIdentity();
 
     let finalCode = args.code.toUpperCase();
@@ -159,7 +159,7 @@ export const create = mutation({
 export const revoke = mutation({
   args: { id: v.id("brokerTrackingCodes") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.manage");
     await ctx.db.patch(args.id, { status: "revoked", updatedAt: Date.now() });
   },
 });
@@ -168,7 +168,7 @@ export const revoke = mutation({
 export const reactivate = mutation({
   args: { id: v.id("brokerTrackingCodes") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.manage");
     await ctx.db.patch(args.id, { status: "active", updatedAt: Date.now() });
   },
 });
@@ -177,7 +177,7 @@ export const reactivate = mutation({
 export const remove = mutation({
   args: { id: v.id("brokerTrackingCodes") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.manage");
     await ctx.db.delete(args.id);
   },
 });
@@ -193,7 +193,7 @@ export const update = mutation({
     siteId: v.optional(v.id("sites")),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.manage");
     const { id, slug: rawSlug, ...rest } = args;
     const updates: Record<string, unknown> = { updatedAt: Date.now() };
 
@@ -222,7 +222,7 @@ export const update = mutation({
 export const backfillSlugs = mutation({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.manage");
     const codes = await ctx.db.query("brokerTrackingCodes").collect();
     const leaders = await ctx.db.query("partnerLeaders").collect();
 
@@ -267,7 +267,7 @@ export const backfillSlugs = mutation({
 export const getEnrollmentsByCode = query({
   args: { code: v.string() },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.view");
     const sessions = await ctx.db
       .query("enrollmentSessions")
       .filter((q: any) => q.eq(q.field("brokerTrackingCode"), args.code))
@@ -292,7 +292,7 @@ export const getEnrollmentsByCode = query({
 export const getAllWithRates = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.view");
     const codes = await ctx.db.query("brokerTrackingCodes").collect();
     const rates = await ctx.db.query("commissionRates").collect();
     const leaders = await ctx.db.query("partnerLeaders").collect();
@@ -331,7 +331,7 @@ export const previewAgencyRepCode = query({
     lastName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.view");
     const partner = await ctx.db.get(args.agencyId as Id<"distributionPartners">);
     const agencyCode: string | undefined = (partner as any)?.agencyCode;
     if (!agencyCode) return null;
@@ -363,7 +363,7 @@ export const previewAgencyRepCode = query({
 export const assignAgencyCode = mutation({
   args: { partnerId: v.id("distributionPartners") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.manage");
     const partner = await ctx.db.get(args.partnerId);
     if (!partner) throw new Error("Partner not found");
     if ((partner as any).agencyCode) {
@@ -491,7 +491,7 @@ export const provisionCodesForPartner = action({
     codeRows: Array<{ leaderId: string; code: string; slug?: string }>;
   }> => {
     // @ts-ignore
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "partners.manage");
 
     // 1. Assign (or get) the 4-digit agency code
     const { agencyCode } = await ctx.runMutation(

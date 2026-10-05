@@ -11,6 +11,7 @@
 
 import { internalQuery, query } from "../_generated/server";
 import { v } from "convex/values";
+import { hasPermission, resolveAccess } from "../lib/access/resolve";
 
 export const isCrmStaff = query({
   args: {},
@@ -18,11 +19,7 @@ export const isCrmStaff = query({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return false;
     const clerkUserId = identity.tokenIdentifier.split("|").pop() ?? "";
-    const admin = await ctx.db
-      .query("adminUsers")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", clerkUserId))
-      .first();
-    return !!admin;
+    return hasPermission(await resolveAccess(ctx, clerkUserId), "crm.use");
   },
 });
 
@@ -36,8 +33,7 @@ export const isCrmStaff = query({
 export const checkCrmAccessById = internalQuery({
   args: { clerkUserId: v.string() },
   handler: async (ctx, args) => {
-    const admin = await ctx.db.query("adminUsers").withIndex("by_clerk_id", (q) => q.eq("clerkUserId", args.clerkUserId)).first();
-    if (!admin) return { isStaff: false, isManager: false };
-    return { isStaff: true, isManager: admin.role === "owner" || !!admin.departments?.includes("executive") };
+    const access = await resolveAccess(ctx, args.clerkUserId);
+    return { isStaff: hasPermission(access, "crm.use"), isManager: hasPermission(access, "crm.manage") };
   },
 });

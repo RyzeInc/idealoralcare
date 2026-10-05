@@ -38,7 +38,7 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { Doc, Id } from "../_generated/dataModel";
 import { mutation, MutationCtx, query, QueryCtx } from "../_generated/server";
-import { requireAdmin } from "../lib/authGuards";
+import { requireAccess } from "../lib/authGuards";
 import { DispersalSplit, PlanTier } from "../lib/dispersal";
 import { parsePeriodKey } from "../lib/periods";
 import { RepAttribution, RepAttributionResolver } from "../lib/repAttribution";
@@ -1273,7 +1273,7 @@ export const previewStatement = query({
     siteId: v.optional(v.id("sites")),
   },
   handler: async (ctx, { period, vendor, siteId }): Promise<StatementPayload> => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     return buildPayload(ctx, period, vendor as VendorId, undefined, siteId);
   },
 });
@@ -1286,7 +1286,7 @@ export const previewStatement = query({
 export const listStatementPeriods = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     const closes = await ctx.db.query("invoicePeriods").collect();
     const sites = await ctx.db.query("sites").collect();
     const siteNameById = new Map(sites.map((s) => [String(s._id), s.name]));
@@ -1414,7 +1414,7 @@ export const listStatements = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, { period, vendor, status, siteId, limit }) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     let rows: Doc<"vendorStatements">[];
     if (vendor && period) {
       rows = await ctx.db
@@ -1468,7 +1468,7 @@ function isOverdue(row: Doc<"vendorStatements">, now = Date.now()): boolean {
 export const getStatement = query({
   args: { statementId: v.id("vendorStatements") },
   handler: async (ctx, { statementId }) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     const row = await ctx.db.get(statementId);
     if (!row) return null;
 
@@ -1627,7 +1627,7 @@ export const getStatement = query({
 export const listDisclosureProfiles = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     const saved = await ctx.db.query("vendorStatementDisclosureProfiles").collect();
     const byVendor = new Map(saved.map((row) => [row.vendor, row]));
 
@@ -1679,7 +1679,7 @@ export const listDisclosureProfiles = query({
 export const countStatementsForVendor = query({
   args: { vendor: vendorValidator },
   handler: async (ctx, { vendor }) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     const rows = await ctx.db
       .query("vendorStatements")
       .withIndex("by_vendor", (q) => q.eq("vendor", vendor as VendorId))
@@ -1700,7 +1700,7 @@ export const updateDisclosureProfile = mutation({
     note: v.optional(v.string()),
   },
   handler: async (ctx, { vendor, disclosure, note }) => {
-    const actor = await requireAdmin(ctx);
+    const actor = await requireAccess(ctx, "billing.manage");
     const vendorId = vendor as VendorId;
 
     // The full split names what every other partner is paid. Allowing it on an
@@ -1785,7 +1785,7 @@ export const updateDisclosureProfile = mutation({
 export const resetDisclosureProfile = mutation({
   args: { vendor: vendorValidator },
   handler: async (ctx, { vendor }) => {
-    const actor = await requireAdmin(ctx);
+    const actor = await requireAccess(ctx, "billing.manage");
     const vendorId = vendor as VendorId;
     const existing = await ctx.db
       .query("vendorStatementDisclosureProfiles")
@@ -1827,7 +1827,7 @@ export const excludeMemberFromStatement = mutation({
     reason: v.string(),
   },
   handler: async (ctx, { statementId, memberId, reason }) => {
-    const actor = await requireAdmin(ctx);
+    const actor = await requireAccess(ctx, "billing.manage");
     if (!reason.trim()) {
       throw new Error("A reason is required to leave a primary off a statement");
     }
@@ -1905,7 +1905,7 @@ export const excludeMemberFromStatement = mutation({
 export const restoreMemberToStatement = mutation({
   args: { statementId: v.id("vendorStatements"), memberId: v.string() },
   handler: async (ctx, { statementId, memberId }) => {
-    const actor = await requireAdmin(ctx);
+    const actor = await requireAccess(ctx, "billing.manage");
     const row = await ctx.db.get(statementId);
     if (!row) throw new Error("Statement not found");
     if (row.status === "voided") {
@@ -1957,7 +1957,7 @@ export const deleteStatements = mutation({
     confirmAll: v.optional(v.boolean()),
   },
   handler: async (ctx, { statementIds, period, vendor, status, confirmAll }) => {
-    const actor = await requireAdmin(ctx);
+    const actor = await requireAccess(ctx, "billing.manage");
 
     let targets: Doc<"vendorStatements">[] = [];
     if (statementIds && statementIds.length > 0) {
@@ -2057,7 +2057,7 @@ export const listStatementActivity = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, { vendor, kind, limit }) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     const cap = Math.min(limit ?? 100, 300);
 
     const wanted = STATEMENT_ACTIONS.filter(
@@ -2186,7 +2186,7 @@ export interface VerificationCheck {
 export const getStatementVerification = query({
   args: { statementId: v.id("vendorStatements") },
   handler: async (ctx, { statementId }) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     const row = await ctx.db.get(statementId);
     if (!row) return null;
 
@@ -2511,7 +2511,7 @@ export const generateStatement = mutation({
     siteId: v.optional(v.id("sites")),
   },
   handler: async (ctx, { period, vendor, paymentDueDate, siteId }) => {
-    const actor = await requireAdmin(ctx);
+    const actor = await requireAccess(ctx, "billing.manage");
     return createStatement(ctx, {
       period,
       vendor: vendor as VendorId,
@@ -2541,7 +2541,7 @@ export const generateStatementsForPeriod = mutation({
     splitBySite: v.optional(v.boolean()),
   },
   handler: async (ctx, { period, paymentDueDate, siteId, splitBySite }) => {
-    const actor = await requireAdmin(ctx);
+    const actor = await requireAccess(ctx, "billing.manage");
     if (siteId && splitBySite) {
       throw new Error(
         "Choose one: a single site, or split by site. Not both.",
@@ -2625,7 +2625,7 @@ export const generateStatementsForPeriod = mutation({
 export const generateReplacementStatement = mutation({
   args: { statementId: v.id("vendorStatements"), reason: v.string() },
   handler: async (ctx, { statementId, reason }) => {
-    const actor = await requireAdmin(ctx);
+    const actor = await requireAccess(ctx, "billing.manage");
     if (!reason.trim()) throw new Error("A reason is required to reissue");
     const original = await ctx.db.get(statementId);
     if (!original) throw new Error("Statement not found");
@@ -2707,7 +2707,7 @@ export const generateReplacementStatement = mutation({
 export const issueStatement = mutation({
   args: { statementId: v.id("vendorStatements") },
   handler: async (ctx, { statementId }) => {
-    const actor = await requireAdmin(ctx);
+    const actor = await requireAccess(ctx, "billing.manage");
     const row = await ctx.db.get(statementId);
     if (!row) throw new Error("Statement not found");
     if (row.status !== "draft") {
@@ -2733,7 +2733,7 @@ export const issueStatement = mutation({
 export const issueStatementsForPeriod = mutation({
   args: { period: v.string() },
   handler: async (ctx, { period }) => {
-    const actor = await requireAdmin(ctx);
+    const actor = await requireAccess(ctx, "billing.manage");
     const rows = await ctx.db
       .query("vendorStatements")
       .withIndex("by_period", (q) => q.eq("period", period))
@@ -2773,7 +2773,7 @@ export const recordRemittance = mutation({
     ctx,
     { statementId, amountCents, paymentMethod, paymentReference, paidAt },
   ) => {
-    const actor = await requireAdmin(ctx);
+    const actor = await requireAccess(ctx, "billing.manage");
     if (!Number.isInteger(amountCents) || amountCents <= 0) {
       throw new Error("Remittance amount must be a positive whole number of cents");
     }
@@ -2821,7 +2821,7 @@ export const recordRemittance = mutation({
 export const voidStatement = mutation({
   args: { statementId: v.id("vendorStatements"), reason: v.string() },
   handler: async (ctx, { statementId, reason }) => {
-    const actor = await requireAdmin(ctx);
+    const actor = await requireAccess(ctx, "billing.manage");
     if (!reason.trim()) throw new Error("A void reason is required");
     const row = await ctx.db.get(statementId);
     if (!row) throw new Error("Statement not found");
@@ -2848,7 +2848,7 @@ export const voidStatement = mutation({
 export const unvoidStatement = mutation({
   args: { statementId: v.id("vendorStatements") },
   handler: async (ctx, { statementId }) => {
-    const actor = await requireAdmin(ctx);
+    const actor = await requireAccess(ctx, "billing.manage");
     const row = await ctx.db.get(statementId);
     if (!row) throw new Error("Statement not found");
     if (row.status !== "voided") throw new Error("Statement is not voided");
@@ -2890,7 +2890,7 @@ export const patchStatementMeta = mutation({
     internalMemo: v.optional(v.string()),
   },
   handler: async (ctx, { statementId, ...updates }) => {
-    const actor = await requireAdmin(ctx);
+    const actor = await requireAccess(ctx, "billing.manage");
     const row = await ctx.db.get(statementId);
     if (!row) throw new Error("Statement not found");
     if (row.status === "voided") throw new Error("Cannot edit a voided statement");

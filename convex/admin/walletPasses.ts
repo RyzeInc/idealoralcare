@@ -1,7 +1,7 @@
 import { action } from "../_generated/server";
 import { v } from "convex/values";
 import { api } from "../_generated/api";
-import { requireAdminAction } from "../lib/authGuards";
+import { requireAccessAction } from "../lib/authGuards";
 
 /**
  * WALLET PASS GENERATION
@@ -27,7 +27,7 @@ export const generateAppleWalletPass: any = action({
   },
   handler: async (ctx: any, args: any): Promise<any> => {
     // @ts-ignore
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "members.view");
     // @ts-ignore - memberCards module is typed but may appear as any in type inference
     const cardData: any = await ctx.runAction(api.admin.memberCards.getMemberCardData, {
       memberId: args.memberId,
@@ -150,7 +150,7 @@ export const generateGoogleWalletPass: any = action({
   },
   handler: async (ctx: any, args: any): Promise<any> => {
     // @ts-ignore
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "members.view");
     // @ts-ignore - memberCards module is typed but may appear as any in type inference
     const cardData: any = await ctx.runAction(api.admin.memberCards.getMemberCardData, {
       memberId: args.memberId,
@@ -234,7 +234,7 @@ export const generateSamsungPayPass: any = action({
   },
   handler: async (ctx: any, args: any): Promise<any> => {
     // @ts-ignore
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "members.view");
     // @ts-ignore - memberCards module is typed but may appear as any in type inference
     const cardData: any = await ctx.runAction(api.admin.memberCards.getMemberCardData, {
       memberId: args.memberId,
@@ -317,7 +317,7 @@ export const generateAllWalletPasses: any = action({
   },
   handler: async (ctx: any, args: any): Promise<any> => {
     // @ts-ignore
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "members.view");
 
     const results: any = {
       memberId: args.memberId,
@@ -351,7 +351,7 @@ export const sendWalletPassesToMember: any = action({
   },
   handler: async (ctx: any, args: any): Promise<any> => {
     // @ts-ignore
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "members.edit");
 
     const html = `
       <html>

@@ -22,7 +22,7 @@
 import { action, query, mutation, internalMutation } from "../_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
-import { requireAdmin, requireAdminAction } from "../lib/authGuards";
+import { requireAdmin, requireAccess, requireAccessAction } from "../lib/authGuards";
 
 type VendorKey = "careington" | "dialcare";
 
@@ -69,7 +69,7 @@ async function sha256Hex(content: string): Promise<string> {
 export const getVendorStatus = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "vendorFiles.view");
     const vendors: VendorKey[] = ["careington", "dialcare"];
     const result = [] as any[];
     for (const v of vendors) {
@@ -114,7 +114,7 @@ export const getDeliveryHistory = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "vendorFiles.view");
     const limit = args.limit ?? 25;
     let rows;
     if (args.groupId) {
@@ -243,7 +243,7 @@ export const generateAndSendVendorFile = action({
   },
   handler: async (ctx, args): Promise<DeliveryResult> => {
     // @ts-ignore - same pattern as the rest of the codebase
-    const identity = await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    const identity = await requireAccessAction(ctx, "vendorFiles.manage");
 
     const fileType = args.fileType ?? "full";
     const method = args.method ?? "sftp";
@@ -369,7 +369,7 @@ export const getDeliveryById = query({
   args: { deliveryId: v.id("vendorDeliveries") },
   // NOTE: No admin gate — consumed by /api/admin/vendor-deliver which gates itself.
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "vendorFiles.view");
     return await ctx.db.get(args.deliveryId);
   },
 });

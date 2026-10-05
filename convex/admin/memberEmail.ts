@@ -25,7 +25,7 @@ import {
 } from "../_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
-import { requireAdmin, requireAdminAction } from "../lib/authGuards";
+import { requireAccess, requireAccessAction } from "../lib/authGuards";
 import { sendViaResend } from "../lib/resend";
 import { EMAIL_TEMPLATES, isEmailTemplateId } from "../lib/emailTemplates";
 import { getBaseUrl } from "../lib/env";
@@ -155,7 +155,7 @@ const SENDABLE: Record<
 export const listSendableTemplates = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "support.use");
 
     return Object.keys(SENDABLE).map((id) => {
       const template = (EMAIL_TEMPLATES as any)[id];
@@ -257,7 +257,7 @@ export const previewForMember = query({
     templateId: v.string(),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "support.use");
 
     const entry = SENDABLE[args.templateId];
     if (!entry) {
@@ -799,7 +799,7 @@ export const sendToMember = action({
     args
   ): Promise<{ success: boolean; to?: string; error?: string }> => {
     // @ts-ignore - avoid deep type instantiation
-    const identity = await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    const identity = await requireAccessAction(ctx, "support.use");
 
     return await ctx.runAction(internal.admin.memberEmail.deliverToMember, {
       memberProfileId: args.memberProfileId,
@@ -829,7 +829,7 @@ export const sendBulk = action({
     args
   ): Promise<{ campaignId: string; scheduled: number }> => {
     // @ts-ignore - avoid deep type instantiation
-    const identity = await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    const identity = await requireAccessAction(ctx, "support.use");
 
     if (args.memberProfileIds.length === 0) {
       throw new Error("Select at least one member");
@@ -980,7 +980,7 @@ function shapeSend(row: any) {
 export const memberEmailHistory = query({
   args: { memberProfileId: v.id("memberProfiles"), limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "support.use");
 
     const rows = await ctx.db
       .query("emailSends")
@@ -1002,7 +1002,7 @@ export const recentSends = query({
     search: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "support.use");
 
     const limit = Math.min(args.limit ?? 100, 500);
 
@@ -1057,7 +1057,7 @@ export const recentSends = query({
 export const sendStats = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "support.use");
 
     // Bounded scan — the log screen wants a recent-activity summary, not an
     // all-time aggregate over an unbounded table.
@@ -1086,7 +1086,7 @@ export const sendStats = query({
 export const listCampaigns = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "support.use");
 
     const rows = await ctx.db
       .query("emailCampaigns")
@@ -1118,7 +1118,7 @@ export const listCampaigns = query({
 export const getSendBody = query({
   args: { sendId: v.id("emailSends") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "support.use");
 
     const row = await ctx.db.get(args.sendId);
     if (!row) return null;
@@ -1151,7 +1151,7 @@ export const listRecipients = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "support.use");
 
     const limit = Math.min(args.limit ?? 500, 2000);
 
@@ -1200,7 +1200,7 @@ export const listRecipients = query({
 export const campaignFailedRecipients = query({
   args: { campaignId: v.id("emailCampaigns") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "support.use");
 
     const rows = await ctx.db
       .query("emailSends")
@@ -1232,7 +1232,7 @@ export const campaignFailedRecipients = query({
 export const listGroupsForFilter = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "support.use");
     const groups = await ctx.db.query("groups").collect();
     return groups
       .map((g) => ({ id: g._id, name: g.name, groupCode: g.groupCode }))

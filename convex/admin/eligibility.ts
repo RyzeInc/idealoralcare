@@ -1,7 +1,7 @@
 import { mutation, query, action, internalMutation } from "../_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
-import { requireAdmin, requireAdminAction } from "../lib/authGuards";
+import { requireAccess, requireAccessAction } from "../lib/authGuards";
 import { createMemberProfile } from "../lib/memberCreation";
 import * as XLSX from "xlsx";
 
@@ -70,7 +70,7 @@ const CAREINGTON_FIELD_MAP = {
  */
 export const generateUploadUrl = mutation({
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "eligibility.manage");
     return await ctx.storage.generateUploadUrl();
   },
 });
@@ -80,7 +80,7 @@ export const generateUploadUrl = mutation({
  */
 export const getAllEligibilityFiles = query({
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "eligibility.view");
     return await ctx.db.query("eligibilityFiles").order("desc").collect();
   },
 });
@@ -101,7 +101,7 @@ export const uploadEligibilityFile = mutation({
     uploadedBy: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "eligibility.manage");
     const fileId = await ctx.db.insert("eligibilityFiles", {
       siteId: args.siteId,
       accountId: args.accountId,
@@ -139,7 +139,7 @@ export const getEligibilityFiles = query({
     offset: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "eligibility.view");
     const limit = args.limit ?? 25;
     const offset = args.offset ?? 0;
 
@@ -167,7 +167,7 @@ export const getEligibilityFiles = query({
 export const getEligibilityFileDetail = query({
   args: { fileId: v.id("eligibilityFiles") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "eligibility.view");
     const file = await ctx.db.get(args.fileId);
     if (!file) throw new Error("File not found");
 
@@ -1146,8 +1146,7 @@ export const processEligibilityFile = action({
     fileId: v.id("eligibilityFiles"),
   },
   handler: async (ctx, args) => {
-    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "eligibility.manage");
     const fileDetail = await ctx.runQuery(api.admin.eligibility.getEligibilityFileDetail, { fileId: args.fileId });
     if (!fileDetail) throw new Error("File not found");
     const file = fileDetail.file;
@@ -1482,7 +1481,7 @@ export const previewEligibilityFile = action({
     maxRecords: number;
   }> => {
     // @ts-ignore - Avoid deep type instantiation
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "eligibility.manage");
 
     const blob = await ctx.storage.get(args.storageId as any);
     if (!blob) throw new Error("File not found in storage");
@@ -1694,7 +1693,7 @@ export const updateFileStatus = mutation({
     status: v.string(),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "eligibility.manage");
     const file = await ctx.db.get(args.fileId);
     if (!file) throw new Error("File not found");
 
@@ -1718,7 +1717,7 @@ export const updateFileStatus = mutation({
 export const resetFileCounters = mutation({
   args: { fileId: v.id("eligibilityFiles") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "eligibility.manage");
     await ctx.db.patch(args.fileId, {
       processedRecords: 0,
       errorRecords: 0,
@@ -1739,7 +1738,7 @@ export const setTotalRecords = mutation({
     totalRecords: v.number(),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "eligibility.manage");
     await ctx.db.patch(args.fileId, { totalRecords: args.totalRecords });
   },
 });
@@ -1754,7 +1753,7 @@ export const addFileError = mutation({
     message: v.string(),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "eligibility.manage");
     const file = await ctx.db.get(args.fileId);
     if (!file) throw new Error("File not found");
 
@@ -2188,7 +2187,7 @@ export const createMembersFromEligibilityFile = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "eligibility.manage");
     const file = await ctx.db.get(args.fileId);
     if (!file) throw new Error("File not found");
 
@@ -2298,7 +2297,7 @@ export const completeFileProcessing = mutation({
     newMembers: v.number(),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "eligibility.manage");
     const file = await ctx.db.get(args.fileId);
     if (!file) throw new Error("File not found");
 
@@ -2337,7 +2336,7 @@ export const completeFileProcessing = mutation({
 export const deleteEligibilityFile = mutation({
   args: { fileId: v.id("eligibilityFiles") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "eligibility.manage");
     const file = await ctx.db.get(args.fileId);
     if (!file) throw new Error("File not found");
 
@@ -2359,7 +2358,7 @@ export const deleteEligibilityFile = mutation({
 export const getEligibilityStats = query({
   args: { groupId: v.id("groups") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "eligibility.view");
     const files = await ctx.db
       .query("eligibilityFiles")
       .filter((q) => q.eq(q.field("groupId"), args.groupId))

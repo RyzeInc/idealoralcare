@@ -1,7 +1,7 @@
 import { action, internalMutation, query } from "../_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
-import { requireAdminAction } from "../lib/authGuards";
+import { requireAccessAction } from "../lib/authGuards";
 import { sendViaResend } from "../lib/resend";
 import { EMAIL_TEMPLATES } from "../lib/emailTemplates";
 import { getBaseUrl } from "../lib/env";
@@ -35,7 +35,7 @@ export const resendMemberPacket = action({
     args,
   ): Promise<{ sent: boolean; program: "essentials" | "oral-care"; to: string }> => {
     // @ts-ignore - avoid deep type instantiation
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "support.use");
 
     // Resolved from the member profile, not from a Clerk account: benefits are
     // live at enrollment whether or not the member ever registers a login, so
@@ -102,8 +102,7 @@ export const sendWelcomeEmail = action({
     memberId: v.string(),
   },
   handler: async (ctx, args) => {
-    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "support.use");
 
     const { subject, html } = EMAIL_TEMPLATES["admin-welcome"].render({
       firstName: args.firstName,
@@ -147,8 +146,7 @@ export const sendPaymentReceiptEmail = action({
     transactionId: v.string(),
   },
   handler: async (ctx, args) => {
-    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "support.use");
 
     const { subject, html } = EMAIL_TEMPLATES["payment-receipt"].render({
       firstName: args.firstName,
@@ -193,8 +191,7 @@ export const sendMemberIdCardEmail = action({
     memberId: v.string(),
   },
   handler: async (ctx, args) => {
-    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "support.use");
 
     const { subject, html } = EMAIL_TEMPLATES["member-id-card"].render({
       firstName: args.firstName,
@@ -235,8 +232,7 @@ export const sendEligibilityReminderEmail = action({
     adminName: v.string(),
   },
   handler: async (ctx, args) => {
-    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "support.use");
 
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 5); // 5 days from now (roughly 1st of next month)
@@ -279,8 +275,7 @@ export const sendTestEmail = action({
     email: v.string(),
   },
   handler: async (ctx, args) => {
-    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "support.use");
 
     const { subject, html } = EMAIL_TEMPLATES["connectivity-test"].render({});
 
@@ -305,7 +300,7 @@ export const batchSendWelcomeEmails = action({
   },
   handler: async (ctx, args): Promise<{ scheduled: number; batches: number; message: string }> => {
     // @ts-ignore
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "support.use");
 
     // Get members to email via query
     const members: Array<{ email: string; firstName: string; memberId: string }> = await ctx.runQuery(
@@ -463,7 +458,7 @@ export const sendReenrollmentLinkEmail = action({
   },
   handler: async (ctx, args) => {
     // @ts-ignore
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "support.use");
 
     const appUrl = getBaseUrl();
     const reenrollUrl = `${appUrl}/health/enroll?token=${args.reenrollmentToken}&source=listbill_term`;

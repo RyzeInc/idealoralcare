@@ -19,7 +19,7 @@
 import { v } from "convex/values";
 import { internalMutation, mutation, MutationCtx } from "../_generated/server";
 import { Doc } from "../_generated/dataModel";
-import { requireStaffAdmin } from "../lib/authGuards";
+import { requireAccess } from "../lib/authGuards";
 import { loadBillingContext, billingFor } from "./revenue";
 import { classifyTier } from "../lib/dispersal";
 import { isOnBook } from "../lib/memberBilling";
@@ -251,7 +251,7 @@ export const rollupYesterday = internalMutation({
 export const rollupDay = mutation({
   args: { date: v.string() },
   handler: async (ctx, args) => {
-    await requireStaffAdmin(ctx);
+    await requireAccess(ctx, "system.manage");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(args.date)) {
       throw new Error(`rollupDay: expected YYYY-MM-DD, got "${args.date}"`);
     }
@@ -269,7 +269,7 @@ export const rollupDay = mutation({
 export const backfillRollupDay = mutation({
   args: { daysAgo: v.number() },
   handler: async (ctx, args) => {
-    await requireStaffAdmin(ctx);
+    await requireAccess(ctx, "system.manage");
     const daysAgo = Math.max(0, Math.min(Math.floor(args.daysAgo), 730));
     const result = await writeRollupsForDay(ctx, dayKey(Date.now() - daysAgo * DAY_MS));
     return { ...result, daysAgo, nextDaysAgo: daysAgo > 0 ? daysAgo - 1 : null };
@@ -283,7 +283,7 @@ export const backfillRollupDay = mutation({
 export const getRollupHealth = mutation({
   args: {},
   handler: async (ctx) => {
-    await requireStaffAdmin(ctx);
+    await requireAccess(ctx, "system.manage");
     const rows = await ctx.db.query("insightsDaily").withIndex("by_date").order("desc").take(1);
     const bundles = await ctx.db
       .query("subscriptionBundles")

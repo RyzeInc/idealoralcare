@@ -22,6 +22,7 @@ import { query } from "../_generated/server";
 import { Id } from "../_generated/dataModel";
 import {
   resolveViewerScope,
+  type ScopeNeed,
   scopeLabel,
   isAdminScope,
   collectDescendantPartnerIds,
@@ -49,6 +50,8 @@ const emptyTotals = (): NodeTotals => ({
   partnerVendorCents: 0,
 });
 
+const DOWNLINE_SCOPE: ScopeNeed = { staff: "insights.view", partner: "partner.downline" };
+
 /** The partner ids a viewer is allowed to see as nodes in their tree. */
 function visiblePartnerIds(scope: ViewerScope): Set<string> | null {
   if (isAdminScope(scope)) return null; // everything
@@ -63,7 +66,7 @@ function visiblePartnerIds(scope: ViewerScope): Set<string> | null {
 export const getDownline = query({
   args: { months: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    const scope = await resolveViewerScope(ctx);
+    const scope = await resolveViewerScope(ctx, DOWNLINE_SCOPE);
     const months = Math.min(Math.max(args.months ?? 3, 1), 24);
 
     const [partners, leaders, members] = await Promise.all([
@@ -200,7 +203,7 @@ export const getLeaderboard = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const scope = await resolveViewerScope(ctx);
+    const scope = await resolveViewerScope(ctx, DOWNLINE_SCOPE);
     const days = Math.min(Math.max(args.days ?? 30, 1), 365);
     const metric = args.metric ?? "netGrowth";
     const limit = Math.min(args.limit ?? 25, 100);
@@ -331,7 +334,7 @@ export const getLeaderboard = query({
 export const getScopedNode = query({
   args: { partnerId: v.string() },
   handler: async (ctx, args) => {
-    const scope = await resolveViewerScope(ctx);
+    const scope = await resolveViewerScope(ctx, DOWNLINE_SCOPE);
 
     if (!isAdminScope(scope)) {
       const allowed =

@@ -19,8 +19,11 @@ const noteType = v.union(
   v.literal("internal"),
 );
 
-async function access(ctx: QueryCtx, memberId: Id<"memberProfiles">) {
-  const scope = await resolveViewerScope(ctx);
+async function access(ctx: QueryCtx, memberId: Id<"memberProfiles">, write = false) {
+  const scope = await resolveViewerScope(ctx, {
+    staff: write ? "members.edit" : "members.view",
+    partner: "partner.book",
+  });
   const member = await ctx.db.get(memberId);
   if (
     !member ||
@@ -149,7 +152,7 @@ export const getWorkspace = query({
     return {
       ...detail,
       isAdmin: admin,
-      viewerId: (await resolveViewerScope(ctx)).clerkUserId,
+      viewerId: (await resolveViewerScope(ctx, { staff: "members.view", partner: "partner.book" })).clerkUserId,
       notes: notes.slice(0, 200),
       alerts: alerts.slice(0, 200),
       documents: documents.slice(0, 200),
@@ -200,7 +203,7 @@ export const addNote = mutation({
     isPinned: v.boolean(),
   },
   handler: async (ctx, args) => {
-    const actor = await access(ctx, args.memberId);
+    const actor = await access(ctx, args.memberId, true);
     if (
       actor.scope.kind !== "admin" &&
       (args.visibility !== "shared" || args.noteType === "internal")
@@ -239,7 +242,7 @@ export const createAlert = mutation({
     expiresAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const actor = await access(ctx, args.memberId);
+    const actor = await access(ctx, args.memberId, true);
     if (actor.scope.kind !== "admin" && args.visibility !== "shared")
       throw new Error("Admin access required");
     if (
@@ -267,7 +270,7 @@ export const resolveAlert = mutation({
   handler: async (ctx, { alertId }) => {
     const alert = await ctx.db.get(alertId);
     if (!alert) throw new Error("Alert not found");
-    const actor = await access(ctx, alert.memberProfileId);
+    const actor = await access(ctx, alert.memberProfileId, true);
     if (
       actor.scope.kind !== "admin" &&
       (alert.visibility !== "shared" || alert.authorId !== actor.authorId)
@@ -296,7 +299,7 @@ export const addDocument = mutation({
     visibility,
   },
   handler: async (ctx, args) => {
-    const actor = await access(ctx, args.memberId);
+    const actor = await access(ctx, args.memberId, true);
     if (actor.scope.kind !== "admin" && args.visibility !== "shared")
       throw new Error("Admin access required");
     const url = new URL(text(args.url, 2000));

@@ -26,7 +26,7 @@
 
 import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
-import { requireAdmin } from "../lib/authGuards";
+import { requireAccess } from "../lib/authGuards";
 import {
   RepAttributionResolver,
   stampDiffersFrom,
@@ -84,7 +84,7 @@ async function buildResolvers(ctx: any) {
 export const getRepAttributionHealth = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "system.manage");
     const { resolve, leaderIdSet } = await buildResolvers(ctx);
 
     const [sessions, payables, rates, groups] = await Promise.all([
@@ -121,7 +121,7 @@ export const getRepAttributionHealth = query({
 export const backfillRepAttribution = mutation({
   args: { dryRun: v.optional(v.boolean()) },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "system.manage");
     const dryRun = args.dryRun === true;
     const { resolve, leaderIdSet } = await buildResolvers(ctx);
     const now = Date.now();
@@ -244,7 +244,7 @@ export const backfillMemberAttributionStamps = mutation({
     dryRun: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "system.manage");
     const dryRun = args.dryRun === true;
     const numItems = Math.min(args.batchSize ?? STAMP_BATCH_SIZE, STAMP_BATCH_SIZE);
 
@@ -299,7 +299,7 @@ export const backfillMemberAttributionStamps = mutation({
 export const getAttributionDrift = query({
   args: { sampleSize: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "system.manage");
     const sampleSize = Math.min(args.sampleSize ?? 200, 500);
 
     const members = await ctx.db
@@ -361,7 +361,7 @@ export const getAttributionDrift = query({
 export const quarantineLegacyPayables = mutation({
   args: { dryRun: v.optional(v.boolean()) },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "system.manage");
     const dryRun = args.dryRun === true;
     const payables = await ctx.db.query("commissionPayables").collect();
 

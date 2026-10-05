@@ -7,7 +7,7 @@
 import { query } from "../_generated/server";
 import { v } from "convex/values";
 import type { QueryCtx } from "../_generated/server";
-import { requireAuth, requireAdmin } from "../lib/authGuards";
+import { requireAuth, requireAccess } from "../lib/authGuards";
 import {
   resolveEssentialsGroupNumber,
   resolveEssentialsMemberNumber,
@@ -411,7 +411,7 @@ export const getCustomerBundle = query({
     customerId: v.string(),
   },
   handler: async (ctx: QueryCtx, args: GetCustomerBundleArgs) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     const bundle = await ctx.db
       .query("subscriptionBundles")
       .withIndex("by_customer", (q) =>
@@ -434,7 +434,7 @@ export const getCustomerEntitlements = query({
     includeExpired: v.optional(v.boolean()),
   },
   handler: async (ctx: QueryCtx, args: GetCustomerEntitlementsArgs) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     let q = ctx.db
       .query("entitlements")
       .withIndex("by_customer", (q) =>
@@ -505,7 +505,7 @@ export const hasAccess = query({
     productId: v.id("catalogProducts"),
   },
   handler: async (ctx: QueryCtx, args: HasAccessArgs) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     const entitlement = await ctx.db
       .query("entitlements")
       .withIndex("by_customer", (q) =>
@@ -678,7 +678,7 @@ export const getMemberCardDataPublic = query({
 export const getPacketDataForProfile = query({
   args: { memberProfileId: v.id("memberProfiles") },
   handler: async (ctx: QueryCtx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     return await resolvePacketData(ctx, args.memberProfileId);
   },
 });
@@ -785,7 +785,7 @@ export const getCustomerDashboard = query({
     customerId: v.string(),
   },
   handler: async (ctx: QueryCtx, args: GetCustomerDashboardArgs) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     const bundle = await ctx.db
       .query("subscriptionBundles")
       .withIndex("by_customer", (q) =>

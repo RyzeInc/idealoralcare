@@ -1,6 +1,6 @@
 import { mutation, query, action } from "../_generated/server";
 import { v } from "convex/values";
-import { requireAdmin, requireAdminAction } from "../lib/authGuards";
+import { requireAccess, requireAccessAction } from "../lib/authGuards";
 import { recordAdminAction } from "./adminAudit";
 import { createMemberProfile } from "../lib/memberCreation";
 import { RepAttributionResolver, resolveRepAttribution } from "../lib/repAttribution";
@@ -44,7 +44,7 @@ export const getAllMembers = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     const enrichedMembers = await unifiedData.getAllMembersEnriched(ctx, {
       limit: args.limit ?? 500,
     });
@@ -127,7 +127,7 @@ export const getMemberRoster = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     const limit = Math.min(args.limit ?? 100, 500);
 
     const members = await ctx.db
@@ -153,7 +153,7 @@ export const getMembersByStatus = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     const limit = args.limit ?? 100;
 
     return await ctx.db
@@ -176,7 +176,7 @@ export const getMembersByStatus = query({
 export const getMemberDetail = query({
   args: { memberId: v.id("memberProfiles") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     const member = await ctx.db.get(args.memberId);
     if (!member) throw new Error("Member not found");
 
@@ -259,7 +259,7 @@ export const updateMemberStatus = mutation({
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "members.edit");
     const member = await ctx.db.get(args.memberId);
     if (!member) throw new Error("Member not found");
 
@@ -311,7 +311,7 @@ export const searchMembers = query({
     query: v.string(),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     const lowerQuery = args.query.toLowerCase();
 
     const all = await ctx.db
@@ -343,7 +343,7 @@ export const searchMembers = query({
 export const quickEligibilityCheck = query({
   args: { query: v.string() },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     const q = args.query.trim().toLowerCase();
     if (q.length < 2) return [];
 
@@ -410,7 +410,7 @@ export const addMemberNote = mutation({
     authorName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.edit");
     const member = await ctx.db.get(args.memberId);
     if (!member) throw new Error("Member not found");
 
@@ -455,7 +455,7 @@ export const getMemberActivityTimeline = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     return await ctx.db
       .query("memberActivities")
       .filter((q) => q.eq(q.field("memberProfileId"), args.memberId))
@@ -470,7 +470,7 @@ export const getMemberActivityTimeline = query({
 export const getGroupMemberBreakdown = query({
   args: { groupId: v.id("groups") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     const members = await ctx.db
       .query("memberProfiles")
       .filter((q) => q.eq(q.field("groupId"), args.groupId))
@@ -517,7 +517,7 @@ export const getGroupMemberBreakdown = query({
 export const getActiveMembersBySite = query({
   args: { siteId: v.id("sites") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     const allMembers = await ctx.db
       .query("memberProfiles")
       .filter((q) => q.eq(q.field("siteId"), args.siteId))
@@ -534,7 +534,7 @@ export const getActiveMembersBySite = query({
 export const getActiveMembersByGroup = query({
   args: { groupId: v.id("groups") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     const allMembers = await ctx.db
       .query("memberProfiles")
       .filter((q) => q.eq(q.field("groupId"), args.groupId))
@@ -557,7 +557,7 @@ export const getRecentlyEnrolled = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     const daysAgo = (args.days ?? 7) * 24 * 60 * 60 * 1000;
     const cutoff = Date.now() - daysAgo;
 
@@ -591,7 +591,7 @@ export const bulkUpdateMemberStatus = mutation({
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "members.edit");
     const results = [];
 
     for (const memberId of args.memberIds) {
@@ -717,7 +717,7 @@ export const assignMemberToStaff = mutation({
  */
 export const getDashboardStats = query({
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     const [allMembers, eligFiles, allBundles] = await Promise.all([
       ctx.db.query("memberProfiles").collect(),
       ctx.db.query("eligibilityFiles").collect(),
@@ -757,7 +757,7 @@ export const getDashboardStats = query({
  */
 export const getSystemHealth = query({
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     const now = Date.now();
     const oneDayAgo = now - 24 * 60 * 60 * 1000;
     const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
@@ -878,7 +878,7 @@ export const getSystemHealth = query({
 export const getRecentActivity = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     return await ctx.db
       .query("memberActivities")
       .order("desc")
@@ -895,7 +895,7 @@ export const removeMember = mutation({
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "members.edit");
     const member = await ctx.db.get(args.memberId);
     if (!member) throw new Error("Member not found");
 
@@ -942,7 +942,7 @@ export const hardDeleteMember = mutation({
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "members.edit");
     const member = await ctx.db.get(args.memberId);
     if (!member) throw new Error("Member not found");
 
@@ -1050,7 +1050,7 @@ export const updateMemberProfile = mutation({
     )),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.edit");
     const member = await ctx.db.get(args.memberId);
     if (!member) throw new Error("Member not found");
 
@@ -1098,7 +1098,7 @@ export const createAdminMember = mutation({
     subscriberId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.edit");
     const group = await ctx.db.get(args.groupId);
     if (!group) throw new Error("Group not found");
 
@@ -1139,7 +1139,7 @@ export const createAdminMember = mutation({
 export const getMemberCountsByGroup = query({
   args: { groupIds: v.optional(v.array(v.id("groups"))) },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     const allMembers = await ctx.db.query("memberProfiles").collect();
     const counts: Record<string, { total: number; active: number; enrolling: number }> = {};
     for (const m of allMembers) {
@@ -1158,7 +1158,7 @@ export const getMemberCountsByGroup = query({
  */
 export const getAdminAlerts = query({
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     const [contacts, inquiries, failedFiles, stuckMembers] = await Promise.all([
       ctx.db.query("contactSubmissions")
         .withIndex("by_status", (q: any) => q.eq("status", "new")).collect(),
@@ -1194,7 +1194,7 @@ export const getAdminAlerts = query({
 export const getListBillActiveMembers = query({
   args: { groupId: v.id("groups") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     // List-bill membership is a property of the GROUP, not of employeeType —
     // the eligibility pipeline never sets employeeType, so the old filter
     // hid every member loaded from a file.
@@ -1215,7 +1215,7 @@ export const getListBillActiveMembers = query({
 export const getTermedListBillMembers = query({
   args: { groupId: v.optional(v.id("groups")) },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     // termListBillMember never sets employeeType, so requiring it hid every
     // member termed without having been portal-provisioned.
     if (args.groupId) {
@@ -1242,7 +1242,7 @@ export const termListBillMember = mutation({
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.edit");
 
     const member = await ctx.db.get(args.memberId);
     if (!member) throw new Error("Member not found");
@@ -1292,7 +1292,7 @@ export const sendReenrollmentLink: any = action({
   handler: async (ctx, args) => {
     const api = getApi();
     // @ts-ignore
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "members.edit");
 
     const detail = await ctx.runQuery(api.admin.members.getMemberDetail, {
       memberId: args.memberId,

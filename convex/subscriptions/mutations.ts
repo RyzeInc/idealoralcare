@@ -7,7 +7,7 @@
 import { mutation, internalMutation } from "../_generated/server";
 import { v } from "convex/values";
 import { Id } from "../_generated/dataModel";
-import { requireAdmin, requireSelf } from "../lib/authGuards";
+import { requireSelf, requireAccess } from "../lib/authGuards";
 
 /**
  * Create a new subscription bundle
@@ -28,7 +28,7 @@ export const createBundle = mutation({
   },
   handler: async (ctx, args) => {
     // Admin-only access
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.edit");
     const now = Date.now();
     const bundleId = await ctx.db.insert("subscriptionBundles", {
       customerId: args.customerId,
@@ -121,7 +121,7 @@ export const activateEntitlement = mutation({
   },
   handler: async (ctx, args) => {
     // Admin-only access
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.edit");
     
     const now = Date.now();
     const entitlementId = await ctx.db.insert("entitlements", {
@@ -192,7 +192,7 @@ export const extendEntitlementPeriod = mutation({
   },
   handler: async (ctx, args) => {
     // Admin-only access
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.edit");
     
     await ctx.db.patch(args.entitlementId, {
       periodEnd: args.newPeriodEnd,
@@ -308,7 +308,7 @@ export const logEvent = mutation({
   },
   handler: async (ctx, args) => {
     // Admin-only access
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.edit");
     const now = Date.now();
 
     // Check idempotency: if idempotencyKey provided and already logged, return existing

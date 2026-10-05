@@ -2,7 +2,7 @@ import { defineTable } from "convex/server";
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
 import { MutationCtx, QueryCtx } from "../_generated/server";
-import { requireAdmin } from "../lib/authGuards";
+import { requireAccess } from "../lib/authGuards";
 
 /**
  * EVENT LOG TABLE
@@ -73,7 +73,7 @@ export const logEvent = mutation({
   },
   handler: async (ctx, args) => {
     // Admin-only access
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.edit");
     
     // Deduplication: if idempotencyKey exists, return existing event
     if (args.idempotencyKey) {
@@ -168,7 +168,7 @@ export const getRecentEvents = query({
   },
   handler: async (ctx, args) => {
     // Admin-only access
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "members.view");
     
     let query = ctx.db
       .query("events")

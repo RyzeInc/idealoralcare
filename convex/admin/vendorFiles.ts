@@ -1,7 +1,7 @@
 import { action, query, mutation } from "../_generated/server";
 import { v } from "convex/values";
 import { api } from "../_generated/api";
-import { requireAdmin, requireAdminAction } from "../lib/authGuards";
+import { requireAccess, requireAccessAction } from "../lib/authGuards";
 import { PROVIDER_GROUP_CODE } from "../lib/constants";
 
 /**
@@ -275,7 +275,7 @@ function validateCareingtonRows(
  */
 export const getVendorConfigurations = query({
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "vendorFiles.view");
     return [
       {
         vendor: "Dental Discount Network",
@@ -302,7 +302,7 @@ export const getVendorFilePreview = query({
     groupId: v.id("groups"),
   },
   handler: async (ctx, args): Promise<any> => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "vendorFiles.view");
     const group: any = await ctx.runQuery(api.admin.hierarchy.getGroupById, { groupId: args.groupId });
     if (!group) throw new Error("Group not found");
 
@@ -356,8 +356,7 @@ export const generateDentalDiscountNetworkFile = action({
     fileType: v.optional(v.union(v.literal("full"), v.literal("delta"))),
   },
   handler: async (ctx, args): Promise<{ filename: string; content: string; memberCount: number; totalRecords: number; generatedAt: number }> => {
-    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "vendorFiles.manage");
     const group = await ctx.runQuery(api.admin.hierarchy.getGroupById, { groupId: args.groupId });
     if (!group) throw new Error("Group not found");
 
@@ -521,8 +520,7 @@ export const generateDialCareFile = action({
     fileType: v.optional(v.union(v.literal("full"), v.literal("delta"))),
   },
   handler: async (ctx, args): Promise<{ filename: string; content: string; memberCount: number; totalRecords: number; warnings: string[]; generatedAt: number }> => {
-    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "vendorFiles.manage");
     const group = await ctx.runQuery(api.admin.hierarchy.getGroupById, { groupId: args.groupId });
     if (!group) throw new Error("Group not found");
 
@@ -680,8 +678,7 @@ export const generateVendorFile = action({
     vendor: v.string(), // "careington" | "dialcare"
   },
   handler: async (ctx, args): Promise<{ filename: string; content: string; memberCount: number; totalRecords: number; generatedAt: number; warnings?: string[] }> => {
-    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "vendorFiles.manage");
 
     if (args.vendor === "careington") {
       // Delegate to generateDentalDiscountNetworkFile for spec-compliant output
@@ -714,7 +711,7 @@ export const recordVendorFileGeneration = mutation({
     memberCount: v.number(),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "vendorFiles.manage");
     // Create a record for audit trail
     // Note: actual file content is stored in Convex _storage or returned to caller
     return {
@@ -761,7 +758,7 @@ export const getVendorFileHistory = query({
     vendor: v.string(),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "vendorFiles.view");
     // Placeholder: in production, query from a vendorFileGeneration table
     return {
       groupId: args.groupId,
@@ -796,8 +793,7 @@ export const generateAggregatedDentalDiscountNetworkFile = action({
     // via `replaceGroupCodeWithProviderCode`. As a result, the per-org and
     // aggregated outputs are byte-identical except for the group-code
     // column. Do not introduce alternate row-formatting logic here.
-    // @ts-ignore - Avoid deep type instantiation issue with api.admin.adminUsers.isAdmin
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "vendorFiles.manage");
     const fileType = args.fileType ?? "full";
     const vendor = args.vendor ?? "careington";
 

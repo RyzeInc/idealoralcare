@@ -33,7 +33,7 @@ import {
   QueryCtx,
 } from "../_generated/server";
 import { v } from "convex/values";
-import { requireAdmin } from "../lib/authGuards";
+import { requireAccess } from "../lib/authGuards";
 import {
   addSplits,
   assertSplitInvariant,
@@ -531,7 +531,7 @@ function assembleBreakdown(
 export const getInvoiceBreakdown = query({
   args: {},
   handler: async (ctx): Promise<InvoiceBreakdown> => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     return computeLiveBreakdown(ctx);
   },
 });
@@ -543,7 +543,7 @@ export const getInvoiceBreakdown = query({
 export const getInvoiceBreakdownForPeriod = query({
   args: { period: v.string() },
   handler: async (ctx, { period }): Promise<InvoiceBreakdown> => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     const window = parsePeriodKey(period);
     const live = currentPeriod();
 
@@ -631,7 +631,7 @@ export const getGroupInvoice = query({
     group: GroupBreakdown;
     members: MemberLine[];
   }> => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
 
     const group = await ctx.db.get(groupId);
     if (!group) throw new Error(`Group not found: ${groupId}`);
@@ -848,7 +848,7 @@ export const listClosedPeriods = query({
     grossCents: number;
     payloadHash: string;
   }>> => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     const rows = await ctx.db.query("invoicePeriods").collect();
     const byPeriod = new Map<
       string,
@@ -884,7 +884,7 @@ export const listClosedPeriods = query({
 export const getAdjustmentsForPeriod = query({
   args: { period: v.string() },
   handler: async (ctx, { period }): Promise<Doc<"invoiceAdjustments">[]> => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     return ctx.db
       .query("invoiceAdjustments")
       .withIndex("by_period", (q) => q.eq("period", period))
@@ -917,7 +917,7 @@ export const recordAdjustment = mutation({
     notes: v.string(),
   },
   handler: async (ctx, args): Promise<Id<"invoiceAdjustments">> => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "billing.manage");
     const period = await ctx.db.get(args.periodId);
     if (!period) throw new Error(`Unknown periodId: ${args.periodId}`);
     if (!Number.isInteger(args.deltaCents)) {
@@ -994,7 +994,7 @@ export const getVendorPayables = query({
     rows: VendorRow[];
     totalCents: number;
   }> => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     const breakdown = await (async () => {
       const live = currentPeriod();
       if (period === "live" || period >= live.period) {
@@ -1382,7 +1382,7 @@ export async function fillMemberLines(
 export const syncClosedTotalsToMemberLines = mutation({
   args: { period: v.string() },
   handler: async (ctx, { period }) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "billing.manage");
     const snapshots = await ctx.db
       .query("invoicePeriods")
       .withIndex("by_period", (q) => q.eq("period", period))
@@ -1495,7 +1495,7 @@ export const syncClosedTotalsToMemberLines = mutation({
 export const previewMemberLineBackfill = query({
   args: { period: v.string() },
   handler: async (ctx, { period }) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "billing.view");
     const { rows } = await computeBackfill(ctx, period);
     const pending = rows.filter((r) => !r.alreadyHasDetail);
     return {
@@ -1523,7 +1523,7 @@ export const backfillMemberLines = mutation({
     force: v.optional(v.boolean()),
   },
   handler: async (ctx, { period }) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "billing.manage");
     const snapshots = await ctx.db
       .query("invoicePeriods")
       .withIndex("by_period", (q) => q.eq("period", period))
@@ -1576,7 +1576,7 @@ export const backfillMemberLines = mutation({
 export const backfillInvoicePeriodSiteIds = mutation({
   args: { period: v.optional(v.string()) },
   handler: async (ctx, { period }) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "billing.manage");
 
     const snapshots = period
       ? await ctx.db
@@ -1643,7 +1643,7 @@ export const closePeriod = internalMutation({
 export const closePeriodManual = mutation({
   args: { year: v.number(), month: v.number() },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "billing.manage");
     return closePeriodInternal(ctx, {
       year: args.year,
       month: args.month,

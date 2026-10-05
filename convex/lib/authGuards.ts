@@ -5,13 +5,19 @@
  * Every sensitive query/mutation should call one of these at the top of its handler.
  *
  * Pattern:
- *   const identity = await requireAuth(ctx);       // Any logged-in user
- *   const identity = await requireAdmin(ctx);      // Must be in adminUsers table
- *   await requireSelf(ctx, customerId);            // Must match the authenticated user
+ *   const identity = await requireAuth(ctx);                    // Any logged-in user
+ *   const identity = await requireAccess(ctx, "members.view");  // Staff holding a permission
+ *   await requireSelf(ctx, customerId);                         // Must match the authenticated user
+ *
+ * Permissions come from access packs (convex/lib/access). Prefer
+ * `requireAccess` with the narrowest permission over `requireStaffAdmin`.
  */
 
 import { ConvexError } from "convex/values";
 import type { QueryCtx, MutationCtx, ActionCtx } from "../_generated/server";
+import { internal } from "../_generated/api";
+import { PERMISSIONS, type Permission } from "./access/catalog";
+import { hasAnyPortalPermission, hasPermission, resolveAccess, type ResolvedAccess } from "./access/resolve";
 
 type AnyCtx = QueryCtx | MutationCtx;
 
@@ -55,59 +61,64 @@ export async function requireAuth(ctx: AnyCtx): Promise<AuthIdentity> {
   };
 }
 
-/** Look up the caller's `adminUsers` row, if they have one. */
-async function findAdminUser(ctx: AnyCtx, clerkUserId: string) {
-  return await (ctx as QueryCtx).db
-    .query("adminUsers")
-    .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", clerkUserId))
-    .first();
-}
-
-/** Look up the caller's ACTIVE distribution partner row, if they have one. */
-async function findActivePartner(ctx: AnyCtx, clerkUserId: string) {
-  const partner = await (ctx as QueryCtx).db
-    .query("distributionPartners")
-    .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", clerkUserId))
-    .first();
-  return partner && partner.status === "active" ? partner : null;
+/** The caller's identity and resolved access. */
+export async function requireCallerAccess(ctx: AnyCtx): Promise<{ identity: AuthIdentity; access: ResolvedAccess }> {
+  const identity = await requireAuth(ctx);
+  return { identity, access: await resolveAccess(ctx, identity.clerkUserId) };
 }
 
 /**
- * Require INTERNAL STAFF — a row in `adminUsers`. Distribution partners do
- * not pass.
- *
- * This is the guard that internal-only surfaces should use: billing, vendor
- * statements, admin users, dev tools, anything whole-book. Use
- * `requirePartnerOrAdmin` for a surface a broker is meant to reach, and let
- * `convex/insights/scope.ts` narrow what they can see.
+ * Why a check failed. Someone who is not staff at all is told the admin role
+ * is required, as before access packs; staff missing one permission are told
+ * which.
  */
-export async function requireStaffAdmin(ctx: AnyCtx): Promise<AuthIdentity> {
-  const identity = await requireAuth(ctx);
-  const admin = await findAdminUser(ctx, identity.clerkUserId);
-  if (!admin) {
-    throw new ConvexError("Unauthorized: Admin role required");
+function deniedMessage(access: Pick<ResolvedAccess, "isStaff">, needed: Permission | Permission[]): string {
+  const list = Array.isArray(needed) ? needed : [needed];
+  const adminOnly = list.every((p) => PERMISSIONS[p].portal === "admin");
+  if (adminOnly && !access.isStaff) return "Unauthorized: Admin role required";
+  return `Unauthorized: ${list.map((p) => PERMISSIONS[p].label).join(" or ")} access required`;
+}
+
+/**
+ * Require a permission from the caller's access packs (any one of a list).
+ *
+ * Admin-console permissions only ever arrive through a staff role, so this
+ * also implies "internal staff" for every admin permission.
+ */
+export async function requireAccess(ctx: AnyCtx, needed: Permission | Permission[]): Promise<AuthIdentity> {
+  const { identity, access } = await requireCallerAccess(ctx);
+  if (!hasPermission(access, needed)) {
+    throw new ConvexError(deniedMessage(access, needed));
   }
   return identity;
 }
 
 /**
- * Require the OWNER role.
+ * Require INTERNAL STAFF — an active staff role (or, before import, a row in
+ * `adminUsers`). Distribution partners do not pass.
  *
- * `owner` vs `editor` was previously enforced only in the sidebar, by hiding
- * nav items — which is a UI affordance, not a permission, since Convex
- * functions are callable directly over the wire.
+ * Use only where any staff member may act regardless of their packs, such as
+ * the staff directory. Everything else should use `requireAccess`.
  */
+export async function requireStaffAdmin(ctx: AnyCtx): Promise<AuthIdentity> {
+  const { identity, access } = await requireCallerAccess(ctx);
+  if (!access.isStaff) {
+    throw new ConvexError("Unauthorized: Admin role required");
+  }
+  return identity;
+}
+
+/** Require an owner: a staff role carrying the Owner pack. */
 export async function requireOwner(ctx: AnyCtx): Promise<AuthIdentity> {
-  const identity = await requireAuth(ctx);
-  const admin = await findAdminUser(ctx, identity.clerkUserId);
-  if (!admin || admin.role !== "owner") {
+  const { identity, access } = await requireCallerAccess(ctx);
+  if (!access.isOwner) {
     throw new Error("Unauthorized: Owner role required");
   }
   return identity;
 }
 
 /**
- * Require staff OR an active distribution partner (PM / FMO / Agency) or rep.
+ * Require staff, or someone holding any partner-portal permission.
  *
  * Passing this only establishes that the caller may reach the surface at all.
  * It says NOTHING about which rows they may see — any query returning
@@ -115,17 +126,8 @@ export async function requireOwner(ctx: AnyCtx): Promise<AuthIdentity> {
  * `ViewerScope` and filter by it.
  */
 export async function requirePartnerOrAdmin(ctx: AnyCtx): Promise<AuthIdentity> {
-  const identity = await requireAuth(ctx);
-
-  if (await findAdminUser(ctx, identity.clerkUserId)) return identity;
-  if (await findActivePartner(ctx, identity.clerkUserId)) return identity;
-
-  const leader = await (ctx as QueryCtx).db
-    .query("partnerLeaders")
-    .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", identity.clerkUserId))
-    .first();
-  if (leader && leader.portalAccess !== false) return identity;
-
+  const { identity, access } = await requireCallerAccess(ctx);
+  if (access.isStaff || hasAnyPortalPermission(access, "partner")) return identity;
   throw new Error("Unauthorized: Partner or admin role required");
 }
 
@@ -148,29 +150,17 @@ export async function requireAdmin(ctx: AnyCtx): Promise<AuthIdentity> {
 /**
  * Require that the authenticated user matches the given customerId.
  * Used to prevent IDOR — users can only access their own data.
- * Admins bypass this check.
+ * Staff holding `staffPermission` bypass this check; partners never do.
  */
-export async function requireSelf(ctx: AnyCtx, customerId: string): Promise<AuthIdentity> {
-  const identity = await requireAuth(ctx);
-
-  if (identity.clerkUserId !== customerId) {
-    // Check if admin (or active distribution partner) — they can access any user's data
-    const admin = await (ctx as QueryCtx).db
-      .query("adminUsers")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", identity.clerkUserId))
-      .first();
-
-    if (!admin) {
-      const partner = await (ctx as QueryCtx).db
-        .query("distributionPartners")
-        .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", identity.clerkUserId))
-        .first();
-      if (!partner || partner.status !== "active") {
-        throw new ConvexError("Unauthorized: You can only access your own data");
-      }
-    }
+export async function requireSelf(
+  ctx: AnyCtx,
+  customerId: string,
+  staffPermission: Permission = "members.edit",
+): Promise<AuthIdentity> {
+  const { identity, access } = await requireCallerAccess(ctx);
+  if (identity.clerkUserId !== customerId && !hasPermission(access, staffPermission)) {
+    throw new ConvexError("Unauthorized: You can only access your own data");
   }
-
   return identity;
 }
 
@@ -200,6 +190,21 @@ export async function requireAuthAction(ctx: ActionCtx): Promise<AuthIdentity> {
     email: identity.email ?? undefined,
     name: identity.name ?? undefined,
   };
+}
+
+/**
+ * Require a permission from an action. Actions can't read the database, so
+ * the check runs through an internal query.
+ */
+export async function requireAccessAction(ctx: ActionCtx, needed: Permission | Permission[]): Promise<AuthIdentity> {
+  const identity = await requireAuthAction(ctx);
+  const access: { isStaff: boolean; permissions: Permission[] } = await ctx.runQuery(internal.access.checks.accessById, {
+    clerkUserId: identity.clerkUserId,
+  });
+  if (!hasPermission(access, needed)) {
+    throw new ConvexError(deniedMessage(access, needed));
+  }
+  return identity;
 }
 
 /**

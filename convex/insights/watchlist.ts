@@ -266,7 +266,7 @@ export const getWatchlist = query({
 export const getGroupBook = query({
   args: {},
   handler: async (ctx) => {
-    const scope = await resolveViewerScope(ctx);
+    const scope = await resolveViewerScope(ctx, { staff: "insights.view", partner: "partner.groups" });
     const { members } = await loadScopedMembers(ctx, scope);
     const bctx = await loadBillingContext(ctx, members);
 

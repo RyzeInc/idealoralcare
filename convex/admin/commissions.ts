@@ -1,6 +1,6 @@
 import { query, mutation } from "../_generated/server";
 import { v } from "convex/values";
-import { requireAdmin } from "../lib/authGuards";
+import { requireAccess } from "../lib/authGuards";
 
 /**
  * COMMISSION MANAGEMENT
@@ -10,7 +10,7 @@ import { requireAdmin } from "../lib/authGuards";
 /** All commission rates */
 export const getAllRates = query({
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "commissions.view");
     return await ctx.db.query("commissionRates").collect();
   },
 });
@@ -19,7 +19,7 @@ export const getAllRates = query({
 export const getRatesForBroker = query({
   args: { brokerId: v.string() },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "commissions.view");
     return await ctx.db
       .query("commissionRates")
       .withIndex("by_broker", (q) => q.eq("brokerId", args.brokerId))
@@ -39,7 +39,7 @@ export const upsertRate = mutation({
     effectiveFrom: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "commissions.manage");
     const identity = await ctx.auth.getUserIdentity();
     const existing = await ctx.db
       .query("commissionRates")
@@ -76,7 +76,7 @@ export const upsertRate = mutation({
 export const deactivateRate = mutation({
   args: { id: v.id("commissionRates") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "commissions.manage");
     await ctx.db.patch(args.id, { status: "inactive", updatedAt: Date.now() });
   },
 });
@@ -88,7 +88,7 @@ export const getAllPayables = query({
     status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "commissions.view");
     const all = await ctx.db.query("commissionPayables").collect();
     return all.filter((p: any) => {
       if (args.brokerId && p.brokerId !== args.brokerId) return false;
@@ -121,7 +121,7 @@ function isReportablePayable(p: { keySpace?: string }): boolean {
  */
 export const getBrokerCommissions = query({
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "commissions.view");
 
     const [rates, partners, leaders, payables] = await Promise.all([
       ctx.db.query("commissionRates").collect(),
@@ -194,7 +194,7 @@ export const getBrokerCommissions = query({
 export const getCommissionLedgerHealth = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "commissions.view");
     const payables = await ctx.db.query("commissionPayables").collect();
 
     let reportable = 0;
@@ -230,7 +230,7 @@ export const markAsPaid = mutation({
     paymentNote: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "commissions.manage");
     for (const id of args.payableIds) {
       await ctx.db.patch(id, {
         status: "paid",
@@ -245,7 +245,7 @@ export const markAsPaid = mutation({
 /** Pending commissions for export */
 export const getPendingCommissions = query({
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "commissions.view");
     return await ctx.db
       .query("commissionPayables")
       .filter((q: any) => q.eq(q.field("status"), "pending"))
@@ -257,7 +257,7 @@ export const getPendingCommissions = query({
 export const getCommissionsByBroker = query({
   args: { brokerId: v.string() },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "commissions.view");
     const records = await ctx.db
       .query("commissionPayables")
       .filter((q: any) => q.eq(q.field("brokerId"), args.brokerId))

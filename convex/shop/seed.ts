@@ -1,5 +1,5 @@
 import { mutation } from "../_generated/server";
-import { requireAdmin } from "../lib/authGuards";
+import { requireAccess } from "../lib/authGuards";
 import { recordAdminAction } from "../admin/adminAudit";
 
 /**
@@ -28,7 +28,7 @@ import { recordAdminAction } from "../admin/adminAudit";
 export const seedCategories = mutation({
   args: {},
   handler: async (ctx) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "content.manage");
 
     const existing = await ctx.db.query("shopCategories").first();
     if (existing) {

@@ -2,13 +2,14 @@ import { action, internalMutation, mutation, query } from "../_generated/server"
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
-import { requireAdmin, requireAuth } from "../lib/authGuards";
+import { requireAuth, requireAccess } from "../lib/authGuards";
 import { getBaseUrl } from "../lib/env";
 import { sendViaResend } from "../lib/resend";
 import { EMAIL_TEMPLATES } from "../lib/emailTemplates";
 import { autoGrantFreeAccess } from "./grantFreeAccess";
 import { recordAdminAction } from "./adminAudit";
 import { collectDescendantPartnerIds } from "../insights/scope";
+import { importLegacyForClerkUser } from "../lib/access/provision";
 
 const partnerTypeValidator = v.union(
   v.literal("program_manager"),
@@ -52,7 +53,7 @@ function validateTerms(effectiveDate?: string, terminationDate?: string) {
 export const getWorkspace = query({
   args: { partnerId: v.id("distributionPartners") },
   handler: async (ctx, { partnerId }) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.view");
     const partner = await ctx.db.get(partnerId);
     if (!partner) return null;
     const [leaders, children, members, activeMembers, activity, applications, upline, descendantIds] = await Promise.all([
@@ -93,7 +94,7 @@ export const getWorkspace = query({
 export const getAll = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.view");
     return await ctx.db.query("distributionPartners").collect();
   },
 });
@@ -114,7 +115,7 @@ export const getAll = query({
 export const getAllWithStats = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.view");
     const [partners, leaders, members, codes, sessions] = await Promise.all([
       ctx.db.query("distributionPartners").collect(),
       ctx.db.query("partnerLeaders").collect(),
@@ -201,7 +202,7 @@ export const getAllWithStats = query({
 export const getProgramManagers = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.view");
     return await ctx.db
       .query("distributionPartners")
       .withIndex("by_type", (q) => q.eq("type", "program_manager"))
@@ -225,7 +226,7 @@ export const getByInviteToken = query({
 export const getLeadersByPartner = query({
   args: { partnerId: v.id("distributionPartners") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.view");
     return await ctx.db
       .query("partnerLeaders")
       .withIndex("by_partner", (q) => q.eq("partnerId", args.partnerId))
@@ -239,7 +240,7 @@ export const getLeadersByPartner = query({
 export const _verifyAdmin = internalMutation({
   args: {},
   handler: async (ctx) => {
-    return await requireAdmin(ctx);
+    return await requireAccess(ctx, "partners.manage");
   },
 });
 
@@ -331,7 +332,7 @@ export const update = mutation({
     npn: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "partners.manage");
     const { id, parentId, overrideRate, ...fields } = args;
     const current = await ctx.db.get(id);
     if (!current) throw new Error("Partner not found");
@@ -398,7 +399,7 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("distributionPartners") },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "partners.manage");
     const partner = await ctx.db.get(args.id);
     if (!partner) throw new Error("Partner not found");
     // Deleting an upline would leave its children pointing at a missing id.
@@ -437,7 +438,7 @@ export const updateLeader = mutation({
     reportScope: v.optional(reportScopeValidator),
   },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "partners.manage");
     const { leaderId, ...updates } = args;
     const leader = await ctx.db.get(leaderId);
     if (!leader) throw new Error("Team member not found");
@@ -459,7 +460,7 @@ export const updateLeader = mutation({
 export const removeLeader = mutation({
   args: { leaderId: v.id("partnerLeaders") },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "partners.manage");
     const leader = await ctx.db.get(args.leaderId);
     if (!leader) return;
     await ctx.db.delete(args.leaderId);
@@ -477,7 +478,7 @@ export const removeLeader = mutation({
 export const setPrimaryLeader = mutation({
   args: { leaderId: v.id("partnerLeaders") },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "partners.manage");
     const leader = await ctx.db.get(args.leaderId);
     if (!leader) throw new Error("Team member not found");
     const team = await ctx.db
@@ -512,7 +513,7 @@ export const _setInviteToken = mutation({
     expiry: v.number(),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.manage");
     await ctx.db.patch(args.partnerId, {
       inviteToken: args.token,
       inviteStatus: "pending",
@@ -526,7 +527,7 @@ export const _setInviteToken = mutation({
 export const _verifyAdminForInvite = mutation({
   args: { partnerId: v.id("distributionPartners") },
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.manage");
   },
 });
 
@@ -570,6 +571,8 @@ export const claimInvite = mutation({
         `Free access granted on partner invite claim — ${leader.name} @ ${partner.name} (${partner.type})`
       );
 
+      await importLegacyForClerkUser(ctx, identity.clerkUserId);
+
       return { partnerId: partner._id, partnerName: partner.name };
     }
 
@@ -599,6 +602,8 @@ export const claimInvite = mutation({
       identity.clerkUserId,
       `Free access granted on partner invite claim — ${partner.name} (${partner.type})`
     );
+
+    await importLegacyForClerkUser(ctx, identity.clerkUserId);
 
     return { partnerId: partner._id, partnerName: partner.name };
   },
@@ -653,7 +658,7 @@ const onboardingArgs = {
 export const _createOnboarding = internalMutation({
   args: { ...onboardingArgs, token: v.string() },
   handler: async (ctx, args) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "partners.manage");
     validateContact(args.contactName, args.contactEmail);
     validateRate(args.overrideRate);
     validateTerms(args.effectiveDate || undefined);
@@ -683,7 +688,7 @@ export const _createOnboarding = internalMutation({
 export const _recordInviteResult = internalMutation({
   args: { leaderId: v.id("partnerLeaders"), sent: v.boolean() },
   handler: async (ctx, { leaderId, sent }) => {
-    const identity = await requireAdmin(ctx);
+    const identity = await requireAccess(ctx, "partners.manage");
     const leader = await ctx.db.get(leaderId);
     if (!leader) return;
     await recordAdminAction(ctx, identity, { action: sent ? "partner.invite_sent" : "partner.invite_failed", targetType: "distributionPartner", targetId: leader.partnerId, summary: `${sent ? "Invite sent" : "Invite email failed"} for ${leader.name}` });
@@ -816,7 +821,7 @@ export const sendLeaderInvite = action({
 export const getLeaderById = query({
   args: { leaderId: v.id("partnerLeaders") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "partners.view");
     return await ctx.db.get(args.leaderId);
   },
 });

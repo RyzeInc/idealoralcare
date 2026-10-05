@@ -6,14 +6,14 @@
 
 import { mutation, internalMutation } from "../_generated/server";
 import { v } from "convex/values";
-import { requireAdmin } from "../lib/authGuards";
+import { requireAccess } from "../lib/authGuards";
 
 // Seed initial catalog data
 export const seedInitialData = mutation({
   args: {},
   handler: async (ctx: any) => {
     // Admin-only access
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "system.manage");
     
     // Check if products already exist
     const existing = await ctx.db.query("catalogProducts").collect();
@@ -136,7 +136,7 @@ export const reseedData = mutation({
   args: {},
   handler: async (ctx: any) => {
     // Admin-only access
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "system.manage");
     
     // Get all existing products
     const existing = await ctx.db.query("catalogProducts").collect();

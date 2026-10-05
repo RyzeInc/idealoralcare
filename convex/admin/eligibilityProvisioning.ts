@@ -29,7 +29,7 @@
 import { action, internalMutation, internalQuery, internalAction, query, mutation } from "../_generated/server";
 import { v, ConvexError } from "convex/values";
 import { api, internal } from "../_generated/api";
-import { requireAdmin, requireAdminAction } from "../lib/authGuards";
+import { requireAccess, requireAccessAction } from "../lib/authGuards";
 
 const BATCH_DELAY_MS = 250; // small stagger between Clerk API calls
 
@@ -44,7 +44,7 @@ const BATCH_DELAY_MS = 250; // small stagger between Clerk API calls
 export const getProvisionableMembersForFile = query({
   args: { fileId: v.id("eligibilityFiles") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "eligibility.view");
     const all = await ctx.db
       .query("memberProfiles")
       .filter((q) => q.eq(q.field("eligibilityFileId"), args.fileId))
@@ -87,7 +87,7 @@ export const getProvisionableMembersForFile = query({
 export const getAllMembersForFile = query({
   args: { fileId: v.id("eligibilityFiles") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "eligibility.view");
 
     // Get the file so we know its groupId
     const file = await ctx.db.get(args.fileId);
@@ -379,7 +379,7 @@ export const provisionEligibilityFile = action({
   handler: async (ctx, args): Promise<ProvisionResult> => {
     try {
       // @ts-ignore - same pattern as elsewhere to avoid deep instantiation
-      await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+      await requireAccessAction(ctx, "eligibility.manage");
     } catch (authErr: any) {
       console.error("[provisionEligibilityFile] Auth check failed:", authErr?.message ?? authErr);
       throw new ConvexError(authErr?.message ?? "Unauthorized");
@@ -933,7 +933,7 @@ export const resendInvite = action({
   args: { memberProfileId: v.id("memberProfiles") },
   handler: async (ctx, args): Promise<{ success: boolean; message: string }> => {
     // @ts-ignore
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "eligibility.manage");
 
     const secret = process.env.CLERK_SECRET_KEY;
     if (!secret) throw new Error("CLERK_SECRET_KEY not set");
@@ -970,7 +970,7 @@ export const bulkResendWelcomeEmails = action({
     errors: Array<{ email: string; message: string }>;
   }> => {
     // @ts-ignore
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "eligibility.manage");
 
     const secret = process.env.CLERK_SECRET_KEY;
     if (!secret) throw new ConvexError("CLERK_SECRET_KEY env var is not set on Convex deployment");
@@ -1177,7 +1177,7 @@ export const backfillDependentsForFile = action({
   args: { fileId: v.id("eligibilityFiles") },
   handler: async (ctx, args): Promise<{ created: number; skipped: number; errors: string[] }> => {
     // @ts-ignore
-    await requireAdminAction(ctx, api.admin.adminUsers.isAdmin);
+    await requireAccessAction(ctx, "eligibility.manage");
     return await ctx.runMutation(
       internal.admin.eligibility.internalBackfillDependents,
       { fileId: args.fileId }

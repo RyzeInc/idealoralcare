@@ -26,7 +26,7 @@
 
 import { query, mutation } from "../_generated/server";
 import { v } from "convex/values";
-import { requireAdmin } from "../lib/authGuards";
+import { requireAccess } from "../lib/authGuards";
 
 /** Strip non-numeric chars — the fallback uniqueId derivation (mirrors vendorFiles.ts). */
 function toUniqueId(memberId: string): string {
@@ -49,7 +49,7 @@ function isDerivedIdProblematic(memberId: string): boolean {
 export const getMemberIdHealthReport = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "system.manage");
 
     const members = await ctx.db
       .query("memberProfiles")
@@ -120,7 +120,7 @@ export const getMemberIdHealthReport = query({
 export const getAllMembersWithResolvedIds = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "system.manage");
 
     const members = await ctx.db
       .query("memberProfiles")
@@ -173,7 +173,7 @@ export const getAllMembersWithResolvedIds = query({
 export const getMembersNeedingIdBackfill = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "system.manage");
 
     const members = await ctx.db
       .query("memberProfiles")
@@ -230,7 +230,7 @@ export const backfillCareingtonUniqueIds = mutation({
     dryRun: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "system.manage");
 
     const problematicOnly = args.problematicOnly ?? true;
     const dryRun = args.dryRun ?? false;

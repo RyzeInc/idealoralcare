@@ -1370,6 +1370,47 @@ function partnerInviteHtml(data: PartnerInviteEmailData): string {
     </div>`;
 }
 
+export interface AccessInviteEmailData {
+  recipientName: string;
+  roles: string[];
+  claimUrl: string;
+  expiresInDays: number;
+}
+
+function accessInviteHtml(data: AccessInviteEmailData): string {
+  const roles = data.roles.map((role) => `<li style="margin: 4px 0;">${escapeHtml(role)}</li>`).join("");
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+      <div style="background: linear-gradient(135deg, #0066CC 0%, #14b8a6 100%); color: white; padding: 24px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+        <h1 style="margin: 0; font-size: 24px;">You're invited to Ideal Oral Health</h1>
+      </div>
+      <div style="padding: 32px; background: #f9fafb; border-radius: 0 0 8px 8px;">
+        <p style="font-size: 16px;">Hi ${escapeHtml(data.recipientName)},</p>
+        <p style="font-size: 15px; line-height: 1.6;">An administrator set up an account for you with the following access:</p>
+        <ul style="font-size: 15px; line-height: 1.5; padding-left: 20px;">${roles}</ul>
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin: 24px 0; text-align: center;">
+          <p style="font-size: 15px; color: #374151; margin: 0 0 16px 0;">
+            Sign in or create your account with this email address to accept.
+          </p>
+          <a href="${data.claimUrl}"
+            style="display: inline-block; padding: 14px 32px; background: #0066CC; color: white; font-weight: 700; font-size: 16px; text-decoration: none; border-radius: 8px;">
+            Accept invitation
+          </a>
+          <p style="font-size: 12px; color: #9ca3af; margin: 16px 0 0 0;">This link expires in ${data.expiresInDays} days and works only for this email address.</p>
+        </div>
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+        <p style="font-size: 13px; color: #6b7280; line-height: 1.5;">
+          Didn't expect this? You can ignore it. Questions? Contact us at
+          <a href="mailto:${SUPPORT_EMAIL}" style="color: #0066CC;">${SUPPORT_EMAIL}</a>.
+        </p>
+      </div>
+    </div>`;
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+}
+
 function connectivityTestHtml(): string {
   return `
       <html>
@@ -1698,6 +1739,24 @@ export const EMAIL_TEMPLATES = {
       partnerName: "Summit Benefits Group",
       typeLabel: "Agency Partner",
       claimUrl: `${getBaseUrl()}/partner/claim?token=TEST_TOKEN`,
+    }),
+  }),
+
+  "access-invite": defineTemplate<AccessInviteEmailData>({
+    label: "Access Invitation",
+    description: "Invites a person to sign in with the roles and access an admin set up for them.",
+    category: "admin",
+    status: "live",
+    trigger: "convex/access/invites.ts → invitePerson / resendInvite (Access & Roles)",
+    render: (data) => ({
+      subject: "Your Ideal Oral Health account invitation",
+      html: accessInviteHtml(data),
+    }),
+    sample: (o) => ({
+      recipientName: `${o.firstName} ${o.lastName}`,
+      roles: ["Broker — Summit Benefits Group", "Rep — Summit Benefits Group"],
+      claimUrl: `${getBaseUrl()}/access/claim?token=TEST_TOKEN`,
+      expiresInDays: 14,
     }),
   }),
 

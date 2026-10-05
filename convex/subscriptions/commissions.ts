@@ -9,7 +9,7 @@ import { v } from "convex/values";
 import { Doc, Id } from "../_generated/dataModel";
 import { QueryCtx, MutationCtx } from "../_generated/server";
 import { resolveBrokerKey } from "../lib/brokerResolve";
-import { requireAdmin } from "../lib/authGuards";
+import { requireAccess } from "../lib/authGuards";
 
 /**
  * Create or update a commission rate for a broker
@@ -26,7 +26,7 @@ export const setCommissionRate = mutation({
     status: v.union(v.literal("active"), v.literal("inactive"), v.literal("archived")),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "commissions.manage");
     // Check if rate already exists and is active
     const existing = await ctx.db
       .query("commissionRates")
@@ -72,7 +72,7 @@ export const getActiveBrokerRate = query({
     siteId: v.optional(v.id("sites")),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "commissions.view");
     const now = Date.now();
 
     // Try site-specific rate first if provided
@@ -136,7 +136,7 @@ export const createCommissionPayable = mutation({
     period: v.string(), // "2026-03"
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "commissions.manage");
     const payableId = await ctx.db.insert("commissionPayables", {
       brokerId: args.brokerId,
       agencyId: args.agencyId,
@@ -172,7 +172,7 @@ export const updateCommissionPayableStatus = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "commissions.manage");
     await ctx.db.patch(args.payableId, {
       status: args.status,
       paidAt: args.paidAt,
@@ -192,7 +192,7 @@ export const getBrokerPendingCommissions = query({
     brokerId: v.string(),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "commissions.view");
     return await ctx.db
       .query("commissionPayables")
       .filter((q) => q.eq(q.field("brokerId"), args.brokerId))
@@ -218,7 +218,7 @@ export const getCommissionsByPeriod = query({
     ),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "commissions.view");
     let query = ctx.db
       .query("commissionPayables")
       .filter((q) => q.eq(q.field("period"), args.period));
@@ -241,7 +241,7 @@ export const calculateBrokerCommissionsForPeriod = query({
     statusFilter: v.optional(v.array(v.string())), // e.g., ["approved", "paid"]
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "commissions.view");
     let query = ctx.db
       .query("commissionPayables")
       .filter((q) => q.eq(q.field("brokerId"), args.brokerId))
@@ -276,7 +276,7 @@ export const getAgencyCommissions = query({
     period: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAccess(ctx, "commissions.view");
     let query = ctx.db
       .query("commissionPayables")
       .filter((q) => q.eq(q.field("agencyId"), args.agencyId));
