@@ -49,7 +49,7 @@ function isDerivedIdProblematic(memberId: string): boolean {
 export const getMemberIdHealthReport = query({
   args: {},
   handler: async (ctx) => {
-    await requireAccess(ctx, "system.manage");
+    await requireAccess(ctx, "vendorFiles.view");
 
     const members = await ctx.db
       .query("memberProfiles")
@@ -120,7 +120,7 @@ export const getMemberIdHealthReport = query({
 export const getAllMembersWithResolvedIds = query({
   args: {},
   handler: async (ctx) => {
-    await requireAccess(ctx, "system.manage");
+    await requireAccess(ctx, "vendorFiles.view");
 
     const members = await ctx.db
       .query("memberProfiles")
@@ -173,7 +173,7 @@ export const getAllMembersWithResolvedIds = query({
 export const getMembersNeedingIdBackfill = query({
   args: {},
   handler: async (ctx) => {
-    await requireAccess(ctx, "system.manage");
+    await requireAccess(ctx, "vendorFiles.view");
 
     const members = await ctx.db
       .query("memberProfiles")
@@ -230,7 +230,7 @@ export const backfillCareingtonUniqueIds = mutation({
     dryRun: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    await requireAccess(ctx, "system.manage");
+    await requireAccess(ctx, "vendorFiles.manage");
 
     const problematicOnly = args.problematicOnly ?? true;
     const dryRun = args.dryRun ?? false;

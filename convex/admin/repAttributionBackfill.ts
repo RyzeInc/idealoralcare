@@ -84,7 +84,7 @@ async function buildResolvers(ctx: any) {
 export const getRepAttributionHealth = query({
   args: {},
   handler: async (ctx) => {
-    await requireAccess(ctx, "system.manage");
+    await requireAccess(ctx, "insights.view");
     const { resolve, leaderIdSet } = await buildResolvers(ctx);
 
     const [sessions, payables, rates, groups] = await Promise.all([
@@ -299,7 +299,7 @@ export const backfillMemberAttributionStamps = mutation({
 export const getAttributionDrift = query({
   args: { sampleSize: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    await requireAccess(ctx, "system.manage");
+    await requireAccess(ctx, "insights.view");
     const sampleSize = Math.min(args.sampleSize ?? 200, 500);
 
     const members = await ctx.db

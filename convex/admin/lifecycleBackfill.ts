@@ -145,7 +145,7 @@ export const backfillTerminatedAt = mutation({
 export const getLifecycleHealth = query({
   args: {},
   handler: async (ctx) => {
-    await requireAccess(ctx, "system.manage");
+    await requireAccess(ctx, "insights.view");
     const members = await ctx.db.query("memberProfiles").collect();
 
     let exited = 0;

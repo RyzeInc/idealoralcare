@@ -5,7 +5,7 @@ import { requireAccess } from "../lib/authGuards";
 export const getSiteIntegrations = query({
   args: { siteId: v.id("sites") },
   handler: async (ctx, { siteId }) => {
-    await requireAccess(ctx, "system.manage");
+    await requireAccess(ctx, "groups.manage");
     return await ctx.db
       .query("siteIntegrations")
       .withIndex("by_site", (q) => q.eq("siteId", siteId))
@@ -31,7 +31,7 @@ export const upsertSiteIntegrations = mutation({
     carrierName: v.optional(v.string()),
   },
   handler: async (ctx, { siteId, ...fields }) => {
-    await requireAccess(ctx, "system.manage");
+    await requireAccess(ctx, "groups.manage");
     const existing = await ctx.db
       .query("siteIntegrations")
       .withIndex("by_site", (q) => q.eq("siteId", siteId))
