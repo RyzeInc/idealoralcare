@@ -33,6 +33,7 @@ import { Building2, CornerDownLeft, Search, User } from 'lucide-react';
 import { api } from '@/convex/_generated/api';
 import { matchesQuery, navDestinations } from '@/lib/admin-nav';
 import { navIcon } from './nav-icons';
+import { canSee } from '@/convex/lib/access/catalog';
 
 interface Hit {
   id: string;
@@ -67,6 +68,7 @@ export function AdminCommandPalette({
       navDestinations({
         isOwner: profile?.role === 'owner',
         isStaff: profile !== null && profile !== undefined,
+        canSee: profile?.permissions ? (href: string) => canSee(profile.permissions, href) : undefined,
       }),
     [profile],
   );

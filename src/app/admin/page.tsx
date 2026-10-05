@@ -7,8 +7,48 @@ import { api } from "@/convex/_generated/api";
 import { useState, useEffect } from "react";
 import { SkeletonText, SkeletonCard } from "@/components/admin/ui";
 import { formatDate } from "@/lib/admin-format";
+import { PAGES, canSee } from "@/convex/lib/access/catalog";
 
-export default function AdminDashboard() {
+/**
+ * The dashboard reads members, billing and system health, so it renders only
+ * for staff whose packs cover all three. Everyone else gets a short list of
+ * the pages their packs open.
+ */
+export default function AdminHome() {
+  const profile = useQuery(api.admin.adminUsers.getMyAdminProfile);
+  if (profile === undefined) return <SkeletonCard />;
+  const permissions: readonly string[] = profile?.permissions ?? [];
+  const full = ["insights.view", "members.view", "billing.view"].every((p) => permissions.includes(p));
+  return full ? <AdminDashboard /> : <StarterHome name={profile?.name} permissions={permissions} />;
+}
+
+function StarterHome({ name, permissions }: { name?: string; permissions: readonly string[] }) {
+  const pages = PAGES.filter((page) => page.portal === "admin" && page.href !== "/admin" && canSee(permissions, page.href));
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-slate-900 mb-1">Welcome{name ? `, ${name.split(" ")[0]}` : ""}</h1>
+        <p className="text-slate-500">These are the areas your access includes.</p>
+      </div>
+      {pages.length ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {pages.map((page) => (
+            <Link key={page.href} href={page.href} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 hover:border-blue-300 hover:shadow-sm">
+              <span className="font-medium text-slate-800">{page.label}</span>
+              <ArrowRight size={16} className="text-slate-400" />
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          Your account doesn&apos;t include any admin tools yet. Ask an administrator to add an access pack to your staff role.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AdminDashboard() {
   const grantAccess = useMutation(api.admin.grantFreeAccess.grantMeFullAccess);
   const [isGranting, setIsGranting] = useState(false);
   const [grantStatus, setGrantStatus] = useState<null | { success: boolean; message: string }>(null);

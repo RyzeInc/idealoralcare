@@ -303,6 +303,7 @@ export const PAGES: PageAccess[] = [
   { portal: "admin", href: "/admin/customer-service", label: "Customer Service", anyOf: ["support.use"] },
   { portal: "admin", href: "/admin/communications", label: "Communications", anyOf: ["support.use"] },
   { portal: "admin", href: "/admin/access", label: "Access & Roles", anyOf: ["access.manage"] },
+  { portal: "admin", href: "/admin/users", label: "Legacy staff list", anyOf: ["access.manage"] },
   { portal: "admin", href: "/admin/user-audit", label: "User Lookup", anyOf: ["audit.view"] },
   { portal: "admin", href: "/admin/audit-log", label: "Audit Log", anyOf: ["audit.view"] },
   { portal: "admin", href: "/admin/settings", label: "Site Settings", anyOf: ["content.manage"] },

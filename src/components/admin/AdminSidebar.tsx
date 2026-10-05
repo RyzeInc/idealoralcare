@@ -14,6 +14,7 @@ import {
   type AdminNavSection,
 } from "@/lib/admin-nav";
 import { navIcon } from "./nav-icons";
+import { canSee } from "@/convex/lib/access/catalog";
 
 const COLLAPSE_KEY = "admin-nav-collapsed-sections";
 
@@ -109,14 +110,16 @@ export function AdminSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const profile = useQuery(api.admin.adminUsers.getMyAdminProfile, isLoaded ? {} : "skip");
   const isOwner = profile?.role === "owner";
   const isStaff = profile !== null && profile !== undefined;
+  const permissions = profile?.permissions;
+  const canSeePage = useMemo(() => (permissions ? (href: string) => canSee(permissions, href) : undefined), [permissions]);
 
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const collapsed = useSyncExternalStore(subscribeCollapsed, readCollapsed, () => NO_SECTIONS);
 
   const sections: AdminNavSection[] = useMemo(
-    () => visibleNavigation({ isOwner, isStaff }),
-    [isOwner, isStaff],
+    () => visibleNavigation({ isOwner, isStaff, canSee: canSeePage }),
+    [isOwner, isStaff, canSeePage],
   );
 
   const allHrefs = useMemo(

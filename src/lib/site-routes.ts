@@ -444,6 +444,8 @@ export const SITE_ROUTES: SiteRoute[] = [
   },
 
   // ─── Employer eligibility intake ────────────────────────────────────────
+  { path: "/access", title: "My access", purpose: "A signed-in person's roles, the portals they can open, and which partner role the partner portal shows.", area: "Registration", auth: "member" },
+  { path: "/access/claim", title: "Accept invitation", purpose: "Sign in or create an account with the invited email, then accept the roles an admin set up.", area: "Registration", auth: "none", notes: "The emailed link is single-use, expires in 14 days, and only works for the invited verified email." },
   { path: "/employer", title: "Employer entry", purpose: "Redirects signed-in contacts to the eligibility upload page.", area: "Employer portal", auth: "employer" },
   { path: "/employer/upload", title: "Eligibility upload", purpose: "Approved contacts submit rosters and see receipts for their authorized organizations.", area: "Employer portal", auth: "employer", notes: "Account creation grants no organization access; staff authorize verified contact addresses." },
   { path: "/employer/sign-in/*", title: "Employer sign in", purpose: "Clerk sign-in for employer and broker upload contacts.", area: "Employer portal", auth: "none" },
@@ -635,9 +637,16 @@ export const SITE_ROUTES: SiteRoute[] = [
     auth: "staff",
   },
   {
+    path: "/admin/access",
+    title: "Access & roles",
+    purpose: "Invite people, give them one or more roles, assign and edit access packs, preview access, and import existing accounts.",
+    area: "Admin console",
+    auth: "staff",
+  },
+  {
     path: "/admin/users",
-    title: "Admin users",
-    purpose: "Invite teammates and manage admin access.",
+    title: "Admin users (legacy)",
+    purpose: "The older staff list and staff invitations; changes stay in step with Access & roles.",
     area: "Admin console",
     auth: "staff",
   },
@@ -966,6 +975,7 @@ export const API_GROUPS: ApiGroup[] = [
  * search results.
  */
 export const ROBOTS_DISALLOW: string[] = [
+  "/access",
   "/employer",
   "/admin",
   "/partner",

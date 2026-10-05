@@ -36,7 +36,9 @@ export default async function AdminLayout({
         const portal = await convex
           .query(api.admin.adminUsers.getMyPortal, {})
           .catch(() => null);
-        redirect(portal?.portal === "partner" ? "/partner" : "/health");
+        redirect(
+          portal?.portal === "partner" ? "/partner" : portal?.portal === "employer" ? "/employer/upload" : "/health",
+        );
       }
     }
   } catch (error) {

@@ -135,7 +135,16 @@ export const ADMIN_NAVIGATION: AdminNavSection[] = [
   {
     section: "System",
     items: [
-      { label: "Admin Users", href: "/admin/users", icon: "ShieldCheck", tooltip: "Invite teammates and manage admin access.", keywords: ["staff", "permissions", "roles", "invite"] },
+      {
+        label: "Access & Roles",
+        href: "/admin/access",
+        icon: "ShieldCheck",
+        tooltip: "Invite people, give them roles, and manage access packs.",
+        keywords: ["admin users", "staff", "permissions", "roles", "invite", "packs", "brokers", "carriers"],
+        children: [
+          { label: "Legacy staff list", href: "/admin/users", icon: "ShieldCheck", tooltip: "The older staff list and staff invitations.", keywords: ["admin users"] },
+        ],
+      },
       { label: "User Lookup", href: "/admin/user-audit", icon: "UserSearch", tooltip: "Look up a person across Clerk, Convex & Toothlens; fix or delete identity records.", keywords: ["clerk", "identity", "duplicate", "delete user"] },
       { label: "Audit Log", href: "/admin/audit-log", icon: "ClipboardList", tooltip: "System-wide append-only audit trail of admin actions.", keywords: ["history", "who changed", "trail", "compliance"] },
       { label: "Site Settings", href: "/admin/settings", icon: "Settings", tooltip: "Global site text (name, contact, social). For branding, domain & integrations use Hierarchy → Edit Site.", keywords: ["contact", "social", "footer", "config"] },
@@ -155,11 +164,19 @@ export const ADMIN_NAVIGATION: AdminNavSection[] = [
 export interface VisibilityContext {
   isOwner: boolean;
   isStaff: boolean;
+  /**
+   * Whether the viewer's access packs open a page (see canSee in
+   * convex/lib/access/catalog.ts). Passed in rather than imported so this
+   * module stays import-free. Omitted means "not loaded yet": hide nothing extra.
+   */
+  canSee?: (href: string) => boolean;
 }
 
 export function isItemVisible(item: AdminNavItem, ctx: VisibilityContext): boolean {
   if (item.requireOwner && !ctx.isOwner) return false;
   if (item.requireStaff && !ctx.isStaff) return false;
+  // A convenience only: every page's functions check their own permission.
+  if (ctx.canSee && !ctx.canSee(item.href)) return false;
   return true;
 }
 

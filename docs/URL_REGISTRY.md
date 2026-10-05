@@ -82,6 +82,8 @@ Public lead capture. These feed the Partner Kit Leads and Partner Applications q
 | `/register/partnerkit` | Agency and business registration form requesting the partner kit.<br><em>Feeds Admin → Partner Kit Leads.</em> | Public | Yes |
 | `/register/rep` | Onboarding submission for brokers, agencies, and front-line reps.<br><em>Feeds Admin → Partner Applications.</em> | Public | Yes |
 | `/:repSlug` | Any unreserved single-segment path resolves against the rep-code table, records the visit, and redirects to /health/plans?ref=CODE with a 90-day attribution cookie.<br><em>Handled in src/proxy.ts, ahead of auth. Reserved segments are listed in src/lib/rep-routing/reserved.ts — adding a top-level route means adding it there too, or a rep slug can shadow it.</em> | Public | — |
+| `/access` | A signed-in person's roles, the portals they can open, and which partner role the partner portal shows. | Member | — |
+| `/access/claim` | Sign in or create an account with the invited email, then accept the roles an admin set up.<br><em>The emailed link is single-use, expires in 14 days, and only works for the invited verified email.</em> | Public | — |
 
 ## White-label
 
@@ -171,7 +173,7 @@ Internal staff only. Ordered below as the sidebar orders it.
 
 | Path | Purpose | Access | Sitemap |
 | --- | --- | --- | --- |
-| `/admin/users` | Invite teammates and manage admin access. | Staff | — |
+| `/admin/access` | Invite people, give them one or more roles, assign and edit access packs, preview access, and import existing accounts. | Staff | — |
 | `/admin/user-audit` | Reconcile one person across Clerk, Convex, and Toothlens; repair or delete identity records. | Staff | — |
 | `/admin/audit-log` | Append-only, system-wide trail of admin actions. | Staff | — |
 | `/admin/settings` | Global site text: name, contact details, social links.<br><em>Branding, domain, and integrations live under Hierarchy → Edit Site, not here.</em> | Staff | — |
@@ -195,6 +197,7 @@ Internal staff only. Ordered below as the sidebar orders it.
 | `/admin/vendor-statements/:statementId` | One locked statement with its document and line detail. | Staff | — |
 | `/admin/vendor-statements/activity` | Cross-vendor history of generation, locking, and delivery. | Staff | — |
 | `/admin/vendor-statements/disclosure` | Controls which columns each vendor sees on their statement. | Staff | — |
+| `/admin/users` | The older staff list and staff invitations; changes stay in step with Access & roles. | Staff | — |
 | `/admin/docs/:section/:slug` | A single SOP or guide chapter, compiled from docs/admin/**. | Staff | — |
 
 ## CRM
@@ -365,6 +368,7 @@ POST /api/test-email
 `robots.txt` disallows:
 
 ```
+Disallow: /access
 Disallow: /employer
 Disallow: /admin
 Disallow: /partner

@@ -18,6 +18,7 @@ export const RESERVED_PATHS = new Set([
   "admin",
   "partner",
   "employer",
+  "access",
   "api",
   "health",
   "newideal",

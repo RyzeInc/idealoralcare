@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useConvexAuth, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
+import { canSee } from "@/convex/lib/access/catalog";
 import { UserButton } from "@clerk/nextjs";
 import {
   LayoutDashboard,
@@ -43,12 +45,20 @@ export function PartnerSidebar() {
   // hold its own query back until the JWT has reached Convex.
   const { isAuthenticated } = useConvexAuth();
   const scope = useQuery(api.insights.scope.getMyScope, isAuthenticated ? {} : "skip");
+  const mine = useQuery(api.access.me.getMyAccess, isAuthenticated ? {} : "skip");
+  const setActive = useMutation(api.access.me.setActivePartnerRole);
+  const partnerRoles = mine?.roles.filter((role) => role.partnerPortal) ?? [];
 
   const isActive = (href: string) =>
     href === "/partner" ? pathname === "/partner" : pathname?.startsWith(href);
 
   // Reps have no downline; hide the tab rather than showing them an empty tree.
-  const visible = NAV.filter((item) => !item.requiresDownline || scope?.canSeeDownline);
+  // Pages their access packs do not include are hidden too (staff see all).
+  const visible = NAV.filter(
+    (item) =>
+      (!item.requiresDownline || scope?.canSeeDownline) &&
+      (!mine || mine.isStaff || canSee(mine.permissions, item.href)),
+  );
 
   return (
     <aside className="w-60 min-h-screen bg-slate-900 text-white flex flex-col shrink-0">
@@ -61,6 +71,22 @@ export function PartnerSidebar() {
           <span className="inline-block mt-2 text-[10px] uppercase tracking-wide bg-slate-800 text-slate-300 rounded px-1.5 py-0.5">
             {scope.partnerType.replace(/_/g, " ")}
           </span>
+        )}
+        {partnerRoles.length > 1 && (
+          <label className="mt-3 block text-[11px] text-slate-400">
+            Viewing as
+            <select
+              className="mt-1 w-full rounded bg-slate-800 px-2 py-1 text-xs text-white"
+              value={mine?.activePartnerRoleId ?? ""}
+              onChange={(e) => void setActive({ roleId: e.target.value as Id<"accessRoles"> })}
+            >
+              {partnerRoles.map((role) => (
+                <option key={role.roleId} value={role.roleId}>
+                  {role.description}
+                </option>
+              ))}
+            </select>
+          </label>
         )}
       </div>
 
@@ -87,6 +113,12 @@ export function PartnerSidebar() {
       </nav>
 
       <div className="px-3 py-4 border-t border-slate-800 space-y-2">
+        <Link
+          href="/access"
+          className="flex items-center gap-2 px-3 py-2 text-xs text-slate-400 hover:text-white transition-colors"
+        >
+          My access
+        </Link>
         <Link
           href="/health"
           className="flex items-center gap-2 px-3 py-2 text-xs text-slate-400 hover:text-white transition-colors"

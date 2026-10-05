@@ -8,6 +8,7 @@ import {
   visibleNavigation,
   type AdminNavItem,
 } from "../admin-nav";
+import { canSee } from "@/convex/lib/access/catalog";
 
 const STAFF = { isOwner: false, isStaff: true };
 const OWNER = { isOwner: true, isStaff: true };
@@ -86,6 +87,17 @@ describe("visibility", () => {
   it("hides the CRM from anyone without an admin record", () => {
     const hrefs = visibleNavigation(OUTSIDER).flatMap((s) => s.items.map((i) => i.href));
     expect(hrefs).not.toContain("/admin/crm");
+  });
+
+  it("shows only the pages a person's access packs open", () => {
+    const support = ["members.view", "support.use"];
+    const ctx = { ...STAFF, canSee: (href: string) => canSee(support, href) };
+    const hrefs = visibleNavigation(ctx).flatMap((s) => s.items.map((i) => i.href));
+    expect(hrefs).toEqual(expect.arrayContaining(["/admin/members", "/admin/customer-service", "/admin/help"]));
+    expect(hrefs).not.toContain("/admin/billing");
+    expect(hrefs).not.toContain("/admin/crm");
+    expect(hrefs).not.toContain("/admin/access");
+    expect(navDestinations(ctx).some((d) => d.href.startsWith("/admin/crm"))).toBe(false);
   });
 
   it("drops sections that end up empty rather than rendering a bare heading", () => {
