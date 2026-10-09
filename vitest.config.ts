@@ -15,6 +15,8 @@ export default defineConfig({
       STRIPE_SECRET_KEY: "sk_test_mock_key_for_tests",
       NEXT_PUBLIC_CONVEX_URL: "https://convex.test",
       NEXT_PUBLIC_APP_URL: "https://app.test",
+      // Lets tests make "our server" calls to functions gated by convex/lib/serviceAuth.ts.
+      CONVEX_SERVICE_SECRET: "test-service-secret-0123456789abcdef0123456789",
     },
     server: {
       deps: {

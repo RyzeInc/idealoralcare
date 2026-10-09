@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { convexServiceSecret } from "@/lib/convex-service";
 import { ConvexHttpClient } from "convex/browser";
 import Stripe from "stripe";
 import { api } from "@/convex/_generated/api";
@@ -21,12 +22,15 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
  */
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = await auth();
+    const { userId, getToken } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || "");
+    // Act as the signed-in admin, so permission checks in Convex apply to them.
+    const convexToken = await getToken({ template: "convex" });
+    if (convexToken) convex.setAuth(convexToken);
 
     // Verify admin role
     const isAdmin = await convex.query(
@@ -81,6 +85,7 @@ export async function POST(req: NextRequest) {
 
       // Update Convex bundle to reflect cancel_at_period_end
       await convex.mutation(api.subscriptions.webhookActions.markCancelAtPeriodEnd, {
+          serviceSecret: convexServiceSecret(),
         bundleId: bundle._id,
         cancelAtPeriodEnd: true,
       });
@@ -90,6 +95,7 @@ export async function POST(req: NextRequest) {
         await convex.action(
           (api as any)["legal/emailFulfillment"].sendMembershipCancelledEmail,
           {
+          serviceSecret: convexServiceSecret(),
             memberName: `${member.firstName} ${member.lastName}`,
             memberEmail: member.email,
             memberId: member.memberId,

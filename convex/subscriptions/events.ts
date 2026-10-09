@@ -1,6 +1,6 @@
 import { defineTable } from "convex/server";
 import { v } from "convex/values";
-import { mutation, query } from "../_generated/server";
+import { mutation, query, internalQuery } from "../_generated/server";
 import { MutationCtx, QueryCtx } from "../_generated/server";
 import { requireAccess } from "../lib/authGuards";
 
@@ -125,7 +125,7 @@ export const logEvent = mutation({
 /**
  * Get events for a specific customer
  */
-export const getEventsByCustomer = query({
+export const getEventsByCustomer = internalQuery({
   args: {
     customerId: v.string(),
     limit: v.optional(v.number()),
@@ -143,7 +143,7 @@ export const getEventsByCustomer = query({
 /**
  * Get events by type
  */
-export const getEventsByType = query({
+export const getEventsByType = internalQuery({
   args: {
     eventType: v.string(),
     limit: v.optional(v.number()),
@@ -186,7 +186,7 @@ export const getRecentEvents = query({
 /**
  * Get events for a bundle
  */
-export const getEventsByBundle = query({
+export const getEventsByBundle = internalQuery({
   args: {
     bundleId: v.id("subscriptionBundles"),
     limit: v.optional(v.number()),
@@ -204,7 +204,7 @@ export const getEventsByBundle = query({
 /**
  * Get events by actor (system, stripe, user, admin)
  */
-export const getEventsByActor = query({
+export const getEventsByActor = internalQuery({
   args: {
     actor: v.string(), // "system" | "stripe" | "user" | "admin"
     limit: v.optional(v.number()),

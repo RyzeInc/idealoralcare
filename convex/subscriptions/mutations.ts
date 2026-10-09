@@ -5,6 +5,7 @@
  */
 
 import { mutation, internalMutation } from "../_generated/server";
+import { requireServiceSecret, serviceSecretArg } from "../lib/serviceAuth";
 import { v } from "convex/values";
 import { Id } from "../_generated/dataModel";
 import { requireSelf, requireAccess } from "../lib/authGuards";
@@ -414,6 +415,7 @@ export const internalLogEvent = internalMutation({
  */
 export const webhookCreateBundle = mutation({
   args: {
+    serviceSecret: serviceSecretArg,
     customerId: v.string(),
     cadence: v.union(v.literal("monthly"), v.literal("annual")),
     paymentMethod: v.union(v.literal("card"), v.literal("ach")),
@@ -426,6 +428,7 @@ export const webhookCreateBundle = mutation({
     currentPeriodEnd: v.number(),
   },
   handler: async (ctx, args) => {
+    requireServiceSecret(args.serviceSecret);
     const now = Date.now();
     const bundleId = await ctx.db.insert("subscriptionBundles", {
       customerId: args.customerId,
@@ -458,6 +461,7 @@ export const webhookCreateBundle = mutation({
  */
 export const webhookActivateEntitlement = mutation({
   args: {
+    serviceSecret: serviceSecretArg,
     customerId: v.string(),
     bundleId: v.id("subscriptionBundles"),
     productId: v.id("catalogProducts"),
@@ -471,6 +475,7 @@ export const webhookActivateEntitlement = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    requireServiceSecret(args.serviceSecret);
     const now = Date.now();
     const entitlementId = await ctx.db.insert("entitlements", {
       customerId: args.customerId,
@@ -496,6 +501,7 @@ export const webhookActivateEntitlement = mutation({
  */
 export const webhookLogEvent = mutation({
   args: {
+    serviceSecret: serviceSecretArg,
     eventType: v.string(),
     actor: v.union(
       v.literal("system"),
@@ -515,6 +521,7 @@ export const webhookLogEvent = mutation({
     idempotencyKey: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    requireServiceSecret(args.serviceSecret);
     const now = Date.now();
 
     // Check idempotency: if idempotencyKey provided and already logged, return existing

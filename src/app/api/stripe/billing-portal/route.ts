@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { convexServiceSecret } from "@/lib/convex-service";
 import { ConvexHttpClient } from "convex/browser";
 import Stripe from "stripe";
 import { api } from "@/convex/_generated/api";
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
 
     // Fetch the user's active bundle (with Stripe IDs) to get Stripe customer ID
     // @ts-ignore - avoid deep type instantiation issue
-    const bundleResult = await convex.query(api.subscriptions.queries.getCustomerBundleWithStripeIds, {
+    const bundleResult = await convex.query(api.subscriptions.queries.getCustomerBundleWithStripeIds, { serviceSecret: convexServiceSecret(),
       customerId: userId,
     });
     const bundle = bundleResult as any;

@@ -10,6 +10,7 @@
  */
 
 import { getBaseUrl } from "./env";
+import { BFL_BRAND } from "./bflBrand";
 import {
   ESSENTIALS_BFL_GROUP_NUMBER,
   ESSENTIALS_BFL_MEMBER_CODE,
@@ -488,7 +489,7 @@ function essentialsFulfillmentHtml(data: EssentialsFulfillmentEmailData): string
           [
             "Call <strong>833-354-2691</strong> (TTD/TTY same number) any time, day or night.",
             `Or visit <a href="https://balanceforlifebh.com" style="color: #35C48A; text-decoration: none;">balanceforlifebh.com</a> and give Group Number <strong>${ESSENTIALS_BFL_GROUP_NUMBER}</strong> or Member Code <strong>${ESSENTIALS_BFL_MEMBER_CODE}</strong>.`,
-            "Text ZENN, the 24/7 AI wellbeing companion, at 1-561-559-ZENN.",
+            "Download the Balance for Life app on the App Store or Google Play to reach a counselor and Zenn, the 24/7 AI wellness companion.",
           ],
           "Up to 10 no-cost counseling sessions per incident, life coaching, and mindfulness support.",
         )}
@@ -507,6 +508,93 @@ function essentialsFulfillmentHtml(data: EssentialsFulfillmentEmailData): string
           This is a membership program and is NOT insurance. It does not satisfy the Affordable Care Act
           minimum essential coverage requirement and does not cover basic medical needs. Telehealth and
           discount programs are provided through third-party organizations.
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+export interface BflFulfillmentEmailData {
+  memberFirstName: string;
+  essentialsMemberNumber: string;
+  planName: string;
+  effectiveDate: string;
+  memberServicesPhone: string;
+  portalUrl: string;
+}
+
+/** Standalone Balance for Life — the behavioral-health piece of Essentials on its own. */
+function bflFulfillmentHtml(data: BflFulfillmentEmailData): string {
+  // Balance for Life's own palette (lib/bflBrand.ts) — their product, sent by Ideal.
+  const VIOLET = BFL_BRAND.violet500;
+  const TEAL = BFL_BRAND.teal;
+  const logoUrl = `${data.portalUrl.replace(/\/$/, "")}${BFL_BRAND.logo}`;
+  const row = (label: string, value: string, last = false) => `
+            <tr${last ? "" : ' style="border-bottom: 1px solid #f0f0f0;"'}>
+              <td style="padding: 8px 0; color: #666;">${label}</td>
+              <td style="padding: 8px 0; font-weight: bold; text-align: right;">${value}</td>
+            </tr>`;
+  return `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 640px; margin: 0 auto; color: ${BFL_BRAND.ink}; background: ${BFL_BRAND.canvas};">
+      <div style="background: ${BFL_BRAND.heroGradient}; background-color: ${BFL_BRAND.tealSoft}; padding: 28px 24px; text-align: center; border-radius: 12px 12px 0 0;">
+        <img src="${logoUrl}" alt="Balance for Life" width="200" style="display: block; margin: 0 auto 14px; width: 200px; height: auto;" />
+        <h1 style="margin: 0; font-size: 22px; color: ${BFL_BRAND.midnight};">Welcome to Balance for Life</h1>
+        <p style="margin: 8px 0 0; font-size: 14px; color: ${BFL_BRAND.ink};">Behavioral health care, right when you need it &mdash; through Ideal Health</p>
+      </div>
+
+      <div style="padding: 28px 24px;">
+        <p style="font-size: 16px; margin-bottom: 8px;">Hi ${data.memberFirstName},</p>
+        <p style="font-size: 14px; line-height: 1.7;">
+          Your Balance for Life membership is confirmed and <strong>active as of ${data.effectiveDate}</strong>.
+          Your welcome packet, member card and membership agreement are attached as PDFs.
+        </p>
+
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 18px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: ${BFL_BRAND.midnight}; font-size: 14px;">Your Membership Snapshot</h3>
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            ${row("Member Number", data.essentialsMemberNumber)}
+            ${row("Plan", data.planName)}
+            ${row("Balance for Life Group", ESSENTIALS_BFL_GROUP_NUMBER)}
+            ${row("Member Code", ESSENTIALS_BFL_MEMBER_CODE)}
+            ${row("Effective Date", data.effectiveDate, true)}
+          </table>
+        </div>
+
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px;">
+          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${TEAL};">Getting started</h3>
+          <ol style="margin: 0; padding: 0 0 0 20px; font-size: 13px; line-height: 2.0; color: #374151;">
+            <li>Download the <strong>Balance for Life app</strong> on the App Store or Google Play &mdash; Zenn, your AI wellness companion, is there 24/7, and a licensed counselor is one tap away.</li>
+            <li>Or call <strong>833-354-2691</strong> (TTD/TTY same number) any time, day or night.</li>
+            <li>Or visit <a href="https://www.balanceforlifebh.com" style="color: ${TEAL}; text-decoration: none;">balanceforlifebh.com</a>. Give Member Code <strong>${ESSENTIALS_BFL_MEMBER_CODE}</strong> (Group <strong>${ESSENTIALS_BFL_GROUP_NUMBER}</strong>) when asked.</li>
+          </ol>
+        </div>
+
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px;">
+          <h3 style="margin: 0 0 10px; font-size: 15px; color: ${BFL_BRAND.midnight};">What&rsquo;s included</h3>
+          <ul style="margin: 0; padding: 0 0 0 20px; font-size: 13px; line-height: 1.9; color: #374151;">
+            <li>Zenn, an AI wellness companion, 24/7 in 70 languages</li>
+            <li>Up to 10 sessions with a licensed counselor per life event &mdash; video, phone, or in person</li>
+            <li>Live support answered by a counselor, around the clock</li>
+            <li>Life, work-life and wellness coaching, and the six-week Aware Mindfulness program</li>
+            <li>A preferred provider network for inpatient and outpatient care, at additional self-pay cost or through your own insurance</li>
+          </ul>
+        </div>
+
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 18px; margin: 20px 0;">
+          <p style="font-size: 13px; color: #374151; margin: 0; line-height: 1.7;">
+            Questions about your membership? Call Member Services at <strong>${data.memberServicesPhone}</strong>
+            or email <a href="mailto:info@getidealhealth.com" style="color: ${VIOLET}; text-decoration: none;">info@getidealhealth.com</a>,
+            Mon&ndash;Fri 9am&ndash;6pm. In an emergency, call 911, or call or text 988.
+          </p>
+        </div>
+      </div>
+
+      <div style="background: #f3f4f6; padding: 20px 24px; border-radius: 0 0 8px 8px;">
+        <p style="font-size: 11px; color: #9ca3af; line-height: 1.5; margin: 0;">
+          This is a membership program and is NOT insurance. It does not satisfy the Affordable Care Act
+          minimum essential coverage requirement and does not cover basic medical needs. Balance for Life
+          services are provided by a third-party organization. Zenn is an AI wellness companion, not a therapist
+          or an emergency service.
         </p>
       </div>
     </div>
@@ -1470,6 +1558,29 @@ export const EMAIL_TEMPLATES = {
       essentialsGroupNumber: "895794",
       planName: "Essentials Plan \u2014 Employee",
       coverageType: "Employee",
+      effectiveDate: sampleDate(),
+      memberServicesPhone: "844-433-2502",
+      portalUrl: getBaseUrl(),
+    }),
+  }),
+
+  "bfl-fulfillment-packet": defineTemplate<BflFulfillmentEmailData>({
+    label: "Balance for Life Welcome Packet (PDF)",
+    description:
+      "Standalone Balance for Life welcome email with the welcome packet and membership agreement PDFs attached.",
+    category: "member",
+    status: "live",
+    trigger:
+      "src/app/api/stripe/webhook/route.ts \u2192 checkout.session.completed (bfl-* products)",
+    attachments: "essentials-pdfs",
+    render: (data) => ({
+      subject: "Welcome to Balance for Life \u2014 Your Member Support Program",
+      html: bflFulfillmentHtml(data),
+    }),
+    sample: (o) => ({
+      memberFirstName: o.firstName,
+      essentialsMemberNumber: "841716653",
+      planName: "Balance for Life \u2014 Individual",
       effectiveDate: sampleDate(),
       memberServicesPhone: "844-433-2502",
       portalUrl: getBaseUrl(),

@@ -21,6 +21,7 @@ import { QueryCtx } from "../_generated/server";
 import { ViewerScope, isAdminScope } from "./scope";
 import { loadBillingContext, billingFor, type BillingContext } from "./revenue";
 import { TIER_LABEL, type BillingSource, type InvoiceTier } from "../lib/memberBilling";
+import { isDemoMember, withoutDemoMembers } from "../lib/demoMembers";
 
 /**
  * Ceiling on a single scoped read. A book larger than this is paged through
@@ -48,9 +49,9 @@ export async function loadScopedMembers(
   scope: ViewerScope,
 ): Promise<ScopedMembers> {
   if (isAdminScope(scope)) {
-    const members = await ctx.db
-      .query("memberProfiles")
-      .take(MAX_SCOPED_MEMBERS + 1);
+    const members = withoutDemoMembers(
+      await ctx.db.query("memberProfiles").take(MAX_SCOPED_MEMBERS + 1),
+    );
     return {
       members: members.slice(0, MAX_SCOPED_MEMBERS),
       truncated: members.length > MAX_SCOPED_MEMBERS,
@@ -64,7 +65,7 @@ export async function loadScopedMembers(
   const push = (rows: Doc<"memberProfiles">[]) => {
     for (const row of rows) {
       const key = String(row._id);
-      if (seen.has(key)) continue;
+      if (seen.has(key) || isDemoMember(row)) continue;
       if (members.length >= MAX_SCOPED_MEMBERS) {
         truncated = true;
         return;

@@ -1,8 +1,8 @@
-import { mutation } from "../_generated/server";
+import { mutation, internalMutation } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 
 // Seed initial Nexus data
-export const seedData = mutation({
+export const seedData = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
@@ -123,7 +123,7 @@ export const seedData = mutation({
 });
 
 // Clear all Nexus data (for testing)
-export const clearData = mutation({
+export const clearData = internalMutation({
   args: {},
   handler: async (ctx) => {
     const products = await ctx.db.query("nexusProducts").collect();
@@ -146,7 +146,7 @@ export const clearData = mutation({
 });
 
 // Reseed - clear and reseed data
-export const reseedData = mutation({
+export const reseedData = internalMutation({
   args: {},
   handler: async (ctx) => {
     // Clear existing data

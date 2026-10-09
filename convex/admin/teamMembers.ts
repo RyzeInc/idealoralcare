@@ -1,4 +1,4 @@
-import { mutation, query } from "../_generated/server";
+import { mutation, query, internalQuery } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import { v } from "convex/values";
 import { requireAccess } from "../lib/authGuards";
@@ -16,7 +16,7 @@ export const getAll = query({
 });
 
 // Get visible team members (for public site)
-export const getVisible = query({
+export const getVisible = internalQuery({
   args: {},
   handler: async (ctx) => {
     const members = await ctx.db
@@ -28,7 +28,7 @@ export const getVisible = query({
 });
 
 // Get single team member
-export const getById = query({
+export const getById = internalQuery({
   args: { id: v.id("teamMembers") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.id);

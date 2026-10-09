@@ -2,9 +2,9 @@ import { LandingCards } from "./landing-cards";
 import { Heart } from "lucide-react";
 
 export const metadata = {
-  title: "Ideal Health — Choose Your Plan",
+  title: "Get Ideal Health — Choose Your Plan",
   description:
-    "Explore Ideal Health's Oral Savings Plans starting at $14.99/mo, or our comprehensive Essentials health membership starting at $58.95/mo.",
+    "Explore Ideal Health's Oral Savings Plans from $14.99/mo, Balance for Life mental wellbeing support for $19.95/mo, or the Essentials membership from $58.95/mo. Membership programs, not insurance.",
 };
 
 export default function RootPage() {
@@ -93,7 +93,7 @@ export default function RootPage() {
             marginBottom: "1rem",
           }}
         >
-          Welcome to Ideal Health
+          Welcome to Get Ideal Health
         </p>
         <h1
           style={{
@@ -106,7 +106,9 @@ export default function RootPage() {
             marginBottom: "1rem",
           }}
         >
-          Affordable health coverage
+          {/* Not "coverage": these are membership programs, not insurance,
+              and wording that implies insurance is a compliance risk. */}
+          Everyday care, real savings
           <br />
           <span style={{ color: "#7dd3fc" }}>built for real people</span>
         </h1>
@@ -119,8 +121,9 @@ export default function RootPage() {
             marginBottom: "3rem",
           }}
         >
-          Choose the plan family that fits your needs — dental savings from
-          $14.99/mo, or a full wellness bundle from $58.95/mo.
+          Choose the membership that fits your needs — dental savings from
+          $14.99/mo, Balance for Life mental wellbeing support for $19.95/mo,
+          or the full Essentials bundle from $58.95/mo.
         </p>
 
         {/* Interactive cards (client component) */}
@@ -134,6 +137,8 @@ export default function RootPage() {
             marginTop: "2.5rem",
           }}
         >
+          Membership and discount programs — not insurance.
+          <br />
           Ideal Health — administered by Ryze LLC · 1200 E Ridge Rd STE 1, McAllen, TX
         </p>
       </section>

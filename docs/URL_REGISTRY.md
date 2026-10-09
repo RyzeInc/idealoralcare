@@ -45,6 +45,7 @@ Public pages. These are the indexable surface — everything here is in `sitemap
 | `/newideal/plans` | Plan chooser for Essentials and Oral Care. Default landing page for rep vanity URLs (/{code}). | Public | — |
 | `/newideal/essentials` | Essentials membership detail and the four coverage tiers. Rep links land here with ?to=essentials. | Public | — |
 | `/newideal/oralcare` | Oral Care plan detail in the Essentials-branded chrome. Rep links land here with ?to=oralcare. | Public | — |
+| `/newideal/balance-for-life` | Standalone Balance for Life ($19.95/mo) detail and enrollment. Essentials already includes BFL, so the enroll button refuses a cart holding Essentials. | Public | — |
 | `/health/dental` | Dental-specific landing page for paid and organic search. | Public | Yes |
 | `/health/faq` | Common member questions before purchase. | Public | Yes |
 | `/health/shop` | Affiliate storefront for preventative-care products. Outbound links, not plans.<br><em>404s when the global shop kill switch is off (shop.queries.isEnabled). Listed anyway — the switch is an operational pause, not a decision to deindex.</em> | Public | Yes |
@@ -139,6 +140,7 @@ Internal staff only. Ordered below as the sidebar orders it.
 | `/admin/rep-codes` | Attribution codes and the vanity URLs that resolve to them. | Staff | — |
 | `/admin/partnerkit` | Inbound registrations from /register/partnerkit. | Staff | — |
 | `/admin/partner-applications` | Review broker, agency, and rep onboarding submissions from /register/rep. | Staff | — |
+| `/admin/mgu-agreement` | Upload the Master MGU Agreement agencies sign in the partner portal, and track who has signed the current version. | Staff | — |
 | `/admin/resources` | Manage the collateral that partners download. | Staff | — |
 
 ### Operations
@@ -280,7 +282,6 @@ POST   /api/clerk/webhook  (unauthenticated by design — Svix-signed)
 Server-side admin utilities: PDF generation, invite lookup, vendor delivery. **Access:** Staff.
 
 ```
-GET  /api/admin/get-invite-by-email
 GET  /api/admin/post-signup-check
 GET  /api/admin/members/:memberId/id-card
 GET  /api/admin/list-bill-invoices/:invoiceId/group-pdf

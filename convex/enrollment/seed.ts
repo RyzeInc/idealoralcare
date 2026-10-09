@@ -1,4 +1,4 @@
-import { mutation } from "../_generated/server";
+import { mutation, internalMutation } from "../_generated/server";
 import { MutationCtx } from "../_generated/server";
 import { v } from "convex/values";
 
@@ -7,7 +7,7 @@ import { v } from "convex/values";
  * Creates default site, account, and group for direct-to-consumer enrollment flow
  */
 
-export const seedDTCData = mutation({
+export const seedDTCData = internalMutation({
   handler: async (ctx: MutationCtx) => {
     const now = Date.now();
 
@@ -151,7 +151,7 @@ export const seedDTCData = mutation({
 /**
  * Seed Test Data - Creates complete test hierarchy with multiple accounts and groups
  */
-export const seedTestHierarchy = mutation({
+export const seedTestHierarchy = internalMutation({
   handler: async (ctx: MutationCtx) => {
     const now = Date.now();
 
@@ -262,7 +262,7 @@ export const seedTestHierarchy = mutation({
 /**
  * Clear all enrollment data (use with caution!)
  */
-export const clearEnrollmentData = mutation({
+export const clearEnrollmentData = internalMutation({
   handler: async (ctx: MutationCtx) => {
     const sites = await ctx.db.query("sites").collect();
     const accounts = await ctx.db.query("accounts").collect();

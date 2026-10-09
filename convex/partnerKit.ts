@@ -157,6 +157,7 @@ export const getWithFiles = query({
 export const getById = query({
   args: { id: v.id("partnerKitSubmissions") },
   handler: async (ctx, args) => {
+    await requireAccess(ctx, ["partners.view", "partners.manage"]);
     return await ctx.db.get(args.id);
   },
 });

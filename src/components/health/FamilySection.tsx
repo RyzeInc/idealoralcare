@@ -158,7 +158,7 @@ export default function FamilySection({ isFamily = true }: { isFamily?: boolean 
       </div>
 
       <div className="glass-card" style={{ padding: '2rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+      <div className="dashboard-card-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
         <h2 style={{ fontSize: '1.375rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.75rem', margin: 0 }}>
           <Users size={24} color="#0066CC" />
           Family Members

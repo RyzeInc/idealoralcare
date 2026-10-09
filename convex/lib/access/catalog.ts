@@ -83,6 +83,9 @@ export const PERMISSIONS = {
   "partner.downline": { portal: "partner", group: "Partner portal", label: "Downline", description: "Agencies and reps beneath them." },
   "partner.groups": { portal: "partner", group: "Partner portal", label: "Employer groups", description: "Employer groups credited to their book." },
   "partner.resources": { portal: "partner", group: "Partner portal", label: "Resources", description: "Marketing materials and agreements." },
+  // Pending sign-off: deliberately in no built-in pack. Add it to a pack (or a
+  // person) in Access & Roles once broker-to-member email is approved.
+  "partner.email": { portal: "partner", group: "Partner portal", label: "Email own members", description: "Send an email to members in their own book from the Members page. Replies go to the broker.", sensitive: true },
   "employer.upload": { portal: "employer", group: "Employer portal", label: "Eligibility uploads", description: "Upload rosters for their own organization." },
 } as const satisfies Record<string, PermissionInfo>;
 
@@ -288,6 +291,7 @@ export const PAGES: PageAccess[] = [
   { portal: "admin", href: "/admin/rep-codes", label: "Rep Codes", anyOf: ["partners.view"] },
   { portal: "admin", href: "/admin/partnerkit", label: "Partner Kit Leads", anyOf: ["partners.view"] },
   { portal: "admin", href: "/admin/partner-applications", label: "Partner Applications", anyOf: ["partners.view"] },
+  { portal: "admin", href: "/admin/mgu-agreement", label: "MGU Agreement", anyOf: ["partners.view"] },
   { portal: "admin", href: "/admin/resources", label: "Resources", anyOf: ["content.manage"] },
   { portal: "admin", href: "/admin/hierarchy", label: "Hierarchy", anyOf: ["groups.view"] },
   { portal: "admin", href: "/admin/eligibility", label: "Eligibility Files", anyOf: ["eligibility.view"] },

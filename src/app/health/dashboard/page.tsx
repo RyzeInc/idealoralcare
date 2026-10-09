@@ -1,5 +1,6 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { ConvexHttpClient } from "convex/browser";
+import { convexServiceSecret } from "@/lib/convex-service";
 import { api } from "@/convex/_generated/api";
 import HealthHeader from "@/components/health/HealthHeader";
 import DashboardTabs from "@/components/health/DashboardTabs";
@@ -52,14 +53,14 @@ export default async function DashboardPage() {
       // Fetch member card profile data (safe public query — server-side Clerk userId verified above)
       const profileData = await convex.query(
         api.subscriptions.queries.getMemberCardDataPublic as any,
-        { customerId: user.id }
+        { serviceSecret: convexServiceSecret(), customerId: user.id }
       );
       if (profileData) memberCardData = profileData;
 
       // Fetch bundle status for subscription indicator
       const bundleData = await convex.query(
         api.subscriptions.queries.getCustomerBundlePublic,
-        { customerId: user.id }
+        { serviceSecret: convexServiceSecret(), customerId: user.id }
       );
       if (bundleData?.status && bundleData.status !== "cancelled") {
         hasSubscriptions = true;

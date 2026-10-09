@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery } from 'convex/react';
-import { Mail, Linkedin, Building2, MapPin, Info, Copy, Check, AlertTriangle, Send, StickyNote, Network } from 'lucide-react';
+import { Mail, Linkedin, Building2, MapPin, Info, Copy, Check, AlertTriangle, Send, StickyNote, Network, Pencil } from 'lucide-react';
 import { api } from '@/convex/_generated/api';
 import type { Doc, Id } from '@/convex/_generated/dataModel';
 import { formatPhone, formatDate } from '@/lib/admin-format';
@@ -37,6 +37,139 @@ function CopyableField({ label, value }: { label: string; value?: string }) {
         </button>
       </div>
     </div>
+  );
+}
+
+/** Every field `updateContact` writes, read off the row as it stands. */
+function writableFields(contact: Doc<'crmContacts'>) {
+  return {
+    firstName: contact.firstName, lastName: contact.lastName, jobTitle: contact.jobTitle,
+    companyId: contact.companyId, companyName: contact.companyName,
+    email: contact.email, secondaryEmail: contact.secondaryEmail, mobilePhone: contact.mobilePhone,
+    officePhone: contact.officePhone, officePhoneExt: contact.officePhoneExt, linkedinUrl: contact.linkedinUrl,
+    city: contact.city, state: contact.state, postalCode: contact.postalCode,
+  };
+}
+
+type EditableKey = Exclude<keyof ReturnType<typeof writableFields>, 'companyId'>;
+
+const EDIT_SECTIONS: { title: string; fields: { key: EditableKey; label: string; type?: string; placeholder?: string; span?: 1 | 2 }[] }[] = [
+  {
+    title: 'Person',
+    fields: [
+      { key: 'firstName', label: 'First name' },
+      { key: 'lastName', label: 'Last name' },
+      { key: 'jobTitle', label: 'Job title', span: 2 },
+    ],
+  },
+  {
+    title: 'Contact',
+    fields: [
+      { key: 'email', label: 'Email', type: 'email', span: 2 },
+      { key: 'secondaryEmail', label: 'Secondary email', type: 'email', span: 2 },
+      { key: 'mobilePhone', label: 'Mobile', type: 'tel', placeholder: '(555) 555-0123' },
+      { key: 'officePhone', label: 'Office', type: 'tel', placeholder: '(555) 555-0123' },
+      { key: 'officePhoneExt', label: 'Office ext.' },
+      { key: 'linkedinUrl', label: 'LinkedIn URL', type: 'url', placeholder: 'https://linkedin.com/in/…', span: 2 },
+    ],
+  },
+  {
+    title: 'Location',
+    fields: [
+      { key: 'city', label: 'City' },
+      { key: 'state', label: 'State', placeholder: 'FL' },
+      { key: 'postalCode', label: 'ZIP' },
+    ],
+  },
+];
+
+/**
+ * Edits every field on the contact after the fact — imported rows usually
+ * arrive with only a name and an email. Blank inputs are sent as "" and the
+ * server clears them (see normalizeWritableFields).
+ */
+function ContactEditForm({ contact, hasLinkedCompany, onDone }: {
+  contact: Doc<'crmContacts'>;
+  hasLinkedCompany: boolean;
+  onDone: () => void;
+}) {
+  const toast = useToast();
+  const updateContact = useMutation(api.crm.contacts.updateContact);
+  const initial = writableFields(contact);
+  const [form, setForm] = useState<Record<EditableKey, string>>(() => {
+    const out = {} as Record<EditableKey, string>;
+    for (const key of Object.keys(initial) as (keyof typeof initial)[]) {
+      if (key !== 'companyId') out[key] = initial[key] ?? '';
+    }
+    return out;
+  });
+  const [saving, setSaving] = useState(false);
+  const set = (key: EditableKey, value: string) => setForm((f) => ({ ...f, [key]: value }));
+
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await updateContact({ contactId: contact._id, fields: { ...form, companyId: contact.companyId } });
+      toast.success('Contact saved');
+      onDone();
+    } catch (err) {
+      toast.fromError(err, 'Could not save the contact');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputClass = 'w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100';
+  const sections = hasLinkedCompany
+    ? EDIT_SECTIONS
+    : [
+        EDIT_SECTIONS[0],
+        { title: 'Company', fields: [{ key: 'companyName' as const, label: 'Company name (unlinked)', span: 2 as const }] },
+        ...EDIT_SECTIONS.slice(1),
+      ];
+
+  return (
+    <Card>
+      <form onSubmit={save} className="space-y-4">
+        <SectionHeader icon={Pencil} title="Edit contact" />
+        {sections.map((section) => (
+          <fieldset key={section.title} className="space-y-2">
+            <legend className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">{section.title}</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {section.fields.map((field) => (
+                <label key={field.key} className={field.span === 2 ? 'col-span-2' : ''}>
+                  <span className="block text-xs text-slate-500 mb-0.5">{field.label}</span>
+                  <input
+                    type={field.type ?? 'text'}
+                    value={form[field.key]}
+                    placeholder={field.placeholder}
+                    onChange={(e) => set(field.key, e.target.value)}
+                    className={inputClass}
+                  />
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        ))}
+        <div className="flex justify-end gap-2 pt-1">
+          <button type="button" onClick={onDone} disabled={saving} className="px-3 py-1.5 text-sm text-slate-600 rounded-lg hover:bg-slate-100">
+            Cancel
+          </button>
+          <button type="submit" disabled={saving} className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-60">
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </form>
+    </Card>
+  );
+}
+
+function EditButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700">
+      <Pencil size={12} /> Edit
+    </button>
   );
 }
 
@@ -236,16 +369,15 @@ export function DetailsColumn({ contact, company }: { contact: Doc<'crmContacts'
   const updateContact = useMutation(api.crm.contacts.updateContact);
   const setOwner = useMutation(api.crm.contacts.setOwner);
   const duplicates = useQuery(api.crm.contacts.possibleDuplicates, { contactId: contact._id });
+  const [editing, setEditing] = useState(false);
 
   const handleCompanyChange = async (selected: Doc<'crmCompanies'> | null) => {
     await updateContact({
       contactId: contact._id,
       fields: {
-        firstName: contact.firstName, lastName: contact.lastName, jobTitle: contact.jobTitle,
-        companyId: selected?._id, companyName: selected?.name ?? contact.companyName,
-        email: contact.email, secondaryEmail: contact.secondaryEmail, mobilePhone: contact.mobilePhone,
-        officePhone: contact.officePhone, officePhoneExt: contact.officePhoneExt, linkedinUrl: contact.linkedinUrl,
-        city: contact.city, state: contact.state, postalCode: contact.postalCode,
+        ...writableFields(contact),
+        companyId: selected?._id,
+        companyName: selected?.name ?? contact.companyName,
       },
     });
   };
@@ -261,10 +393,14 @@ export function DetailsColumn({ contact, company }: { contact: Doc<'crmContacts'
         </div>
       )}
 
+      {editing ? (
+        <ContactEditForm contact={contact} hasLinkedCompany={!!company} onDone={() => setEditing(false)} />
+      ) : (
       <Card>
-        <SectionHeader icon={Mail} title="Contact" />
+        <SectionHeader icon={Mail} title="Contact" badge={<EditButton onClick={() => setEditing(true)} />} />
         <div className="space-y-3">
           <CopyableField label="Email" value={contact.email} />
+          {contact.secondaryEmail && <CopyableField label="Secondary email" value={contact.secondaryEmail} />}
           <CopyableField label="Mobile" value={contact.mobilePhone ? formatPhone(contact.mobilePhone) : undefined} />
           <CopyableField
             label="Office"
@@ -278,8 +414,14 @@ export function DetailsColumn({ contact, company }: { contact: Doc<'crmContacts'
               </a>
             </div>
           )}
+          {!contact.email && !contact.mobilePhone && !contact.officePhone && (
+            <button type="button" onClick={() => setEditing(true)} className="text-xs text-blue-600 hover:underline">
+              + Add phone, email or LinkedIn
+            </button>
+          )}
         </div>
       </Card>
+      )}
 
       <CampaignsCard contact={contact} />
 
@@ -305,10 +447,11 @@ export function DetailsColumn({ contact, company }: { contact: Doc<'crmContacts'
       </Card>
 
       <Card>
-        <SectionHeader icon={MapPin} title="Location" />
-        <div className="grid grid-cols-2 gap-3">
+        <SectionHeader icon={MapPin} title="Location" badge={!editing && <EditButton onClick={() => setEditing(true)} />} />
+        <div className="grid grid-cols-3 gap-3">
           <Field label="City" value={contact.city} />
           <Field label="State" value={contact.state} mono />
+          <Field label="ZIP" value={contact.postalCode} mono />
         </div>
       </Card>
 

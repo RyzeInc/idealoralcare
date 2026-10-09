@@ -1,8 +1,8 @@
-import { mutation, query } from "../_generated/server";
+import { mutation, query, internalMutation, internalQuery } from "../_generated/server";
 import { v } from "convex/values";
 
 // Get all leads (for admin)
-export const getAll = query({
+export const getAll = internalQuery({
   args: {},
   handler: async (ctx) => {
     return await ctx.db
@@ -13,7 +13,7 @@ export const getAll = query({
 });
 
 // Get leads by status
-export const getByStatus = query({
+export const getByStatus = internalQuery({
   args: {
     status: v.union(
       v.literal("active"),
@@ -32,7 +32,7 @@ export const getByStatus = query({
 });
 
 // Get lead by email
-export const getByEmail = query({
+export const getByEmail = internalQuery({
   args: { email: v.string() },
   handler: async (ctx, args) => {
     return await ctx.db
@@ -43,7 +43,7 @@ export const getByEmail = query({
 });
 
 // Get lead by ID
-export const getById = query({
+export const getById = internalQuery({
   args: { id: v.id("nexusLeads") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.id);
@@ -51,7 +51,7 @@ export const getById = query({
 });
 
 // Register or update lead access (for gate page)
-export const registerAccess = mutation({
+export const registerAccess = internalMutation({
   args: {
     name: v.string(),
     email: v.string(),
@@ -94,7 +94,7 @@ export const registerAccess = mutation({
 });
 
 // Update lead status
-export const updateStatus = mutation({
+export const updateStatus = internalMutation({
   args: {
     id: v.id("nexusLeads"),
     status: v.union(
@@ -110,7 +110,7 @@ export const updateStatus = mutation({
 });
 
 // Add notes to lead
-export const addNotes = mutation({
+export const addNotes = internalMutation({
   args: {
     id: v.id("nexusLeads"),
     notes: v.string(),
@@ -121,7 +121,7 @@ export const addNotes = mutation({
 });
 
 // Delete lead
-export const remove = mutation({
+export const remove = internalMutation({
   args: { id: v.id("nexusLeads") },
   handler: async (ctx, args) => {
     await ctx.db.delete(args.id);
@@ -129,7 +129,7 @@ export const remove = mutation({
 });
 
 // Get lead stats (for admin dashboard)
-export const getStats = query({
+export const getStats = internalQuery({
   args: {},
   handler: async (ctx) => {
     const leads = await ctx.db.query("nexusLeads").collect();

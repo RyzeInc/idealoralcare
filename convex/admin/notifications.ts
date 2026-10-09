@@ -1,4 +1,6 @@
-import { action, internalMutation, query } from "../_generated/server";
+import { action, internalMutation, query, internalQuery, internalAction } from "../_generated/server";
+import { isBflSlug, isMembershipProgramSlug } from "../lib/productSlugs";
+import { ownServiceSecret } from "../lib/serviceAuth";
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
 import { requireAccessAction } from "../lib/authGuards";
@@ -33,7 +35,7 @@ export const resendMemberPacket = action({
   handler: async (
     ctx,
     args,
-  ): Promise<{ sent: boolean; program: "essentials" | "oral-care"; to: string }> => {
+  ): Promise<{ sent: boolean; program: "essentials" | "balance-for-life" | "oral-care"; to: string }> => {
     // @ts-ignore - avoid deep type instantiation
     await requireAccessAction(ctx, "support.use");
 
@@ -41,25 +43,28 @@ export const resendMemberPacket = action({
     // live at enrollment whether or not the member ever registers a login, so
     // the packet must not be gated on one.
     const data: any = await ctx.runQuery(
-      api.subscriptions.queries.getPacketDataForProfileInternal,
+      internal.subscriptions.queries.getPacketDataForProfileInternal,
       { memberProfileId: args.memberId },
     );
     if (!data) throw new Error("Member not found");
     if (!data.memberEmail) throw new Error("Member has no email address on file");
 
-    const isEssentials = String(data.productSlug ?? "").startsWith("essentials-");
+    const isEssentials = isMembershipProgramSlug(data.productSlug);
+    const isBfl = isBflSlug(data.productSlug);
 
     if (isEssentials) {
-      const suffix = String(data.productSlug).slice("essentials-".length);
+      const suffix = isBfl ? "" : String(data.productSlug).slice("essentials-".length);
       const coverageType =
         ({
           employee: "Employee",
           "employee-spouse": "Employee + Spouse",
           "employee-child": "Employee + Child",
           "employee-family": "Employee + Family",
-        } as Record<string, string>)[suffix] ?? "Employee";
+        } as Record<string, string>)[suffix] ?? (isBfl ? "Individual" : "Employee");
 
       await ctx.runAction((api as any)["legal/emailFulfillment"].sendEssentialsPacketEmail, {
+      serviceSecret: ownServiceSecret(),
+        program: isBfl ? "bfl" : "essentials",
         memberName: data.memberName,
         memberFirstName: data.memberFirstName,
         memberEmail: data.memberEmail,
@@ -71,6 +76,7 @@ export const resendMemberPacket = action({
       });
     } else {
       await ctx.runAction((api as any)["legal/emailFulfillment"].sendFulfillmentPacketEmail, {
+      serviceSecret: ownServiceSecret(),
         memberName: data.memberName,
         memberFirstName: data.memberFirstName,
         memberEmail: data.memberEmail,
@@ -85,7 +91,7 @@ export const resendMemberPacket = action({
 
     return {
       sent: true,
-      program: isEssentials ? "essentials" : "oral-care",
+      program: isBfl ? "balance-for-life" : isEssentials ? "essentials" : "oral-care",
       to: data.memberEmail,
     };
   },
@@ -304,7 +310,7 @@ export const batchSendWelcomeEmails = action({
 
     // Get members to email via query
     const members: Array<{ email: string; firstName: string; memberId: string }> = await ctx.runQuery(
-      api.admin.notifications._getMembersForBulkEmailQuery,
+      internal.admin.notifications._getMembersForBulkEmailQuery,
       {
         groupId: args.groupId,
         eligibilityFileId: args.eligibilityFileId,
@@ -349,7 +355,7 @@ export const batchSendWelcomeEmails = action({
 /**
  * Internal query for bulk email member list
  */
-export const _getMembersForBulkEmailQuery = query({
+export const _getMembersForBulkEmailQuery = internalQuery({
   args: {
     groupId: v.id("groups"),
     eligibilityFileId: v.optional(v.id("eligibilityFiles")),
@@ -405,7 +411,7 @@ export const internalSendEmailBatch = internalMutation({
       const r = args.recipients[i];
       await ctx.scheduler.runAfter(
         i * 100, // 100ms stagger within a batch = ~10 emails/sec
-        api.admin.notifications.sendSingleWelcomeEmailInternal,
+        internal.admin.notifications.sendSingleWelcomeEmailInternal,
         {
           email: r.email,
           firstName: r.firstName,
@@ -421,7 +427,7 @@ export const internalSendEmailBatch = internalMutation({
  * Send a single welcome email (no auth — called by scheduler from internal mutation)
  * Includes digital member card information and links to member portal
  */
-export const sendSingleWelcomeEmailInternal = action({
+export const sendSingleWelcomeEmailInternal = internalAction({
   args: {
     email: v.string(),
     firstName: v.string(),

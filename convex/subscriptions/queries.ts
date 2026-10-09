@@ -4,7 +4,8 @@
  * Queries for reading subscription/entitlement state
  */
 
-import { query } from "../_generated/server";
+import { query, internalQuery } from "../_generated/server";
+import { requireServiceOrOwner, serviceSecretArg } from "../lib/serviceAuth";
 import { v } from "convex/values";
 import type { QueryCtx } from "../_generated/server";
 import { requireAuth, requireAccess } from "../lib/authGuards";
@@ -148,8 +149,11 @@ export const getMyBundle = query({
 export const getCustomerBundlePublic = query({
   args: {
     customerId: v.string(),
+    serviceSecret: serviceSecretArg,
   },
   handler: async (ctx: QueryCtx, args) => {
+    // Our server (dashboard, Stripe routes), the member themselves, or staff.
+    await requireServiceOrOwner(ctx, args.serviceSecret, args.customerId);
     const bundle = await ctx.db
       .query("subscriptionBundles")
       .withIndex("by_customer", (q) =>
@@ -180,8 +184,11 @@ export const getCustomerBundlePublic = query({
 export const getCustomerBundleWithStripeIds = query({
   args: {
     customerId: v.string(),
+    serviceSecret: serviceSecretArg,
   },
   handler: async (ctx: QueryCtx, args) => {
+    // Our server (dashboard, Stripe routes), the member themselves, or staff.
+    await requireServiceOrOwner(ctx, args.serviceSecret, args.customerId);
     const bundle = await ctx.db
       .query("subscriptionBundles")
       .withIndex("by_customer", (q) =>
@@ -210,8 +217,11 @@ export const getCustomerBundleWithStripeIds = query({
 export const getEntitlementsByBundle = query({
   args: {
     bundleId: v.id("subscriptionBundles"),
+    serviceSecret: serviceSecretArg,
   },
   handler: async (ctx: QueryCtx, args) => {
+    const owner = await ctx.db.get(args.bundleId);
+    await requireServiceOrOwner(ctx, args.serviceSecret, owner?.customerId ?? "");
     const entitlements = await ctx.db
       .query("entitlements")
       .withIndex("by_bundle", (q) => q.eq("bundleId", args.bundleId))
@@ -534,8 +544,9 @@ export const hasAccess = query({
  * guard needed because the caller confirms identity via Clerk server SDK.
  */
 export const getMemberCardDataPublic = query({
-  args: { customerId: v.string() },
+  args: { customerId: v.string(), serviceSecret: serviceSecretArg },
   handler: async (ctx: QueryCtx, args) => {
+    await requireServiceOrOwner(ctx, args.serviceSecret, args.customerId);
     // ── Pick the canonical bundle first ─────────────────────────────────
     // Priority: active > cancel_at_period_end > any non-cancelled. This
     // ensures the card always reflects the subscription the member paid for.
@@ -684,7 +695,7 @@ export const getPacketDataForProfile = query({
 });
 
 /** Unauthenticated variant for server-side senders that already checked access. */
-export const getPacketDataForProfileInternal = query({
+export const getPacketDataForProfileInternal = internalQuery({
   args: { memberProfileId: v.id("memberProfiles") },
   handler: async (ctx: QueryCtx, args) => {
     return await resolvePacketData(ctx, args.memberProfileId);

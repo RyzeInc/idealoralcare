@@ -6,6 +6,7 @@ const NAV = [
   { href: "/newideal", label: "Overview" },
   { href: "/newideal/essentials", label: "Essentials" },
   { href: "/newideal/oralcare", label: "Oral Care" },
+  { href: "/newideal/balance-for-life", label: "Balance for Life" },
   { href: "/newideal/plans", label: "Plans & Pricing" },
 ];
 
@@ -152,6 +153,7 @@ export function NewIdealFooter() {
           <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: "0.875rem", lineHeight: 1.9 }}>
             <li><Link href="/newideal/essentials" style={{ color: "inherit", textDecoration: "none" }}>Essentials Plan</Link></li>
             <li><Link href="/newideal/oralcare" style={{ color: "inherit", textDecoration: "none" }}>Oral Care</Link></li>
+            <li><Link href="/newideal/balance-for-life" style={{ color: "inherit", textDecoration: "none" }}>Balance for Life</Link></li>
             <li><Link href="/newideal/plans" style={{ color: "inherit", textDecoration: "none" }}>Pricing</Link></li>
           </ul>
         </div>

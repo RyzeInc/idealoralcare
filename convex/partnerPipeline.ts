@@ -1,4 +1,4 @@
-import { action, internalMutation, mutation, query } from "./_generated/server";
+import { action, internalMutation, mutation, query, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 import { requireAccess, requireAccessAction } from "./lib/authGuards";
@@ -128,7 +128,7 @@ export const sendApplicationInvite = action({
     const identity = await requireAccessAction(ctx, "partners.manage");
 
     // @ts-ignore
-    const lead: any = await ctx.runQuery(api.partnerPipeline.getLeadById, {
+    const lead: any = await ctx.runQuery(internal.partnerPipeline.getLeadById, {
       leadId: args.leadId,
     });
     if (!lead) throw new Error("Lead not found");
@@ -245,7 +245,7 @@ export const sendTestApplicationInvite = action({
 
 // ─── helper query for the action (single lead) ─────────────────────────
 
-export const getLeadById = query({
+export const getLeadById = internalQuery({
   args: { leadId: v.id("partnerRegistrations") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.leadId);

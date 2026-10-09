@@ -75,7 +75,7 @@ describe("recordCommissionForCheckout", () => {
 
     const result: any = await t.mutation(
       api.subscriptions.commissions.recordCommissionForCheckout,
-      { brokerValue: "100001", totalCents: 2000 },
+      { serviceSecret: process.env.CONVEX_SERVICE_SECRET, brokerValue: "100001", totalCents: 2000 },
     );
 
     expect(result.recorded).toBe(true);
@@ -120,7 +120,7 @@ describe("recordCommissionForCheckout", () => {
 
     const result: any = await t.mutation(
       api.subscriptions.commissions.recordCommissionForCheckout,
-      { brokerValue: "100002", totalCents: 1000, groupId },
+      { serviceSecret: process.env.CONVEX_SERVICE_SECRET, brokerValue: "100002", totalCents: 1000, groupId },
     );
 
     expect(result.rateApplied).toBe(0.4);
@@ -130,7 +130,7 @@ describe("recordCommissionForCheckout", () => {
     const t = convexTest(schema);
     const result: any = await t.mutation(
       api.subscriptions.commissions.recordCommissionForCheckout,
-      { brokerValue: "WHO-IS-THIS", totalCents: 1499 },
+      { serviceSecret: process.env.CONVEX_SERVICE_SECRET, brokerValue: "WHO-IS-THIS", totalCents: 1499 },
     );
 
     expect(result.recorded).toBe(false);
@@ -146,7 +146,7 @@ describe("recordCommissionForCheckout", () => {
 
     const result: any = await t.mutation(
       api.subscriptions.commissions.recordCommissionForCheckout,
-      { brokerValue: "100003", totalCents: 1499 },
+      { serviceSecret: process.env.CONVEX_SERVICE_SECRET, brokerValue: "100003", totalCents: 1499 },
     );
 
     expect(result.recorded).toBe(false);
@@ -162,7 +162,7 @@ describe("recordCommissionForCheckout", () => {
 
     const result: any = await t.mutation(
       api.subscriptions.commissions.recordCommissionForCheckout,
-      { brokerValue: "100004", totalCents: 1499 },
+      { serviceSecret: process.env.CONVEX_SERVICE_SECRET, brokerValue: "100004", totalCents: 1499 },
     );
     expect(result.recorded).toBe(false);
     expect(result.reason).toBe("no_rate_configured");
@@ -202,11 +202,11 @@ describe("recordCommissionForCheckout", () => {
 
     const first: any = await t.mutation(
       api.subscriptions.commissions.recordCommissionForCheckout,
-      { brokerValue: "100005", totalCents: 1000, enrollmentSessionId },
+      { serviceSecret: process.env.CONVEX_SERVICE_SECRET, brokerValue: "100005", totalCents: 1000, enrollmentSessionId },
     );
     const second: any = await t.mutation(
       api.subscriptions.commissions.recordCommissionForCheckout,
-      { brokerValue: "100005", totalCents: 1000, enrollmentSessionId },
+      { serviceSecret: process.env.CONVEX_SERVICE_SECRET, brokerValue: "100005", totalCents: 1000, enrollmentSessionId },
     );
 
     expect(first.recorded).toBe(true);

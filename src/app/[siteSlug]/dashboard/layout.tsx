@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
+import { convexServiceSecret } from "@/lib/convex-service";
 import { ConvexHttpClient } from "convex/browser";
 
 export default async function SiteSlugDashboardLayout({
@@ -23,7 +24,7 @@ export default async function SiteSlugDashboardLayout({
 
       const [isAdmin, bundle] = await Promise.all([
         convex.query("admin/adminUsers:isAdmin" as any, { clerkUserId: userId }),
-        convex.query("subscriptions/queries:getCustomerBundlePublic" as any, { customerId: userId }),
+        convex.query("subscriptions/queries:getCustomerBundlePublic" as any, { customerId: userId, serviceSecret: convexServiceSecret() }),
       ]);
 
       if (isAdmin) return <>{children}</>;

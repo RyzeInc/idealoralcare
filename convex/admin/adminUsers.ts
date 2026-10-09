@@ -1,5 +1,6 @@
 import { action, internalMutation, mutation, query } from "../_generated/server";
 import { v } from "convex/values";
+import { requireServiceSecret, serviceSecretArg } from "../lib/serviceAuth";
 import { internal } from "../_generated/api";
 import { requireAccess, requireAuth, requireCallerAccess, requireStaffAdmin } from "../lib/authGuards";
 import { hasAnyPortalPermission, resolveAccess } from "../lib/access/resolve";
@@ -49,6 +50,9 @@ export const getMyPortal = query({
 export const getByClerkId = query({
   args: { clerkUserId: v.string() },
   handler: async (ctx, args) => {
+    // Your own staff record, or anyone's if you can view the staff list.
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity?.subject !== args.clerkUserId) await requireAccess(ctx, ["access.manage", "audit.view"]);
     // Public query - access control at page level (/admin layout verifies admin role)
     return await ctx.db
       .query("adminUsers")
@@ -446,8 +450,10 @@ async function revokeClerkInvitationsForEmail(email: string): Promise<void> {
 
 // Get pending admin invite by email (for ticket signup flow)
 export const getPendingInviteByEmail = query({
-  args: { email: v.string() },
+  args: {
+    serviceSecret: serviceSecretArg, email: v.string() },
   handler: async (ctx, args) => {
+    requireServiceSecret(args.serviceSecret);
     const invites = await ctx.db
       .query("adminInvites")
       .withIndex("by_email", (q) => q.eq("email", args.email))

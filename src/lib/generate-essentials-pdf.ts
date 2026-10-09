@@ -37,6 +37,13 @@ export async function generateEssentialsPdfs(
     }
   }
 
+  if (!data.bflLogoDataUri) {
+    const bflLogoPath = path.join(process.cwd(), "public", "newideal", "balance-for-life-logo.png");
+    if (fs.existsSync(bflLogoPath)) {
+      data.bflLogoDataUri = `data:image/png;base64,${fs.readFileSync(bflLogoPath).toString("base64")}`;
+    }
+  }
+
   const packetDoc = createElement(EssentialsPacketPdf, { data }) as unknown as ReactElement<DocumentProps>;
   const packetBuffer = await mergePdfs(await toBuffer(packetDoc), essentialsAppendPaths());
 

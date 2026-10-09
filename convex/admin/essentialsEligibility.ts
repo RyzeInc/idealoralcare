@@ -4,6 +4,7 @@ import { api } from "../_generated/api";
 import { requireAccessAction } from "../lib/authGuards";
 import { resolveEssentialsMemberNumber } from "../lib/essentialsCodes";
 import { ESSENTIALS_RX_GROUP } from "../lib/constants";
+import { isBflSlug, isEssentialsSlug } from "../lib/productSlugs";
 
 /**
  * ESSENTIALS ELIGIBILITY FILE GENERATION (CSV)
@@ -144,10 +145,23 @@ async function buildRows(
     return ctx.runQuery(api.admin.hierarchy.getAccountById, { accountId: aid });
   }
 
+  // Standalone Balance for Life members bought BFL only — they are not Lyric,
+  // RxValet or QuestSelect members. Members with no entitlements at all
+  // (employer eligibility-file rosters) are kept, exactly as before.
+  const customerIds = members.filter((m) => m.customerId).map((m) => m.customerId as string);
+  const planSlugs: Record<string, string[]> = customerIds.length
+    ? await ctx.runQuery(api.admin.members.getActivePlanSlugsByCustomer, { customerIds })
+    : {};
+  const isBflOnly = (member: { customerId?: string }) => {
+    const slugs = member.customerId ? planSlugs[member.customerId] ?? [] : [];
+    return slugs.some(isBflSlug) && !slugs.some(isEssentialsSlug);
+  };
+
   const rows: EligRow[] = [];
 
   for (const member of members) {
     if (member.memberRole === "dependent") continue; // Dependents are emitted under their primary
+    if (isBflOnly(member)) continue;
 
     const group = member._group ?? (await resolveGroup(member.groupId));
     const account = group?.accountId ? await resolveAccount(group.accountId) : null;

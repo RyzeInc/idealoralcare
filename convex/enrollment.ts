@@ -3,7 +3,7 @@
  * Member enrollment and profile management
  */
 
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { nanoid } from "nanoid";
 
@@ -26,7 +26,7 @@ function generateBarcode(): string {
 /**
  * Create member profile during enrollment
  */
-export const createMemberProfile = mutation({
+export const createMemberProfile = internalMutation({
   args: {
     siteId: v.string(),
     accountId: v.string(),
@@ -73,7 +73,7 @@ export const createMemberProfile = mutation({
 /**
  * Get member profile by ID
  */
-export const getMemberProfile = query({
+export const getMemberProfile = internalQuery({
   args: { memberId: v.string() },
   handler: async (ctx, { memberId }) => {
     // In production: query Convex table
@@ -84,7 +84,7 @@ export const getMemberProfile = query({
 /**
  * Update member profile
  */
-export const updateMemberProfile = mutation({
+export const updateMemberProfile = internalMutation({
   args: {
     memberId: v.string(),
     updates: v.object({
@@ -105,7 +105,7 @@ export const updateMemberProfile = mutation({
 /**
  * Add member activity (audit log)
  */
-export const addMemberActivity = mutation({
+export const addMemberActivity = internalMutation({
   args: {
     memberProfileId: v.string(),
     siteId: v.string(),
@@ -130,7 +130,7 @@ export const addMemberActivity = mutation({
 /**
  * Create enrollment session
  */
-export const createEnrollmentSession = mutation({
+export const createEnrollmentSession = internalMutation({
   args: {
     siteId: v.string(),
     accountId: v.string(),
@@ -156,7 +156,7 @@ export const createEnrollmentSession = mutation({
 /**
  * Get enrollment session
  */
-export const getEnrollmentSession = query({
+export const getEnrollmentSession = internalQuery({
   args: { sessionId: v.string() },
   handler: async (ctx, { sessionId }) => {
     // In production: query Convex table
@@ -167,7 +167,7 @@ export const getEnrollmentSession = query({
 /**
  * Complete enrollment
  */
-export const completeEnrollment = mutation({
+export const completeEnrollment = internalMutation({
   args: {
     sessionId: v.string(),
     memberProfileId: v.string(),

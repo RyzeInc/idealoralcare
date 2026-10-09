@@ -197,7 +197,7 @@ export default function OverviewTab({
       toothlens: { name: 'AI Oral Scanning', memberUrl: 'https://toothlens.com' },
     },
     supportPhone: '(844) 679-9367',
-    supportEmail: '(855)-335-2255',
+    supportEmail: 'support@getidealoh.com',
   };
 
   const handleDownloadCard = () => {
@@ -219,6 +219,7 @@ export default function OverviewTab({
         {/* Active Plans */}
         <div className="glass-card" style={{ padding: '2rem' }}>
           <div
+            className="dashboard-card-head"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -259,6 +260,7 @@ export default function OverviewTab({
             <MemberIdCard cardData={cardData} onDownload={handleDownloadCard} />
           ) : (
             <div
+              className="dashboard-empty-plans"
               style={{
                 textAlign: 'center',
                 padding: '3rem 2rem',
@@ -311,6 +313,7 @@ export default function OverviewTab({
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
             <div
+              className="dashboard-info-row"
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -323,6 +326,7 @@ export default function OverviewTab({
               <span style={{ fontWeight: 600, color: '#0f172a' }}>{email || 'Not set'}</span>
             </div>
             <div
+              className="dashboard-info-row"
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -335,6 +339,7 @@ export default function OverviewTab({
               <span style={{ fontWeight: 600, color: '#0f172a' }}>{fullName || 'Not set'}</span>
             </div>
             <div
+              className="dashboard-info-row"
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',

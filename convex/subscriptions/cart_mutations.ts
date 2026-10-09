@@ -7,7 +7,7 @@
  * - Update cadence/payment method
  */
 
-import { mutation } from "../_generated/server";
+import { mutation, internalMutation } from "../_generated/server";
 import { v } from "convex/values";
 import type { MutationCtx } from "../_generated/server";
 
@@ -48,7 +48,7 @@ interface CartItem {
 /**
  * Create or get a cart session
  */
-export const createSession = mutation({
+export const createSession = internalMutation({
   args: {
     sessionId: v.string(),
     customerId: v.optional(v.string()),
@@ -85,7 +85,7 @@ export const createSession = mutation({
 /**
  * Add item to cart
  */
-export const addItem = mutation({
+export const addItem = internalMutation({
   args: {
     sessionId: v.string(),
     productId: v.id("catalogProducts"),
@@ -138,7 +138,7 @@ export const addItem = mutation({
 /**
  * Remove item from cart
  */
-export const removeItem = mutation({
+export const removeItem = internalMutation({
   args: {
     sessionId: v.string(),
     productId: v.id("catalogProducts"),
@@ -171,7 +171,7 @@ export const removeItem = mutation({
 /**
  * Update cart pricing (after cadence or payment method change)
  */
-export const updatePricing = mutation({
+export const updatePricing = internalMutation({
   args: {
     sessionId: v.string(),
     cadence: v.union(v.literal("monthly"), v.literal("annual")),
@@ -233,7 +233,7 @@ export const updatePricing = mutation({
 /**
  * Clear cart (on checkout success)
  */
-export const clearSession = mutation({
+export const clearSession = internalMutation({
   args: {
     sessionId: v.string(),
   },

@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { ExternalLink } from 'lucide-react';
+
+const PROVIDER_SEARCH_URL = 'https://ryze.telemedsimplified.com';
 
 interface ProviderSearchTabProps {
   onClose: () => void;
@@ -24,12 +27,29 @@ export default function ProviderSearchTab({ onClose }: ProviderSearchTabProps) {
         <div style={{ position: 'absolute', bottom: '-60px', left: '30%', width: '260px', height: '260px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', pointerEvents: 'none' }} />
 
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em', color: '#fff' }}>
             Find a Dentist
           </h2>
-          <p style={{ opacity: 0.85, fontSize: '0.9rem', margin: '0.5rem 0 0', marginTop: '0.25rem' }}>
+          <p style={{ opacity: 0.92, fontSize: '0.9rem', margin: '0.25rem 0 0', color: '#fff' }}>
             Dental Discount Network · 50,000+ providers nationwide
           </p>
+          {/* The search below is the network's own page in an iframe. Opening it
+              full-page gives phones the whole screen, and lets its fee-schedule
+              download open (browsers block that popup inside an embedded page). */}
+          <a
+            href={PROVIDER_SEARCH_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
+              marginTop: '0.875rem', padding: '0.4rem 0.8rem', borderRadius: '8px',
+              background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.35)',
+              color: '#fff', fontSize: '0.8125rem', fontWeight: 600, textDecoration: 'none',
+            }}
+          >
+            <ExternalLink size={14} />
+            Open full search in a new tab
+          </a>
         </div>
       </div>
 
@@ -48,7 +68,7 @@ export default function ProviderSearchTab({ onClose }: ProviderSearchTabProps) {
         onClick={() => !isExpanded && setIsExpanded(true)}
       >
         <iframe
-          src="https://ryze.telemedsimplified.com"
+          src={PROVIDER_SEARCH_URL}
           style={{
             width: '100%',
             height: '100%',

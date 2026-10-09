@@ -7,7 +7,7 @@
  */
 
 import { mutation, query } from "../_generated/server";
-import { v } from "convex/values";
+import { v, type Infer } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import { requireCrmUser, requireCrmManager } from "./guards";
@@ -305,6 +305,36 @@ export const createContact = mutation({
   },
 });
 
+const OPTIONAL_TEXT_FIELDS = [
+  "jobTitle", "companyName", "email", "secondaryEmail", "mobilePhone", "officePhone",
+  "officePhoneExt", "linkedinUrl", "city", "state", "postalCode",
+] as const;
+
+/**
+ * Trims every text field and turns a blank one into `undefined`. A value can't
+ * travel over the wire as `undefined`, so the edit form sends "" to mean "clear
+ * this" — and `ctx.db.patch` removes a key whose value is undefined. Without
+ * this, clearing a phone number stored "" and left it searchable/dedupable.
+ */
+export function normalizeWritableFields(fields: Infer<typeof WRITABLE_FIELDS>) {
+  const out: Infer<typeof WRITABLE_FIELDS> = {
+    ...fields,
+    firstName: fields.firstName.trim(),
+    lastName: fields.lastName.trim(),
+  };
+  for (const key of OPTIONAL_TEXT_FIELDS) {
+    if (key in fields) out[key] = fields[key]?.trim() || undefined;
+  }
+  if (!out.firstName && !out.lastName) throw new Error("A contact needs a first or last name.");
+  for (const key of ["email", "secondaryEmail"] as const) {
+    const value = out[key];
+    if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      throw new Error(`"${value}" is not a valid email address.`);
+    }
+  }
+  return out;
+}
+
 export const updateContact = mutation({
   args: { contactId: v.id("crmContacts"), fields: WRITABLE_FIELDS },
   handler: async (ctx, args) => {
@@ -312,11 +342,12 @@ export const updateContact = mutation({
     const existing = await ctx.db.get(args.contactId);
     if (!existing) throw new Error("Contact not found");
 
-    const merged = { ...existing, ...args.fields };
+    const fields = normalizeWritableFields(args.fields);
+    const merged = { ...existing, ...fields };
     const derived = buildDerivedFields(merged);
 
     await ctx.db.patch(args.contactId, {
-      ...args.fields,
+      ...fields,
       fullName: derived.fullName,
       jobFunction: derived.jobFunction,
       seniority: derived.seniority,

@@ -1,9 +1,9 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requireAccess } from "./lib/authGuards";
 
 // Subscribe to newsletter
-export const subscribe = mutation({
+export const subscribe = internalMutation({
   args: {
     email: v.string(),
   },
@@ -38,7 +38,7 @@ export const subscribe = mutation({
 });
 
 // Unsubscribe from newsletter
-export const unsubscribe = mutation({
+export const unsubscribe = internalMutation({
   args: {
     email: v.string(),
   },

@@ -1,5 +1,6 @@
-import { mutation, query, internalMutation } from "../_generated/server";
+import { mutation, query, internalMutation, internalQuery } from "../_generated/server";
 import { MutationCtx, QueryCtx } from "../_generated/server";
+import { requireServiceSecret, serviceSecretArg } from "../lib/serviceAuth";
 import { v } from "convex/values";
 import { requireAuth, requireAccess } from "../lib/authGuards";
 import { createMemberProfile as createMemberProfileShared } from "../lib/memberCreation";
@@ -35,7 +36,7 @@ function generateBarcode(siteSlug: string): string {
  * Create a new member profile
  * Called during personal info step of enrollment
  */
-export const createMemberProfile = mutation({
+export const createMemberProfile = internalMutation({
   args: {
     siteId: v.id("sites"),
     accountId: v.id("accounts"),
@@ -224,6 +225,7 @@ export const internalCreateMemberProfile = internalMutation({
  */
 export const webhookCreateMemberProfile = mutation({
   args: {
+    serviceSecret: serviceSecretArg,
     siteId: v.id("sites"),
     accountId: v.id("accounts"),
     groupId: v.id("groups"),
@@ -264,6 +266,7 @@ export const webhookCreateMemberProfile = mutation({
     })),
   },
   handler: async (ctx, args) => {
+    requireServiceSecret(args.serviceSecret);
     const now = Date.now();
 
     const { _id: profile, memberId, subscriberId } = await createMemberProfileShared(ctx, {
@@ -381,7 +384,7 @@ export const updateMemberProfile = mutation({
 /**
  * Link member to Clerk customer
  */
-export const linkMemberToClerk = mutation({
+export const linkMemberToClerk = internalMutation({
   args: {
     memberId: v.id("memberProfiles"),
     customerId: v.string(), // Clerk user ID
@@ -404,7 +407,7 @@ export const linkMemberToClerk = mutation({
 /**
  * Get member profile by ID
  */
-export const getMemberProfile = query({
+export const getMemberProfile = internalQuery({
   args: { memberId: v.id("memberProfiles") },
   handler: async (ctx: QueryCtx, args: any) => {
     // Authenticated users can view member profiles
@@ -417,7 +420,7 @@ export const getMemberProfile = query({
 /**
  * Get member profile by member ID string
  */
-export const getMemberByMemberId = query({
+export const getMemberByMemberId = internalQuery({
   args: { memberId: v.string() },
   handler: async (ctx: QueryCtx, args: any) => {
     // Authenticated users can view member profiles
@@ -433,7 +436,7 @@ export const getMemberByMemberId = query({
 /**
  * Get member profiles by group
  */
-export const getMembersByGroup = query({
+export const getMembersByGroup = internalQuery({
   args: { groupId: v.id("groups") },
   handler: async (ctx: QueryCtx, args: any) => {
     return await ctx.db
@@ -446,7 +449,7 @@ export const getMembersByGroup = query({
 /**
  * Get member profiles by status
  */
-export const getMembersByStatus = query({
+export const getMembersByStatus = internalQuery({
   args: {
     siteId: v.id("sites"),
     status: v.union(
@@ -467,7 +470,7 @@ export const getMembersByStatus = query({
 /**
  * Get member profile by Clerk user ID
  */
-export const getMemberByClerkId = query({
+export const getMemberByClerkId = internalQuery({
   args: { clerkUserId: v.string() },
   handler: async (ctx: QueryCtx, args: any) => {
     // Authenticated users can view member profiles
@@ -483,7 +486,7 @@ export const getMemberByClerkId = query({
 /**
  * Add member activity entry
  */
-export const addMemberActivity = mutation({
+export const addMemberActivity = internalMutation({
   args: {
     memberProfileId: v.id("memberProfiles"),
     siteId: v.id("sites"),
@@ -521,7 +524,7 @@ export const addMemberActivity = mutation({
 /**
  * Get member activities
  */
-export const getMemberActivities = query({
+export const getMemberActivities = internalQuery({
   args: {
     memberProfileId: v.id("memberProfiles"),
     limit: v.optional(v.number()),
@@ -562,6 +565,7 @@ export const createLeadFromAdmin = mutation({
     ),
   },
   handler: async (ctx: MutationCtx, args: any) => {
+    await requireAccess(ctx, "members.edit");
     const now = Date.now();
 
     // Look up the admin user by their Clerk ID to get their Convex ID
@@ -613,7 +617,7 @@ export const createLeadFromAdmin = mutation({
  * Get lead by member ID string
  * Used to fetch pre-filled lead data when enrollment page opens with ?lead= param
  */
-export const getLeadByMemberId = query({
+export const getLeadByMemberId = internalQuery({
   args: { memberId: v.string() },
   handler: async (ctx: QueryCtx, args: any) => {
     const lead = await ctx.db
@@ -641,7 +645,7 @@ export const getLeadByMemberId = query({
 /**
  * Add member note
  */
-export const addMemberNote = mutation({
+export const addMemberNote = internalMutation({
   args: {
     memberProfileId: v.id("memberProfiles"),
     siteId: v.id("sites"),
@@ -694,8 +698,10 @@ export const addMemberNote = mutation({
  * Used by Stripe sync to check if a member already exists.
  */
 export const getMemberByCustomerId = query({
-  args: { customerId: v.string() },
+  args: {
+    serviceSecret: serviceSecretArg, customerId: v.string() },
   handler: async (ctx, args) => {
+    requireServiceSecret(args.serviceSecret);
     return await ctx.db
       .query("memberProfiles")
       .withIndex("by_customer", (q: any) => q.eq("customerId", args.customerId))

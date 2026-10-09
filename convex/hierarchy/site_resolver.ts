@@ -1,4 +1,4 @@
-import { query } from "../_generated/server";
+import { query, internalQuery } from "../_generated/server";
 import { QueryCtx } from "../_generated/server";
 import { v } from "convex/values";
 import { Doc, Id } from "../_generated/dataModel";
@@ -12,7 +12,7 @@ import { Doc, Id } from "../_generated/dataModel";
  * Resolve site context by slug
  * Most common path: site resolves from URL slug (e.g., /health/enroll/ryze-health)
  */
-export const resolveSiteBySlug = query({
+export const resolveSiteBySlug = internalQuery({
   args: { slug: v.string() },
   handler: async (ctx: QueryCtx, args: { slug: string }) => {
     const site = await ctx.db
@@ -36,7 +36,7 @@ export const resolveSiteBySlug = query({
  * Resolve site context by custom domain
  * Used for white-label custom domains
  */
-export const resolveSiteByDomain = query({
+export const resolveSiteByDomain = internalQuery({
   args: { domain: v.string() },
   handler: async (ctx: QueryCtx, args: { domain: string }) => {
     const site = await ctx.db
@@ -61,7 +61,7 @@ export const resolveSiteByDomain = query({
  * Path: Groups -> Accounts -> Sites
  * Returns: SiteContext + AccountContext + GroupContext
  */
-export const resolveHierarchyByGroupCode = query({
+export const resolveHierarchyByGroupCode = internalQuery({
   args: { groupCode: v.string() },
   handler: async (ctx: QueryCtx, args: { groupCode: string }) => {
     // Step 1: Find group by code
@@ -116,7 +116,7 @@ export const resolveHierarchyByGroupCode = query({
  * Resolve allowed plan IDs (intersection of site, account, group)
  * Accounts and groups can narrow the list, but not expand it
  */
-export const resolveAllowedPlanIds = query({
+export const resolveAllowedPlanIds = internalQuery({
   args: {
     siteId: v.id("sites"),
     accountId: v.optional(v.id("accounts")),
@@ -164,7 +164,7 @@ export const resolveAllowedPlanIds = query({
  * Get custom pricing for a product at a specific hierarchy level
  * Priority: group > account > catalog (default)
  */
-export const resolveProductPricing = query({
+export const resolveProductPricing = internalQuery({
   args: {
     productId: v.id("catalogProducts"),
     accountId: v.optional(v.id("accounts")),

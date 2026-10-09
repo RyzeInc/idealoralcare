@@ -168,6 +168,14 @@ export function MemberWorkspace({
                 {m.firstName} {m.lastName}
               </h1>
               <StatusBadge status={m.memberType} />
+              {data.isDemo && (
+                <span
+                  title="Kept out of vendor files, invoices, vendor statements, commissions and insights"
+                  className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-xs font-medium text-violet-700"
+                >
+                  Demo account
+                </span>
+              )}
             </div>
             <p className="mt-1 break-all text-sm text-slate-500">
               {m.memberId} <span className="px-2 text-slate-300">/</span>{" "}
@@ -191,6 +199,9 @@ export function MemberWorkspace({
             </dl>
           </div>
           <div className="flex flex-wrap gap-2">
+            {data.isAdmin && m.memberRole !== "dependent" && (
+              <DemoToggle memberId={memberId} isDemo={data.isDemo} />
+            )}
             <button className={secondary} onClick={() => setDialog("note")}>
               <Plus size={15} /> Add note
             </button>
@@ -1469,4 +1480,38 @@ function useNow() {
     return () => clearInterval(timer);
   }, []);
   return now;
+}
+
+/**
+ * Admin-only: flip a member between real and demo. A demo member keeps a
+ * working login but is held back from vendor files and every financial report.
+ */
+function DemoToggle({ memberId, isDemo }: { memberId: Id<"memberProfiles">; isDemo: boolean }) {
+  const setDemo = useMutation(api.admin.grantFreeAccess.setDemoAccount);
+  const [busy, setBusy] = useState(false);
+  const toggle = async () => {
+    const message = isDemo
+      ? "Make this a real member again? They will be included in the next vendor file, invoices, statements, commissions and insights."
+      : "Mark as a demo account? This member (and their dependents) will be left out of vendor files, invoices, vendor statements, commissions and insights.";
+    if (!window.confirm(message)) return;
+    setBusy(true);
+    try {
+      await setDemo({ memberProfileId: memberId, isDemo: !isDemo });
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "Could not update the demo flag.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      disabled={busy}
+      className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+    >
+      {busy && <Loader2 size={15} className="animate-spin" />}
+      {isDemo ? "Unmark demo" : "Mark as demo"}
+    </button>
+  );
 }

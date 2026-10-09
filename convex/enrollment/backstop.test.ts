@@ -64,7 +64,7 @@ describe("webhookEnsureEnrollmentSession", () => {
     const { siteId, accountId, groupId } = await seedHierarchy(t);
     const { agencyId, leaderId } = await seedRep(t, "100001");
 
-    const res: any = await t.mutation(api.enrollment.sessions.webhookEnsureEnrollmentSession, {
+    const res: any = await t.mutation(api.enrollment.sessions.webhookEnsureEnrollmentSession, { serviceSecret: process.env.CONVEX_SERVICE_SECRET,
       stripeCheckoutSessionId: "cs_test_123",
       siteId, accountId, groupId, brokerValue: "100001",
     });
@@ -82,10 +82,10 @@ describe("webhookEnsureEnrollmentSession", () => {
     const t = convexTest(schema);
     const { siteId, accountId, groupId } = await seedHierarchy(t);
 
-    const first: any = await t.mutation(api.enrollment.sessions.webhookEnsureEnrollmentSession, {
+    const first: any = await t.mutation(api.enrollment.sessions.webhookEnsureEnrollmentSession, { serviceSecret: process.env.CONVEX_SERVICE_SECRET,
       stripeCheckoutSessionId: "cs_replay", siteId, accountId, groupId,
     });
-    const second: any = await t.mutation(api.enrollment.sessions.webhookEnsureEnrollmentSession, {
+    const second: any = await t.mutation(api.enrollment.sessions.webhookEnsureEnrollmentSession, { serviceSecret: process.env.CONVEX_SERVICE_SECRET,
       stripeCheckoutSessionId: "cs_replay", siteId, accountId, groupId,
     });
 
@@ -101,7 +101,7 @@ describe("webhookEnsureEnrollmentSession", () => {
     const t = convexTest(schema);
     const { siteId, accountId, groupId } = await seedHierarchy(t);
 
-    const res: any = await t.mutation(api.enrollment.sessions.webhookEnsureEnrollmentSession, {
+    const res: any = await t.mutation(api.enrollment.sessions.webhookEnsureEnrollmentSession, { serviceSecret: process.env.CONVEX_SERVICE_SECRET,
       stripeCheckoutSessionId: "cs_unknown", siteId, accountId, groupId,
       brokerValue: "MYSTERY-CODE",
     });
@@ -121,7 +121,7 @@ describe("attribution stamp on member creation", () => {
 
     const session: any = await t.mutation(
       api.enrollment.sessions.webhookEnsureEnrollmentSession,
-      { stripeCheckoutSessionId: "cs_a", siteId, accountId, groupId, brokerValue: "100001" },
+      { serviceSecret: process.env.CONVEX_SERVICE_SECRET, stripeCheckoutSessionId: "cs_a", siteId, accountId, groupId, brokerValue: "100001" },
     );
 
     const memberId = await t.run(async (ctx) => {

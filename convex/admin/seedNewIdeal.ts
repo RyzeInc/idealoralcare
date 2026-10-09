@@ -1,4 +1,5 @@
-import { mutation } from "../_generated/server";
+import { internalMutation } from "../_generated/server";
+import { BFL_MONTHLY_CENTS, BFL_SLUG } from "../lib/productSlugs";
 import { v } from "convex/values";
 
 /**
@@ -7,8 +8,11 @@ import { v } from "convex/values";
  * Run from CLI:
  *   npx convex run admin/seedNewIdeal:seedNewIdeal
  *
- * Creates 4 catalog products (Essentials Plan, 4 coverage tiers)
- * and the site/account/group hierarchy.
+ * Creates the catalog products (Essentials Plan's 4 coverage tiers, Oral
+ * Care, and standalone Balance for Life) and the site/account/group hierarchy.
+ *
+ * Internal: run from the CLI only. As public mutations these let any browser
+ * rewrite catalog prices' Stripe products or re-run the seed.
  *
  * `stripeProductId` for each tier must be filled in via the admin
  * `setNewIdealStripeIds` mutation after Stripe Products are created.
@@ -28,6 +32,15 @@ const ESSENTIALS_INCLUSIONS = [
   "Balance for Life — Behavioral health, mindfulness & substance disorder support",
 ];
 
+/** Balance for Life sold on its own — the behavioral-health piece of Essentials. */
+const BFL_INCLUSIONS = [
+  "Zenn — an AI wellness companion in the Balance for Life app, 24/7 in 70 languages",
+  "Up to 10 sessions with a licensed counselor per life event — video, phone, or in person",
+  "Live support answered by a counselor, 24/7",
+  "Life, work-life and wellness coaching, plus the Aware Mindfulness program",
+  "Preferred provider network for inpatient and outpatient care (at additional self-pay cost or through your insurance)",
+];
+
 const ORALCARE_TIERS = [
   { suffix: "employee", label: "Employee", cents: 1499 },
   { suffix: "employee-family", label: "Employee + Family", cents: 2499 },
@@ -40,7 +53,7 @@ const ORALCARE_INCLUSIONS = [
   "Emergency Support — same-day access to specialists for urgent dental concerns",
 ];
 
-export const seedNewIdeal = mutation({
+export const seedNewIdeal = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
@@ -127,6 +140,33 @@ export const seedNewIdeal = mutation({
         updatedAt: now,
       });
     }
+
+    await insertProductIfMissing({
+      slug: BFL_SLUG,
+      name: "Balance for Life — Individual",
+      category: "newideal",
+      description: "Balance for Life member support program on its own: counseling, 24/7 live support, coaching and the BFL app.",
+      inclusions: BFL_INCLUSIONS,
+      exclusions: ["Not insurance", "Not a substitute for major medical or behavioral health coverage"],
+      eligibilityRules: {
+        requiresVerification: false,
+        disclosureText:
+          "This is a membership program and is NOT insurance. Preferred Provider Network services are at additional self-pay cost or through your own insurance.",
+      },
+      activationBehavior: "immediate" as const,
+      pricing: {
+        monthlyCardCents: BFL_MONTHLY_CENTS,
+        monthlyACHCents: BFL_MONTHLY_CENTS,
+        annualCardCents: BFL_MONTHLY_CENTS * 12,
+        annualACHCents: BFL_MONTHLY_CENTS * 12,
+      },
+      metadata: { icon: "Brain", bestFor: ["Individual"], color: "pink" },
+      isVisible: true,
+      isFeatured: false,
+      order: order++,
+      createdAt: now,
+      updatedAt: now,
+    });
 
     // ── Cleanup: delete any oralcare products not in the current tier list ──
     const validOralCareSlugs = new Set(ORALCARE_TIERS.map((t) => `oralcare-${t.suffix}`));
@@ -259,7 +299,7 @@ export const seedNewIdeal = mutation({
  *   npx convex run admin/seedNewIdeal:setNewIdealStripeIds \
  *     '{"mapping": {"essentials-employee": "prod_xxx", ...}}'
  */
-export const setNewIdealStripeIds = mutation({
+export const setNewIdealStripeIds = internalMutation({
   args: {
     mapping: v.any(),
   },
@@ -296,7 +336,7 @@ export const setNewIdealStripeIds = mutation({
  *
  *   npx convex run admin/seedNewIdeal:removeFinancialShield
  */
-export const removeFinancialShield = mutation({
+export const removeFinancialShield = internalMutation({
   args: {},
   handler: async (ctx) => {
     const products = await ctx.db

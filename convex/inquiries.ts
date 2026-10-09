@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { requireAccess } from "./lib/authGuards";
 
@@ -99,7 +99,7 @@ export const updateInquiryStatus = mutation({
 });
 
 // Get inquiry by ID
-export const getInquiryById = query({
+export const getInquiryById = internalQuery({
   args: { id: v.id("inquiries") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.id);

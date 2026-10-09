@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { action } from "../_generated/server";
+import { action, internalAction } from "../_generated/server";
+import { requireServiceOrAccessAction, serviceSecretArg } from "../lib/serviceAuth";
 import { v } from "convex/values";
 import { getBaseUrl } from "../lib/env";
 import { sendViaResendOrThrow } from "../lib/resend";
@@ -88,6 +89,7 @@ function applyBrand(
  */
 export const sendFulfillmentPacketEmail = action({
   args: {
+    serviceSecret: serviceSecretArg,
     // Member data used to personalise the PDF and email body
     memberName: v.string(),
     memberFirstName: v.string(),
@@ -126,7 +128,9 @@ export const sendFulfillmentPacketEmail = action({
     // Optional per-brand overrides — all fall back to the Ideal defaults
     brand: v.optional(v.object(brandArg)),
   },
-  handler: async (_ctx: any, args: any) => {
+  handler: async (ctx: any, args: any) => {
+    // Sends mail from our domain: our servers (webhooks, scheduled sends) or staff only.
+    await requireServiceOrAccessAction(ctx, args.serviceSecret, ["support.use", "members.edit", "eligibility.manage"]);
     const baseUrl = args.appUrl ?? getBaseUrl();
 
     // ── Step 1: generate the PDFs ─────────────────────────────────────────────
@@ -228,6 +232,7 @@ export const sendFulfillmentPacketEmail = action({
  */
 export const sendEssentialsPacketEmail = action({
   args: {
+    serviceSecret: serviceSecretArg,
     memberName: v.string(),
     memberFirstName: v.string(),
     memberEmail: v.string(),
@@ -246,12 +251,18 @@ export const sendEssentialsPacketEmail = action({
     agreementPdfBase64: v.optional(v.string()),
     // Optional per-brand overrides — all fall back to the Ideal defaults
     brand: v.optional(v.object(brandArg)),
+    /** "bfl" for standalone Balance for Life; defaults to the full Essentials packet. */
+    program: v.optional(v.union(v.literal("essentials"), v.literal("bfl"))),
   },
-  handler: async (_ctx: any, args: any) => {
+  handler: async (ctx: any, args: any) => {
+    // Sends mail from our domain: our servers (webhooks, scheduled sends) or staff only.
+    await requireServiceOrAccessAction(ctx, args.serviceSecret, ["support.use", "members.edit", "eligibility.manage"]);
     const baseUrl = args.appUrl ?? getBaseUrl();
+    const isBfl = args.program === "bfl";
 
     // ── Step 1: generate the PDFs ─────────────────────────────────────────────
     const pdfPayload = {
+      program: args.program,
       memberName: args.memberName,
       memberFirstName: args.memberFirstName,
       memberEmail: args.memberEmail,
@@ -289,36 +300,46 @@ export const sendEssentialsPacketEmail = action({
     }
 
     // ── Step 2: send via Resend with both PDFs attached ───────────────────────
-    const rendered = EMAIL_TEMPLATES["essentials-fulfillment-packet"].render({
-      memberFirstName: args.memberFirstName,
-      essentialsMemberNumber: args.essentialsMemberNumber,
-      essentialsGroupNumber: args.essentialsGroupNumber,
-      planName: args.planName,
-      coverageType: args.coverageType ?? "Employee",
-      effectiveDate: args.effectiveDate,
-      memberServicesPhone: "844-433-2502",
-      portalUrl: baseUrl,
-    });
+    const rendered = isBfl
+      ? EMAIL_TEMPLATES["bfl-fulfillment-packet"].render({
+          memberFirstName: args.memberFirstName,
+          essentialsMemberNumber: args.essentialsMemberNumber,
+          planName: args.planName,
+          effectiveDate: args.effectiveDate,
+          memberServicesPhone: "844-433-2502",
+          portalUrl: baseUrl,
+        })
+      : EMAIL_TEMPLATES["essentials-fulfillment-packet"].render({
+          memberFirstName: args.memberFirstName,
+          essentialsMemberNumber: args.essentialsMemberNumber,
+          essentialsGroupNumber: args.essentialsGroupNumber,
+          planName: args.planName,
+          coverageType: args.coverageType ?? "Employee",
+          effectiveDate: args.effectiveDate,
+          memberServicesPhone: "844-433-2502",
+          portalUrl: baseUrl,
+        });
+    const filePrefix = isBfl ? "Ideal_Health_Balance_for_Life" : "Ideal_Health_Essentials";
 
     return await sendViaResendOrThrow({
       to: args.memberEmail,
       ...applyBrand(args.brand, rendered),
       attachments: [
         {
-          filename: "Ideal_Health_Essentials_Welcome_Packet.pdf",
+          filename: `${filePrefix}_Welcome_Packet.pdf`,
           content: pdfBase64,
         },
         {
-          filename: "Ideal_Health_Essentials_Membership_Agreement.pdf",
+          filename: `${filePrefix}_Membership_Agreement.pdf`,
           content: agreementPdfBase64,
         },
       ],
-      tags: [{ name: "category", value: "essentials-packet" }],
+      tags: [{ name: "category", value: isBfl ? "bfl-packet" : "essentials-packet" }],
     });
   },
 });
 
-export const sendMembershipWelcomeEmail = action({
+export const sendMembershipWelcomeEmail = internalAction({
   args: {
     memberName: v.string(),
     memberEmail: v.string(),
@@ -346,7 +367,7 @@ export const sendMembershipWelcomeEmail = action({
   },
 });
 
-export const sendMembershipConfirmationEmail = action({
+export const sendMembershipConfirmationEmail = internalAction({
   args: {
     memberName: v.string(),
     memberEmail: v.string(),
@@ -380,13 +401,16 @@ export const sendMembershipConfirmationEmail = action({
 
 export const sendMembershipCancelledEmail = action({
   args: {
+    serviceSecret: serviceSecretArg,
     memberName: v.string(),
     memberEmail: v.string(),
     memberId: v.string(),
     // Optional per-brand overrides — all fall back to the Ideal defaults
     brand: v.optional(v.object(brandArg)),
   },
-  handler: async (_ctx: any, args: any) => {
+  handler: async (ctx: any, args: any) => {
+    // Sends mail from our domain: our servers (webhooks, scheduled sends) or staff only.
+    await requireServiceOrAccessAction(ctx, args.serviceSecret, ["support.use", "members.edit", "eligibility.manage"]);
     const rendered = EMAIL_TEMPLATES.cancelled.render({
       memberName: args.memberName,
       memberId: args.memberId,
@@ -414,6 +438,7 @@ export const sendMembershipCancelledEmail = action({
  */
 export const sendEligibilityWelcomeSetPasswordEmail = action({
   args: {
+    serviceSecret: serviceSecretArg,
     memberName: v.string(),
     memberEmail: v.string(),
     invitationUrl: v.string(),
@@ -422,7 +447,9 @@ export const sendEligibilityWelcomeSetPasswordEmail = action({
     // Optional per-brand overrides — all fall back to the Ideal defaults
     brand: v.optional(v.object(brandArg)),
   },
-  handler: async (_ctx: any, args: any) => {
+  handler: async (ctx: any, args: any) => {
+    // Sends mail from our domain: our servers (webhooks, scheduled sends) or staff only.
+    await requireServiceOrAccessAction(ctx, args.serviceSecret, ["support.use", "members.edit", "eligibility.manage"]);
     const rendered = EMAIL_TEMPLATES["eligibility-set-password"].render({
       memberName: args.memberName,
       invitationUrl: args.invitationUrl,

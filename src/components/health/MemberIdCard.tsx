@@ -19,13 +19,21 @@ interface MemberIdCardProps {
 }
 
 const CAREINGTON_LOGO_SRC = "/careington-logo.png";
+// Sits in the footer row beside the disclaimer. It used to float over the
+// bottom-right corner, where it covered the disclaimer once the card got narrow.
 const cardLogoStyle: React.CSSProperties = {
-  position: 'absolute',
-  bottom: '0.875rem',
-  right: '0.875rem',
-  width: '72px',
-  opacity: 0.22,
+  width: '64px',
+  flexShrink: 0,
+  opacity: 0.35,
   pointerEvents: 'none',
+};
+const cardFooterStyle: React.CSSProperties = {
+  borderTop: '1px solid #e2e8f0',
+  paddingTop: '0.375rem',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '0.5rem',
 };
 
 export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps) {
@@ -34,7 +42,7 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       {/* Top row: title + actions */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem 1rem' }}>
         <h3 style={{ fontSize: '1.0625rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
           Your Member ID Card
         </h3>
@@ -45,11 +53,11 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
               display: 'flex', alignItems: 'center', gap: '0.375rem',
               padding: '0.375rem 0.75rem', background: '#f1f5f9', color: '#475569',
               border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer',
-              fontSize: '0.8125rem', fontWeight: 500,
+              fontSize: '0.8125rem', fontWeight: 500, whiteSpace: 'nowrap',
             }}
           >
             <RotateCcw size={14} />
-            {flipped ? 'Front' : 'Back'}
+            {flipped ? 'View front' : 'View back'}
           </button>
           {onDownload && (
             <button
@@ -58,7 +66,7 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
                 display: 'flex', alignItems: 'center', gap: '0.375rem',
                 padding: '0.375rem 0.75rem', background: '#eff6ff', color: '#0066CC',
                 border: '1px solid #bfdbfe', borderRadius: '8px', cursor: 'pointer',
-                fontSize: '0.8125rem', fontWeight: 600,
+                fontSize: '0.8125rem', fontWeight: 600, whiteSpace: 'nowrap',
               }}
             >
               <Download size={14} />
@@ -77,6 +85,7 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
           width: '100%',
           maxWidth: '480px',
           margin: '0 auto',
+          containerType: 'inline-size',
         }}
         onClick={() => setFlipped(!flipped)}
       >
@@ -84,16 +93,20 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
           style={{
             position: 'relative',
             width: '100%',
-            aspectRatio: '1.5882',   /* 3.375 / 2.125 — exact CR80 ratio */
             transition: 'transform 0.6s',
             transformStyle: 'preserve-3d',
             transform: flipped ? 'rotateY(180deg)' : 'rotateY(0)',
           }}
         >
           {/* ── FRONT ──────────────────────────────────────────────── */}
+          {/* In normal flow so the card is at least CR80-shaped (62.96cqw = 1/1.5882
+              of the card's width) but grows when a phone-width card can't fit every
+              line — a fixed aspect ratio clipped the footer on narrow screens. The
+              back face is absolutely positioned and takes the same height. */}
           <div
             style={{
-              position: 'absolute', inset: 0,
+              position: 'relative',
+              minHeight: '62.96cqw',
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
               background: '#fff',
@@ -115,13 +128,6 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
                 background: 'linear-gradient(90deg, #0066CC, #14b8a6)',
               }}
             />
-            {/* Logo watermark */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={CAREINGTON_LOGO_SRC}
-              alt="Careington"
-              style={cardLogoStyle}
-            />
 
             {/* Header row */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
@@ -132,7 +138,7 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
                   alt="Ideal Oral Health"
                   style={{ height: '28px', width: 'auto', objectFit: 'contain', flexShrink: 0 }}
                 />
-                <div style={{ minWidth: 0 }}>
+                <div className="member-card-brandtext" style={{ minWidth: 0 }}>
                   <div style={{ fontSize: '0.625rem', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap' }}>
                     Ideal Oral Health
                   </div>
@@ -148,7 +154,9 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
             </div>
 
             {/* Fields grid — 2-column, 3-row layout */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px' }}>
+            {/* minmax(0, …) so a long plan name truncates in its own column
+                instead of widening it and clipping the Member ID beside it. */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '4px 12px' }}>
               {[
                 { label: 'Member',             value: cardData.memberName,                          mono: false },
                 { label: 'Member ID',           value: cardData.memberId,                            mono: true  },
@@ -166,7 +174,11 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
                     fontFamily: mono ? 'monospace' : 'inherit',
                     textTransform: mono ? 'uppercase' : 'none',
                     marginTop: '1px',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    // IDs stay on one line; names and plans wrap — the card
+                    // grows to fit rather than cutting "— Family" off a plan.
+                    ...(mono
+                      ? { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+                      : { overflowWrap: 'anywhere' }),
                   }}>
                     {value}
                   </div>
@@ -175,19 +187,17 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
             </div>
 
             {/* Footer */}
-            <div
-              style={{
-                borderTop: '1px solid #e2e8f0',
-                paddingTop: '0.375rem',
-                textAlign: 'center',
-              }}
-            >
-              <div style={{ fontSize: '0.5625rem', fontWeight: 800, color: '#0f172a', letterSpacing: '0.04em' }}>
-                THIS IS NOT INSURANCE.
+            <div style={cardFooterStyle}>
+              <div>
+                <div style={{ fontSize: '0.5625rem', fontWeight: 800, color: '#0f172a', letterSpacing: '0.04em' }}>
+                  THIS IS NOT INSURANCE.
+                </div>
+                <div style={{ fontSize: '0.5rem', color: '#94a3b8', marginTop: '1px' }}>
+                  This is a discount program. Savings vary by provider.
+                </div>
               </div>
-              <div style={{ fontSize: '0.5rem', color: '#94a3b8', marginTop: '1px' }}>
-                This is a discount program. Savings vary by provider.
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={CAREINGTON_LOGO_SRC} alt="Careington" style={cardLogoStyle} />
             </div>
           </div>
 
@@ -216,13 +226,6 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
                 position: 'absolute', top: 0, left: 0, right: 0, height: '3px',
                 background: 'linear-gradient(90deg, #14b8a6, #0066CC)',
               }}
-            />
-            {/* Logo watermark */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={CAREINGTON_LOGO_SRC}
-              alt="Careington"
-              style={cardLogoStyle}
             />
 
             {/* Networks */}
@@ -265,16 +268,12 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
             </div>
 
             {/* Footer */}
-            <div
-              style={{
-                borderTop: '1px solid #e2e8f0',
-                paddingTop: '0.375rem',
-                textAlign: 'center',
-              }}
-            >
+            <div style={cardFooterStyle}>
               <div style={{ fontSize: '0.5rem', fontWeight: 800, color: '#0f172a', letterSpacing: '0.02em' }}>
                 THIS IS NOT INSURANCE. IT IS A DISCOUNT PROGRAM.
               </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={CAREINGTON_LOGO_SRC} alt="Careington" style={cardLogoStyle} />
             </div>
           </div>
         </div>

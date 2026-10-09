@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
+import { convexServiceSecret } from "@/lib/convex-service";
 import { api } from "@/convex/_generated/api";
 
 /**
@@ -102,6 +103,7 @@ export async function POST(req: NextRequest) {
     const result = await client.mutation(
       api.healthplans.toothlens.recordScanCompletedWebhook,
       {
+          serviceSecret: convexServiceSecret(),
         sessionId,
         uid,
         company,

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ConvexHttpClient } from 'convex/browser';
+import { convexServiceSecret } from "@/lib/convex-service";
+import { requireAdminRequest } from "@/lib/require-admin-request";
 import { api } from '@/convex/_generated/api';
 import {
   EMAIL_TEMPLATES,
@@ -19,7 +21,7 @@ async function logSend(entry: {
 }) {
   try {
     const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || '');
-    await convex.mutation(api.debug.emailLog.logSend, entry);
+    await convex.mutation(api.debug.emailLog.logSend, { ...entry, serviceSecret: convexServiceSecret() });
   } catch (err) {
     // Logging must never block or fail the actual send.
     console.error('[test-email] failed to record debug log entry:', err);
@@ -35,6 +37,8 @@ async function logSend(entry: {
  */
 
 export async function GET() {
+  const denied = await requireAdminRequest();
+  if (denied) return denied;
   return NextResponse.json({ templates: listEmailTemplates() });
 }
 
@@ -128,6 +132,9 @@ async function buildEssentialsAttachments(
 }
 
 export async function POST(req: NextRequest) {
+  // Sends real email from our domain to any address — admins only.
+  const denied = await requireAdminRequest();
+  if (denied) return denied;
   try {
     const body = await req.json();
     const { to, type, firstName, lastName } = body as {

@@ -1,5 +1,7 @@
 import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
+import { requireAccess } from "../lib/authGuards";
+import { requireServiceSecret, serviceSecretArg } from "../lib/serviceAuth";
 
 /**
  * Debug email tester activity log.
@@ -12,6 +14,7 @@ import { v } from "convex/values";
 
 export const logSend = mutation({
   args: {
+    serviceSecret: serviceSecretArg,
     templateId: v.string(),
     to: v.string(),
     subject: v.string(),
@@ -21,6 +24,7 @@ export const logSend = mutation({
     hasAttachments: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    requireServiceSecret(args.serviceSecret);
     await ctx.db.insert("events", {
       eventType: "debug.test_email_sent",
       actor: "debug-tool",
@@ -43,6 +47,7 @@ export const recentSends = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireAccess(ctx, "system.manage");
     const limit = Math.min(args.limit ?? 50, 200);
     const rows = await ctx.db
       .query("events")

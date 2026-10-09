@@ -267,6 +267,8 @@ export const addDependent = mutation({
       // Dependent-specific fields
       memberRole: "dependent" as any,
       primaryMemberId: primaryProfile._id as any,
+      // A demo household stays out of vendor files and reports as a unit.
+      isDemo: primaryProfile.isDemo,
       relationship: args.relationship as any,
       inviteToken,
       inviteStatus: "pending" as any,
@@ -357,6 +359,7 @@ export const internalAddDependent = internalMutation({
       dateOfBirth: args.dateOfBirth,
       memberRole: "dependent" as any,
       primaryMemberId: args.primaryMemberProfileId as any,
+      isDemo: primaryProfile.isDemo,
       relationship: args.relationship as any,
       inviteToken,
       inviteStatus: "pending" as any,

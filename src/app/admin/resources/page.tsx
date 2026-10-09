@@ -5,8 +5,9 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
-  Upload, Link2, Eye, EyeOff, Archive, Download, Loader2, Plus, X, Star,
+  Upload, Link2, Eye, EyeOff, Archive, Loader2, Plus, X, Star,
 } from "lucide-react";
+import { ResourcePreviewModal } from "@/components/resources/ResourcePreview";
 import { StatCard, StatCardGrid, DataTable, SectionHeader, type Column } from "@/components/insights";
 import { formatDate, humanize } from "@/lib/admin-format";
 
@@ -26,6 +27,7 @@ type Row = {
   categoryLabel: string;
   kind: "file" | "link";
   fileName?: string;
+  contentType?: string;
   fileSizeBytes?: number;
   status: string;
   featured: boolean;
@@ -128,9 +130,17 @@ export default function AdminResources() {
     }
   };
 
-  const preview = async (resourceId: Id<"partnerResources">) => {
-    const result = await getAdminDownloadUrl({ resourceId });
-    if (result?.url) window.open(result.url, "_blank", "noopener,noreferrer");
+  // Same viewer brokers get, so staff see a piece exactly as it will look
+  // in the partner library — including before it is published.
+  const [previewing, setPreviewing] = useState<{ row: Row; url: string | null; loading: boolean } | null>(null);
+  const preview = async (row: Row) => {
+    setPreviewing({ row, url: null, loading: true });
+    try {
+      const result = await getAdminDownloadUrl({ resourceId: row._id });
+      setPreviewing((p) => (p && p.row._id === row._id ? { ...p, url: result?.url ?? null, loading: false } : p));
+    } catch {
+      setPreviewing((p) => (p && p.row._id === row._id ? { ...p, loading: false } : p));
+    }
   };
 
   const toggle = (list: string[], value: string) =>
@@ -203,11 +213,12 @@ export default function AdminResources() {
         <div className="flex items-center gap-1 justify-end">
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); void preview(r._id); }}
+            onClick={(e) => { e.stopPropagation(); void preview(r); }}
             title="Preview"
+            aria-label={`Preview ${r.title}`}
             className="p-1.5 rounded hover:bg-slate-100 text-slate-500"
           >
-            <Download size={14} />
+            <Eye size={14} />
           </button>
           {r.status !== "published" ? (
             <button
@@ -500,6 +511,14 @@ export default function AdminResources() {
           </div>
         </div>
       )}
+
+      <ResourcePreviewModal
+        target={previewing?.row ?? null}
+        url={previewing?.url ?? null}
+        loading={previewing?.loading ?? false}
+        onClose={() => setPreviewing(null)}
+        onDownload={() => previewing?.url && window.open(previewing.url, "_blank", "noopener,noreferrer")}
+      />
     </div>
   );
 }

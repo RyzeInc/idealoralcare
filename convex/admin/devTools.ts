@@ -167,7 +167,7 @@ export const linkAdminAsMember = mutation({
 /**
  * Check whether a given Clerk user ID already has a linked member profile.
  */
-export const getMyMemberProfile = query({
+export const getMyMemberProfile = internalQuery({
   args: { clerkUserId: v.string() },
   handler: async (ctx, args) => {
     return await ctx.db

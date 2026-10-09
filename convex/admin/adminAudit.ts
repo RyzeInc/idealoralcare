@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { mutation, query, internalMutation } from "../_generated/server";
+import { requireServiceSecret, serviceSecretArg } from "../lib/serviceAuth";
 import { v } from "convex/values";
 import { requireAccess, requireStaffAdmin } from "../lib/authGuards";
 
@@ -87,6 +88,7 @@ export const logAdminAction = mutation({
  */
 export const logAdminActionAsActor = mutation({
   args: {
+    serviceSecret: serviceSecretArg,
     actorClerkUserId: v.string(),
     action: v.string(),
     targetType: v.optional(v.string()),
@@ -95,6 +97,7 @@ export const logAdminActionAsActor = mutation({
     metadata: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
+    requireServiceSecret(args.serviceSecret);
     const admin = await ctx.db
       .query("adminUsers")
       .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", args.actorClerkUserId))

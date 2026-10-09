@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { hasConflictingPrograms } from "@/convex/lib/productSlugs";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { ConvexHttpClient } from "convex/browser";
 import Stripe from "stripe";
@@ -75,12 +76,14 @@ export async function POST(req: NextRequest) {
     let productName = "Oral Health Plan";
     let amount: number | undefined;
     let stripeProductId: string | undefined;
+    const orderSlugs: Array<string | undefined> = [];
 
     try {
       // @ts-ignore - Avoid deep type instantiation issue with api.catalog.queries
       const product = await convex.query(api.catalog.queries.getById, { id: planId });
       if (product) {
         productName = product.name;
+        orderSlugs.push(product.slug);
         const pricing = product.pricing;
         // Resolve amount from DB pricing based on cadence (card/ach same price)
         if (cadence === "monthly") {
@@ -149,6 +152,7 @@ export async function POST(req: NextRequest) {
         // @ts-ignore - deep type instantiation
         const extra = await convex.query(api.catalog.queries.getById, { id: extraPlanId });
         if (!extra) continue;
+        orderSlugs.push(extra.slug);
         const exPricing = extra.pricing;
         const exAmount = cadence === "monthly"
           ? (paymentMethod === "ach" ? exPricing.monthlyACHCents : exPricing.monthlyCardCents)
@@ -169,6 +173,14 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         console.warn("[checkout] Failed to add additional plan", extraPlanId, err);
       }
+    }
+
+    // Essentials already includes Balance for Life; selling both double-charges it.
+    if (hasConflictingPrograms(orderSlugs)) {
+      return NextResponse.json(
+        { error: "Balance for Life is already included in the Essentials Plan. Remove one of them to continue." },
+        { status: 400 }
+      );
     }
 
     // Family plan is flat-rate — no per-dependent add-on line items.

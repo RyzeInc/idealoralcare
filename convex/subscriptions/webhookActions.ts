@@ -11,6 +11,7 @@
  */
 
 import { mutation, query, internalQuery, internalMutation } from "../_generated/server";
+import { ownServiceSecret, requireServiceSecret, serviceSecretArg } from "../lib/serviceAuth";
 import { v } from "convex/values";
 import { internal, api } from "../_generated/api";
 
@@ -20,9 +21,11 @@ import { internal, api } from "../_generated/api";
  */
 export const getBundleByStripeSubscription = query({
   args: {
+    serviceSecret: serviceSecretArg,
     stripeSubscriptionId: v.string(),
   },
   handler: async (ctx, args) => {
+    requireServiceSecret(args.serviceSecret);
     // Use index if available, otherwise filter
     const bundle = await ctx.db
       .query("subscriptionBundles")
@@ -41,11 +44,13 @@ export const getBundleByStripeSubscription = query({
  */
 export const cancelBundleFromWebhook = mutation({
   args: {
+    serviceSecret: serviceSecretArg,
     bundleId: v.id("subscriptionBundles"),
     reason: v.string(),
     stripeEventId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    requireServiceSecret(args.serviceSecret);
     const bundle = await ctx.db.get(args.bundleId);
     if (!bundle) {
       throw new Error(`Bundle not found: ${args.bundleId}`);
@@ -73,10 +78,12 @@ export const cancelBundleFromWebhook = mutation({
  */
 export const revokeEntitlementsByBundle = mutation({
   args: {
+    serviceSecret: serviceSecretArg,
     bundleId: v.id("subscriptionBundles"),
     reason: v.string(),
   },
   handler: async (ctx, args) => {
+    requireServiceSecret(args.serviceSecret);
     const entitlements = await ctx.db
       .query("entitlements")
       .withIndex("by_bundle", (q) => q.eq("bundleId", args.bundleId))
@@ -106,10 +113,12 @@ export const revokeEntitlementsByBundle = mutation({
  */
 export const suspendBundleFromWebhook = mutation({
   args: {
+    serviceSecret: serviceSecretArg,
     bundleId: v.id("subscriptionBundles"),
     reason: v.string(),
   },
   handler: async (ctx, args) => {
+    requireServiceSecret(args.serviceSecret);
     const bundle = await ctx.db.get(args.bundleId);
     if (!bundle) {
       throw new Error(`Bundle not found: ${args.bundleId}`);
@@ -160,10 +169,12 @@ export const suspendBundleFromWebhook = mutation({
  */
 export const reactivateBundleFromWebhook = mutation({
   args: {
+    serviceSecret: serviceSecretArg,
     bundleId: v.id("subscriptionBundles"),
     reason: v.string(),
   },
   handler: async (ctx, args) => {
+    requireServiceSecret(args.serviceSecret);
     const bundle = await ctx.db.get(args.bundleId);
     if (!bundle) {
       throw new Error(`Bundle not found: ${args.bundleId}`);
@@ -209,7 +220,7 @@ export const reactivateBundleFromWebhook = mutation({
  * Accepts the primary member's profile ID and a JSON-encoded array of
  * dependent data (as stored in Stripe session metadata).
  */
-export const webhookCreateDependentProfiles = mutation({
+export const webhookCreateDependentProfiles = internalMutation({
   args: {
     primaryMemberProfileId: v.id("memberProfiles"),
     dependentsJson: v.string(), // JSON array of dependent objects
@@ -262,10 +273,12 @@ export const webhookCreateDependentProfiles = mutation({
  */
 export const markCancelAtPeriodEnd = mutation({
   args: {
+    serviceSecret: serviceSecretArg,
     bundleId: v.id("subscriptionBundles"),
     cancelAtPeriodEnd: v.boolean(),
   },
   handler: async (ctx, args) => {
+    requireServiceSecret(args.serviceSecret);
     const bundle = await ctx.db.get(args.bundleId);
     if (!bundle) {
       throw new Error(`Bundle not found: ${args.bundleId}`);
@@ -295,6 +308,7 @@ export const markCancelAtPeriodEnd = mutation({
  */
 export const processTierChange = mutation({
   args: {
+    serviceSecret: serviceSecretArg,
     bundleId: v.id("subscriptionBundles"),
     customerId: v.string(),
     oldProductId: v.id("catalogProducts"),
@@ -304,6 +318,7 @@ export const processTierChange = mutation({
     stripeSubscriptionItemId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    requireServiceSecret(args.serviceSecret);
     const now = Date.now();
     const bundle = await ctx.db.get(args.bundleId);
     if (!bundle) throw new Error(`Bundle not found: ${args.bundleId}`);
@@ -381,6 +396,7 @@ export const processTierChange = mutation({
  */
 export const scheduleTierDowngrade = mutation({
   args: {
+    serviceSecret: serviceSecretArg,
     bundleId: v.id("subscriptionBundles"),
     customerId: v.string(),
     targetProductId: v.id("catalogProducts"),
@@ -388,6 +404,7 @@ export const scheduleTierDowngrade = mutation({
     effectiveDate: v.number(), // Unix ms
   },
   handler: async (ctx, args) => {
+    requireServiceSecret(args.serviceSecret);
     const now = Date.now();
     const bundle = await ctx.db.get(args.bundleId);
     if (!bundle) throw new Error(`Bundle not found: ${args.bundleId}`);
@@ -412,9 +429,11 @@ export const scheduleTierDowngrade = mutation({
  */
 export const clearPendingDowngrade = mutation({
   args: {
+    serviceSecret: serviceSecretArg,
     bundleId: v.id("subscriptionBundles"),
   },
   handler: async (ctx, args) => {
+    requireServiceSecret(args.serviceSecret);
     const bundle = await ctx.db.get(args.bundleId);
     if (!bundle) throw new Error(`Bundle not found: ${args.bundleId}`);
 
@@ -433,8 +452,10 @@ export const clearPendingDowngrade = mutation({
  * Called without auth context from the Stripe webhook handler.
  */
 export const getMemberForCancellation = query({
-  args: { customerId: v.string() },
+  args: {
+    serviceSecret: serviceSecretArg, customerId: v.string() },
   handler: async (ctx, args) => {
+    requireServiceSecret(args.serviceSecret);
     const profile = await ctx.db
       .query("memberProfiles")
       .withIndex("by_customer", (q) => q.eq("customerId", args.customerId))
@@ -518,6 +539,7 @@ export const applyReconciliationOutcome = internalMutation({
 
     const logCorrection = async (action: string, extra?: Record<string, unknown>) => {
       await ctx.runMutation(api.subscriptions.mutations.webhookLogEvent, {
+        serviceSecret: ownServiceSecret(),
         eventType: "stripe_reconcile.corrected",
         actor: "system",
         customerId: bundle.customerId,

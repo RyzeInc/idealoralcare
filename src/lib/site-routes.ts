@@ -183,6 +183,13 @@ export const SITE_ROUTES: SiteRoute[] = [
     auth: "none",
   },
   {
+    path: "/newideal/balance-for-life",
+    title: "Balance for Life plan",
+    purpose: "Standalone Balance for Life ($19.95/mo) detail and enrollment. Essentials already includes BFL, so the enroll button refuses a cart holding Essentials.",
+    area: "Marketing",
+    auth: "none",
+  },
+  {
     path: "/newideal/checkout",
     title: "Essentials checkout",
     purpose: "Stripe checkout for Essentials and Oral Care, with the signed membership agreement persisted at signing.",
@@ -505,6 +512,13 @@ export const SITE_ROUTES: SiteRoute[] = [
     path: "/admin/partner-applications",
     title: "Partner applications",
     purpose: "Review broker, agency, and rep onboarding submissions from /register/rep.",
+    area: "Admin console",
+    auth: "staff",
+  },
+  {
+    path: "/admin/mgu-agreement",
+    title: "MGU agreement",
+    purpose: "Upload the Master MGU Agreement agencies sign in the partner portal, and track who has signed the current version.",
     area: "Admin console",
     auth: "staff",
   },
@@ -875,7 +889,6 @@ export const API_GROUPS: ApiGroup[] = [
     purpose: "Server-side admin utilities: PDF generation, invite lookup, vendor delivery.",
     auth: "staff",
     endpoints: [
-      "GET  /api/admin/get-invite-by-email",
       "GET  /api/admin/post-signup-check",
       "GET  /api/admin/members/:memberId/id-card",
       "GET  /api/admin/list-bill-invoices/:invoiceId/group-pdf",

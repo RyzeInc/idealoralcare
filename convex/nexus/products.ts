@@ -1,8 +1,8 @@
-import { mutation, query } from "../_generated/server";
+import { mutation, query, internalMutation, internalQuery } from "../_generated/server";
 import { v } from "convex/values";
 
 // Get all products (for admin)
-export const getAll = query({
+export const getAll = internalQuery({
   args: {},
   handler: async (ctx) => {
     return await ctx.db.query("nexusProducts").withIndex("by_order").collect();
@@ -10,7 +10,7 @@ export const getAll = query({
 });
 
 // Get visible products (for portal)
-export const getVisible = query({
+export const getVisible = internalQuery({
   args: {},
   handler: async (ctx) => {
     const products = await ctx.db
@@ -22,7 +22,7 @@ export const getVisible = query({
 });
 
 // Get products by category
-export const getByCategory = query({
+export const getByCategory = internalQuery({
   args: { categoryId: v.id("nexusCategories") },
   handler: async (ctx, args) => {
     const products = await ctx.db
@@ -36,7 +36,7 @@ export const getByCategory = query({
 });
 
 // Get featured products
-export const getFeatured = query({
+export const getFeatured = internalQuery({
   args: {},
   handler: async (ctx) => {
     const products = await ctx.db
@@ -50,7 +50,7 @@ export const getFeatured = query({
 });
 
 // Get product by slug
-export const getBySlug = query({
+export const getBySlug = internalQuery({
   args: { slug: v.string() },
   handler: async (ctx, args) => {
     return await ctx.db
@@ -61,7 +61,7 @@ export const getBySlug = query({
 });
 
 // Get product by ID
-export const getById = query({
+export const getById = internalQuery({
   args: { id: v.id("nexusProducts") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.id);
@@ -69,7 +69,7 @@ export const getById = query({
 });
 
 // Get products with category info (for portal display)
-export const getWithCategories = query({
+export const getWithCategories = internalQuery({
   args: {},
   handler: async (ctx) => {
     const products = await ctx.db
@@ -94,7 +94,7 @@ export const getWithCategories = query({
 });
 
 // Create product
-export const create = mutation({
+export const create = internalMutation({
   args: {
     categoryId: v.id("nexusCategories"),
     name: v.string(),
@@ -122,7 +122,7 @@ export const create = mutation({
 });
 
 // Update product
-export const update = mutation({
+export const update = internalMutation({
   args: {
     id: v.id("nexusProducts"),
     categoryId: v.optional(v.id("nexusCategories")),
@@ -153,7 +153,7 @@ export const update = mutation({
 });
 
 // Delete product
-export const remove = mutation({
+export const remove = internalMutation({
   args: { id: v.id("nexusProducts") },
   handler: async (ctx, args) => {
     await ctx.db.delete(args.id);
@@ -161,7 +161,7 @@ export const remove = mutation({
 });
 
 // Reorder products
-export const reorder = mutation({
+export const reorder = internalMutation({
   args: {
     orderedIds: v.array(v.id("nexusProducts")),
   },
@@ -176,7 +176,7 @@ export const reorder = mutation({
 });
 
 // Toggle visibility
-export const toggleVisibility = mutation({
+export const toggleVisibility = internalMutation({
   args: { id: v.id("nexusProducts") },
   handler: async (ctx, args) => {
     const product = await ctx.db.get(args.id);
@@ -190,7 +190,7 @@ export const toggleVisibility = mutation({
 });
 
 // Toggle featured
-export const toggleFeatured = mutation({
+export const toggleFeatured = internalMutation({
   args: { id: v.id("nexusProducts") },
   handler: async (ctx, args) => {
     const product = await ctx.db.get(args.id);

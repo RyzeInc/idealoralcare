@@ -92,7 +92,7 @@ describe("processTierChange — bundleTierHistory", () => {
       await ctx.db.get(bundleId); // sanity read
     });
 
-    await t.mutation(processTierChange, {
+    await t.mutation(processTierChange, { serviceSecret: process.env.CONVEX_SERVICE_SECRET,
       bundleId,
       customerId: "cust1",
       oldProductId: individualId,
@@ -131,7 +131,7 @@ describe("processTierChange — bundleTierHistory", () => {
       createdAt,
     });
 
-    await t.mutation(processTierChange, {
+    await t.mutation(processTierChange, { serviceSecret: process.env.CONVEX_SERVICE_SECRET,
       bundleId,
       customerId: "cust2",
       oldProductId: individualId,
@@ -140,7 +140,7 @@ describe("processTierChange — bundleTierHistory", () => {
       direction: "upgrade",
     });
 
-    await t.mutation(processTierChange, {
+    await t.mutation(processTierChange, { serviceSecret: process.env.CONVEX_SERVICE_SECRET,
       bundleId,
       customerId: "cust2",
       oldProductId: familyId,

@@ -4,6 +4,7 @@ import { useState, Suspense, lazy } from 'react';
 import React from 'react';
 import { HeartPulse, Scan, Search, Video } from 'lucide-react';
 import OverviewTab from './tabs/OverviewTab';
+import { useSiteThemeOptional } from '@/components/providers/SiteThemeProvider';
 
 // Lazy load non-critical tabs
 const ProviderSearchTab = lazy(() => import('./tabs/ProviderSearchTab'));
@@ -80,6 +81,11 @@ export default function DashboardTabs({
   isFamily = false,
 }: DashboardTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
+  // White-label sites get their own mark beside "Dashboard"; a hardcoded
+  // brand icon here is how a partner site ended up showing another brand's tooth.
+  const site = useSiteThemeOptional()?.site;
+  const dashboardIcon = site?.branding?.faviconUrl || '/health-assets/IdealLogo.png';
+  const dashboardIconAlt = site?.name || 'Ideal Health';
 
   return (
     <>
@@ -106,7 +112,7 @@ export default function DashboardTabs({
               flexShrink: 0,
             }}
           >
-            <img src="/health-assets/IdealLogo.png" alt="Ideal Health" style={{ width: '100%', height: '100%' }} />
+            <img src={dashboardIcon} alt={dashboardIconAlt} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
           <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>Dashboard</h2>
         </button>

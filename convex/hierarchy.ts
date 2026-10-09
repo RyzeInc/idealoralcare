@@ -3,7 +3,8 @@
  * Site, Account, Group resolution and context management
  */
 
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalQuery } from "./_generated/server";
+import { requireAccess } from "./lib/authGuards";
 import { v } from "convex/values";
 
 /**
@@ -60,7 +61,7 @@ export const resolveSiteBySlug = query({
 /**
  * Resolve account by site and slug
  */
-export const resolveAccountBySite = query({
+export const resolveAccountBySite = internalQuery({
   args: { siteId: v.string(), slug: v.string() },
   handler: async (ctx, { siteId, slug }) => {
     // Query database for account
@@ -75,7 +76,7 @@ export const resolveAccountBySite = query({
 /**
  * Resolve group by site and account
  */
-export const resolveGroupBySiteAndAccount = query({
+export const resolveGroupBySiteAndAccount = internalQuery({
   args: { siteId: v.string(), accountId: v.string(), slug: v.optional(v.string()) },
   handler: async (ctx, { siteId, accountId, slug }) => {
     // Query database for group
@@ -108,6 +109,8 @@ export const getSite = query({
 export const getAccount = query({
   args: { accountId: v.string() },
   handler: async (ctx, { accountId }) => {
+    // Accounts carry billing contacts — staff only.
+    await requireAccess(ctx, ["groups.view", "members.view", "eligibility.view", "vendorFiles.view", "billing.view", "partners.view"]);
     if (!accountId) return null;
     try {
       return await ctx.db.get(accountId as any);
@@ -123,6 +126,7 @@ export const getAccount = query({
 export const getGroup = query({
   args: { groupId: v.string() },
   handler: async (ctx, { groupId }) => {
+    await requireAccess(ctx, ["groups.view", "members.view", "eligibility.view", "vendorFiles.view", "billing.view", "partners.view"]);
     if (!groupId) return null;
     try {
       return await ctx.db.get(groupId as any);

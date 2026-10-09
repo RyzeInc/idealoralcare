@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { convexServiceSecret } from "@/lib/convex-service";
 import { ConvexHttpClient } from "convex/browser";
 import Stripe from "stripe";
 import { api } from "@/convex/_generated/api";
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
 
     // Fetch the user's active bundle (with Stripe IDs) from Convex
     // @ts-ignore - avoid deep type instantiation issue
-    const bundleResult = await convex.query(api.subscriptions.queries.getCustomerBundleWithStripeIds, {
+    const bundleResult = await convex.query(api.subscriptions.queries.getCustomerBundleWithStripeIds, { serviceSecret: convexServiceSecret(),
       customerId: userId,
     });
     const bundle = bundleResult as any;
@@ -56,6 +57,7 @@ export async function POST(req: NextRequest) {
 
     // Update bundle status in Convex to reflect pending cancellation
     await convex.mutation(api.subscriptions.webhookActions.markCancelAtPeriodEnd, {
+          serviceSecret: convexServiceSecret(),
       bundleId: bundle._id,
       cancelAtPeriodEnd: true,
     });

@@ -24,6 +24,7 @@ import {
   type ActionCtx,
 } from "../_generated/server";
 import { internal } from "../_generated/api";
+import { requireServiceSecret, serviceSecretArg } from "../lib/serviceAuth";
 import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { requireAuth, requireAuthAction, requireAccessAction } from "../lib/authGuards";
@@ -515,6 +516,7 @@ export const listAllToothlensUsers = internalQuery({
  */
 export const recordScanCompletedWebhook = mutation({
   args: {
+    serviceSecret: serviceSecretArg,
     sessionId: v.string(),
     uid: v.optional(v.string()),
     company: v.optional(v.string()),
@@ -525,6 +527,7 @@ export const recordScanCompletedWebhook = mutation({
     s3Key: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ matched: boolean; scanId?: Id<"toothlensScans"> }> => {
+    requireServiceSecret(args.serviceSecret);
     const scan = await ctx.db
       .query("toothlensScans")
       .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
@@ -654,11 +657,13 @@ export const getOrCreateToothlensUser = action({
  */
 export const provisionForClerkUser = action({
   args: {
+    serviceSecret: serviceSecretArg,
     clerkUserId: v.string(),
     email: v.optional(v.string()),
     name: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ uid: string; scanBaseUrl: string; alreadyProvisioned: boolean }> => {
+    requireServiceSecret(args.serviceSecret);
     const company = getClientCompany();
 
     const existing = (await ctx.runQuery(

@@ -12,6 +12,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminRequest } from "@/lib/require-admin-request";
 import { pdf } from "@react-pdf/renderer";
 import { Readable } from "stream";
 import { PDF_DOCUMENTS, isPdfDocumentId, listPdfDocuments } from "@/lib/pdf-registry";
@@ -38,6 +39,8 @@ async function renderToBuffer(docId: keyof typeof PDF_DOCUMENTS): Promise<Buffer
 }
 
 export async function GET(req: NextRequest) {
+  const denied = await requireAdminRequest();
+  if (denied) return denied;
   const docId = req.nextUrl.searchParams.get("doc");
 
   if (!docId) {

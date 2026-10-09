@@ -23,6 +23,7 @@ import {
   internalQuery,
   query,
 } from "../_generated/server";
+import { ownServiceSecret } from "../lib/serviceAuth";
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
 import { requireAccess, requireAccessAction } from "../lib/authGuards";
@@ -30,6 +31,7 @@ import { sendViaResend } from "../lib/resend";
 import { EMAIL_TEMPLATES, isEmailTemplateId } from "../lib/emailTemplates";
 import { getBaseUrl } from "../lib/env";
 import { PROVIDER_GROUP_CODE } from "../lib/constants";
+import { isBflSlug } from "../lib/productSlugs";
 
 /** Stagger between individual sends in a mass send — ~7 emails/sec. */
 const BULK_STAGGER_MS = 150;
@@ -362,6 +364,12 @@ const sendPayload = v.object({
   sourceSendId: v.optional(v.id("emailSends")),
 });
 
+/**
+ * Set when a broker (not staff) is the sender — see insights/brokerEmail.ts.
+ * Replies go to the broker, and the member timeline credits the broker.
+ */
+const brokerSender = v.optional(v.object({ replyTo: v.string() }));
+
 export const recordSend = internalMutation({
   args: {
     memberProfileId: v.id("memberProfiles"),
@@ -379,6 +387,7 @@ export const recordSend = internalMutation({
     error: v.optional(v.string()),
     sentBy: v.optional(v.string()),
     sentByName: v.optional(v.string()),
+    broker: brokerSender,
   },
   handler: async (ctx, args) => {
     const member = await ctx.db.get(args.memberProfileId);
@@ -431,7 +440,7 @@ export const recordSend = internalMutation({
         sentByName: args.sentByName,
       },
       resendEmailId: args.resendEmailId,
-      actorType: args.sentBy && args.sentBy !== "system" ? "admin" : "system",
+      actorType: args.broker ? "partner" : args.sentBy && args.sentBy !== "system" ? "admin" : "system",
       actorId: args.sentBy,
       actorName: args.sentByName,
       createdAt: now,
@@ -514,6 +523,7 @@ export const deliverToMember = internalAction({
     campaignId: v.optional(v.id("emailCampaigns")),
     sentBy: v.optional(v.string()),
     sentByName: v.optional(v.string()),
+    broker: brokerSender,
   },
   handler: async (
     ctx,
@@ -549,6 +559,7 @@ export const deliverToMember = internalAction({
         error: "Member has no email address on file",
         sentBy: args.sentBy,
         sentByName: args.sentByName,
+        broker: args.broker,
       });
       return { success: false, error: "Member has no email address on file" };
     }
@@ -578,9 +589,10 @@ export const deliverToMember = internalAction({
           to: context.email,
           subject: resolved.subject,
           html: resolved.html,
+          replyTo: args.broker?.replyTo,
           tags: [
             { name: "category", value: resolved.templateId.slice(0, 50) },
-            { name: "source", value: args.campaignId ? "campaign" : "admin-console" },
+            { name: "source", value: args.broker ? "broker" : args.campaignId ? "campaign" : "admin-console" },
           ],
         });
         success = result.success;
@@ -608,6 +620,7 @@ export const deliverToMember = internalAction({
       error,
       sentBy: args.sentBy,
       sentByName: args.sentByName,
+      broker: args.broker,
     });
 
     return success ? { success: true, to: context.email } : { success: false, error };
@@ -726,7 +739,7 @@ async function sendPacket(
   variant: "fulfillment-packet" | "essentials-fulfillment-packet" | "benefits-ready"
 ): Promise<string | undefined> {
   const data: any = await ctx.runQuery(
-    api.subscriptions.queries.getPacketDataForProfileInternal,
+    internal.subscriptions.queries.getPacketDataForProfileInternal,
     { memberProfileId }
   );
   if (!data) throw new Error("Member profile not found");
@@ -737,6 +750,7 @@ async function sendPacket(
         "This member has no Essentials member/group number, so the Essentials packet cannot be built. Send the standard packet instead."
       );
     }
+    const isBfl = isBflSlug(data.productSlug);
     const suffix = String(data.productSlug ?? "").startsWith("essentials-")
       ? String(data.productSlug).slice("essentials-".length)
       : "employee";
@@ -748,14 +762,18 @@ async function sendPacket(
         "employee-family": "Employee + Family",
       } as Record<string, string>)[suffix] ?? "Employee";
 
+    // The same "Essentials packet" send serves standalone Balance for Life
+    // members — they get the BFL version of the packet and email.
     const res: any = await ctx.runAction(api.legal.emailFulfillment.sendEssentialsPacketEmail, {
+      serviceSecret: ownServiceSecret(),
+      program: isBfl ? "bfl" : "essentials",
       memberName: data.memberName,
       memberFirstName: data.memberFirstName,
       memberEmail: context.email!,
       essentialsMemberNumber: data.essentialsMemberNumber,
       essentialsGroupNumber: data.essentialsGroupNumber,
       planName: data.planName,
-      coverageType,
+      coverageType: isBfl ? "Individual" : coverageType,
       effectiveDate: data.effectiveDate,
     });
     return res?.emailId;
@@ -765,6 +783,7 @@ async function sendPacket(
   // out here; the benefits-ready body then points at the sign-in page, and the
   // separate invite send is what carries a fresh link.
   const res: any = await ctx.runAction(api.legal.emailFulfillment.sendFulfillmentPacketEmail, {
+      serviceSecret: ownServiceSecret(),
     memberName: data.memberName,
     memberFirstName: data.memberFirstName,
     memberEmail: context.email!,
@@ -886,6 +905,7 @@ export const deliverForCampaign = internalAction({
     campaignId: v.id("emailCampaigns"),
     sentBy: v.optional(v.string()),
     sentByName: v.optional(v.string()),
+    broker: brokerSender,
   },
   handler: async (ctx, args): Promise<void> => {
     const result: any = await ctx.runAction(internal.admin.memberEmail.deliverToMember, {
@@ -894,6 +914,7 @@ export const deliverForCampaign = internalAction({
       campaignId: args.campaignId,
       sentBy: args.sentBy,
       sentByName: args.sentByName,
+      broker: args.broker,
     });
 
     await ctx.runMutation(internal.admin.memberEmail.advanceCampaign, {

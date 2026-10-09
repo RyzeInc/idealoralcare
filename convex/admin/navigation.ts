@@ -1,4 +1,4 @@
-import { mutation, query } from "../_generated/server";
+import { mutation, query, internalQuery } from "../_generated/server";
 import { v } from "convex/values";
 import { requireAccess } from "../lib/authGuards";
 
@@ -12,7 +12,7 @@ export const getAll = query({
 });
 
 // Get visible navigation items (for public site)
-export const getVisible = query({
+export const getVisible = internalQuery({
   args: {},
   handler: async (ctx) => {
     const items = await ctx.db

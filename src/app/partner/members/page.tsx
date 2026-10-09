@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Download, X } from "lucide-react";
+import { BrokerEmailComposer } from "@/components/partner/BrokerEmailComposer";
 import { DataTable, ScopeBanner, BillingBadge, BILLING_SOURCE_LABEL, type BillingSource, type Column } from "@/components/insights";
 import { formatCurrency, formatDate, humanize } from "@/lib/admin-format";
 import { downloadCsvFromObjects } from "@/lib/export-csv";
@@ -164,7 +165,18 @@ export default function PartnerMembers() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Members</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-bold text-slate-900">Members</h1>
+          {/* Hidden unless this broker has the "Email own members" permission. */}
+          <BrokerEmailComposer
+            memberType={memberType || undefined}
+            groupId={(groupId || undefined) as Id<"groups"> | undefined}
+            filterLabel={[
+              memberType ? humanize(memberType) : "Current members",
+              groupId ? filters?.groups.find((g) => String(g.id) === groupId)?.name ?? "one group" : "all groups",
+            ].join(" · ")}
+          />
+        </div>
         <div className="mt-1.5">
           {roster && (
             <ScopeBanner

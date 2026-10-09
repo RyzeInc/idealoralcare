@@ -9,7 +9,8 @@
  * All resolution is done via direct Convex _id lookups.
  */
 
-import { query } from "../_generated/server";
+import { query, internalQuery } from "../_generated/server";
+import { requireAccess } from "../lib/authGuards";
 import { v } from "convex/values";
 import { Id } from "../_generated/dataModel";
 
@@ -105,7 +106,7 @@ async function enrichCodeRow(code: any, ctx: any): Promise<RepUrlResolution> {
 /**
  * List all active groups (distribution partners)
  */
-export const listPublicGroups = query({
+export const listPublicGroups = internalQuery({
   args: {},
   handler: async (ctx): Promise<PublicGroup[]> => {
     const partners = await ctx.db
@@ -127,6 +128,7 @@ export const listPublicGroups = query({
 export const listPublicAgents = query({
   args: {},
   handler: async (ctx): Promise<PublicAgent[]> => {
+    await requireAccess(ctx, ["partners.view", "groups.view"]);
     const codes = await ctx.db
       .query("brokerTrackingCodes")
       .withIndex("by_status", (q) => q.eq("status", "active"))
@@ -176,7 +178,7 @@ export const listPublicAgents = query({
  * Get agent by URL slug
  * Resolution: stored slug index → legacy name-slug scan
  */
-export const getAgentBySlug = query({
+export const getAgentBySlug = internalQuery({
   args: { slug: v.string() },
   handler: async (ctx, args): Promise<PublicAgent | null> => {
     const normalizedSlug = args.slug.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -233,7 +235,7 @@ export const getAgentByRepCode = query({
 /**
  * List agents filtered by group
  */
-export const listAgentsByGroup = query({
+export const listAgentsByGroup = internalQuery({
   args: { groupId: v.string() },
   handler: async (ctx, args): Promise<PublicAgent[]> => {
     const codes = await ctx.db
@@ -304,7 +306,7 @@ export interface RepUrlResolution {
  *
  * Used by /[agentSlug]/route.ts for URL routing.
  */
-export const resolveRepUrl = query({
+export const resolveRepUrl = internalQuery({
   args: { segment: v.string() },
   handler: async (ctx, { segment }): Promise<RepUrlResolution | null> => {
     const raw = segment.trim();

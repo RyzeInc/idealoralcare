@@ -15,6 +15,11 @@ interface EssentialsMembershipModalProps {
     planName: string;
     periodicChargeCents: number;
   };
+  /**
+   * Which program is being signed for. Standalone Balance for Life is sold
+   * under the same Essentials membership terms; only the plan details differ.
+   */
+  program?: "essentials" | "bfl";
 }
 
 export const EssentialsMembershipModal: React.FC<EssentialsMembershipModalProps> = ({
@@ -22,7 +27,9 @@ export const EssentialsMembershipModal: React.FC<EssentialsMembershipModalProps>
   onClose,
   onAccept,
   memberData,
+  program = "essentials",
 }) => {
+  const isBfl = program === "bfl";
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [hasStroke, setHasStroke] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -86,7 +93,7 @@ export const EssentialsMembershipModal: React.FC<EssentialsMembershipModalProps>
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[92vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Essentials Membership Agreement</DialogTitle>
+          <DialogTitle>{isBfl ? "Balance for Life Membership Agreement" : "Essentials Membership Agreement"}</DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto border rounded p-3 bg-gray-50 text-sm min-h-0">
@@ -110,15 +117,28 @@ export const EssentialsMembershipModal: React.FC<EssentialsMembershipModalProps>
 
             <div>
               <h4 className="font-semibold mb-1">Plan Details</h4>
-              <p className="mb-1">
-                The Ideal Health Essentials Plan Membership offers several options:
-              </p>
-              <ul className="list-disc pl-5 space-y-0.5">
-                <li>Individual Plan: $58.95 per month</li>
-                <li>Member and Spouse: $66.95 per month</li>
-                <li>Member and Child: $78.95 per month</li>
-                <li>Family Plan: $83.95 per month</li>
-              </ul>
+              {isBfl ? (
+                <>
+                  <p className="mb-1">
+                    Balance for Life is offered on its own as part of the Ideal Health Essentials membership program:
+                  </p>
+                  <ul className="list-disc pl-5 space-y-0.5">
+                    <li>Balance for Life — Individual: {formattedPrice} per month</li>
+                  </ul>
+                </>
+              ) : (
+                <>
+                  <p className="mb-1">
+                    The Ideal Health Essentials Plan Membership offers several options:
+                  </p>
+                  <ul className="list-disc pl-5 space-y-0.5">
+                    <li>Individual Plan: $58.95 per month</li>
+                    <li>Member and Spouse: $66.95 per month</li>
+                    <li>Member and Child: $78.95 per month</li>
+                    <li>Family Plan: $83.95 per month</li>
+                  </ul>
+                </>
+              )}
               <p className="mt-1">
                 <strong>This Membership Plan is NOT insurance</strong> and does not satisfy ACA minimum essential
                 coverage. The Membership Plan does not cover any additional medical services or treatments beyond
@@ -130,8 +150,9 @@ export const EssentialsMembershipModal: React.FC<EssentialsMembershipModalProps>
                 Individuals are eligible until the last day of their 64th year.
               </p>
               <p className="mt-1">
-                Telehealth and discount programs are provided through third-party organizations and are not
-                connected to our Essentials provider.
+                {isBfl
+                  ? "Balance for Life services are provided by a third-party organization. Preferred Provider Network care is at additional self-pay cost or through your own insurance."
+                  : "Telehealth and discount programs are provided through third-party organizations and are not connected to our Essentials provider."}
               </p>
             </div>
 

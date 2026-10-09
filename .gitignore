@@ -36,3 +36,6 @@ Notes/GIH Notes/idealassets/Videos/
 
 # Clerk keyless-mode credentials — never commit
 .clerk/
+
+# Real personal data and other material that must never be committed (public repo).
+Notes/private/

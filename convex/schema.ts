@@ -1487,6 +1487,13 @@ export default defineSchema({
     // admin/invoiceCalculator.ts, which cannot reconstruct historical rosters.
     terminatedAt: v.optional(v.number()),
 
+    // DEMO ACCOUNT
+    // A real login with a working member dashboard, used to show the product
+    // in sales meetings. Kept out of everything that leaves the building or
+    // moves money: vendor eligibility files, invoices and vendor statements,
+    // commissions, and insights. See lib/demoMembers.ts.
+    isDemo: v.optional(v.boolean()),
+
     // AUDIT
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -1495,6 +1502,7 @@ export default defineSchema({
   })
     .index("by_site", ["siteId"])
     .index("by_account", ["accountId"])
+    .index("by_demo", ["isDemo"])
     .index("by_group", ["groupId"])
     .index("by_member_id", ["memberId"])
     .index("by_customer", ["customerId"])
@@ -1573,7 +1581,8 @@ export default defineSchema({
       v.literal("system"),
       v.literal("member"),
       v.literal("staff"),
-      v.literal("admin")
+      v.literal("admin"),
+      v.literal("partner") // a broker emailing their own member
     ),
     actorId: v.optional(v.string()),
     actorName: v.optional(v.string()),
@@ -2161,6 +2170,41 @@ export default defineSchema({
   })
     .index("by_repSubmissionId", ["repSubmissionId"])
     .index("by_partnerId", ["partnerId"]),
+
+  // MASTER MGU AGREEMENT — the agreement agencies sign with us. Staff upload
+  // each version as a PDF; exactly one is "active" at a time. See
+  // convex/legal/mguAgreement.ts.
+  mguAgreementVersions: defineTable({
+    version: v.number(),
+    title: v.string(),
+    storageId: v.id("_storage"),
+    fileName: v.string(),
+    status: v.union(v.literal("active"), v.literal("retired")),
+    notes: v.optional(v.string()),
+    uploadedBy: v.string(),
+    uploadedByName: v.optional(v.string()),
+    createdAt: v.number(),
+    retiredAt: v.optional(v.number()),
+  })
+    .index("by_status", ["status"])
+    .index("by_version", ["version"]),
+
+  // One row per agency per version signed. Electronic signature: typed name,
+  // title and an authority acknowledgment, tied to the signed-in account.
+  mguAgreementSignatures: defineTable({
+    versionId: v.id("mguAgreementVersions"),
+    version: v.number(),
+    partnerId: v.id("distributionPartners"),
+    partnerName: v.string(),
+    signerClerkUserId: v.string(),
+    signerEmail: v.optional(v.string()),
+    signerName: v.string(),
+    signerTitle: v.string(),
+    acknowledgment: v.string(), // the exact sentence they agreed to
+    signedAt: v.number(),
+  })
+    .index("by_partner", ["partnerId"])
+    .index("by_version", ["versionId"]),
 
   // PARTNER KIT — "Section 7: Partner Agreement & Acknowledgment" submissions.
   // Public intake (no account required), mirrors the fillable Partner Kit PDF.

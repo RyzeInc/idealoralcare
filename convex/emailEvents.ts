@@ -9,6 +9,7 @@
  */
 
 import { mutation } from "./_generated/server";
+import { requireServiceSecret, serviceSecretArg } from "./lib/serviceAuth";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 import { recordEmailBlocked, recordEmailEngagement } from "./crm/lib/emailProgress";
@@ -23,12 +24,14 @@ const EVENT_TO_ACTIVITY_TYPE: Record<string, "email_delivered" | "email_bounced"
 
 export const recordResendEvent = mutation({
   args: {
+    serviceSecret: serviceSecretArg,
     resendEmailId: v.string(),
     eventType: v.string(),
     bounceType: v.optional(v.string()),
     bounceMessage: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ matched: boolean; via?: string }> => {
+    requireServiceSecret(args.serviceSecret);
     // 1. A crmCampaignRecipients row (batch send — convex/crm/campaignEngine.ts).
     const recipient = await ctx.db.query("crmCampaignRecipients").withIndex("by_resend_email_id", (q) => q.eq("resendEmailId", args.resendEmailId)).first();
     if (recipient) {
@@ -91,7 +94,7 @@ export const recordResendEvent = mutation({
     }
 
     // 3. Fall through to the existing member-email logic, unchanged.
-    const memberResult: { matched: boolean } = await ctx.runMutation(api.admin.eligibilityProvisioning.recordEmailDeliveryEvent, {
+    const memberResult: { matched: boolean } = await ctx.runMutation(internal.admin.eligibilityProvisioning.recordEmailDeliveryEvent, {
       resendEmailId: args.resendEmailId,
       eventType: args.eventType,
       bounceType: args.bounceType,

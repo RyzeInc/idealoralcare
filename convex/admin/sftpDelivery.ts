@@ -200,6 +200,7 @@ export const markDeliveryStatus = mutation({
   // This follows the same pattern as `markCancelAtPeriodEnd` and other
   // mutations consumed by Next.js API routes via ConvexHttpClient.
   handler: async (ctx, args) => {
+    await requireAccess(ctx, "vendorFiles.manage");
     const patch: any = { status: args.status };
     if (args.status === "delivered") patch.deliveredAt = Date.now();
     if (args.errorMessage) patch.errorMessage = args.errorMessage;
@@ -353,6 +354,7 @@ export const downloadDeliveredFile = action({
   args: { deliveryId: v.id("vendorDeliveries") },
   // NOTE: No admin gate — consumed by /api/admin/vendor-deliver which gates itself.
   handler: async (ctx, args): Promise<{ filename: string; content: string }> => {
+    await requireAccessAction(ctx, "vendorFiles.view");
     const delivery: any = await ctx.runQuery(api.admin.sftpDelivery.getDeliveryById, {
       deliveryId: args.deliveryId,
     });

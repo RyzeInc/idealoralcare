@@ -6,10 +6,12 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
   Download, ExternalLink, FileText, Image as ImageIcon, Film, Search,
-  Star, Loader2, FileSpreadsheet, Presentation, FileSignature, Clock,
+  Star, Loader2, FileSpreadsheet, Presentation, FileSignature, Clock, Eye,
 } from "lucide-react";
 import { ScopeBanner, SectionHeader } from "@/components/insights";
 import { formatDate } from "@/lib/admin-format";
+import { ResourcePreviewModal, previewKindFor } from "@/components/resources/ResourcePreview";
+import { MguAgreementCard } from "@/components/partner/MguAgreementCard";
 
 /**
  * The partner resource library.
@@ -18,6 +20,10 @@ import { formatDate } from "@/lib/admin-format";
  * storage URL is a bearer credential — it is minted per click, after the
  * server re-checks that this viewer is entitled to this resource, and the
  * download is recorded.
+ *
+ * Clicking a card opens a preview first (images, PDFs and video render in
+ * place), so a broker can see what a piece looks like before taking it.
+ * Previews mint a URL the same way but are not counted as downloads.
  */
 
 type Item = {
@@ -66,6 +72,20 @@ export default function PartnerResources() {
   const counts = useQuery(api.resources.library.getCategoryCounts);
   const agreement = useQuery(api.resources.agreement.getMine);
   const getDownloadUrl = useMutation(api.resources.library.getDownloadUrl);
+  const getPreviewUrl = useMutation(api.resources.library.getPreviewUrl);
+  const [preview, setPreview] = useState<{ item: Item; url: string | null; loading: boolean; error: string | null } | null>(null);
+
+  const handlePreview = async (item: Item) => {
+    setPreview({ item, url: null, loading: true, error: null });
+    try {
+      const result = await getPreviewUrl({ resourceId: item._id });
+      setPreview((p) => p && p.item._id === item._id
+        ? { ...p, url: result?.url ?? null, loading: false, error: result ? null : "That resource is no longer available. Refresh and try again." }
+        : p);
+    } catch {
+      setPreview((p) => p && p.item._id === item._id ? { ...p, loading: false, error: "Could not load the preview. Please try again." } : p);
+    }
+  };
   const getAgreementUrl = useMutation(api.resources.agreement.getMineDownloadUrl);
 
   const handleOpen = async (item: Item) => {
@@ -134,7 +154,7 @@ export default function PartnerResources() {
     return (
       <button
         type="button"
-        onClick={() => handleOpen(item)}
+        onClick={() => handlePreview(item)}
         disabled={busy}
         className="text-left bg-white rounded-xl border border-slate-200 shadow-sm p-4 hover:shadow-md hover:border-slate-300 transition-all disabled:opacity-60 group"
       >
@@ -157,9 +177,9 @@ export default function PartnerResources() {
               <p className="text-xs text-slate-500 mt-1 line-clamp-2">{item.description}</p>
             )}
             <div className="flex items-center gap-2 mt-2 text-xs text-slate-400">
-              <span className="inline-flex items-center gap-1">
-                {item.kind === "link" ? <ExternalLink size={11} /> : <Download size={11} />}
-                {item.kind === "link" ? "Open" : "Download"}
+              <span className="inline-flex items-center gap-1 group-hover:text-blue-600">
+                {item.kind === "link" ? <ExternalLink size={11} /> : previewKindFor(item.contentType, item.fileName) === "none" ? <Download size={11} /> : <Eye size={11} />}
+                {item.kind === "link" ? "Open" : previewKindFor(item.contentType, item.fileName) === "none" ? "Details" : "Preview"}
               </span>
               {size && <span>· {size}</span>}
               {item.version && item.version > 1 && <span>· v{item.version}</span>}
@@ -182,6 +202,8 @@ export default function PartnerResources() {
           {library && <ScopeBanner label={library.scope.label} kind={library.scope.kind} />}
         </div>
       </div>
+
+      <MguAgreementCard />
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[240px]">
@@ -316,6 +338,16 @@ export default function PartnerResources() {
           </div>
         </div>
       ))}
+
+      <ResourcePreviewModal
+        target={preview?.item ?? null}
+        url={preview?.url ?? null}
+        loading={preview?.loading ?? false}
+        error={preview?.error}
+        downloading={!!preview && busyId === String(preview.item._id)}
+        onClose={() => setPreview(null)}
+        onDownload={() => preview && handleOpen(preview.item)}
+      />
     </div>
   );
 }

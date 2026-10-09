@@ -1,4 +1,4 @@
-import { action, internalMutation, mutation, query } from "../_generated/server";
+import { action, internalMutation, mutation, query, internalAction } from "../_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -829,7 +829,7 @@ export const getLeaderById = query({
 /**
  * Legacy: send invite using distributionPartners.contactEmail (for old partners without leader records).
  */
-export const sendInvite = action({
+export const sendInvite = internalAction({
   args: { partnerId: v.id("distributionPartners") },
   handler: async (ctx, args): Promise<{ success: boolean; error?: string }> => {
     await ctx.runMutation(api.admin.distributionPartners._verifyAdminForInvite, { partnerId: args.partnerId });

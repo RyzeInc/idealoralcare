@@ -64,7 +64,7 @@ const PROGRAMS = [
     bullets: [
       "Over 1,000 no cost Acute and Chronic Generic Medications",
       "Discounts on meds that are not included on this no-cost list",
-      "GLP-1 meds starting at $249.95, lots of interest in this",
+      "GLP-1 meds starting at $249.95",
       "Discounts on Pet Medications",
     ],
   },
@@ -79,7 +79,7 @@ const PROGRAMS = [
     bullets: [
       "Up to 10 no-cost short-term counseling sessions (phone, video, or in-person)",
       "24/7 live answer with a counselor for crisis & support",
-      "Chat with Zenn — AI mental health companion via text 24/7/365",
+      "Chat with Zenn — AI mental health companion in the Balance for Life app, 24/7/365",
       "Specialized tracks: Anxiety, Depression, Chronic Pain, Substance Use, Trauma, PTSD, and more",
       "Long-term virtual & in-person care network with PHQ-2, PHQ-9, GAD-7 monitoring",
     ],

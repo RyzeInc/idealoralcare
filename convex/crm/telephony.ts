@@ -19,6 +19,7 @@
  */
 
 import { mutation } from "../_generated/server";
+import { requireServiceSecret, serviceSecretArg } from "../lib/serviceAuth";
 import { v } from "convex/values";
 import { requireCrmUser } from "./guards";
 
@@ -41,8 +42,10 @@ const TWILIO_STATUS_TO_OUTCOME: Record<string, "connected" | "no_answer" | "voic
 
 /** POST target for src/app/api/twilio/status/route.ts — Twilio's call status callback. Public (Twilio has no Clerk session); the route verifies Twilio's request signature before calling this. */
 export const recordCallStatus = mutation({
-  args: { externalCallId: v.string(), status: v.string(), durationSeconds: v.optional(v.number()) },
+  args: {
+    serviceSecret: serviceSecretArg, externalCallId: v.string(), status: v.string(), durationSeconds: v.optional(v.number()) },
   handler: async (ctx, args) => {
+    requireServiceSecret(args.serviceSecret);
     const activity = await ctx.db.query("crmActivities").withIndex("by_external_call_id", (q) => q.eq("externalCallId", args.externalCallId)).first();
     if (!activity) return { matched: false };
 
@@ -80,8 +83,10 @@ export const recordCallStatus = mutation({
 
 /** POST target for src/app/api/twilio/recording/route.ts. Two-party-consent recording rules vary by state — recording is OFF by default (see DialButton's twilio path); enabling it per-state consent mapping is a follow-up, not part of this scaffolding. */
 export const attachRecording = mutation({
-  args: { externalCallId: v.string(), recordingUrl: v.string() },
+  args: {
+    serviceSecret: serviceSecretArg, externalCallId: v.string(), recordingUrl: v.string() },
   handler: async (ctx, args) => {
+    requireServiceSecret(args.serviceSecret);
     const activity = await ctx.db.query("crmActivities").withIndex("by_external_call_id", (q) => q.eq("externalCallId", args.externalCallId)).first();
     if (!activity) return { matched: false };
     await ctx.db.patch(activity._id, { recordingUrl: args.recordingUrl });

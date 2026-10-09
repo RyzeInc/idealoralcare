@@ -2027,6 +2027,9 @@ a:hover {
   .section.bg--white > .container {
     padding: 24px 16px;
     margin: 0 8px;
+    /* Tailwind's .container is width:100%; with the side margins that ran
+       16px past the screen edge and made the whole dashboard scroll sideways. */
+    width: auto;
   }
   .dashboard-section {
     padding-top: 1rem !important;
@@ -2061,7 +2064,44 @@ a:hover {
     min-width: 0 !important;
   }
 
-  /* Constrain glass cards so they don't overflow */
+  /* Card headings: title on its own line, action (Manage Plans / Add Member)
+     wraps underneath instead of squeezing the title to three lines. */
+  .dashboard-card-head {
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    margin-bottom: 1rem !important;
+  }
+  .dashboard-card-head h2,
+  .dashboard-overview-grid .glass-card > h2 {
+    font-size: 1.125rem !important;
+    margin-bottom: 0;
+  }
+  .dashboard-overview-grid .glass-card > h2 {
+    margin-bottom: 0.75rem !important;
+  }
+  .dashboard-card-head h2 svg,
+  .dashboard-overview-grid .glass-card > h2 svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .dashboard-empty-plans {
+    padding: 2rem 1.25rem !important;
+  }
+
+  /* Account rows: long emails wrap instead of pushing past the card */
+  .dashboard-info-row {
+    gap: 1rem;
+    padding: 0.75rem 0 !important;
+    font-size: 0.9375rem;
+  }
+  .dashboard-info-row > span:last-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    text-align: right;
+  }
+
+
   .glass-card {
     max-width: 100%;
     overflow: hidden;
@@ -2077,9 +2117,14 @@ a:hover {
     text-align: left;
   }
 
-  /* Member ID card: shrink text for small screens */
-  .dashboard-overview-grid .glass-card [style*="aspectRatio"] {
-    font-size: 0.85em;
+}
+
+/* Member ID card on a narrow card face: the logo already reads "Ideal Oral
+   Health", so drop the duplicate text label rather than let it run into the
+   website and phone in the top-right corner. */
+@container (max-width: 320px) {
+  .member-card-brandtext {
+    display: none;
   }
 }
 

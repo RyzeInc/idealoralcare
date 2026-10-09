@@ -84,7 +84,7 @@ export const ESSENTIALS_RX_PCN = "MSC" as const
 export const ESSENTIALS_BFL_GROUP_NUMBER = "CMG" as const
 
 /** Balance for Life member code, as printed on the BFL welcome letter. */
-export const ESSENTIALS_BFL_MEMBER_CODE = "Ideal" as const
+export const ESSENTIALS_BFL_MEMBER_CODE = "IDEAL" as const
 
 
 /** Display name of the carrier (top of the hierarchy). */

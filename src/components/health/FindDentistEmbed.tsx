@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { ExternalLink } from 'lucide-react';
+
+const PROVIDER_SEARCH_URL = 'https://ryze.telemedsimplified.com';
 
 export default function FindDentistEmbed() {
   const [open, setOpen] = useState(false);
@@ -47,18 +50,35 @@ export default function FindDentistEmbed() {
                 pointerEvents: 'none',
               }}
             />
-            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em', color: '#fff' }}>
               Find a Dentist
             </h3>
-            <p style={{ opacity: 0.85, fontSize: '0.875rem', margin: '0.25rem 0 0' }}>
+            <p style={{ opacity: 0.92, fontSize: '0.875rem', margin: '0.25rem 0 0', color: '#fff' }}>
               Dental Discount Network · 50,000+ providers nationwide
             </p>
+            {/* Full-page search: more room on phones, and the network's
+                fee-schedule download only opens outside an iframe. */}
+            <a
+              href={PROVIDER_SEARCH_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                position: 'relative',
+                display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
+                marginTop: '0.75rem', padding: '0.375rem 0.75rem', borderRadius: '8px',
+                background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.35)',
+                color: '#fff', fontSize: '0.8125rem', fontWeight: 600, textDecoration: 'none',
+              }}
+            >
+              <ExternalLink size={14} />
+              Open full search in a new tab
+            </a>
           </div>
 
           {/* iFrame */}
           <div style={{ height: '520px', background: '#fff' }}>
             <iframe
-              src="https://ryze.telemedsimplified.com"
+              src={PROVIDER_SEARCH_URL}
               style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
               title="Dental Discount Network Provider Search"
               allow="geolocation"

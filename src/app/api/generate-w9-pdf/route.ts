@@ -17,6 +17,11 @@ import { SubstituteW9Pdf, SubstituteW9Data } from "@/lib/w9-pdf";
  */
 export async function POST(req: NextRequest) {
   const secret = process.env.INTERNAL_API_SECRET;
+  // Without the secret configured, production must not render documents for
+  // anyone who asks (this route renders W-9s, agreements and member packets).
+  if (!secret && process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not configured" }, { status: 503 });
+  }
   if (secret) {
     const authHeader = req.headers.get("authorization");
     if (!authHeader || authHeader !== `Bearer ${secret}`) {

@@ -21,6 +21,7 @@ import {
   ESSENTIALS_RX_GROUP,
   ESSENTIALS_RX_PCN,
 } from "@/lib/constants";
+import { isBflSlug } from "@/convex/lib/productSlugs";
 
 /**
  * IDEAL HEALTH ESSENTIALS — MEMBER FULFILLMENT PACKET
@@ -68,12 +69,14 @@ export const ESSENTIALS_VENDOR_CODES = {
     //   groupNumber — "CMG", the same for every enrolling member (Benefits
     //                 Horizon, May 27). Equivalent to the "Group ID" field on
     //                 the BFL employee flyer.
-    //   memberCode  — "Ideal", as printed on the BFL welcome letter that is
+    //   memberCode  — "IDEAL", as printed on the BFL welcome letter that is
     //                 appended to this packet. Both are shown so a member
     //                 quoting either one is recognised.
     groupNumber: ESSENTIALS_BFL_GROUP_NUMBER,
     memberCode: ESSENTIALS_BFL_MEMBER_CODE,
-    zenn: "1-561-559-ZENN",
+    // Zenn no longer has its own text line — it lives inside the BFL app
+    // (Benefits Horizon, Sept 24).
+    app: "Balance for Life app on the App Store or Google Play",
   },
 } as const;
 
@@ -91,6 +94,7 @@ export function isEssentialsSlug(slug?: string | null): boolean {
 
 /** "essentials-employee-spouse" -> "Employee + Spouse" */
 export function essentialsCoverageLabel(slug?: string | null): string {
+  if (isBflSlug(slug)) return "Individual";
   if (!isEssentialsSlug(slug)) return "Employee";
   const suffix = slug!.slice("essentials-".length);
   return (
@@ -119,7 +123,16 @@ export interface EssentialsPacketData {
   memberAddress?: string;
   periodicCharge?: string;
   logoDataUri?: string;
+  /** Balance for Life's own logo, shown where the packet presents BFL. */
+  bflLogoDataUri?: string;
+  /**
+   * "bfl" builds the standalone Balance for Life packet (welcome, behavioral
+   * health page, BFL-only card). Defaults to the full Essentials packet.
+   */
+  program?: "essentials" | "bfl";
 }
+
+const isBflPacket = (data: EssentialsPacketData) => data.program === "bfl";
 
 const BRAND = "IDEAL HEALTH";
 
@@ -174,7 +187,7 @@ function WelcomePage({ data }: { data: EssentialsPacketData }) {
         </Text>
       </View>
 
-      <Text style={{ ...s.h3, marginTop: 6 }}>Welcome Letter</Text>
+      <Text style={{ ...s.h3, marginTop: 2 }}>Welcome Letter</Text>
 
       {[data.essentialsMemberNumber, data.memberName, data.memberAddress ?? "[STREET ADDRESS]"].map(
         (line, i) => (
@@ -207,10 +220,10 @@ function WelcomePage({ data }: { data: EssentialsPacketData }) {
         <Bullet key={item} text={item} />
       ))}
 
-      <Text style={{ ...s.h4, marginTop: 10, marginBottom: 4, color: GREEN }}>
+      <Text style={{ ...s.h4, marginTop: 4, marginBottom: 4, color: GREEN }}>
         How to Access Your Benefits
       </Text>
-      <View style={{ backgroundColor: LIGHT_GREEN, padding: 8, marginBottom: 8, borderRadius: 4 }}>
+      <View style={{ backgroundColor: LIGHT_GREEN, padding: 8, marginBottom: 4, borderRadius: 4 }}>
         {[
           {
             n: 1,
@@ -229,11 +242,104 @@ function WelcomePage({ data }: { data: EssentialsPacketData }) {
         ))}
       </View>
 
-      <Text style={{ ...s.h4, marginTop: 10, marginBottom: 6 }}>Member Summary</Text>
+      {/* Kept on page 1: with full spacing the last row broke onto a page of its
+          own, which pushed every later page number back by one. */}
+      <Text style={{ ...s.h4, marginTop: 2, marginBottom: 4 }}>Member Summary</Text>
       {[
         ["Member Name", data.memberName, "Member Number", data.essentialsMemberNumber],
         ["Group Number", data.essentialsGroupNumber, "Coverage", data.coverageType ?? "Employee"],
         ["Plan", data.planName, "Effective Date", data.effectiveDate],
+        ["Term", data.term ?? "Monthly", "Member Services", ESSENTIALS_SUPPORT.phone],
+      ].map((row, i) => (
+        <View key={i} style={{ flexDirection: "row", marginBottom: 2 }}>
+          <View style={s.summaryLabelCell}>
+            <Text style={s.summaryLabelText}>{row[0]}</Text>
+          </View>
+          <View style={s.summaryValueCell}>
+            <Text style={s.summaryValueText}>{row[1]}</Text>
+          </View>
+          <View style={s.summaryLabelCell}>
+            <Text style={s.summaryLabelText}>{row[2]}</Text>
+          </View>
+          <View style={s.summaryValueCell}>
+            <Text style={s.summaryValueText}>{row[3]}</Text>
+          </View>
+        </View>
+      ))}
+
+      <Footer label={`Welcome Packet | ${data.effectiveDate}`} />
+    </Page>
+  );
+}
+
+// ─── Standalone Balance for Life: welcome page ───────────────────────────────
+function BflWelcomePage({ data }: { data: EssentialsPacketData }) {
+  const { balanceForLife } = ESSENTIALS_VENDOR_CODES;
+  return (
+    <Page size="LETTER" style={s.page}>
+      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={BRAND} />
+
+      <Text style={{ ...s.h1, textAlign: "center" }}>Member Welcome Packet</Text>
+      {data.bflLogoDataUri ? (
+        <Image src={data.bflLogoDataUri} style={{ width: 150, alignSelf: "center", marginTop: 2, marginBottom: 6 }} />
+      ) : null}
+      <Text style={{ fontSize: 10, color: GRAY, textAlign: "center", marginBottom: 12 }}>
+        Behavioral health care, right when you need it — through Ideal Health
+      </Text>
+
+      <ContactStrip
+        items={[
+          { label: "Program Name", value: "Balance for Life" },
+          { label: "Member Number", value: data.essentialsMemberNumber },
+          { label: "Effective Date", value: data.effectiveDate },
+        ]}
+      />
+
+      <View style={s.noticeBox}>
+        <Text style={{ fontSize: 10 }}>
+          <Text style={{ fontFamily: "Helvetica-Bold", color: ORANGE }}>Important: </Text>
+          <Text>
+            This is a membership program and is NOT insurance. It does not satisfy the Affordable
+            Care Act minimum essential coverage requirement and does not cover basic medical needs.
+          </Text>
+        </Text>
+      </View>
+
+      <Text style={{ ...s.h3, marginTop: 6 }}>Welcome Letter</Text>
+      {[data.essentialsMemberNumber, data.memberName, data.memberAddress ?? "[STREET ADDRESS]"].map(
+        (line, i) => (
+          <Text key={i} style={{ fontSize: 10, marginBottom: 0 }}>
+            {line}
+          </Text>
+        ),
+      )}
+      <Text style={{ fontSize: 10, marginTop: 8, marginBottom: 6 }}>Dear {data.memberFirstName},</Text>
+      {[
+        `Welcome to Balance for Life through Ideal Health. Balance for Life is a confidential, 24/7 member support program for emotional, mental and overall wellbeing — counseling, live support, coaching and an app that keeps all of it in your pocket.`,
+        `There is nothing to file and no one to refer you. Download the app or call whenever you need support, and give your member code when asked. This packet explains what is included and how to reach it. Please keep it for your records.`,
+        `For questions about your membership or billing, contact Member Services at ${ESSENTIALS_SUPPORT.phone} or ${ESSENTIALS_SUPPORT.email}, ${ESSENTIALS_SUPPORT.hours}.`,
+      ].map((para) => (
+        <Text key={para.slice(0, 40)} style={s.body}>
+          {para}
+        </Text>
+      ))}
+
+      <Text style={{ ...s.h4, marginTop: 10, marginBottom: 4, color: GREEN }}>How to Get Support</Text>
+      <View style={{ backgroundColor: LIGHT_GREEN, padding: 8, marginBottom: 8, borderRadius: 4 }}>
+        {[
+          { n: 1, text: `Download the ${balanceForLife.app}. It offers phone, video, text, chat and scheduling, plus Zenn, the 24/7 AI wellbeing companion.` },
+          { n: 2, text: `Or call ${balanceForLife.phone} (TTD/TTY same number), any time, day or night.` },
+          { n: 3, text: `Give Member Code ${balanceForLife.memberCode} (Group ${balanceForLife.groupNumber}) when asked to identify your program.` },
+        ].map((item) => (
+          <Numbered key={item.n} n={item.n} text={item.text} />
+        ))}
+      </View>
+
+      <Text style={{ ...s.h4, marginTop: 10, marginBottom: 6 }}>Member Summary</Text>
+      {[
+        ["Member Name", data.memberName, "Member Number", data.essentialsMemberNumber],
+        ["Plan", data.planName, "Effective Date", data.effectiveDate],
+        ["Member Code", balanceForLife.memberCode, "BFL Group", balanceForLife.groupNumber],
         ["Term", data.term ?? "Monthly", "Member Services", ESSENTIALS_SUPPORT.phone],
       ].map((row, i) => (
         <View key={i} style={{ flexDirection: "row", marginBottom: 2 }}>
@@ -277,7 +383,7 @@ const BENEFIT_ROUTES = [
   {
     need: "I NEED MENTAL HEALTH OR WELLBEING SUPPORT",
     provider: "Balance for Life — Member Support Program",
-    detail: `Call ${ESSENTIALS_VENDOR_CODES.balanceForLife.phone} (TTD/TTY same number), email ${ESSENTIALS_VENDOR_CODES.balanceForLife.email}, or visit ${ESSENTIALS_VENDOR_CODES.balanceForLife.url}. Group Number: ${ESSENTIALS_VENDOR_CODES.balanceForLife.groupNumber} · Member Code: ${ESSENTIALS_VENDOR_CODES.balanceForLife.memberCode}.`,
+    detail: `Download the ${ESSENTIALS_VENDOR_CODES.balanceForLife.app}. Or call ${ESSENTIALS_VENDOR_CODES.balanceForLife.phone} (TTD/TTY same number), email ${ESSENTIALS_VENDOR_CODES.balanceForLife.email}, or visit ${ESSENTIALS_VENDOR_CODES.balanceForLife.url}. Group Number: ${ESSENTIALS_VENDOR_CODES.balanceForLife.groupNumber} · Member Code: ${ESSENTIALS_VENDOR_CODES.balanceForLife.memberCode}.`,
   },
 ];
 
@@ -613,6 +719,9 @@ function BehavioralHealthPage({ data }: { data: EssentialsPacketData }) {
       <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={BRAND} />
 
       <Text style={s.h2}>Behavioral Health &amp; Wellbeing — Balance for Life</Text>
+      {data.bflLogoDataUri ? (
+        <Image src={data.bflLogoDataUri} style={{ width: 120, marginBottom: 8 }} />
+      ) : null}
       <Text style={s.body}>
         Balance for Life is your Member Support Program: a confidential, 24/7 service covering
         emotional, mental and overall wellbeing. It is staffed by professionals with expertise in
@@ -632,7 +741,7 @@ function BehavioralHealthPage({ data }: { data: EssentialsPacketData }) {
       {[
         ["Short-Term Counseling", "Up to 10 no-cost sessions per individual, per incident — telephonically, in person, or by video."],
         ["Live Answer 24/7", "Immediate, unlimited support with a counselor whenever you need it most."],
-        ["Chat with ZENN", "A 24/7/365 AI chatbot for safe, non-judgmental support across anxiety, depression, chronic pain, eating disorders, loneliness, relationships, resilience, substance abuse, trauma and PTSD."],
+        ["Chat with Zenn", "Built into the Balance for Life app: an AI wellness companion, 24/7/365 in 70 languages, for safe, non-judgmental support across anxiety, depression, chronic pain, eating disorders, loneliness, relationships, resilience, substance abuse, trauma and PTSD."],
         ["Aware Mindfulness", "A six-week mindfulness journey to build self-awareness and emotional balance."],
         ["Life, Work-Life & Wellness Coaching", "Virtual support for personal and professional growth, practical research on everyday challenges, and self-directed wellness programs."],
         ["Preferred Provider Network", "Inpatient and outpatient care including residential treatment with withdrawal management. Available at additional self-pay cost or through your own insurance."],
@@ -650,9 +759,9 @@ function BehavioralHealthPage({ data }: { data: EssentialsPacketData }) {
         <Text style={{ fontSize: 9, lineHeight: 1.45 }}>
           Call {balanceForLife.phone}, email {balanceForLife.email}, or visit{" "}
           {balanceForLife.url}. Give Group Number {balanceForLife.groupNumber} or Member Code{" "}
-          {balanceForLife.memberCode} when asked to identify your program. You can also text ZENN
-          at {balanceForLife.zenn}. The Balance for Life welcome letter on the following pages
-          includes the App Store and Google Play codes for the BFL app.
+          {balanceForLife.memberCode} when asked to identify your program. Download the{" "}
+          {balanceForLife.app} to reach a counselor by phone, video, text or chat, and to use
+          Zenn. The welcome letter on the following pages has the download codes.
         </Text>
       </View>
 
@@ -677,7 +786,7 @@ function MemberCardTitlePage({ data }: { data: EssentialsPacketData }) {
       <View style={cardStyles.titleContainer}>
         {data.logoDataUri ? <Image style={cardStyles.titleLogo} src={data.logoDataUri} /> : null}
         <Text style={cardStyles.titleMain}>Your Member ID Card</Text>
-        <Text style={cardStyles.titleSub}>Ideal Health Essentials</Text>
+        <Text style={cardStyles.titleSub}>{isBflPacket(data) ? "Balance for Life" : "Ideal Health Essentials"}</Text>
 
         <View style={cardStyles.titleField}>
           <Text style={cardStyles.titleLabel}>MEMBER</Text>
@@ -696,8 +805,15 @@ function MemberCardFrontPage({ data }: { data: EssentialsPacketData }) {
   const fields = [
     { label: "Member", value: data.memberName },
     { label: "Member Number", value: data.essentialsMemberNumber },
-    { label: "Group Number", value: data.essentialsGroupNumber },
-    { label: "Coverage", value: data.coverageType ?? "Employee" },
+    ...(isBflPacket(data)
+      ? [
+          { label: "BFL Member Code", value: ESSENTIALS_VENDOR_CODES.balanceForLife.memberCode },
+          { label: "BFL Group", value: ESSENTIALS_VENDOR_CODES.balanceForLife.groupNumber },
+        ]
+      : [
+          { label: "Group Number", value: data.essentialsGroupNumber },
+          { label: "Coverage", value: data.coverageType ?? "Employee" },
+        ]),
     { label: "Plan", value: data.planName },
     { label: "Effective", value: data.effectiveDate },
   ];
@@ -713,7 +829,7 @@ function MemberCardFrontPage({ data }: { data: EssentialsPacketData }) {
               {data.logoDataUri ? <Image style={cardStyles.logo} src={data.logoDataUri} /> : null}
               <View style={cardStyles.headerText}>
                 <Text style={cardStyles.brandName}>Ideal Health</Text>
-                <Text style={cardStyles.cardType}>Essentials Member Card</Text>
+                <Text style={cardStyles.cardType}>{isBflPacket(data) ? "Balance for Life Member Card" : "Essentials Member Card"}</Text>
               </View>
             </View>
             <View style={cardStyles.headerRight}>
@@ -759,6 +875,25 @@ function MemberCardBackPage({ data }: { data: EssentialsPacketData }) {
         <View style={cardStyles.cardContainer}>
           <View style={cardStyles.topBar} />
 
+          {isBflPacket(data) ? (
+          <View style={cardStyles.backContent}>
+            <View style={cardStyles.backSection}>
+              <Text style={cardStyles.backSectionTitle}>Behavioral Health — Balance for Life</Text>
+              <Text style={cardStyles.backText}>
+                {balanceForLife.phone} (TTD/TTY same) · {balanceForLife.email}
+              </Text>
+              <Text style={cardStyles.backText}>
+                Member Code {balanceForLife.memberCode} · Group {balanceForLife.groupNumber}
+              </Text>
+            </View>
+            <View style={cardStyles.backSection}>
+              <Text style={cardStyles.backSectionTitle}>Balance for Life App</Text>
+              <Text style={cardStyles.backText}>
+                App Store or Google Play — counseling by phone, video, text or chat, plus Zenn 24/7
+              </Text>
+            </View>
+          </View>
+          ) : (
           <View style={cardStyles.backContent}>
             <View style={cardStyles.backSection}>
               <Text style={cardStyles.backSectionTitle}>Virtual Care — Lyric</Text>
@@ -792,6 +927,7 @@ function MemberCardBackPage({ data }: { data: EssentialsPacketData }) {
               </Text>
             </View>
           </View>
+          )}
 
           <View style={cardStyles.footer}>
             <Text style={cardStyles.footerMain}>THIS IS NOT INSURANCE.</Text>
@@ -817,7 +953,7 @@ function MembershipAgreementPage({ data }: { data: EssentialsPacketData }) {
       </Text>
 
       {[
-        ["Program", "Ideal Health Essentials"],
+        ["Program", isBflPacket(data) ? "Ideal Health Essentials — Balance for Life" : "Ideal Health Essentials"],
         ["Member Name", data.memberName],
         ["Member Number", data.essentialsMemberNumber],
         ["Group Number", data.essentialsGroupNumber],
@@ -850,8 +986,10 @@ function MembershipAgreementPage({ data }: { data: EssentialsPacketData }) {
       <Text style={s.bodySmall}>
         This Membership Plan is NOT insurance and does not satisfy ACA minimum essential coverage.
         The Membership Plan does not cover any additional medical services or treatments beyond what
-        is explicitly stated in the plan documents. Telehealth and discount programs are provided
-        through third-party organizations and are not connected to the Essentials provider.
+        is explicitly stated in the plan documents.{" "}
+        {isBflPacket(data)
+          ? "Balance for Life services are provided by a third-party organization. Preferred Provider Network care is at additional self-pay cost or through your own insurance."
+          : "Telehealth and discount programs are provided through third-party organizations and are not connected to the Essentials provider."}
       </Text>
       <Text style={s.bodySmall}>
         Individuals ages 2 to 65 are eligible for Ideal Health membership. Dependents under the age
@@ -924,6 +1062,17 @@ function MembershipAgreementPage2({ data }: { data: EssentialsPacketData }) {
 
 // ─── Root documents ──────────────────────────────────────────────────────────
 export function EssentialsPacketPdf({ data }: { data: EssentialsPacketData }) {
+  if (isBflPacket(data)) {
+    return (
+      <Document title="Balance for Life Member Welcome Packet" author="Ideal Health" subject="Member Welcome Packet">
+        <BflWelcomePage data={data} />
+        <BehavioralHealthPage data={data} />
+        <MemberCardTitlePage data={data} />
+        <MemberCardFrontPage data={data} />
+        <MemberCardBackPage data={data} />
+      </Document>
+    );
+  }
   return (
     <Document
       title="Ideal Health Essentials Member Welcome Packet"

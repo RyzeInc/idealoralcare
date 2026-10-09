@@ -75,9 +75,10 @@ export async function autoGrantFreeAccess(
 
 /**
  * CLI BOOTSTRAP — run via: npx convex run admin/grantFreeAccess:cliGrantAdmin '{"clerkUserId":"..."}'
- * No auth required — remove after use.
+ * Internal so only someone holding the deploy key can run it. As a public
+ * mutation it let any anonymous client make any user an owner admin.
  */
-export const cliGrantAdmin = mutation({
+export const cliGrantAdmin = internalMutation({
   args: {
     clerkUserId: v.string(),
     email: v.optional(v.string()),
@@ -346,6 +347,8 @@ export const grantFreeAccessAndEnroll = mutation({
     productId: v.id("catalogProducts"),
     durationDays: v.optional(v.number()),
     notes: v.optional(v.string()),
+    /** Demo login for sales meetings — see lib/demoMembers.ts. */
+    isDemo: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const identity = await requireAccess(ctx, "members.edit");
@@ -379,15 +382,18 @@ export const grantFreeAccessAndEnroll = mutation({
       memberType: "active",
       memberRole: "primary",
       leadType: "referral",
-      signupSource: "admin_comp_grant",
+      signupSource: args.isDemo ? "admin_demo_account" : "admin_comp_grant",
     });
+    // Flag before anything reads the roster: a demo member must never make
+    // the group's next vendor file, invoice or statement.
+    if (args.isDemo) await ctx.db.patch(profile._id, { isDemo: true });
 
     await ctx.db.insert("memberActivities", {
       memberProfileId: profile._id,
       siteId: group.siteId,
       groupId: args.groupId,
       activityType: "plan_activated",
-      title: "Comped by admin",
+      title: args.isDemo ? "Demo account created" : "Comped by admin",
       description: args.notes ?? `Free access granted by admin on ${new Date(now).toISOString()}`,
       actorType: "admin",
       actorId: identity.clerkUserId,
@@ -443,7 +449,7 @@ export const grantFreeAccessAndEnroll = mutation({
       action: "grantFreeAccessAndEnroll",
       targetType: "memberProfiles",
       targetId: String(profile._id),
-      summary: `Comped ${args.firstName} ${args.lastName} (${args.email}) into ${group.name} on plan ${args.productId}`,
+      summary: `${args.isDemo ? "Created demo account" : "Comped"} ${args.firstName} ${args.lastName} (${args.email}) into ${group.name} on plan ${args.productId}`,
       metadata: {
         clerkUserId: args.clerkUserId,
         groupId: args.groupId,
@@ -452,6 +458,7 @@ export const grantFreeAccessAndEnroll = mutation({
         entitlementId,
         durationDays: args.durationDays ?? 365,
         notes: args.notes,
+        isDemo: args.isDemo ?? false,
       },
     });
 
@@ -463,6 +470,60 @@ export const grantFreeAccessAndEnroll = mutation({
       entitlementId,
       periodEnd,
     };
+  },
+});
+
+/**
+ * Mark an existing member as a demo account, or back to a real one. Dependents
+ * follow their primary — a household is either demo or not.
+ */
+export const setDemoAccount = mutation({
+  args: { memberProfileId: v.id("memberProfiles"), isDemo: v.boolean() },
+  handler: async (ctx, args) => {
+    const identity = await requireAccess(ctx, "members.edit");
+    const member = await ctx.db.get(args.memberProfileId);
+    if (!member) throw new Error("Member not found");
+    if (member.memberRole === "dependent") {
+      throw new Error("Set demo on the primary member; dependents follow them.");
+    }
+
+    const dependents = await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_primary_member", (q) => q.eq("primaryMemberId", member._id))
+      .collect();
+    const now = Date.now();
+    for (const row of [member, ...dependents]) {
+      await ctx.db.patch(row._id, { isDemo: args.isDemo || undefined, updatedAt: now });
+    }
+
+    await recordAdminAction(ctx, identity, {
+      action: "setDemoAccount",
+      targetType: "memberProfiles",
+      targetId: String(member._id),
+      summary: `${args.isDemo ? "Marked" : "Unmarked"} ${member.firstName} ${member.lastName} (${member.memberId}) as a demo account`,
+      metadata: { isDemo: args.isDemo, dependentCount: dependents.length },
+    });
+    return { updated: 1 + dependents.length };
+  },
+});
+
+/** Every demo member, so admins can see what is being held back from reports. */
+export const listDemoAccounts = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAccess(ctx, "members.view");
+    const rows = await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_demo", (q) => q.eq("isDemo", true))
+      .collect();
+    return rows.map((m) => ({
+      _id: m._id,
+      memberId: m.memberId,
+      name: `${m.firstName} ${m.lastName}`.trim(),
+      email: m.email,
+      memberRole: m.memberRole,
+      customerId: m.customerId,
+    }));
   },
 });
 
@@ -508,9 +569,13 @@ export const bootstrapFirstAdmin = mutation({
     const email = identity.email ?? "unknown";
     const name = identity.name ?? email;
 
-    // Check if caller is already an admin; if not, add them
+    // Only the very first admin may bootstrap. Without this check any signed-in
+    // member could visit /bootstrap and make themselves an owner.
     const existingAdmins = await ctx.db.query("adminUsers").collect();
     const alreadyAdmin = existingAdmins.find(a => a.clerkUserId === clerkUserId);
+    if (existingAdmins.length > 0 && !alreadyAdmin) {
+      throw new Error("Admin access is already set up. Ask an existing admin to invite you.");
+    }
     if (!alreadyAdmin) {
       await ctx.db.insert("adminUsers", {
         clerkUserId,

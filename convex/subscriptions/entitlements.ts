@@ -1,6 +1,6 @@
 import { defineTable } from "convex/server";
 import { v } from "convex/values";
-import { mutation, query, internalMutation } from "../_generated/server";
+import { mutation, query, internalMutation, internalQuery } from "../_generated/server";
 import { MutationCtx, QueryCtx } from "../_generated/server";
 import { requireSelf, requireAccess } from "../lib/authGuards";
 
@@ -280,7 +280,7 @@ export const reactivateEntitlement = mutation({
 /**
  * Get entitlements for a customer
  */
-export const getEntitlementsByCustomer = query({
+export const getEntitlementsByCustomer = internalQuery({
   args: {
     customerId: v.string(),
   },
@@ -296,7 +296,7 @@ export const getEntitlementsByCustomer = query({
 /**
  * Get active entitlements for a customer (ACTIVE status only)
  */
-export const getActiveEntitlementsByCustomer = query({
+export const getActiveEntitlementsByCustomer = internalQuery({
   args: {
     customerId: v.string(),
   },
@@ -317,7 +317,7 @@ export const getActiveEntitlementsByCustomer = query({
 /**
  * Get a single entitlement
  */
-export const getEntitlement = query({
+export const getEntitlement = internalQuery({
   args: {
     entitlementId: v.id("entitlements"),
   },
@@ -329,7 +329,7 @@ export const getEntitlement = query({
 /**
  * Check if a customer has access to a product
  */
-export const hasAccess = query({
+export const hasAccess = internalQuery({
   args: {
     customerId: v.string(),
     productId: v.id("catalogProducts"),
@@ -355,7 +355,7 @@ export const hasAccess = query({
 /**
  * Get entitlements expiring soon (within N days)
  */
-export const getExpiringEntitlements = query({
+export const getExpiringEntitlements = internalQuery({
   args: {
     daysUntilExpiry: v.number(),
   },
@@ -378,7 +378,7 @@ export const getExpiringEntitlements = query({
 /**
  * Get bundle dashboard summary (total access across products)
  */
-export const getBundleEntitlement = query({
+export const getBundleEntitlement = internalQuery({
   args: {
     bundleId: v.id("subscriptionBundles"),
   },

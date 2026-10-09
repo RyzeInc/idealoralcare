@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Webhook } from "svix";
+import { convexServiceSecret } from "@/lib/convex-service";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 
@@ -80,6 +81,7 @@ export async function POST(req: NextRequest) {
     const result = await client.mutation(
       api.emailEvents.recordResendEvent,
       {
+          serviceSecret: convexServiceSecret(),
         resendEmailId,
         eventType,
         bounceType: data.bounce?.type ?? undefined,

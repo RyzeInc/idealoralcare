@@ -152,6 +152,7 @@ export const getWorkspace = query({
     return {
       ...detail,
       isAdmin: admin,
+      isDemo: member.isDemo === true,
       viewerId: (await resolveViewerScope(ctx, { staff: "members.view", partner: "partner.book" })).clerkUserId,
       notes: notes.slice(0, 200),
       alerts: alerts.slice(0, 200),

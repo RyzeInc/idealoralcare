@@ -1,4 +1,4 @@
-import { mutation, query, action } from "../_generated/server";
+import { mutation, query, action, internalMutation } from "../_generated/server";
 import { v } from "convex/values";
 import { requireAccess, requireAccessAction } from "../lib/authGuards";
 import { recordAdminAction } from "./adminAudit";
@@ -9,6 +9,7 @@ import * as unifiedData from "./unifiedData";
 import { api as apiOriginal } from "../_generated/api";
 import { lifecyclePatchFor } from "../lib/memberLifecycle";
 import { isListBillMember } from "../lib/memberBilling";
+import { withoutDemoMembers } from "../lib/demoMembers";
 
 const getApi = () => {
   // @ts-ignore
@@ -543,7 +544,41 @@ export const getActiveMembersByGroup = query({
     // Include "eligible" so freshly-imported eligibility-file members appear
     // in vendor file generation (Careington/DialCare). They haven't activated
     // yet but are entitled to coverage and need to be on the vendor's roster.
-    return allMembers.filter((m) => ["active", "enrolling", "eligible"].includes(m.memberType));
+    // Demo accounts never go on a vendor roster (Careington, DialCare, Essentials).
+    return withoutDemoMembers(allMembers).filter((m) => ["active", "enrolling", "eligible"].includes(m.memberType));
+  },
+});
+
+/**
+ * Active plan slugs per customer, from their live entitlements. Used by the
+ * Essentials eligibility export to keep standalone Balance for Life members
+ * off the Lyric / RxValet / QuestSelect roster — they bought BFL only.
+ */
+export const getActivePlanSlugsByCustomer = query({
+  args: { customerIds: v.array(v.string()) },
+  handler: async (ctx, args) => {
+    await requireAccess(ctx, "members.view");
+    const out: Record<string, string[]> = {};
+    const productSlug = new Map<string, string | undefined>();
+    for (const customerId of new Set(args.customerIds)) {
+      const entitlements = await ctx.db
+        .query("entitlements")
+        .withIndex("by_customer", (q) => q.eq("customerId", customerId))
+        .filter((q) => q.or(q.eq(q.field("status"), "active"), q.eq(q.field("status"), "cancel_at_period_end")))
+        .collect();
+      const slugs: string[] = [];
+      for (const e of entitlements) {
+        const key = String(e.productId);
+        if (!productSlug.has(key)) {
+          const product = await ctx.db.get(e.productId);
+          productSlug.set(key, product?.slug);
+        }
+        const slug = productSlug.get(key);
+        if (slug) slugs.push(slug);
+      }
+      out[customerId] = slugs;
+    }
+    return out;
   },
 });
 
@@ -655,7 +690,7 @@ export const bulkUpdateMemberStatus = mutation({
  * Assign a member to a staff member (typically called from enrollment webhook)
  * Links member to their enrolling broker/agent via adminUsers table
  */
-export const assignMemberToStaff = mutation({
+export const assignMemberToStaff = internalMutation({
   args: {
     memberProfileId: v.id("memberProfiles"),
     staffClerkId: v.string(), // Clerk user ID of the staff member

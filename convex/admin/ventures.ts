@@ -1,4 +1,4 @@
-import { mutation, query } from "../_generated/server";
+import { mutation, query, internalQuery } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import { v } from "convex/values";
 import { requireAccess } from "../lib/authGuards";
@@ -13,7 +13,7 @@ export const getAll = query({
 });
 
 // Get visible ventures (for public site)
-export const getVisible = query({
+export const getVisible = internalQuery({
   args: {},
   handler: async (ctx) => {
     const ventures = await ctx.db
@@ -25,7 +25,7 @@ export const getVisible = query({
 });
 
 // Get ventures by category
-export const getByCategory = query({
+export const getByCategory = internalQuery({
   args: {
     category: v.union(
       v.literal("Apps"),
@@ -52,7 +52,7 @@ export const getByCategory = query({
 });
 
 // Get venture by slug
-export const getBySlug = query({
+export const getBySlug = internalQuery({
   args: { slug: v.string() },
   handler: async (ctx, args) => {
     return await ctx.db
@@ -63,7 +63,7 @@ export const getBySlug = query({
 });
 
 // Get single venture by ID
-export const getById = query({
+export const getById = internalQuery({
   args: { id: v.id("ventures") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.id);

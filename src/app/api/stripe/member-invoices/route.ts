@@ -17,12 +17,15 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
  */
 export async function GET(req: NextRequest) {
   try {
-    const { userId } = await auth();
+    const { userId, getToken } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || "");
+    // Act as the signed-in admin, so permission checks in Convex apply to them.
+    const convexToken = await getToken({ template: "convex" });
+    if (convexToken) convex.setAuth(convexToken);
 
     // Verify admin role
     const isAdmin = await convex.query(

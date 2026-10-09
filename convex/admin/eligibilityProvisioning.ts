@@ -27,6 +27,7 @@
  */
 
 import { action, internalMutation, internalQuery, internalAction, query, mutation } from "../_generated/server";
+import { ownServiceSecret, requireServiceSecret, serviceSecretArg } from "../lib/serviceAuth";
 import { v, ConvexError } from "convex/values";
 import { api, internal } from "../_generated/api";
 import { requireAccess, requireAccessAction } from "../lib/authGuards";
@@ -498,6 +499,7 @@ export const provisionEligibilityFile = action({
             const emailResult: any = await ctx.runAction(
               api.legal.emailFulfillment.sendEligibilityWelcomeSetPasswordEmail,
               {
+                serviceSecret: ownServiceSecret(),
                 memberName,
                 memberEmail: email,
                 invitationUrl,
@@ -731,11 +733,13 @@ export const markInvited = internalMutation({
  */
 export const linkInvitedMember = mutation({
   args: {
+    serviceSecret: serviceSecretArg,
     clerkUserId: v.string(),
     email: v.string(),
     publicMetadata: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
+    requireServiceSecret(args.serviceSecret);
     const meta = args.publicMetadata ?? {};
     let profile: any = null;
 
@@ -878,6 +882,7 @@ async function sendWelcomeInviteToMember(
       { groupId: profile.groupId }
     )) ?? undefined;
   const emailResult: any = await ctx.runAction(api.legal.emailFulfillment.sendEligibilityWelcomeSetPasswordEmail, {
+    serviceSecret: ownServiceSecret(),
     memberName,
     memberEmail: email,
     invitationUrl,
@@ -1062,7 +1067,7 @@ export const getMemberProfileById = internalQuery({
  * hard bounce/complaint reverts the member back to "eligible" so the admin
  * can see and re-invite them.
  */
-export const recordEmailDeliveryEvent = mutation({
+export const recordEmailDeliveryEvent = internalMutation({
   args: {
     resendEmailId: v.string(),
     eventType: v.string(), // e.g. "email.delivered", "email.bounced", "email.complained", "email.failed"

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useQuery, useMutation } from 'convex/react';
 import type { Id } from '@/convex/_generated/dataModel';
 import { api } from '@/convex/_generated/api';
+import { PROVIDER_GROUP_CODE } from '@/lib/constants';
 import { Breadcrumbs, StatusBadge } from '@/components/admin/ui';
 import {
   Users, Search, AlertTriangle, CheckCircle2, ExternalLink,
@@ -1407,14 +1408,15 @@ function GrantFreeAccessPanel({ user: u }: { user: UnifiedUser }) {
   const [productId, setProductId] = useState('');
   const [durationDays, setDurationDays] = useState(365);
   const [notes, setNotes] = useState('');
+  const [isDemo, setIsDemo] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [result, setResult] = useState<{ memberId: string } | null>(null);
+  const [result, setResult] = useState<{ memberId: string; isDemo: boolean } | null>(null);
 
-  // Default to the Individual Enrollment (RYZEDO) group and the individual plan.
+  // Default to the Individual Enrollment (IDEALDO) group and the individual plan.
   useEffect(() => {
     if (!groupId && groups?.length) {
-      const def = groups.find((g) => g.groupCode === 'RYZEDO' || g.slug === 'default');
+      const def = groups.find((g) => g.groupCode === PROVIDER_GROUP_CODE || g.slug === 'default');
       setGroupId(def?._id ?? groups[0]._id);
     }
   }, [groups, groupId]);
@@ -1444,8 +1446,9 @@ function GrantFreeAccessPanel({ user: u }: { user: UnifiedUser }) {
         productId: productId as Id<'catalogProducts'>,
         durationDays,
         notes: notes || undefined,
+        isDemo,
       });
-      setResult({ memberId: res.memberId });
+      setResult({ memberId: res.memberId, isDemo });
     } catch (e: any) {
       setErrorMsg(e?.message ?? 'Failed to grant access');
     } finally {
@@ -1456,7 +1459,9 @@ function GrantFreeAccessPanel({ user: u }: { user: UnifiedUser }) {
   if (result) {
     return (
       <p className="mt-4 text-xs text-emerald-700 font-medium">
-        Granted — member {result.memberId} created and active. Refresh the page to see the linked profile.
+        {result.isDemo
+          ? <>Demo account ready — member {result.memberId} can sign in and use the dashboard. It is kept out of vendor files, invoices, statements, commissions and insights.</>
+          : <>Granted — member {result.memberId} created and active. Refresh the page to see the linked profile.</>}
       </p>
     );
   }
@@ -1480,7 +1485,9 @@ function GrantFreeAccessPanel({ user: u }: { user: UnifiedUser }) {
   return (
     <div className="mt-4 border border-slate-200 rounded-lg bg-white p-4 max-w-xl">
       <p className="text-xs font-semibold text-slate-700 mb-3">
-        Grant free plan access — creates a member profile linked to this Clerk account and includes them in the group's next vendor eligibility file.
+        {isDemo
+          ? 'Create a demo account — a member profile linked to this Clerk account with a working dashboard, held back from every vendor file and report.'
+          : "Grant free plan access — creates a member profile linked to this Clerk account and includes them in the group's next vendor eligibility file."}
       </p>
       <div className="grid grid-cols-2 gap-3">
         <label className="text-xs text-slate-600">
@@ -1525,6 +1532,18 @@ function GrantFreeAccessPanel({ user: u }: { user: UnifiedUser }) {
             placeholder="Why this person is being comped"
             className="mt-1 w-full border border-slate-300 rounded-md px-2 py-1.5 text-xs"
           />
+        </label>
+        <label className="col-span-2 flex items-start gap-2 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-md px-2.5 py-2">
+          <input
+            type="checkbox"
+            checked={isDemo}
+            onChange={(e) => setIsDemo(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            <span className="font-semibold text-slate-700">Demo account</span> — for showing the product in meetings.
+            Never sent to Careington or DialCare, and left out of invoices, vendor statements, commissions and insights.
+          </span>
         </label>
       </div>
       {errorMsg && (

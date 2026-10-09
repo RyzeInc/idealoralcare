@@ -23,6 +23,7 @@ import { requireAccess } from "../lib/authGuards";
 import { loadBillingContext, billingFor } from "./revenue";
 import { classifyTier } from "../lib/dispersal";
 import { isOnBook } from "../lib/memberBilling";
+import { withoutDemoMembers } from "../lib/demoMembers";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -75,10 +76,11 @@ async function writeRollupsForDay(ctx: MutationCtx, dateKey: string) {
   const dayStart = startOfDayUtc(dateKey);
   const dayEnd = dayStart + DAY_MS;
 
-  const [members, leaders] = await Promise.all([
+  const [allMembers, leaders] = await Promise.all([
     ctx.db.query("memberProfiles").collect(),
     ctx.db.query("partnerLeaders").collect(),
   ]);
+  const members = withoutDemoMembers(allMembers);
 
   // rep id -> agency id, so a rep's activity also credits their agency.
   const agencyForRep = new Map<string, string>();

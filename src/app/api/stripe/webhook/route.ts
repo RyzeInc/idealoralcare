@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { convexServiceSecret } from "@/lib/convex-service";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
-import { essentialsCoverageLabel, isEssentialsSlug } from "@/lib/essentials-packet-pdf";
+import { essentialsCoverageLabel } from "@/lib/essentials-packet-pdf";
+import { isBflSlug, isMembershipProgramSlug } from "@/convex/lib/productSlugs";
 import { PROVIDER_GROUP_CODE } from "@/lib/constants";
 
 if (!process.env.STRIPE_SECRET_KEY) {
@@ -84,7 +86,8 @@ export async function POST(req: NextRequest) {
             try {
               const enrollmentSession = await convex.query(
                 api.enrollment.sessions.getEnrollmentSession,
-                { sessionId: enrollmentSessionId }
+                {
+          serviceSecret: convexServiceSecret(), sessionId: enrollmentSessionId }
               );
               siteId = enrollmentSession.siteId;
               accountId = enrollmentSession.accountId;
@@ -124,6 +127,7 @@ export async function POST(req: NextRequest) {
               const backstop = await convex.mutation(
                 api.enrollment.sessions.webhookEnsureEnrollmentSession,
                 {
+          serviceSecret: convexServiceSecret(),
                   stripeCheckoutSessionId: session.id,
                   siteId: siteId as any,
                   accountId: accountId as any,
@@ -181,6 +185,7 @@ export async function POST(req: NextRequest) {
           const memberResult = await convex.mutation(
             api.enrollment.members.webhookCreateMemberProfile,
             {
+          serviceSecret: convexServiceSecret(),
               siteId: siteId as any,
               accountId: accountId as any,
               groupId: groupId as any,
@@ -219,6 +224,7 @@ export async function POST(req: NextRequest) {
           if (enrollmentSessionDocId && memberProfileId) {
             try {
               await convex.mutation(api.enrollment.sessions.webhookLinkSessionMember, {
+          serviceSecret: convexServiceSecret(),
                 enrollmentSessionId: enrollmentSessionDocId as any,
                 memberId: memberProfileId,
               });
@@ -232,6 +238,7 @@ export async function POST(req: NextRequest) {
           if (createdMemberId) {
             try {
               await convex.mutation(api.legal.membershipAgreements.linkAgreementToMember, {
+          serviceSecret: convexServiceSecret(),
                 userId: clerkUserId,
                 memberId: createdMemberId,
               });
@@ -242,6 +249,7 @@ export async function POST(req: NextRequest) {
 
           // 2. Create subscription bundle
           const bundleId = await convex.mutation(api.subscriptions.mutations.webhookCreateBundle, {
+          serviceSecret: convexServiceSecret(),
             customerId: clerkUserId,
             cadence,
             paymentMethod: paymentMethod as "card" | "ach",
@@ -274,6 +282,7 @@ export async function POST(req: NextRequest) {
             }
 
             await convex.mutation(api.subscriptions.mutations.webhookActivateEntitlement, {
+          serviceSecret: convexServiceSecret(),
               customerId: clerkUserId,
               bundleId,
               productId: catalogProduct._id,  // ✅ Convex document ID, not Stripe product ID
@@ -311,6 +320,7 @@ export async function POST(req: NextRequest) {
           if (effectiveSessionKey) {
             try {
               await convex.mutation(api.enrollment.sessions.completeEnrollmentSession, {
+          serviceSecret: convexServiceSecret(),
                 sessionId: effectiveSessionKey,
                 bundleId,
                 customerId: clerkUserId,
@@ -334,6 +344,7 @@ export async function POST(req: NextRequest) {
               const commissionResult = await convex.mutation(
                 api.subscriptions.commissions.recordCommissionForCheckout,
                 {
+          serviceSecret: convexServiceSecret(),
                   brokerValue: effectiveBrokerCode,
                   enrollmentSessionId: enrollmentSessionDocId as any,
                   memberId: memberProfileId,
@@ -355,6 +366,7 @@ export async function POST(req: NextRequest) {
 
           // 6. Log event
           await convex.mutation(api.subscriptions.mutations.webhookLogEvent, {
+          serviceSecret: convexServiceSecret(),
             eventType: "checkout.session.completed",
             actor: "stripe",
             customerId: clerkUserId,
@@ -371,6 +383,7 @@ export async function POST(req: NextRequest) {
           // may complete checkout before that webhook lands).
           try {
             await convex.action(api.healthplans.toothlens.provisionForClerkUser, {
+          serviceSecret: convexServiceSecret(),
               clerkUserId,
               email: session.customer_email || undefined,
               name: session.customer_details?.name || undefined,
@@ -390,7 +403,7 @@ export async function POST(req: NextRequest) {
             // @ts-ignore - avoid deep type instantiation
             const cardData: any = await convex.query(
               api.subscriptions.queries.getMemberCardDataPublic as any,
-              { customerId: clerkUserId },
+              { serviceSecret: convexServiceSecret(), customerId: clerkUserId },
             );
 
             if (!cardData || !memberEmail) {
@@ -405,8 +418,10 @@ export async function POST(req: NextRequest) {
               // action. Letting the action fetch /api/generate-*-pdf instead is
               // a Convex→Next request that Vercel Deployment Protection blocks.
               // If in-process rendering fails, the action falls back to that fetch.
-              if (isEssentialsSlug(cardData.productSlug)) {
+              // Essentials, or standalone Balance for Life (same program, BFL-only packet).
+              if (isMembershipProgramSlug(cardData.productSlug)) {
                 const packet = {
+                  program: isBflSlug(cardData.productSlug) ? ("bfl" as const) : ("essentials" as const),
                   memberName: cardData.memberName,
                   memberFirstName,
                   memberEmail,
@@ -426,7 +441,8 @@ export async function POST(req: NextRequest) {
                 }
                 await convex.action(
                   (api as any)["legal/emailFulfillment"].sendEssentialsPacketEmail,
-                  { ...packet, ...rendered },
+                  {
+          serviceSecret: convexServiceSecret(), ...packet, ...rendered },
                 );
               } else {
                 const packet = {
@@ -450,7 +466,8 @@ export async function POST(req: NextRequest) {
                 }
                 await convex.action(
                   (api as any)["legal/emailFulfillment"].sendFulfillmentPacketEmail,
-                  { ...packet, ...rendered },
+                  {
+          serviceSecret: convexServiceSecret(), ...packet, ...rendered },
                 );
               }
             }
@@ -464,6 +481,7 @@ export async function POST(req: NextRequest) {
           processingFailed = true;
           try {
             await convex.mutation(api.subscriptions.mutations.webhookLogEvent, {
+          serviceSecret: convexServiceSecret(),
               eventType: "checkout.session.completed",
               actor: "stripe",
               customerId: clerkUserId || "",
@@ -492,7 +510,8 @@ export async function POST(req: NextRequest) {
             // Find the bundle to check if it was past_due
             const bundle = await convex.query(
               api.subscriptions.webhookActions.getBundleByStripeSubscription,
-              { stripeSubscriptionId }
+              {
+          serviceSecret: convexServiceSecret(), stripeSubscriptionId }
             );
 
             // If bundle was past_due, reactivate it
@@ -500,6 +519,7 @@ export async function POST(req: NextRequest) {
               await convex.mutation(
                 api.subscriptions.webhookActions.reactivateBundleFromWebhook,
                 {
+          serviceSecret: convexServiceSecret(),
                   bundleId: bundle._id,
                   reason: `Payment succeeded: ${invoice.id}`,
                 }
@@ -508,6 +528,7 @@ export async function POST(req: NextRequest) {
 
             // Log the event
             await convex.mutation(api.subscriptions.mutations.webhookLogEvent, {
+          serviceSecret: convexServiceSecret(),
               eventType: "invoice.payment_succeeded",
               actor: "stripe",
               customerId: bundle?.customerId,
@@ -540,12 +561,14 @@ export async function POST(req: NextRequest) {
           // Find the bundle by Stripe subscription ID
           const bundle = await convex.query(
             api.subscriptions.webhookActions.getBundleByStripeSubscription,
-            { stripeSubscriptionId }
+            {
+          serviceSecret: convexServiceSecret(), stripeSubscriptionId }
           );
 
           if (bundle) {
             // Suspend the bundle and entitlements
             await convex.mutation(api.subscriptions.webhookActions.suspendBundleFromWebhook, {
+          serviceSecret: convexServiceSecret(),
               bundleId: bundle._id,
               reason: `Payment failed: ${invoice.id}`,
             });
@@ -553,6 +576,7 @@ export async function POST(req: NextRequest) {
 
           // Log event
           await convex.mutation(api.subscriptions.mutations.webhookLogEvent, {
+          serviceSecret: convexServiceSecret(),
             eventType: "invoice.payment_failed",
             actor: "stripe",
             customerId: bundle?.customerId,
@@ -583,7 +607,8 @@ export async function POST(req: NextRequest) {
         try {
           const bundle = await convex.query(
             api.subscriptions.webhookActions.getBundleByStripeSubscription,
-            { stripeSubscriptionId }
+            {
+          serviceSecret: convexServiceSecret(), stripeSubscriptionId }
           );
 
           if (bundle) {
@@ -608,7 +633,7 @@ export async function POST(req: NextRequest) {
                 if (newCatalogProduct) {
                   // Get current active entitlements to find the old product
                   // @ts-ignore - avoid deep type instantiation issue
-                  const entitlements = await convex.query(api.subscriptions.queries.getEntitlementsByBundle, {
+                  const entitlements = await convex.query(api.subscriptions.queries.getEntitlementsByBundle, { serviceSecret: convexServiceSecret(),
                     bundleId: bundle._id,
                   });
 
@@ -618,6 +643,7 @@ export async function POST(req: NextRequest) {
 
                   if (activeEntitlement) {
                     await convex.mutation(api.subscriptions.webhookActions.processTierChange, {
+          serviceSecret: convexServiceSecret(),
                       bundleId: bundle._id,
                       customerId: bundle.customerId,
                       oldProductId: activeEntitlement.productId,
@@ -632,12 +658,14 @@ export async function POST(req: NextRequest) {
 
               // Clear the pending downgrade
               await convex.mutation(api.subscriptions.webhookActions.clearPendingDowngrade, {
+          serviceSecret: convexServiceSecret(),
                 bundleId: bundle._id,
               });
             }
 
             // Log the subscription update event
             await convex.mutation(api.subscriptions.mutations.webhookLogEvent, {
+          serviceSecret: convexServiceSecret(),
               eventType: "customer.subscription.updated",
               actor: "stripe",
               customerId: bundle.customerId,
@@ -670,12 +698,14 @@ export async function POST(req: NextRequest) {
           // 1. Find and cancel the subscription bundle in Convex
           const bundle = await convex.query(
             api.subscriptions.webhookActions.getBundleByStripeSubscription,
-            { stripeSubscriptionId }
+            {
+          serviceSecret: convexServiceSecret(), stripeSubscriptionId }
           );
 
           if (bundle) {
             // 2. Cancel the bundle
             await convex.mutation(api.subscriptions.webhookActions.cancelBundleFromWebhook, {
+          serviceSecret: convexServiceSecret(),
               bundleId: bundle._id,
               reason: "Stripe subscription deleted",
               stripeEventId: event.id,
@@ -683,6 +713,7 @@ export async function POST(req: NextRequest) {
 
             // 3. Revoke all entitlements for this bundle
             await convex.mutation(api.subscriptions.webhookActions.revokeEntitlementsByBundle, {
+          serviceSecret: convexServiceSecret(),
               bundleId: bundle._id,
               reason: "Stripe subscription deleted",
             });
@@ -692,11 +723,13 @@ export async function POST(req: NextRequest) {
               try {
                 const memberInfo = await convex.query(
                   api.subscriptions.webhookActions.getMemberForCancellation,
-                  { customerId: bundle.customerId }
+                  {
+          serviceSecret: convexServiceSecret(), customerId: bundle.customerId }
                 );
                 if (memberInfo?.email) {
                   // @ts-ignore - legal/emailFulfillment not in generated types
                   await convex.action((api as any)["legal/emailFulfillment"].sendMembershipCancelledEmail, {
+          serviceSecret: convexServiceSecret(),
                     memberName: `${memberInfo.firstName} ${memberInfo.lastName}`,
                     memberEmail: memberInfo.email,
                     memberId: memberInfo.memberId,
@@ -710,6 +743,7 @@ export async function POST(req: NextRequest) {
 
           // 4. Log the event
           await convex.mutation(api.subscriptions.mutations.webhookLogEvent, {
+          serviceSecret: convexServiceSecret(),
             eventType: "customer.subscription.deleted",
             actor: "stripe",
             customerId: bundle?.customerId,
@@ -730,6 +764,7 @@ export async function POST(req: NextRequest) {
           // Log failure event
           try {
             await convex.mutation(api.subscriptions.mutations.webhookLogEvent, {
+          serviceSecret: convexServiceSecret(),
               eventType: "customer.subscription.deleted",
               actor: "stripe",
               stripeEventId: event.id,

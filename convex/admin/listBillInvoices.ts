@@ -44,6 +44,7 @@ import {
 import { v } from "convex/values";
 import { requireAdmin, requireAccess } from "../lib/authGuards";
 import { DISPERSAL } from "../lib/dispersal";
+import { isDemoMember } from "../lib/demoMembers";
 import {
   BILLABLE_MEMBER_TYPES,
   classifyListBillTier,
@@ -276,6 +277,7 @@ async function buildInvoiceLines(
 
   const primaries = allMembers.filter(
     (m) =>
+      !isDemoMember(m) &&
       BILLABLE_MEMBER_TYPES.has(m.memberType) &&
       // Exclude members who have converted to self-pay or were termed from payroll deduction.
       // `undefined` means eligibility-loaded and still employer-covered.

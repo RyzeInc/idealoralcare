@@ -3,7 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
-import { Smile, Heart } from "lucide-react";
+import { Smile, Heart, Brain } from "lucide-react";
+import { BFL_BRAND } from "@/convex/lib/bflBrand";
 
 function PlanCard({
   href,
@@ -220,10 +221,10 @@ export function LandingCards() {
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+        gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
         gap: "1.5rem",
         width: "100%",
-        maxWidth: 780,
+        maxWidth: 1080,
       }}
     >
       <PlanCard
@@ -256,6 +257,7 @@ export function LandingCards() {
         description="Telehealth, pharmacy savings, lab work, mental wellness, and AI-powered oral care — all in one simple monthly membership."
         bullets={[
           "Lyric Telehealth — 24/7 doctor access",
+          "QuestSelect — no-cost lab work",
           "RxValet — prescription savings",
           "Balance for Life — mental wellness",
         ]}
@@ -265,6 +267,26 @@ export function LandingCards() {
         priceBg="linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)"
         priceBorder="#bae6fd"
         btnBg="#0369a1"
+      />
+      <PlanCard
+        href="/newideal/balance-for-life"
+        imageSrc="/newideal/site-files/mental-health-pic.png"
+        imageAlt="Balance for Life"
+        headerGradient="linear-gradient(150deg, rgba(40,37,96,0.86) 0%, rgba(0,112,122,0.72) 100%)"
+        icon={<Brain size={22} color="white" />}
+        title="Balance for Life"
+        description="Behavioral health care right when you need it — Zenn 24/7 and licensed counselors when you're ready."
+        bullets={[
+          "Zenn, an AI wellness companion, 24/7",
+          "Up to 10 counseling sessions per life event",
+          "Live support answered around the clock",
+        ]}
+        bulletColor={BFL_BRAND.violet500}
+        startingPrice="$19.95"
+        priceColor={BFL_BRAND.violet600}
+        priceBg={`linear-gradient(135deg, ${BFL_BRAND.violet50} 0%, ${BFL_BRAND.tealSoft} 100%)`}
+        priceBorder={BFL_BRAND.violet100}
+        btnBg={BFL_BRAND.violet500}
       />
     </div>
   );

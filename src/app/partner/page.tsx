@@ -12,6 +12,7 @@ import {
   ScopeBanner, RangePicker, SectionHeader, EstimateBadge, RevenueMix, type Column,
 } from "@/components/insights";
 import { formatCurrency } from "@/lib/admin-format";
+import { MguAgreementBanner } from "@/components/partner/MguAgreementCard";
 
 const money = (cents: number) => formatCurrency(cents, { fromCents: true });
 const pct = (v: number | null) => (v === null ? "—" : `${(v * 100).toFixed(1)}%`);
@@ -57,6 +58,8 @@ export default function PartnerOverview() {
         </div>
         <RangePicker value={days} onChange={setDays} />
       </div>
+
+      <MguAgreementBanner />
 
       <StatCardGrid>
         <StatCard

@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSiteThemeOptional } from "@/components/providers/SiteThemeProvider";
+import styles from "./HealthFooter.module.css";
 
 export function NexusHealthFooter() {
   const currentYear = new Date().getFullYear();
@@ -33,10 +34,10 @@ export function NexusHealthFooter() {
     <footer style={{ backgroundColor: "#ffffff", color: "#1e293b", borderTop: "1px solid #e2e8f0" }} className="w-full text-sm">
 
       <div className="container mx-auto max-w-6xl px-4 sm:px-6 lg:px-8" style={{ paddingTop: "2rem", paddingBottom: "2rem" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "auto repeat(4, 1fr)", gap: "2rem", alignItems: "start" }}>
+        <div className={styles.grid}>
 
           {/* Logo column */}
-          <div style={{ minWidth: 0 }}>
+          <div className={styles.logo} style={{ minWidth: 0 }}>
             <Image
               src={logoSrc}
               alt={logoAlt}

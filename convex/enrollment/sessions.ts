@@ -1,5 +1,6 @@
-import { mutation, query } from "../_generated/server";
+import { mutation, query, internalMutation } from "../_generated/server";
 import { MutationCtx, QueryCtx } from "../_generated/server";
+import { requireServiceSecret, serviceSecretArg } from "../lib/serviceAuth";
 import { v } from "convex/values";
 import { PROVIDER_GROUP_CODE } from "../lib/constants";
 import { restampMemberAttribution } from "../lib/repAttribution";
@@ -258,7 +259,7 @@ export const initializeEnrollment = mutation({
   },
 });
 
-export const createEnrollmentSession = mutation({
+export const createEnrollmentSession = internalMutation({
   args: {
     siteId: v.id("sites"),
     accountId: v.id("accounts"),
@@ -305,16 +306,13 @@ export const updateEnrollmentSession = mutation({
     completedSteps: v.optional(v.array(v.string())),
     stepData: v.optional(v.any()),
     cartSessionId: v.optional(v.string()),
-    memberId: v.optional(v.id("memberProfiles")),
+    // Browser-callable: only the states a visitor can move their own session
+    // into. Linking a member and completing the session happen server-side
+    // after payment (webhookLinkSessionMember / completeEnrollmentSession) —
+    // accepting a memberId here let a buyer attach their session to someone
+    // else's member record.
     status: v.optional(
-      v.union(
-        v.literal("in_progress"),
-        v.literal("pending_payment"),
-        v.literal("completed"),
-        v.literal("abandoned"),
-        v.literal("expired"),
-        v.literal("failed")
-      )
+      v.union(v.literal("in_progress"), v.literal("pending_payment"), v.literal("abandoned"))
     ),
   },
   handler: async (ctx: MutationCtx, args: any) => {
@@ -337,7 +335,6 @@ export const updateEnrollmentSession = mutation({
     if (args.stepData !== undefined) updates.stepData = args.stepData;
     if (args.cartSessionId !== undefined)
       updates.cartSessionId = args.cartSessionId;
-    if (args.memberId !== undefined) updates.memberId = args.memberId;
     if (args.status !== undefined) updates.status = args.status;
 
     await ctx.db.patch(session._id, updates);
@@ -348,6 +345,7 @@ export const updateEnrollmentSession = mutation({
 
 export const completeEnrollmentSession = mutation({
   args: {
+    serviceSecret: serviceSecretArg,
     sessionId: v.string(),
     bundleId: v.id("subscriptionBundles"),
     customerId: v.string(), // Clerk user ID
@@ -357,6 +355,7 @@ export const completeEnrollmentSession = mutation({
     brokerTrackingCode: v.optional(v.string()), // rep tracking code string used at signup
   },
   handler: async (ctx: MutationCtx, args: any) => {
+    requireServiceSecret(args.serviceSecret);
     const session = await ctx.db
       .query("enrollmentSessions")
       .withIndex("by_session_id", (q) => q.eq("sessionId", args.sessionId))
@@ -412,6 +411,7 @@ export const completeEnrollmentSession = mutation({
  */
 export const webhookEnsureEnrollmentSession = mutation({
   args: {
+    serviceSecret: serviceSecretArg,
     stripeCheckoutSessionId: v.string(),
     siteId: v.id("sites"),
     accountId: v.id("accounts"),
@@ -421,6 +421,7 @@ export const webhookEnsureEnrollmentSession = mutation({
     signupSource: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    requireServiceSecret(args.serviceSecret);
     const sessionId = `stripe:${args.stripeCheckoutSessionId}`;
 
     const existing = await ctx.db
@@ -471,10 +472,12 @@ export const webhookEnsureEnrollmentSession = mutation({
  */
 export const webhookLinkSessionMember = mutation({
   args: {
+    serviceSecret: serviceSecretArg,
     enrollmentSessionId: v.id("enrollmentSessions"),
     memberId: v.id("memberProfiles"),
   },
   handler: async (ctx, args) => {
+    requireServiceSecret(args.serviceSecret);
     const session = await ctx.db.get(args.enrollmentSessionId);
     if (!session) return { linked: false };
     if (session.memberId === args.memberId) return { linked: true };
@@ -488,8 +491,10 @@ export const webhookLinkSessionMember = mutation({
 });
 
 export const getEnrollmentSession = query({
-  args: { sessionId: v.string() },
-  handler: async (ctx: QueryCtx, args: { sessionId: string }) => {
+  args: {
+    serviceSecret: serviceSecretArg, sessionId: v.string() },
+  handler: async (ctx: QueryCtx, args: { sessionId: string; serviceSecret?: string }) => {
+    requireServiceSecret(args.serviceSecret);
     const session = await ctx.db
       .query("enrollmentSessions")
       .withIndex("by_session_id", (q) => q.eq("sessionId", args.sessionId))

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { convexServiceSecret } from "@/lib/convex-service";
 import Stripe from "stripe";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
@@ -23,12 +24,15 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 export async function POST(req: NextRequest) {
   try {
     // Require authentication
-    const { userId } = await auth();
+    const { userId, getToken } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || "");
+    // Act as the signed-in admin, so permission checks in Convex apply to them.
+    const convexToken = await getToken({ template: "convex" });
+    if (convexToken) convex.setAuth(convexToken);
 
     // Verify the caller is an admin
     const isAdmin = await convex.query(api.admin.adminUsers.isAdmin, { clerkUserId: userId });
@@ -88,7 +92,8 @@ export async function POST(req: NextRequest) {
         // Check if bundle already exists in Convex
         const existingBundle = await convex.query(
           api.subscriptions.webhookActions.getBundleByStripeSubscription,
-          { stripeSubscriptionId: sub.id }
+          {
+          serviceSecret: convexServiceSecret(), stripeSubscriptionId: sub.id }
         );
 
         if (existingBundle) {
@@ -149,7 +154,8 @@ export async function POST(req: NextRequest) {
         if (clerkUserId) {
           const existingMember = await convex.query(
             api.enrollment.members.getMemberByCustomerId,
-            { customerId: clerkUserId }
+            {
+          serviceSecret: convexServiceSecret(), customerId: clerkUserId }
           );
           if (existingMember) {
             memberProfileId = existingMember._id;
@@ -164,6 +170,7 @@ export async function POST(req: NextRequest) {
           const memberResult = await convex.mutation(
             api.enrollment.members.webhookCreateMemberProfile,
             {
+          serviceSecret: convexServiceSecret(),
               siteId: hierarchy.siteId,
               accountId: hierarchy.accountId,
               groupId: hierarchy.groupId,
@@ -182,6 +189,7 @@ export async function POST(req: NextRequest) {
         const bundleId = await convex.mutation(
           api.subscriptions.mutations.webhookCreateBundle,
           {
+          serviceSecret: convexServiceSecret(),
             customerId: clerkUserId || stripeCustomerId,
             cadence,
             paymentMethod,
@@ -216,6 +224,7 @@ export async function POST(req: NextRequest) {
           await convex.mutation(
             api.subscriptions.mutations.webhookActivateEntitlement,
             {
+          serviceSecret: convexServiceSecret(),
               customerId: clerkUserId || stripeCustomerId,
               bundleId,
               productId: catalogProduct._id,
@@ -229,6 +238,7 @@ export async function POST(req: NextRequest) {
 
         // 4. Log the sync event
         await convex.mutation(api.subscriptions.mutations.webhookLogEvent, {
+          serviceSecret: convexServiceSecret(),
           eventType: "stripe_sync.reconciled",
           actor: "admin",
           customerId: clerkUserId || stripeCustomerId,

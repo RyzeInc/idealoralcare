@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { mutation, query } from "../_generated/server";
+import { mutation, query, internalMutation, internalQuery } from "../_generated/server";
+import { requireServiceSecret, serviceSecretArg } from "../lib/serviceAuth";
 import { v } from "convex/values";
 
 /**
@@ -27,6 +28,9 @@ export const createMembershipAgreement = mutation({
     signatureTimestamp: v.number(),
   },
   handler: async (ctx: any, args: any) => {
+    // A member signs only their own agreement.
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity || identity.subject !== args.userId) throw new Error("Unauthorized");
     // Calculate effective date as today
     const effectiveDate = new Date().toISOString().split("T")[0];
 
@@ -78,6 +82,9 @@ export const createOralCareAgreement = mutation({
     signatureTimestamp: v.number(),
   },
   handler: async (ctx: any, args: any) => {
+    // A member signs only their own agreement.
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity || identity.subject !== args.userId) throw new Error("Unauthorized");
     const effectiveDate = new Date().toISOString().split("T")[0];
 
     const agreementId = await ctx.db.insert("membershipAgreements", {
@@ -106,7 +113,7 @@ export const createOralCareAgreement = mutation({
   },
 });
 
-export const getMembershipAgreement = query({
+export const getMembershipAgreement = internalQuery({
   args: {
     agreementId: v.id("membershipAgreements"),
   },
@@ -116,7 +123,7 @@ export const getMembershipAgreement = query({
   },
 });
 
-export const getMembershipAgreementByUserId = query({
+export const getMembershipAgreementByUserId = internalQuery({
   args: {
     userId: v.string(),
   },
@@ -132,7 +139,7 @@ export const getMembershipAgreementByUserId = query({
   },
 });
 
-export const getMembershipAgreementByMemberId = query({
+export const getMembershipAgreementByMemberId = internalQuery({
   args: {
     memberId: v.string(),
   },
@@ -154,10 +161,12 @@ export const getMembershipAgreementByMemberId = query({
  */
 export const linkAgreementToMember = mutation({
   args: {
+    serviceSecret: serviceSecretArg,
     userId: v.string(),
     memberId: v.string(),
   },
   handler: async (ctx: any, args: any) => {
+    requireServiceSecret(args.serviceSecret);
     const agreements = await ctx.db
       .query("membershipAgreements")
       .withIndex("by_userId", (q: any) => q.eq("userId", args.userId))
@@ -172,7 +181,7 @@ export const linkAgreementToMember = mutation({
   },
 });
 
-export const updateMembershipAgreementStatus = mutation({
+export const updateMembershipAgreementStatus = internalMutation({
   args: {
     agreementId: v.id("membershipAgreements"),
     status: v.union(v.literal("active"), v.literal("cancelled"), v.literal("expired")),
@@ -198,7 +207,7 @@ export const updateMembershipAgreementStatus = mutation({
   },
 });
 
-export const validateMembershipAgreement = query({
+export const validateMembershipAgreement = internalQuery({
   args: {
     agreementId: v.id("membershipAgreements"),
   },

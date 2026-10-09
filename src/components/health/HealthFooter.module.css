@@ -1,0 +1,26 @@
+/* Five columns on desktop. The grid used to be an inline style, which no media
+   query can reach, so on phones it kept all five columns and pushed every
+   /health page ~100px wider than the screen. */
+.grid {
+  display: grid;
+  grid-template-columns: auto repeat(4, 1fr);
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.75rem 1.5rem;
+  }
+
+  .logo {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 360px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -5,11 +5,13 @@
  */
 
 import { mutation, query } from "../_generated/server";
+import { requireServiceSecret, serviceSecretArg } from "../lib/serviceAuth";
 import { v } from "convex/values";
 import { Doc, Id } from "../_generated/dataModel";
 import { QueryCtx, MutationCtx } from "../_generated/server";
 import { resolveBrokerKey } from "../lib/brokerResolve";
 import { requireAccess } from "../lib/authGuards";
+import { isDemoMember } from "../lib/demoMembers";
 
 /**
  * Create or update a commission rate for a broker
@@ -362,7 +364,8 @@ export type CommissionSkipReason =
   | "no_broker_supplied"
   | "broker_unresolvable"
   | "no_rate_configured"
-  | "already_recorded";
+  | "already_recorded"
+  | "demo_member";
 
 /**
  * Record the commission for a completed checkout.
@@ -380,6 +383,7 @@ export type CommissionSkipReason =
  */
 export const recordCommissionForCheckout = mutation({
   args: {
+    serviceSecret: serviceSecretArg,
     /** A rep id, tracking code, or Clerk user ID — resolved by lookup. */
     brokerValue: v.optional(v.string()),
     enrollmentSessionId: v.optional(v.id("enrollmentSessions")),
@@ -392,8 +396,12 @@ export const recordCommissionForCheckout = mutation({
     period: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    requireServiceSecret(args.serviceSecret);
     if (!args.brokerValue) {
       return { recorded: false, reason: "no_broker_supplied" as CommissionSkipReason };
+    }
+    if (args.memberId && isDemoMember(await ctx.db.get(args.memberId))) {
+      return { recorded: false, reason: "demo_member" as CommissionSkipReason };
     }
 
     const resolved = await resolveBrokerKey(ctx, args.brokerValue);

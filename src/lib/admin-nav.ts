@@ -101,6 +101,7 @@ export const ADMIN_NAVIGATION: AdminNavSection[] = [
       { label: "Rep Codes", href: "/admin/rep-codes", icon: "Tag", tooltip: "Tracking codes that attribute enrollments to agents.", keywords: ["attribution", "vanity url", "referral", "ref"] },
       { label: "Partner Kit Leads", href: "/admin/partnerkit", icon: "BookUser", tooltip: "Agencies and companies that registered and requested the partner kit.", keywords: ["leads", "registrations", "inbound"] },
       { label: "Partner Applications", href: "/admin/partner-applications", icon: "UserPlus", tooltip: "Review broker, agency, and front-line rep onboarding submissions.", keywords: ["onboarding", "applications", "approve"] },
+      { label: "MGU Agreement", href: "/admin/mgu-agreement", icon: "FileSignature", tooltip: "Upload the Master MGU Agreement and see which agencies have signed it.", keywords: ["contract", "agency agreement", "e-sign", "signature"] },
       { label: "Resources", href: "/admin/resources", icon: "FolderOpen", tooltip: "Marketing material, partner kits, and collateral partners download.", keywords: ["collateral", "downloads", "marketing"] },
     ],
   },

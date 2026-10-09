@@ -14,7 +14,7 @@
  * stale cache, and no client call that yields a product.
  */
 
-import { query } from "../_generated/server";
+import { query, internalQuery } from "../_generated/server";
 import type { QueryCtx } from "../_generated/server";
 import { v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
@@ -91,7 +91,7 @@ function stripSensitive(product: Doc<"shopProducts">) {
 export type PublicShopProduct = ReturnType<typeof stripSensitive>;
 
 /** Visible categories, in editorial order. */
-export const listCategories = query({
+export const listCategories = internalQuery({
   args: {},
   handler: async (ctx) => {
     if (!(await readShopEnabled(ctx))) return [];
@@ -109,7 +109,7 @@ export const listCategories = query({
  * Ranking is editorial order only — never derived from member health data
  * (SHOP_DESIGN.md rule 3).
  */
-export const listProducts = query({
+export const listProducts = internalQuery({
   args: {
     categorySlug: v.optional(v.string()),
     featured: v.optional(v.boolean()),
@@ -148,7 +148,7 @@ export const listProducts = query({
 });
 
 /** One product by slug, for a detail view. Hidden products read as missing. */
-export const getProductBySlug = query({
+export const getProductBySlug = internalQuery({
   args: { slug: v.string() },
   handler: async (ctx, args) => {
     if (!(await readShopEnabled(ctx))) return null;

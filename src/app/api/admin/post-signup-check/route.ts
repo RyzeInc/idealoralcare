@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { ConvexHttpClient } from "convex/browser";
+import { convexServiceSecret } from "@/lib/convex-service";
 import { api } from "@/convex/_generated/api";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
@@ -30,6 +31,7 @@ export async function GET(request: Request) {
 
     // Check for pending admin invite
     const invite = await convex.query(api.admin.adminUsers.getPendingInviteByEmail, {
+          serviceSecret: convexServiceSecret(),
       email,
     });
 

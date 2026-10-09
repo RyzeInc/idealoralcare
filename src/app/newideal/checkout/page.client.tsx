@@ -63,6 +63,7 @@ import {
   EssentialsMembershipModal,
   OralCareTermsModal,
 } from "@/components/legal";
+import { hasConflictingPrograms, isBflSlug, isMembershipProgramSlug } from "@/convex/lib/productSlugs";
 /* ─── Inline auth helpers (identical to /health/checkout) ───────────────────── */
 function AppleIcon() {
   return (
@@ -793,9 +794,12 @@ export default function NewIdealCheckoutClient() {
     year: "numeric",
   });
 
-  const hasEssentials = cart.items.some((i) =>
-    i.product.slug?.startsWith("essentials-")
-  );
+  // Essentials or standalone Balance for Life — both are signed under the
+  // Essentials membership agreement, and they're never bought together.
+  const membershipItem = cart.items.find((i) => isMembershipProgramSlug(i.product.slug));
+  const isBflOrder = isBflSlug(membershipItem?.product.slug);
+  const hasEssentials = !!membershipItem;
+  const programConflict = hasConflictingPrograms(cart.items.map((i) => i.product.slug));
   const hasOralCare = cart.items.some((i) =>
     i.product.slug?.startsWith("oralcare-")
   );
@@ -805,12 +809,18 @@ export default function NewIdealCheckoutClient() {
     agreedToNotInsurance &&
     (!hasEssentials || essentialsAgreed) &&
     (!hasOralCare || oralCareAgreed) &&
+    !programConflict &&
     itemCount > 0 &&
     !loading;
 
   const handleCheckout = async () => {
     if (!canSubmit) return;
-    const primary = cart.items[0];
+    // The membership program goes first: the webhook sends the welcome packet
+    // for the first plan on the order.
+    const ordered = membershipItem
+      ? [membershipItem, ...cart.items.filter((i) => i !== membershipItem)]
+      : cart.items;
+    const primary = ordered[0];
     if (!primary) return;
 
     const origin =
@@ -828,7 +838,7 @@ export default function NewIdealCheckoutClient() {
           cadence: "monthly",
           paymentMethod: cart.paymentMethod,
           siteSlug: "newideal",
-          additionalPlanIds: cart.items.slice(1).map((i) => i.productId),
+          additionalPlanIds: ordered.slice(1).map((i) => i.productId),
           successUrl: `${origin}/newideal/success?session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: `${origin}/newideal/checkout`,
           referralCode: cart.referralCode || undefined,
@@ -1285,10 +1295,10 @@ export default function NewIdealCheckoutClient() {
                       />
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 700, fontSize: "1rem", color: "#0f172a", marginBottom: 4 }}>
-                          Essentials Plan Membership Agreement
+                          {isBflOrder ? "Balance for Life Membership Agreement" : "Essentials Plan Membership Agreement"}
                         </div>
                         <div style={{ fontSize: "0.875rem", color: "#64748b", marginBottom: essentialsAgreed ? 0 : 8 }}>
-                          {cart.items.find((i) => i.product.slug?.startsWith("essentials-"))?.product.name}
+                          {membershipItem?.product.name}
                         </div>
                         {!essentialsAgreed && (
                           <div
@@ -1435,7 +1445,7 @@ export default function NewIdealCheckoutClient() {
                 </div>
               </div>
 
-              {error && (
+              {(error || programConflict) && (
                 <div
                   className="glass-card"
                   style={{
@@ -1446,7 +1456,8 @@ export default function NewIdealCheckoutClient() {
                     fontSize: "0.875rem",
                   }}
                 >
-                  {error}
+                  {error ??
+                    "Balance for Life is already included in the Essentials Plan. Remove one of them from your cart to continue."}
                 </div>
               )}
             </div>
@@ -1457,7 +1468,8 @@ export default function NewIdealCheckoutClient() {
                 <h3 style={{ margin: "0 0 16px 0" }}>Order Summary</h3>
 
                 {cart.items.map((item) => {
-                  const isEss = item.product.slug?.startsWith("essentials-");
+                  const isEss = isMembershipProgramSlug(item.product.slug);
+                  const isBflItem = isBflSlug(item.product.slug);
                   const isOral = item.product.slug?.startsWith("oralcare-");
                   const isOpen = isEss ? essentialsOpen : isOral ? oralCareOpen : false;
                   const toggle = isEss
@@ -1478,7 +1490,13 @@ export default function NewIdealCheckoutClient() {
                     { icon: <Smile size={13} />, label: "Dental Discount Network", desc: "20–60% off at 100,000+ providers" },
                     { icon: <Phone size={13} />, label: "Emergency Support", desc: "Same-day specialist access" },
                   ];
-                  const details = isEss ? essentialsDetails : isOral ? oralCareDetails : [];
+                  const bflDetails = [
+                    { icon: <Heart size={13} />, label: "Zenn", desc: "AI wellness companion, 24/7" },
+                    { icon: <Activity size={13} />, label: "Counseling", desc: "Up to 10 sessions per life event" },
+                    { icon: <Phone size={13} />, label: "Live support", desc: "Answered around the clock" },
+                    { icon: <Zap size={13} />, label: "Coaching", desc: "Life, work-life & wellness coaching" },
+                  ];
+                  const details = isBflItem ? bflDetails : isEss ? essentialsDetails : isOral ? oralCareDetails : [];
 
                   return (
                     <div key={item.productId} style={{ borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
@@ -1721,6 +1739,7 @@ export default function NewIdealCheckoutClient() {
       {/* Legal modals */}
       <EssentialsMembershipModal
         isOpen={essentialsModalOpen}
+        program={isBflOrder ? "bfl" : "essentials"}
         onClose={() => setEssentialsModalOpen(false)}
         onAccept={() => {
           setEssentialsAgreed(true);
@@ -1734,10 +1753,10 @@ export default function NewIdealCheckoutClient() {
           email:
             user?.primaryEmailAddress?.emailAddress || "email@example.com",
           planName:
-            cart.items.find((i) => i.product.slug?.startsWith("essentials-"))?.product.name ||
-            "Essentials Plan",
+            membershipItem?.product.name ||
+            (isBflOrder ? "Balance for Life" : "Essentials Plan"),
           periodicChargeCents:
-            cart.items.find((i) => i.product.slug?.startsWith("essentials-"))?.product.pricing
+            membershipItem?.product.pricing
               .monthlyCardCents ?? 0,
         }}
       />

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
+import { convexServiceSecret } from "@/lib/convex-service";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { pdf } from "@react-pdf/renderer";
@@ -21,6 +22,7 @@ import {
   isEssentialsSlug,
   type EssentialsPacketData,
 } from "@/lib/essentials-packet-pdf";
+import { isBflSlug, isMembershipProgramSlug } from "@/convex/lib/productSlugs";
 import { essentialsAppendPaths } from "@/lib/essentials-packet-assets";
 import { mergePdfs } from "@/lib/pdf-merge";
 import { PROVIDER_GROUP_CODE } from "@/lib/constants";
@@ -59,11 +61,11 @@ export async function GET(req: NextRequest) {
   try {
     memberProfile = await convex.query(
       api.subscriptions.queries.getMemberCardDataPublic as any,
-      { customerId: user.id }
+      { serviceSecret: convexServiceSecret(), customerId: user.id }
     );
     bundleData = await convex.query(
       api.subscriptions.queries.getCustomerBundlePublic,
-      { customerId: user.id }
+      { serviceSecret: convexServiceSecret(), customerId: user.id }
     );
   } catch {
     // Fall back to Clerk profile data
@@ -76,20 +78,23 @@ export async function GET(req: NextRequest) {
     return `data:image/png;base64,${fs.readFileSync(logoPath).toString("base64")}`;
   }
 
-  if (isEssentialsSlug(memberProfile?.productSlug)) {
+  if (isMembershipProgramSlug(memberProfile?.productSlug)) {
+    const isBfl = isBflSlug(memberProfile?.productSlug);
     const essentialsData: EssentialsPacketData = {
       memberName: memberProfile?.memberName ?? user.fullName ?? "Member",
       memberFirstName: user.firstName ?? "Member",
       memberEmail: user.emailAddresses[0]?.emailAddress ?? "",
       essentialsMemberNumber: memberProfile?.essentialsMemberNumber ?? "—",
       essentialsGroupNumber: memberProfile?.essentialsGroupNumber ?? "—",
-      planName: memberProfile?.planName ?? "Essentials Plan",
+      planName: memberProfile?.planName ?? (isBfl ? "Balance for Life" : "Essentials Plan"),
+      program: isBfl ? "bfl" : "essentials",
       coverageType: essentialsCoverageLabel(memberProfile?.productSlug),
       effectiveDate:
         memberProfile?.effectiveDate ??
         new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
       term: bundleData?.pricingSnapshot?.totalCents > 100000 ? "Annual" : "Monthly",
       logoDataUri: logoDataUri("ideal-health-logo.png"),
+      bflLogoDataUri: logoDataUri("newideal/balance-for-life-logo.png"),
     };
 
     const essentialsDocs = {
@@ -98,10 +103,11 @@ export async function GET(req: NextRequest) {
       card: EssentialsMemberCardPdf,
     } as const;
 
+    const filePrefix = isBfl ? "Ideal_Health_Balance_for_Life" : "Ideal_Health_Essentials";
     const essentialsFilenames = {
-      packet: "Ideal_Health_Essentials_Welcome_Packet.pdf",
-      agreement: "Ideal_Health_Essentials_Membership_Agreement.pdf",
-      card: "Ideal_Health_Essentials_Member_Card.pdf",
+      packet: `${filePrefix}_Welcome_Packet.pdf`,
+      agreement: `${filePrefix}_Membership_Agreement.pdf`,
+      card: `${filePrefix}_Member_Card.pdf`,
     } as const;
 
     try {

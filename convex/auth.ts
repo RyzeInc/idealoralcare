@@ -8,7 +8,7 @@
  * For internal use in mutation/query handlers, use convex/lib/authGuards.ts instead.
  */
 
-import { query } from "./_generated/server";
+import { query, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import type { QueryCtx } from "./_generated/server";
 import { resolveAccess } from "./lib/access/resolve";
@@ -33,7 +33,7 @@ export const debugAuth = query({
 /**
  * Get current user's role from their access (staff roles and packs)
  */
-export const getUserRole = query({
+export const getUserRole = internalQuery({
   args: {
     userId: v.string(),
   },
@@ -50,7 +50,7 @@ export const getUserRole = query({
 /**
  * Check if user is internal staff
  */
-export const isUserAdmin = query({
+export const isUserAdmin = internalQuery({
   args: {
     userId: v.string(),
   },

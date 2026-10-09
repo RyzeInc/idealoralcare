@@ -34,6 +34,7 @@ import {
 } from "../_generated/server";
 import { v } from "convex/values";
 import { requireAccess } from "../lib/authGuards";
+import { withoutDemoMembers } from "../lib/demoMembers";
 import {
   addSplits,
   assertSplitInvariant,
@@ -304,7 +305,9 @@ async function computeLiveBreakdown(
   ]);
 
   // Merge active + enrolling + eligible into one list (all contribute to billing).
-  let allMembers = [...activeMembers, ...enrollingMembers, ...eligibleMembers];
+  // Demo accounts are left out here, which keeps them off every closed period
+  // and so off the vendor statements built from those closes.
+  let allMembers = withoutDemoMembers([...activeMembers, ...enrollingMembers, ...eligibleMembers]);
 
   // NOTE: deliberately NOT widening to `inactive`/`terminated` profiles on the
   // rebuild path. `memberProfiles` records no termination timestamp, so there
@@ -654,7 +657,7 @@ export const getGroupInvoice = query({
         .query("memberProfiles")
         .withIndex("by_group", (q) => q.eq("groupId", groupId))
         .collect();
-      const members = membersInGroup.filter(
+      const members = withoutDemoMembers(membersInGroup).filter(
         (m) =>
           m.memberType === "active" ||
           m.memberType === "enrolling" ||

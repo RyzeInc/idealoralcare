@@ -30,6 +30,7 @@ import { isReservedPath } from "@/lib/rep-routing/reserved";
 // Routes that require authentication
 const isProtectedRoute = createRouteMatcher([
   "/admin(.*)",
+  "/debug(.*)",
   "/partner(.*)",
   "/employer(.*)",
   "/health/dashboard(.*)",

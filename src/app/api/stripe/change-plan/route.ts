@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { convexServiceSecret } from "@/lib/convex-service";
 import { ConvexHttpClient } from "convex/browser";
 import Stripe from "stripe";
 import { api } from "@/convex/_generated/api";
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
 
     // 1. Fetch user's active bundle with Stripe IDs
     // @ts-ignore - avoid deep type instantiation issue
-    const bundleResult = await convex.query(api.subscriptions.queries.getCustomerBundleWithStripeIds, {
+    const bundleResult = await convex.query(api.subscriptions.queries.getCustomerBundleWithStripeIds, { serviceSecret: convexServiceSecret(),
       customerId: userId,
     });
     const bundle = bundleResult as any;
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
 
     // 2. Look up current entitlements to determine current tier
     // @ts-ignore - avoid deep type instantiation issue
-    const entitlements = await convex.query(api.subscriptions.queries.getEntitlementsByBundle, {
+    const entitlements = await convex.query(api.subscriptions.queries.getEntitlementsByBundle, { serviceSecret: convexServiceSecret(),
       bundleId: bundle._id,
     });
 
@@ -123,7 +124,7 @@ export async function POST(req: NextRequest) {
     const cadence: "monthly" | "annual" = currentInterval === "year" ? "annual" : "monthly";
 
     // Determine payment method from bundle or default to card
-    const fullBundle = await convex.query(api.subscriptions.queries.getCustomerBundlePublic, {
+    const fullBundle = await convex.query(api.subscriptions.queries.getCustomerBundlePublic, { serviceSecret: convexServiceSecret(),
       customerId: userId,
     }) as any;
     const paymentMethod = fullBundle?.pricingSnapshot?.paymentMethod || "card";
@@ -209,6 +210,7 @@ export async function POST(req: NextRequest) {
 
       // 6c. Update Convex: swap entitlements + update bundle pricing
       await convex.mutation(api.subscriptions.webhookActions.processTierChange, {
+          serviceSecret: convexServiceSecret(),
         bundleId: bundle._id,
         customerId: userId,
         oldProductId: currentProduct._id,
@@ -220,6 +222,7 @@ export async function POST(req: NextRequest) {
 
       // 6d. Log the upgrade event
       await convex.mutation(api.subscriptions.mutations.webhookLogEvent, {
+          serviceSecret: convexServiceSecret(),
         eventType: "plan.upgraded",
         actor: "user",
         customerId: userId,
@@ -283,6 +286,7 @@ export async function POST(req: NextRequest) {
 
       // Update Convex: mark the pending downgrade
       await convex.mutation(api.subscriptions.webhookActions.scheduleTierDowngrade, {
+          serviceSecret: convexServiceSecret(),
         bundleId: bundle._id,
         customerId: userId,
         targetProductId: targetProduct._id,
@@ -292,6 +296,7 @@ export async function POST(req: NextRequest) {
 
       // Log the downgrade event
       await convex.mutation(api.subscriptions.mutations.webhookLogEvent, {
+          serviceSecret: convexServiceSecret(),
         eventType: "plan.downgrade_scheduled",
         actor: "user",
         customerId: userId,

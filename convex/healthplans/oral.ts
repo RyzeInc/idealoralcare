@@ -5,7 +5,7 @@
  * Integrates with Dental Discount Network and Teledentistry Program
  */
 
-import { query } from "../_generated/server";
+import { query, internalQuery } from "../_generated/server";
 import { v } from "convex/values";
 
 /**
@@ -163,7 +163,7 @@ export const getOralPlan = query({
 /**
  * Get providers in a specific ZIP code (Dental Discount Network network)
  */
-export const getProvidersNearZIP = query({
+export const getProvidersNearZIP = internalQuery({
   args: { zip: v.string() },
   handler: async (ctx, { zip }) => {
     // TODO: Integrate with actual Dental Discount Network provider directory API
@@ -200,7 +200,7 @@ export const getProvidersNearZIP = query({
 /**
  * Get plan comparison data (if we ever add more plans)
  */
-export const getOralPlanComparison = query({
+export const getOralPlanComparison = internalQuery({
   args: {},
   handler: async (ctx) => {
     return {

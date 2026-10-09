@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# Create 4 New Ideal Health Stripe Products (Essentials Plan tiers) and link
-# them to Convex catalog.
+# Create New Ideal Health Stripe Products (Essentials Plan tiers and standalone
+# Balance for Life) and link them to the Convex catalog.
 #
 # Usage:
-#   ./scripts/create-newideal-stripe-products.sh          # test mode (default)
-#   ./scripts/create-newideal-stripe-products.sh --live   # live mode
+#   ./scripts/create-newideal-stripe-products.sh                          # test mode, all products
+#   ./scripts/create-newideal-stripe-products.sh --live                   # live mode, all products
+#   ./scripts/create-newideal-stripe-products.sh --live --only bfl-individual
+#                                                   # just one product — use this when adding a
+#                                                   # new plan, so existing tiers aren't duplicated
 #
 # Requires: stripe CLI logged in, npx convex available, catalog seeded first
 # (npx convex run admin/seedNewIdeal:seedNewIdeal).
@@ -19,7 +22,16 @@ fi
 
 KEY_FLAG=""
 MODE_LABEL="TEST"
-if [[ "${1:-}" == "--live" ]]; then
+LIVE=0
+ONLY=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --live) LIVE=1; shift ;;
+    --only) ONLY="${2:-}"; shift 2 ;;
+    *) echo "Unknown argument: $1"; exit 1 ;;
+  esac
+done
+if [[ $LIVE -eq 1 ]]; then
   if [[ -z "${STRIPE_LIVE_SECRET_KEY:-}" ]]; then
     echo "ERROR: Set STRIPE_LIVE_SECRET_KEY=sk_live_... in .env.local before running with --live"
     exit 1
@@ -37,6 +49,7 @@ PRODUCTS=(
   "essentials-employee-spouse:Essentials Plan — Employee + Spouse"
   "essentials-employee-child:Essentials Plan — Employee + Child"
   "essentials-employee-family:Essentials Plan — Employee + Family"
+  "bfl-individual:Balance for Life — Individual"
 )
 
 MAPPING_JSON='{'
@@ -45,6 +58,9 @@ FIRST=1
 for entry in "${PRODUCTS[@]}"; do
   SLUG="${entry%%:*}"
   NAME="${entry#*:}"
+  if [[ -n "$ONLY" && "$SLUG" != "$ONLY" ]]; then
+    continue
+  fi
 
   echo "→ $SLUG"
   RESPONSE=$(stripe products create $KEY_FLAG \
@@ -70,8 +86,13 @@ done
 
 MAPPING_JSON+='}'
 
+if [[ $FIRST -eq 1 ]]; then
+  echo "No product matched --only $ONLY"
+  exit 1
+fi
+
 echo
-echo "All 8 products created. Mapping:"
+echo "Products created. Mapping:"
 echo "$MAPPING_JSON" | python3 -m json.tool 2>/dev/null || echo "$MAPPING_JSON"
 echo
 

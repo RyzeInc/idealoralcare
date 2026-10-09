@@ -197,6 +197,7 @@ export const getAccountBillingSummary = query({
     accountId: v.id("accounts"),
   },
   handler: async (ctx, args) => {
+    await requireAccess(ctx, "billing.view");
     const account = await ctx.db.get(args.accountId);
     if (!account) throw new Error("Account not found");
 

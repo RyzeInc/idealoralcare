@@ -1,8 +1,8 @@
-import { mutation, query } from "../_generated/server";
+import { mutation, query, internalMutation, internalQuery } from "../_generated/server";
 import { v } from "convex/values";
 
 // Get all categories (for admin)
-export const getAll = query({
+export const getAll = internalQuery({
   args: {},
   handler: async (ctx) => {
     return await ctx.db.query("nexusCategories").withIndex("by_order").collect();
@@ -10,7 +10,7 @@ export const getAll = query({
 });
 
 // Get visible categories (for portal)
-export const getVisible = query({
+export const getVisible = internalQuery({
   args: {},
   handler: async (ctx) => {
     const categories = await ctx.db
@@ -22,7 +22,7 @@ export const getVisible = query({
 });
 
 // Get category by slug
-export const getBySlug = query({
+export const getBySlug = internalQuery({
   args: { slug: v.string() },
   handler: async (ctx, args) => {
     return await ctx.db
@@ -33,7 +33,7 @@ export const getBySlug = query({
 });
 
 // Get category by ID
-export const getById = query({
+export const getById = internalQuery({
   args: { id: v.id("nexusCategories") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.id);
@@ -41,7 +41,7 @@ export const getById = query({
 });
 
 // Create category
-export const create = mutation({
+export const create = internalMutation({
   args: {
     name: v.string(),
     slug: v.string(),
@@ -62,7 +62,7 @@ export const create = mutation({
 });
 
 // Update category
-export const update = mutation({
+export const update = internalMutation({
   args: {
     id: v.id("nexusCategories"),
     name: v.optional(v.string()),
@@ -86,7 +86,7 @@ export const update = mutation({
 });
 
 // Delete category
-export const remove = mutation({
+export const remove = internalMutation({
   args: { id: v.id("nexusCategories") },
   handler: async (ctx, args) => {
     // Also delete all products in this category
@@ -104,7 +104,7 @@ export const remove = mutation({
 });
 
 // Reorder categories
-export const reorder = mutation({
+export const reorder = internalMutation({
   args: {
     orderedIds: v.array(v.id("nexusCategories")),
   },

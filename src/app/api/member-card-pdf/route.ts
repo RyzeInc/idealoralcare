@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
+import { convexServiceSecret } from "@/lib/convex-service";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { pdf } from "@react-pdf/renderer";
@@ -30,11 +31,11 @@ export async function GET() {
   try {
     memberProfile = await convex.query(
       api.subscriptions.queries.getMemberCardDataPublic as any,
-      { customerId: user.id }
+      { serviceSecret: convexServiceSecret(), customerId: user.id }
     );
     bundleData = await convex.query(
       api.subscriptions.queries.getCustomerBundlePublic,
-      { customerId: user.id }
+      { serviceSecret: convexServiceSecret(), customerId: user.id }
     );
   } catch {
     // Continue with fallback data from Clerk profile

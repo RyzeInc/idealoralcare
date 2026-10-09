@@ -351,7 +351,7 @@ export default function MembersAdmin() {
     setResendingPacketId(memberId);
     try {
       const result = await resendMemberPacket({ memberId: memberId as Id<'memberProfiles'> });
-      const programLabel = result.program === 'essentials' ? 'Essentials' : 'Oral Care';
+      const programLabel = result.program === 'essentials' ? 'Essentials' : result.program === 'balance-for-life' ? 'Balance for Life' : 'Oral Care';
       toast.success('Packet sent', `${programLabel} packet re-sent to ${result.to}`);
     } catch (err) {
       toast.fromError(err, `Could not re-send packet to ${name}`);

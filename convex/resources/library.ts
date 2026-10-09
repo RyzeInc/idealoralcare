@@ -19,8 +19,8 @@
  */
 
 import { v } from "convex/values";
-import { mutation, query, QueryCtx } from "../_generated/server";
-import { Doc } from "../_generated/dataModel";
+import { mutation, query, QueryCtx, MutationCtx } from "../_generated/server";
+import { Doc, Id } from "../_generated/dataModel";
 import {
   resolveViewerScope,
   scopeLabel,
@@ -248,23 +248,46 @@ export const listForViewer = query({
  * elsewhere gets the same null a nonexistent id does: whether a resource
  * exists is itself not something a partner should be able to probe.
  */
+/** Re-checks the viewer's entitlement to one resource, then mints its URL. */
+async function resolveViewerResourceUrl(ctx: MutationCtx, resourceId: Id<"partnerResources">) {
+  const scope = await resolveViewerScope(ctx, { staff: ["content.manage", "partners.view"], partner: "partner.resources" });
+  const resource = await ctx.db.get(resourceId);
+  if (!resource) return null;
+
+  const vctx = await buildVisibilityContext(ctx, scope, [resource]);
+  if (!isResourceVisible(resource, vctx)) return null;
+
+  const url =
+    resource.kind === "link"
+      ? resource.externalUrl ?? null
+      : resource.storageId
+        ? await ctx.storage.getUrl(resource.storageId)
+        : null;
+  if (!url) return null;
+  return { scope, resource, vctx, url };
+}
+
+/**
+ * A URL for looking at a resource in the in-page preview. Same entitlement
+ * check as a download, but not counted as one — opening a preview to decide
+ * whether you want a file is not the same signal as taking it.
+ */
+export const getPreviewUrl = mutation({
+  args: { resourceId: v.id("partnerResources") },
+  handler: async (ctx, args) => {
+    const resolved = await resolveViewerResourceUrl(ctx, args.resourceId);
+    if (!resolved) return null;
+    const { resource, url } = resolved;
+    return { url, fileName: resource.fileName ?? resource.title, kind: resource.kind, contentType: resource.contentType };
+  },
+});
+
 export const getDownloadUrl = mutation({
   args: { resourceId: v.id("partnerResources") },
   handler: async (ctx, args) => {
-    const scope = await resolveViewerScope(ctx, { staff: ["content.manage", "partners.view"], partner: "partner.resources" });
-    const resource = await ctx.db.get(args.resourceId);
-    if (!resource) return null;
-
-    const vctx = await buildVisibilityContext(ctx, scope, [resource]);
-    if (!isResourceVisible(resource, vctx)) return null;
-
-    const url =
-      resource.kind === "link"
-        ? resource.externalUrl ?? null
-        : resource.storageId
-          ? await ctx.storage.getUrl(resource.storageId)
-          : null;
-    if (!url) return null;
+    const resolved = await resolveViewerResourceUrl(ctx, args.resourceId);
+    if (!resolved) return null;
+    const { scope, resource, vctx, url } = resolved;
 
     const now = Date.now();
     await ctx.db.patch(resource._id, {

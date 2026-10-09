@@ -5,7 +5,7 @@
  * These are lightweight, cacheable, and public
  */
 
-import { query } from "../_generated/server";
+import { query, internalQuery } from "../_generated/server";
 import { v } from "convex/values";
 
 /**
@@ -69,7 +69,7 @@ export const getById = query({
 /**
  * Get all categories
  */
-export const categories = query({
+export const categories = internalQuery({
   args: {},
   handler: async (ctx: any) => {
     const products = await ctx.db
@@ -89,7 +89,7 @@ export const categories = query({
 /**
  * Get recommended add-ons for a product
  */
-export const getRecommendations = query({
+export const getRecommendations = internalQuery({
   args: {
     productId: v.id("catalogProducts"),
   },

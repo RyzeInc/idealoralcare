@@ -19,6 +19,8 @@ import { ArrowRight, Check, Loader, Heart, Smile, ShoppingCart, ChevronDown, Sca
 import { api } from "@/convex/_generated/api";
 import { useCart } from "@/lib/health-plans/cart-context";
 import { formatPrice } from "@/lib/health-plans/types";
+import { isBflSlug, isEssentialsSlug } from "@/convex/lib/productSlugs";
+import { BFL_BRAND } from "@/convex/lib/bflBrand";
 
 type Tier = {
   suffix: string;
@@ -64,7 +66,7 @@ const PLAN_DETAILS: Record<
       bullets: [
         "Over 1,000 no cost Acute and Chronic Generic Medications",
         "Discounts on meds that are not included on this no-cost list",
-        "GLP-1 meds starting at $249.95, lots of interest in this",
+        "GLP-1 meds starting at $249.95",
         "Discounts on Pet Medications",
       ],
     },
@@ -74,7 +76,7 @@ const PLAN_DETAILS: Record<
       bullets: [
         "Up to 10 no-cost counseling sessions (phone, video, or in-person)",
         "24/7 live counselor for crisis & support calls",
-        "Zenn — AI mental-health companion via text, any time",
+        "Zenn — AI mental-health companion in the Balance for Life app, any time",
         "Tracks: Anxiety, Depression, Chronic Pain, Substance Use, Trauma & PTSD",
       ],
     },
@@ -279,6 +281,12 @@ function TierPlanCard({
     if (!selectedProduct) return;
     if (cartProductForFamily && cartProductForFamily._id !== selectedProduct._id) {
       removeItem(cartProductForFamily._id);
+    }
+    // Essentials includes Balance for Life — drop a standalone BFL already in the cart.
+    if (isEssentialsSlug(selectedProduct.slug)) {
+      for (const item of cart.items) {
+        if (isBflSlug(item.product.slug)) removeItem(item.productId);
+      }
     }
     addItem(selectedProduct);
   };
@@ -882,6 +890,27 @@ export default function NewIdealPlansPage() {
                     />
                   );
                 })}
+                <Link
+                  href="/newideal/balance-for-life"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 14,
+                    padding: "18px 20px",
+                    borderRadius: 16,
+                    background: `linear-gradient(135deg, ${BFL_BRAND.violet50} 0%, ${BFL_BRAND.tealSoft} 100%)`,
+                    border: `1px solid ${BFL_BRAND.violet100}`,
+                    textDecoration: "none",
+                    color: BFL_BRAND.midnight,
+                  }}
+                >
+                  <Brain size={22} style={{ flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontSize: "0.95rem", lineHeight: 1.5 }}>
+                    <strong>Only need mental health support?</strong> Balance for Life is available on its own for
+                    $19.95/mo — Zenn 24/7, licensed counselors, and live support around the clock.
+                  </span>
+                  <ArrowRight size={18} style={{ flexShrink: 0 }} />
+                </Link>
               </div>
               <div>
                 <StickyCart />

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import twilio from "twilio";
+import { convexServiceSecret } from "@/lib/convex-service";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
   try {
     const client = new ConvexHttpClient(convexUrl);
     const result = await client.mutation(api.crm.telephony.recordCallStatus, {
+          serviceSecret: convexServiceSecret(),
       externalCallId: callSid,
       status: callStatus,
       durationSeconds: params.CallDuration ? Number(params.CallDuration) : undefined,

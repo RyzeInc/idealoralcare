@@ -1,0 +1,49 @@
+/* Balance for Life hero — mirrors balanceforlifebh.com: a rounded teal wash,
+   copy on the left, the Zenn conversation on the right. Gradient values come
+   from convex/lib/bflBrand.ts (repeated here because CSS can't import TS). */
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 2rem;
+  background: linear-gradient(180deg, #ddf1f2 0%, #5cb0bc 100%);
+}
+
+.heroInner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 56px 20px 40px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 40px;
+  align-items: center;
+}
+
+.heroCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.phone {
+  margin: 0 auto;
+  width: 100%;
+  max-width: 260px;
+}
+
+@media (min-width: 1024px) {
+  .hero {
+    border-radius: 3rem;
+    background: linear-gradient(90deg, #e3f3f4 0%, #cfeaec 40%, #5cb0bc 72%, #5cb0bc 100%);
+  }
+
+  .heroInner {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    padding: 96px 32px;
+    min-height: 34rem;
+  }
+
+  .phone {
+    max-width: 290px;
+  }
+}

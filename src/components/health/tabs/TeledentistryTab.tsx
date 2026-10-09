@@ -55,11 +55,11 @@ export default function TeledentistryTab({ memberId, firstName, fullName }: Tele
             <Video size={24} color="#fff" />
           </div>
           <div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Teledentistry via DialCare</h2>
-            <p style={{ opacity: 0.8, fontSize: '0.9rem', margin: 0, marginTop: '0.2rem' }}>24/7 Virtual Dental Consultations</p>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0, color: '#fff' }}>Teledentistry via DialCare</h2>
+            <p style={{ opacity: 0.85, fontSize: '0.9rem', margin: 0, marginTop: '0.2rem', color: '#fff' }}>24/7 Virtual Dental Consultations</p>
           </div>
         </div>
-        <p style={{ opacity: 0.9, lineHeight: 1.7, margin: 0, maxWidth: '600px', position: 'relative' }}>
+        <p style={{ opacity: 0.95, lineHeight: 1.7, margin: 0, maxWidth: '600px', position: 'relative', color: '#fff' }}>
           Your plan includes unlimited teledentistry visits through DialCare. Connect with licensed
           dentists anytime from your phone or computer — no waiting room required.
         </p>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Webhook } from "svix";
+import { convexServiceSecret } from "@/lib/convex-service";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 
@@ -74,6 +75,7 @@ export async function POST(req: NextRequest) {
   const fullName = [firstName, lastName].filter(Boolean).join(" ").trim() || undefined;
   try {
     await client.action(api.healthplans.toothlens.provisionForClerkUser, {
+          serviceSecret: convexServiceSecret(),
       clerkUserId,
       email,
       name: fullName,
@@ -86,6 +88,7 @@ export async function POST(req: NextRequest) {
     const result = await client.mutation(
       api.admin.eligibilityProvisioning.linkInvitedMember,
       {
+          serviceSecret: convexServiceSecret(),
         clerkUserId,
         email,
         publicMetadata: data.public_metadata ?? {},
