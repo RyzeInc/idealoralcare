@@ -75,7 +75,7 @@ describe("catalog", () => {
 
   test("implied permissions and page permissions all exist", () => {
     for (const key of PERMISSION_KEYS) {
-      const info: { implies?: readonly string[] } = PERMISSIONS[key];
+      const info = PERMISSIONS[key] as { implies?: readonly string[] };
       for (const implied of info.implies ?? []) expect(PERMISSION_KEYS).toContain(implied);
     }
     for (const page of PAGES) for (const p of page.anyOf) expect(PERMISSION_KEYS).toContain(p);

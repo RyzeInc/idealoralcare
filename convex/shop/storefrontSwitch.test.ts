@@ -10,7 +10,7 @@
 import { describe, test, expect } from "vitest";
 import { convexTest } from "convex-test";
 import schema from "../schema";
-import { api } from "../_generated/api";
+import { api, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { resolveShopEnabled } from "./queries";
 
@@ -98,7 +98,7 @@ describe("storefront switch", () => {
     await seedStorefront(t);
 
     expect(await t.query(api.shop.queries.isEnabled, {})).toBe(true);
-    expect(await t.query(api.shop.queries.listProducts, {})).toHaveLength(1);
+    expect(await t.query(internal.shop.queries.listProducts, {})).toHaveLength(1);
     expect(await t.query(api.shop.queries.listStorefront, {})).toHaveLength(1);
   });
 
@@ -111,11 +111,11 @@ describe("storefront switch", () => {
       .mutation(api.shop.admin.setEnabled, { isEnabled: false });
 
     expect(await t.query(api.shop.queries.isEnabled, {})).toBe(false);
-    expect(await t.query(api.shop.queries.listCategories, {})).toEqual([]);
-    expect(await t.query(api.shop.queries.listProducts, {})).toEqual([]);
+    expect(await t.query(internal.shop.queries.listCategories, {})).toEqual([]);
+    expect(await t.query(internal.shop.queries.listProducts, {})).toEqual([]);
     expect(await t.query(api.shop.queries.listStorefront, {})).toEqual([]);
     expect(
-      await t.query(api.shop.queries.getProductBySlug, { slug: "boka-ela-mint" }),
+      await t.query(internal.shop.queries.getProductBySlug, { slug: "boka-ela-mint" }),
     ).toBeNull();
   });
 
@@ -145,7 +145,7 @@ describe("storefront switch", () => {
     await asAdmin.mutation(api.shop.admin.setEnabled, { isEnabled: true });
 
     expect(await t.query(api.shop.queries.listStorefront, {})).toHaveLength(1);
-    expect(await t.query(api.shop.queries.listProducts, {})).toHaveLength(1);
+    expect(await t.query(internal.shop.queries.listProducts, {})).toHaveLength(1);
   });
 
   test("keeps one settings row across repeated flips", async () => {
