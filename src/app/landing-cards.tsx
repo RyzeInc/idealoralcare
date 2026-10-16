@@ -40,7 +40,7 @@ function PlanCard({
   const [hovered, setHovered] = useState(false);
 
   return (
-    <Link href={href} style={{ textDecoration: "none" }}>
+    <Link href={href} style={{ textDecoration: "none", display: "flex" }}>
       <div
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
@@ -54,7 +54,9 @@ function PlanCard({
           transform: hovered ? "translateY(-4px)" : "translateY(0)",
           transition: "transform 0.2s, box-shadow 0.2s",
           cursor: "pointer",
-          height: "100%",
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         {/* Photo header */}
@@ -110,7 +112,14 @@ function PlanCard({
         </div>
 
         {/* Body */}
-        <div style={{ padding: "1.5rem" }}>
+        <div
+          style={{
+            padding: "1.5rem",
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
           <p
             style={{
               color: "#374151",
@@ -129,6 +138,7 @@ function PlanCard({
               display: "flex",
               flexDirection: "column",
               gap: 8,
+              flex: 1,
             }}
           >
             {bullets.map((item) => (
@@ -160,6 +170,7 @@ function PlanCard({
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
+              marginTop: "auto",
               background: priceBg,
               borderRadius: 12,
               padding: "0.875rem 1.125rem",

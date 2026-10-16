@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSiteThemeOptional } from "@/components/providers/SiteThemeProvider";
-import { SiteCredit } from "@/components/seo/SiteCredit";
 import styles from "./HealthFooter.module.css";
 
 export function NexusHealthFooter() {
@@ -127,8 +126,7 @@ export function NexusHealthFooter() {
           This plan does not meet the minimum creditable coverage requirements under M.G.L. c.111M and 956 CMR 5.00. This plan is not a Qualified Health Plan under the Affordable Care Act. The range of discounts will vary depending on the type of provider and service. The plan does not pay providers directly. Plan members must pay for all services but will receive a discount from participating providers. A written list of participating providers is available upon request. You may cancel within the first 30 days after effective date or receipt of membership materials (whichever is later) and receive a full refund. Discount Plan Organization and administrator: Careington International Corporation, 7400 Gaylord Parkway, Frisco, TX 75034; phone 800-441-0380. This plan is not available in Vermont or Washington.
         </p>
         <p style={{ fontSize: "0.75rem", color: "#94a3b8" }}>
-          © {currentYear} {brandName}. All rights reserved. ·{" "}
-          <SiteCredit />
+          © {currentYear} {brandName}. All rights reserved.
         </p>
       </div>
 

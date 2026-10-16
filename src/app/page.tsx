@@ -1,6 +1,5 @@
 import { LandingCards } from "./landing-cards";
 import { Heart } from "lucide-react";
-import { SiteCredit } from "@/components/seo/SiteCredit";
 
 export const metadata = {
   title: "Get Ideal Health — Choose Your Plan",
@@ -139,8 +138,6 @@ export default function RootPage() {
           }}
         >
           Membership and discount programs — not insurance.
-          <br />
-          <SiteCredit />
         </p>
       </section>
     </main>

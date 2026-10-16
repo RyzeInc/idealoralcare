@@ -1,7 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import { ShoppingCart } from "lucide-react";
-import { SiteCredit } from "@/components/seo/SiteCredit";
 
 const NAV = [
   { href: "/newideal", label: "Overview" },
@@ -194,7 +193,7 @@ export function NewIdealFooter() {
         }}
       >
         <span>© {new Date().getFullYear()} Ideal Health. All rights reserved.</span>
-        <SiteCredit />
+        <span>Powered by Ideal Health</span>
       </div>
     </footer>
   );
