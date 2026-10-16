@@ -5,6 +5,8 @@
  * for search engines and AI assistants to understand page content.
  */
 
+import { SITE_CREDIT } from "@/lib/site-credit";
+
 interface JsonLdProps {
   data: Record<string, unknown>;
 }
@@ -46,7 +48,7 @@ export function OrganizationJsonLd() {
   );
 }
 
-/** WebSite schema with search — use on homepage */
+/** WebSite schema, including the developer credit — rendered once from the root layout */
 export function WebSiteJsonLd() {
   return (
     <JsonLd
@@ -55,6 +57,11 @@ export function WebSiteJsonLd() {
         "@type": "WebSite",
         name: "Ideal Health",
         url: "https://getidealoh.com",
+        creator: {
+          "@type": "Organization",
+          name: SITE_CREDIT.name,
+          url: SITE_CREDIT.url,
+        },
       }}
     />
   );

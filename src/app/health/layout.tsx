@@ -5,7 +5,7 @@ import { IdealHealthFooter } from '@/components/health/NexusHealthFooter';
 import { SiteThemeProvider } from '@/components/providers/SiteThemeProvider';
 import { CartProvider } from '@/lib/health-plans/cart-context';
 import { ReferralCapture } from '@/components/health/ReferralCapture';
-import { OrganizationJsonLd, WebSiteJsonLd } from '@/components/seo/JsonLd';
+import { OrganizationJsonLd } from '@/components/seo/JsonLd';
 
 export const metadata = {
   title: 'Ideal Health | Modern Health Plans Made Simple',
@@ -44,7 +44,6 @@ export default function HealthLayout({ children }: { children: React.ReactNode }
             <ReferralCapture />
           </Suspense>
           <OrganizationJsonLd />
-          <WebSiteJsonLd />
           <HealthFlowBackground />
           <div className="flex flex-col min-h-screen">
             <div className="flex-grow">

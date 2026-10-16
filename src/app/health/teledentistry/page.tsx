@@ -343,13 +343,6 @@ export default function TeledentistryPage() {
                   Knoxville TN 37929
                 </p>
               </div>
-              <div style={{ padding: "1rem", background: "#fff", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
-                <p style={{ margin: 0, fontSize: "0.95rem", lineHeight: 1.6 }}>
-                  Texas Office<br />
-                  1200 E Ridge Rd STE 1<br />
-                  McAllen TX 78503
-                </p>
-              </div>
             </div>
           </div>
         </div>

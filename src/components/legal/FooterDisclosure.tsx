@@ -35,7 +35,6 @@ export const FooterDisclosure: React.FC = () => {
                 <div className="space-y-1">
                   <p>Northeast: 116 S. Main St, Wallingford CT 06492</p>
                   <p>Southern: 800 S Gay St STE 700, Knoxville TN 37929</p>
-                  <p>Texas: 1200 E Ridge Rd STE 1, McAllen TX 78503</p>
                 </div>
               </div>
             </div>

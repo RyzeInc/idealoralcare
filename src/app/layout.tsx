@@ -4,6 +4,8 @@ import { ConvexClientProvider } from "@/components/providers/ConvexClientProvide
 import { RepVisitTracker } from "@/components/providers/RepVisitTracker";
 import { Suspense } from "react";
 import { GoogleAnalytics } from "@/components/seo/GoogleAnalytics";
+import { WebSiteJsonLd } from "@/components/seo/JsonLd";
+import { SITE_CREDIT } from "@/lib/site-credit";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -17,6 +19,9 @@ export const metadata: Metadata = {
   description:
     "Ideal Health - Comprehensive oral health plan with AI Oral Scanning, 24/7 teledentistry, and Dental Discount Network dental network access.",
   metadataBase: new URL("https://getidealoh.com"),
+  authors: [{ name: SITE_CREDIT.name, url: SITE_CREDIT.url }],
+  creator: SITE_CREDIT.name,
+  other: { humans: "/humans.txt" },
   alternates: {
     canonical: "/",
   },
@@ -55,6 +60,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <GoogleAnalytics />
+        <WebSiteJsonLd />
         {/*
           signInUrl / signUpUrl tell Clerk where YOUR sign-in pages live.
           Without these, Clerk redirects to its hosted page at accounts.getidealoh.com.
