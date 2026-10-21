@@ -3,6 +3,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { ConvexHttpClient } from "convex/browser";
 import Stripe from "stripe";
 import { api } from "@/convex/_generated/api";
+import { getCatalogStripePrice } from "@/lib/stripe-price";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
 
@@ -37,6 +38,9 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    if (!["monthly", "annual"].includes(cadence) || !["card", "ach"].includes(paymentMethod)) {
+      return NextResponse.json({ error: "Invalid cadence or payment method" }, { status: 400 });
+    }
 
     // Fetch product details from Convex — pricing and Stripe product IDs come from DB
     const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || "");
@@ -67,6 +71,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Could not resolve plan pricing. Please try again or contact support." }, { status: 400 });
     }
 
+    let priceId: string;
+    try {
+      priceId = await getCatalogStripePrice(stripe, stripeProductId, amount, cadence);
+    } catch (error) {
+      console.error("[setup-payment] Stripe Price missing:", error);
+      return NextResponse.json({ error: `Checkout is not configured for ${productName}. Please contact support.` }, { status: 503 });
+    }
+
     // Create or retrieve Stripe customer
     let stripeCustomerId: string;
     const existing = await stripe.customers.list({ email: userEmail, limit: 1 });
@@ -89,15 +101,7 @@ export async function POST(req: NextRequest) {
       collection_method: "charge_automatically",
       items: [
         {
-          price_data: {
-            currency: "usd",
-            product: stripeProductId,
-            unit_amount: amount,
-            recurring: {
-              interval: cadence === "monthly" ? "month" : "year",
-              interval_count: 1,
-            },
-          },
+          price: priceId,
         },
       ],
       payment_behavior: "default_incomplete",

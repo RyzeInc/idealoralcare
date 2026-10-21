@@ -20,6 +20,9 @@ import { NextRequest } from "next/server";
 const mockSessionCreate = vi.hoisted(() => vi.fn());
 const mockCustomerList = vi.hoisted(() => vi.fn());
 const mockCustomerCreate = vi.hoisted(() => vi.fn());
+const mockGetPrice = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/stripe-price", () => ({ getCatalogStripePrice: mockGetPrice }));
 
 vi.mock("stripe", () => {
   // Use a regular function (not arrow) so it can be called with `new`
@@ -97,6 +100,7 @@ beforeEach(() => {
     pricing: { monthlyCardCents: 1499, monthlyACHCents: 1299, annualCardCents: 14999, annualACHCents: 12999 },
     stripeProducts: { monthlyCardId: "prod_card", monthlyACHId: "prod_ach", annualCardId: "prod_annual_card", annualACHId: "prod_annual_ach" },
   });
+  mockGetPrice.mockImplementation(async (_stripe, productId, amount, cadence) => `price_${productId}_${amount}_${cadence}`);
 
   // Default: authenticated user
   vi.mocked(auth).mockResolvedValue({ userId: "user_test123" } as any);
@@ -265,7 +269,10 @@ describe("POST /api/stripe/checkout", () => {
         await POST(makeRequest({ planId: "prod_test", cadence, paymentMethod }));
 
         const callArg = mockSessionCreate.mock.calls[0][0];
-        expect(callArg.line_items[0].price_data.unit_amount).toBe(expectedPrimary);
+        const expectedProduct = cadence === "monthly"
+          ? (paymentMethod === "ach" ? "prod_ach" : "prod_card")
+          : (paymentMethod === "ach" ? "prod_annual_ach" : "prod_annual_card");
+        expect(callArg.line_items[0].price).toBe(`price_${expectedProduct}_${expectedPrimary}_${cadence}`);
       });
 
       test(`dependents do not alter ${cadence}/${paymentMethod} price`, async () => {
@@ -280,7 +287,8 @@ describe("POST /api/stripe/checkout", () => {
 
         const callArg = mockSessionCreate.mock.calls[0][0];
         expect(callArg.line_items).toHaveLength(1);
-        expect(callArg.line_items[0].price_data.unit_amount).toBe(expectedPrimary);
+        expect(mockGetPrice).toHaveBeenCalledWith(expect.anything(), expect.any(String), expectedPrimary, cadence);
+        expect(callArg.line_items[0].price).toContain(`_${expectedPrimary}_${cadence}`);
       });
     }
   });
@@ -415,6 +423,13 @@ describe("POST /api/stripe/checkout", () => {
       });
       const res = await POST(makeRequest({ ...VALID_BODY, additionalPlanIds: ["oralcare_extra"] }));
       expect(res.status).toBe(400);
+      expect(mockSessionCreate).not.toHaveBeenCalled();
+    });
+
+    test("blocks checkout when its saved Price is missing", async () => {
+      mockGetPrice.mockRejectedValueOnce(new Error("No saved Stripe Price"));
+      const res = await POST(makeRequest(VALID_BODY));
+      expect(res.status).toBe(503);
       expect(mockSessionCreate).not.toHaveBeenCalled();
     });
   });

@@ -5,6 +5,7 @@ import { ConvexHttpClient } from "convex/browser";
 import Stripe from "stripe";
 import { api } from "@/convex/_generated/api";
 import { getBaseUrl } from "@/lib/env";
+import { getCatalogStripePrice } from "@/lib/stripe-price";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error("STRIPE_SECRET_KEY environment variable is required");
@@ -127,20 +128,20 @@ export async function POST(req: NextRequest) {
       stripeCustomerId = customer.id;
     }
 
+    // Use the saved catalog Price so it appears on the Stripe product and
+    // billing always uses the amount the shopper reviewed.
+    let primaryPriceId: string;
+    try {
+      primaryPriceId = await getCatalogStripePrice(stripe, stripeProductId, amount, cadence);
+    } catch (error) {
+      console.error("[checkout] Primary Stripe Price missing:", error);
+      return NextResponse.json({ error: `Checkout is not configured for ${productName}. Please contact support.` }, { status: 503 });
+    }
+
     // Create checkout session
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
       {
-        price_data: {
-          currency: "usd",
-          // Reference the existing Stripe product by ID so the webhook can resolve
-          // it back to a Convex catalogProduct for entitlement creation.
-          product: stripeProductId,
-          unit_amount: amount,
-          recurring: {
-            interval: cadence === "monthly" ? "month" : "year",
-            interval_count: 1,
-          },
-        },
+        price: primaryPriceId,
         quantity: 1,
       },
     ];
@@ -164,13 +165,9 @@ export async function POST(req: NextRequest) {
         const exKey = `${cadence === "monthly" ? "monthly" : "annual"}${paymentMethod === "ach" ? "ACH" : "Card"}Id` as keyof typeof exSp;
         const exProductId = exSp?.[exKey];
         if (!exAmount || !exProductId) return NextResponse.json({ error: `Checkout is not configured for ${extra.name}. Please contact support.` }, { status: 400 });
+        const exPriceId = await getCatalogStripePrice(stripe, exProductId, exAmount, cadence);
         lineItems.push({
-          price_data: {
-            currency: "usd",
-            product: exProductId,
-            unit_amount: exAmount,
-            recurring: { interval: cadence === "monthly" ? "month" : "year", interval_count: 1 },
-          },
+          price: exPriceId,
           quantity: 1,
         });
       } catch (err) {
@@ -187,27 +184,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Family plan is flat-rate — no per-dependent add-on line items.
-    // Dependents are collected post-enrollment via the dashboard.
-    if (false && dependentList.length > 0) {
-      // Legacy per-dependent code — disabled
-      lineItems.push({
-        price_data: {
-          currency: "usd",
-          product_data: {
-            name: `Dependent – ${productName}`,
-            description: `Family plan add-on for ${dependentList.length} dependent${dependentList.length > 1 ? "s" : ""}`,
-            metadata: { planId, type: "dependent" },
-          },
-          unit_amount: 0,
-          recurring: {
-            interval: cadence === "monthly" ? "month" : "year",
-            interval_count: 1,
-          },
-        },
-        quantity: dependentList.length,
-      });
-    }
+    // Family plan is flat-rate. Dependents are collected post-enrollment.
 
     // Encode dependent data for webhook processing (max 500 chars per Stripe metadata value)
     const dependentsMeta =

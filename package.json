@@ -15,6 +15,7 @@
     "convex:deploy": "convex deploy",
     "webhook": "stripe listen --forward-to localhost:3000/api/stripe/webhook",
     "setup:test": "node scripts/setup-test-stripe.js",
+    "stripe:check-prices": "node scripts/sync-stripe-catalog-prices.mjs --check",
     "docs:urls": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/generate-url-registry.mts"
   },
   "dependencies": {

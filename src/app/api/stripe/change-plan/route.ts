@@ -4,6 +4,7 @@ import { convexServiceSecret } from "@/lib/convex-service";
 import { ConvexHttpClient } from "convex/browser";
 import Stripe from "stripe";
 import { api } from "@/convex/_generated/api";
+import { getCatalogStripePrice } from "@/lib/stripe-price";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error("STRIPE_SECRET_KEY environment variable is required");
@@ -141,45 +142,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 6. Resolve the target Stripe Price ID
-    // We need to find or create a price for this product.
-    // Look up existing prices on the target product.
+    // 6. Resolve the saved Stripe Price matching the current catalog amount.
     const targetPricing = targetProduct.pricing;
     const targetAmountCents = cadence === "annual"
       ? (paymentMethod === "ach" ? targetPricing.annualACHCents : targetPricing.annualCardCents)
       : (paymentMethod === "ach" ? targetPricing.monthlyACHCents : targetPricing.monthlyCardCents);
 
-    // List existing prices on the Stripe product
-    const prices = await stripe.prices.list({
-      product: targetStripeProductId,
-      active: true,
-      limit: 10,
-    });
-
-    let targetPriceId: string | undefined;
-    const targetInterval = cadence === "annual" ? "year" : "month";
-
-    for (const price of prices.data) {
-      if (
-        price.unit_amount === targetAmountCents &&
-        price.recurring?.interval === targetInterval &&
-        price.currency === "usd"
-      ) {
-        targetPriceId = price.id;
-        break;
-      }
-    }
-
-    // If no matching price exists, create one
-    if (!targetPriceId) {
-      const newPrice = await stripe.prices.create({
-        product: targetStripeProductId,
-        unit_amount: targetAmountCents,
-        currency: "usd",
-        recurring: { interval: targetInterval },
-      });
-      targetPriceId = newPrice.id;
-    }
+    const targetPriceId = await getCatalogStripePrice(stripe, targetStripeProductId, targetAmountCents, cadence);
 
     if (isUpgrade) {
       // ── UPGRADE: $10 fee + immediate plan swap ──────────

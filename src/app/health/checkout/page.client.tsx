@@ -146,6 +146,7 @@ function CheckoutContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           planId: cart.items[0].productId,
+          additionalPlanIds: cart.items.slice(1).map((item) => item.productId),
           cadence: cart.cadence,
           paymentMethod: cart.paymentMethod,
           dependents: dependentList,

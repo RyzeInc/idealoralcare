@@ -821,6 +821,7 @@ function CheckoutContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           planId: primaryItem.product._id,
+          additionalPlanIds: cart.items.slice(1).map((item) => item.productId),
           cadence: cart.cadence,
           paymentMethod: cart.paymentMethod,
           referralCode: cart.referralCode || undefined,
