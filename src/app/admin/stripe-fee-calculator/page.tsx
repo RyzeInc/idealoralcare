@@ -55,9 +55,6 @@ export default function StripeFeeCalculatorPage() {
   const [outboundType, setOutboundType] = useState<"standard" | "custom">("standard");
   const [outboundPercent, setOutboundPercent] = useState("0");
   const [outboundFixed, setOutboundFixed] = useState("0");
-  const [partnerAmount, setPartnerAmount] = useState("0");
-  const [partnerPercent, setPartnerPercent] = useState("0");
-  const [partnerFixed, setPartnerFixed] = useState("0");
   const [ledger, setLedger] = useState<Ledger | null>(null);
   const [ledgerError, setLedgerError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -87,17 +84,14 @@ export default function StripeFeeCalculatorPage() {
     achPercent: Number(achPercent) || 0,
     achCapCents: toCents(achCap),
     billingPercent: Number(billingPercent) || 0,
-    transferCents: toCents(partnerAmount),
-    transferPercent: Number(partnerPercent) || 0,
-    transferFixedCents: toCents(partnerFixed),
     payoutPercent: outboundType === "standard" ? 0 : Number(outboundPercent) || 0,
     payoutFixedCents: outboundType === "standard" ? 0 : toCents(outboundFixed),
-  }), [firstAmount, secondAmount, method, separate, cardPercent, cardFixed, achPercent, achCap, billingPercent, partnerAmount, partnerPercent, partnerFixed, outboundType, outboundPercent, outboundFixed]);
+  }), [firstAmount, secondAmount, method, separate, cardPercent, cardFixed, achPercent, achCap, billingPercent, outboundType, outboundPercent, outboundFixed]);
   const result = calculateStripeFees(inputs);
   const comparison = calculateStripeFees({ ...inputs, separateCharges: !separate });
   const processingEntries = ledger?.entries.filter((entry) => (entry.type === "charge" || entry.type === "payment") && entry.amountCents > 0) ?? [];
   const billingEntries = ledger?.entries.filter((entry) => entry.type === "stripe_fee" && /Billing|usage/i.test(entry.description)) ?? [];
-  const outboundEntries = ledger?.entries.filter((entry) => entry.type === "payout" || entry.type === "transfer") ?? [];
+  const outboundEntries = ledger?.entries.filter((entry) => entry.type === "payout") ?? [];
 
   return <div className="mx-auto max-w-6xl space-y-6 pb-12">
     <Breadcrumbs items={[{ label: "Admin", href: "/admin" }, { label: "Stripe Fee Calculator" }]} />
@@ -141,17 +135,7 @@ export default function StripeFeeCalculatorPage() {
         </details>
 
         <div className="border-t border-slate-200 pt-4">
-          <h3 className="font-semibold text-slate-900">Partner transfer (optional)</h3>
-          <div className="mt-3 grid gap-4 sm:grid-cols-2">
-            <NumberField label="Amount sent to partner ($)" value={partnerAmount} onChange={setPartnerAmount} />
-            <NumberField label="Transfer percentage" value={partnerPercent} onChange={setPartnerPercent} suffix="%" />
-            <NumberField label="Transfer fixed fee ($)" value={partnerFixed} onChange={setPartnerFixed} />
-          </div>
-          {toCents(partnerAmount) > result.availableCents && <p className="mt-2 text-xs font-medium text-amber-700">Transfer amount exceeds available funds; the estimate caps it at {money(Math.max(0, result.availableCents))}.</p>}
-          <p className="mt-2 text-xs text-slate-500">The transfer amount leaves your balance and is deducted from take-home. Enter any Connect fee in your agreement. This repo does not currently create Connect transfers.</p>
-        </div>
-        <div className="border-t border-slate-200 pt-4">
-          <h3 className="font-semibold text-slate-900">Bank payout of the remainder</h3>
+          <h3 className="font-semibold text-slate-900">Payout to your bank</h3>
           <select value={outboundType} onChange={(event) => setOutboundType(event.target.value as "standard" | "custom")}
             className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900">
             <option value="standard">Standard bank payout (observed $0 fee)</option>
@@ -174,8 +158,6 @@ export default function StripeFeeCalculatorPage() {
           <ResultRow label="Inbound payment after processing" amount={result.grossCents - result.processingCents} strong />
           <ResultRow label="Stripe Billing usage" amount={-result.billingCents} />
           <ResultRow label="Available after inbound fees" amount={result.availableCents} strong />
-          {result.transferCents > 0 && <ResultRow label="Sent to partner" amount={-result.transferCents} />}
-          {result.transferFeeCents > 0 && <ResultRow label="Partner transfer fee" amount={-result.transferFeeCents} />}
           <ResultRow label="Bank payout fee" amount={-result.payoutFeeCents} />
         </div>
         <div className="mt-4 rounded-lg bg-blue-50 p-4 text-blue-950">
@@ -203,7 +185,7 @@ export default function StripeFeeCalculatorPage() {
         {([
           ["Inbound payments", processingEntries],
           ["Billing usage fees", billingEntries],
-          ["Outbound payouts / transfers", outboundEntries],
+          ["Bank payouts", outboundEntries],
         ] as const).map(([title, entries]) => <div key={title} className="min-w-0">
           <h3 className="mb-2 font-medium text-slate-800">{title}</h3>
           {entries.length === 0 ? <p className="text-sm text-slate-500">No entries in this page of the ledger.</p> : <div className="max-h-80 space-y-2 overflow-auto pr-1">

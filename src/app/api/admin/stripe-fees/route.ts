@@ -32,7 +32,7 @@ export async function GET() {
       livemode: stripeKey.startsWith("sk_live_"),
       hasMore: entries.has_more,
       entries: entries.data
-        .filter((entry) => entry.currency === "usd" && ["charge", "payment", "stripe_fee", "payout", "transfer"].includes(entry.type))
+        .filter((entry) => entry.currency === "usd" && ["charge", "payment", "stripe_fee", "payout"].includes(entry.type))
         .map((entry) => ({
           id: entry.id,
           created: entry.created,

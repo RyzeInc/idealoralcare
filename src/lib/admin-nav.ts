@@ -118,7 +118,7 @@ export const ADMIN_NAVIGATION: AdminNavSection[] = [
     section: "Finance",
     items: [
       { label: "Billing", href: "/admin/billing", icon: "DollarSign", tooltip: "Subscription billing and group invoices.", keywords: ["stripe", "payments", "subscriptions"] },
-      { label: "Stripe Fee Calculator", href: "/admin/stripe-fee-calculator", icon: "Calculator", tooltip: "Estimate payment, Billing, and payout fees; inspect actual Stripe balance entries.", keywords: ["stripe", "fees", "net", "payout", "transfer", "calculator"] },
+      { label: "Stripe Fee Calculator", href: "/admin/stripe-fee-calculator", icon: "Calculator", tooltip: "Estimate payment, Billing, and bank payout fees; inspect actual Stripe balance entries.", keywords: ["stripe", "fees", "net", "payout", "calculator"] },
       { label: "List-Bill Groups", href: "/admin/list-bill", icon: "Building", tooltip: "Payroll-deduction groups and monthly employer remittance.", keywords: ["payroll", "deduction", "employer", "remittance", "group"] },
       { label: "List-Bill Invoices", href: "/admin/list-bill-invoices", icon: "Receipt", tooltip: "Group-paid roster invoices.", keywords: ["invoice", "employer", "payroll"] },
       { label: "Vendor Statements", href: "/admin/vendor-statements", icon: "FileCheck2", tooltip: "Locked monthly remittance statements for Toothlens, Careington, Ideal, and Ryze.", keywords: ["remittance", "statement", "vendor", "monthly close"] },
