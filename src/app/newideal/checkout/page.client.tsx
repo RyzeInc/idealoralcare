@@ -839,7 +839,7 @@ export default function NewIdealCheckoutClient() {
           paymentMethod: cart.paymentMethod,
           siteSlug: "newideal",
           additionalPlanIds: ordered.slice(1).map((i) => i.productId),
-          successUrl: `${origin}/newideal/success?session_id={CHECKOUT_SESSION_ID}`,
+          successUrl: `${origin}/newideal/success?session_id={CHECKOUT_SESSION_ID}${isBflOrder ? "&program=bfl" : ""}`,
           cancelUrl: `${origin}/newideal/checkout`,
           referralCode: cart.referralCode || undefined,
           memberProfile: (() => {

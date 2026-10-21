@@ -6,7 +6,8 @@ export const metadata = {
   title: "Welcome | New Ideal Health",
 };
 
-export default function NewIdealSuccessPage() {
+export default async function NewIdealSuccessPage({ searchParams }: { searchParams: Promise<{ program?: string }> }) {
+  const isBfl = (await searchParams).program === "bfl";
   return (
     <div className="health-landing">
       <header
@@ -51,7 +52,7 @@ export default function NewIdealSuccessPage() {
               margin: "0 0 0.75rem 0",
             }}
           >
-            Welcome to New Ideal Health
+            {isBfl ? "Welcome to Balance for Life" : "Welcome to New Ideal Health"}
           </h1>
           <p
             style={{
@@ -61,9 +62,9 @@ export default function NewIdealSuccessPage() {
               margin: "0 0 2rem 0",
             }}
           >
-            Your membership is active. You will receive a confirmation email shortly with your
-            member ID, account details, and instructions for accessing each program (telehealth,
-            pharmacy, labs, and more).
+            {isBfl
+              ? "Your Balance for Life membership is active. You will receive a confirmation email with your member ID and instructions for accessing counseling, live support, and the app."
+              : "Your membership is active. You will receive a confirmation email shortly with your member ID, account details, and instructions for accessing each program."}
           </p>
 
           <div
