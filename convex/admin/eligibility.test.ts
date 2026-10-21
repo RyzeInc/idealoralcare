@@ -13,6 +13,7 @@ import { describe, test, expect } from "vitest";
 import { convexTest } from "convex-test";
 import schema from "../schema";
 import { internal } from "../_generated/api";
+import { parseCsvContent } from "./eligibility";
 import type { Id } from "../_generated/dataModel";
 
 const internalBatchCreateMembers = internal.admin.eligibility.internalBatchCreateMembers;
@@ -213,5 +214,170 @@ describe("internalBatchCreateMembers — no-email member re-match on re-upload",
 
     const members = await countGroupMembers(t, world);
     expect(members).toHaveLength(2);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Terminations                                                        */
+/* ------------------------------------------------------------------ */
+
+const PAST = "2000-01-31";
+const FUTURE = "2099-12-31";
+
+async function getMembers(t: ReturnType<typeof convexTest>, world: World) {
+  const members = await countGroupMembers(t, world);
+  return {
+    primary: members.find((m) => m.memberRole !== "dependent")!,
+    dependents: members.filter((m) => m.memberRole === "dependent"),
+  };
+}
+
+const familyRecord = (overrides: Partial<Record<string, any>> = {}) =>
+  baseRecord({
+    ssn: "900000001",
+    dependents: [{ firstName: "Kid", lastName: "Waters", relationship: "child", seqNum: "01" }],
+    ...overrides,
+  });
+
+describe("parseCsvContent — Soar census termination signals", () => {
+  const header =
+    '"Employee Last Name","Employee First Name","Employee SSN","Employee DOB","Employee Status","Covered Member Relationship","Covered Member Last Name","Covered Member First Name","Covered Member DOB","Covered Member SSN","Tier","Effective Date","Term Date","Date Terminated","Approved EE Cost"';
+  const csv = [
+    header,
+    '"Doe","Jane","900000001","12/14/2002","Terminated","Employee","Doe","Jane","12/14/2002","900000001","EMP","05/01/2026","09/30/2026","10/07/2026","14.99"',
+    '"Roe","Rick","900000002","05/01/1988","Active","Employee","Roe","Rick","05/01/1988","900000002","ESP","05/01/2026","","","24.99"',
+    '"Roe","Rick","900000002","05/01/1988","Active","Spouse","Roe","Rita","01/06/1991","900000003","ESP","05/01/2026","","","0"',
+  ].join("\n");
+
+  test("reads Employee Status and Term Date for the employee", () => {
+    const [jane, rick] = parseCsvContent(csv);
+    expect(jane).toMatchObject({ firstName: "Jane", terminated: true, termDate: "2026-09-30" });
+    expect(rick).toMatchObject({ firstName: "Rick", terminated: false });
+    expect(rick.termDate).toBeUndefined();
+    expect(rick.dependents).toHaveLength(1);
+  });
+});
+
+describe("internalBatchCreateMembers — terminations", () => {
+  test("a terminated status with a past Term Date terminates the member and dependents", async () => {
+    const t = convexTest(schema);
+    const world = await seedWorld(t);
+    const fileId = await seedFile(t, world);
+    await runBatch(t, world, fileId, familyRecord());
+
+    const result = await runBatch(t, world, fileId, familyRecord({ terminated: true, termDate: PAST }));
+    expect(result.terminated).toBe(2);
+
+    const { primary, dependents } = await getMembers(t, world);
+    expect(primary).toMatchObject({ memberType: "terminated", status: "terminated", terminationDate: PAST });
+    expect(primary.terminatedAt).toBeTypeOf("number");
+    expect(dependents.map((d) => d.memberType)).toEqual(["terminated"]);
+
+    const file = await t.run((ctx) => ctx.db.get(fileId));
+    expect(file?.terminatedMembers).toBe(2);
+  });
+
+  test("a terminated status with no Term Date ends coverage today", async () => {
+    const t = convexTest(schema);
+    const world = await seedWorld(t);
+    const fileId = await seedFile(t, world);
+    await runBatch(t, world, fileId, familyRecord());
+
+    await runBatch(t, world, fileId, familyRecord({ terminated: true }));
+    const { primary } = await getMembers(t, world);
+    expect(primary.memberType).toBe("terminated");
+    expect(primary.terminationDate).toBe(new Date().toISOString().slice(0, 10));
+  });
+
+  test("a past Term Date terminates even when the status still says active", async () => {
+    const t = convexTest(schema);
+    const world = await seedWorld(t);
+    const fileId = await seedFile(t, world);
+    await runBatch(t, world, fileId, familyRecord());
+
+    await runBatch(t, world, fileId, familyRecord({ termDate: PAST }));
+    expect((await getMembers(t, world)).primary.memberType).toBe("terminated");
+  });
+
+  test("re-uploading the same termination does not count it twice", async () => {
+    const t = convexTest(schema);
+    const world = await seedWorld(t);
+    const fileId = await seedFile(t, world);
+    await runBatch(t, world, fileId, familyRecord());
+    await runBatch(t, world, fileId, familyRecord({ terminated: true, termDate: PAST }));
+
+    const again = await runBatch(t, world, fileId, familyRecord({ terminated: true, termDate: PAST }));
+    expect(again.terminated).toBe(0);
+  });
+
+  test("a terminated row for someone not on file is reported, not created", async () => {
+    const t = convexTest(schema);
+    const world = await seedWorld(t);
+    const fileId = await seedFile(t, world);
+
+    const result = await runBatch(t, world, fileId, familyRecord({ terminated: true, termDate: PAST }));
+    expect(result.created).toBe(0);
+    expect(result.errors.some((e) => /terminated in this file/.test(e.message ?? ""))).toBe(true);
+    expect(await countGroupMembers(t, world)).toEqual([]);
+  });
+
+  test("a future Term Date is stored, then applied by the daily sweep once it passes", async () => {
+    const t = convexTest(schema);
+    const world = await seedWorld(t);
+    const fileId = await seedFile(t, world);
+    await runBatch(t, world, fileId, familyRecord());
+
+    await runBatch(t, world, fileId, familyRecord({ terminated: true, termDate: FUTURE }));
+    let { primary } = await getMembers(t, world);
+    expect(primary).toMatchObject({ memberType: "eligible", terminationDate: FUTURE });
+
+    // Not due yet: the sweep leaves them alone.
+    expect(await t.mutation(internal.admin.eligibility.applyDueEligibilityTerminations, {})).toEqual({ terminated: 0 });
+
+    // The date arrives.
+    await t.run((ctx) => ctx.db.patch(primary._id, { terminationDate: PAST }));
+    expect(await t.mutation(internal.admin.eligibility.applyDueEligibilityTerminations, {})).toEqual({ terminated: 2 });
+    ({ primary } = await getMembers(t, world));
+    expect(primary.memberType).toBe("terminated");
+  });
+
+  test("a later file without the term withdraws a pending termination", async () => {
+    const t = convexTest(schema);
+    const world = await seedWorld(t);
+    const fileId = await seedFile(t, world);
+    await runBatch(t, world, fileId, familyRecord({ termDate: FUTURE }));
+    expect((await getMembers(t, world)).primary.terminationDate).toBe(FUTURE);
+
+    await runBatch(t, world, fileId, familyRecord());
+    expect((await getMembers(t, world)).primary.terminationDate).toBeUndefined();
+  });
+
+  test("a dependent with its own past Term Date ends alone and leaves the vendor snapshot", async () => {
+    const t = convexTest(schema);
+    const world = await seedWorld(t);
+    const fileId = await seedFile(t, world);
+    await runBatch(t, world, fileId, familyRecord());
+
+    const result = await runBatch(t, world, fileId, familyRecord({
+      dependents: [{ firstName: "Kid", lastName: "Waters", relationship: "child", seqNum: "01", termDate: PAST }],
+    }));
+    expect(result.terminated).toBe(1);
+
+    const { primary, dependents } = await getMembers(t, world);
+    expect(primary.memberType).toBe("eligible");
+    expect(primary.dependents).toEqual([]);
+    expect(dependents.map((d) => d.memberType)).toEqual(["terminated"]);
+  });
+
+  test("a terminated member listed as active again is flagged for review", async () => {
+    const t = convexTest(schema);
+    const world = await seedWorld(t);
+    const fileId = await seedFile(t, world);
+    await runBatch(t, world, fileId, familyRecord());
+    await runBatch(t, world, fileId, familyRecord({ terminated: true, termDate: PAST }));
+
+    const result = await runBatch(t, world, fileId, familyRecord());
+    expect(result.errors.some((e) => /review for re-enrollment/.test(e.message ?? ""))).toBe(true);
+    expect((await getMembers(t, world)).primary.memberType).toBe("terminated");
   });
 });

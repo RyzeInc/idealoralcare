@@ -1298,6 +1298,10 @@ export default defineSchema({
     workPhone: v.optional(v.string()),
     dateOfBirth: v.optional(v.string()), // ISO format: "1990-05-15"
     effectiveDate: v.optional(v.string()), // Coverage effective date ISO: "2026-05-01"
+    // Last day of coverage ISO, from the employer's eligibility file (Term Date,
+    // or the upload day when only an "Employee Status: Terminated" was sent).
+    // A future date is applied by the daily eligibility-terminations cron.
+    terminationDate: v.optional(v.string()),
     gender: v.optional(v.union(
       v.literal("male"),
       v.literal("female"),
@@ -1517,7 +1521,8 @@ export default defineSchema({
     .index("by_attributed_rep", ["attributedRepId"])
     .index("by_attributed_agency", ["attributedAgencyId"])
     .index("by_attributed_rep_type", ["attributedRepId", "memberType"])
-    .index("by_attributed_agency_type", ["attributedAgencyId", "memberType"]),
+    .index("by_attributed_agency_type", ["attributedAgencyId", "memberType"])
+    .index("by_termination_date", ["terminationDate"]),
 
   // MEMBER ACTIVITIES (Timeline/activity log)
   memberActivities: defineTable({

@@ -1,8 +1,10 @@
-import { mutation, query, action, internalMutation } from "../_generated/server";
+import { mutation, query, action, internalMutation, type MutationCtx } from "../_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
+import type { Doc, Id } from "../_generated/dataModel";
 import { requireAccess, requireAccessAction } from "../lib/authGuards";
 import { createMemberProfile } from "../lib/memberCreation";
+import { hasExited, lifecyclePatchFor } from "../lib/memberLifecycle";
 import * as XLSX from "xlsx";
 
 /**
@@ -214,6 +216,7 @@ function parseCareingtonRow(line: string): {
   workPhone: string | undefined;
   dateOfBirth: string | undefined;
   effectiveDate: string | undefined;
+  termDate: string | undefined;
   gender: string | undefined;
   uniqueId: string;
   seqNum: string;
@@ -254,6 +257,12 @@ function parseCareingtonRow(line: string): {
     const yyyy = rawEff.slice(4, 8);
     effectiveDate = `${yyyy}-${mm}-${dd}`;
   }
+
+  // Parse term date from MMDDYYYY → ISO YYYY-MM-DD
+  const rawTerm = (fields[f.termDate] ?? "").trim();
+  const termDate = rawTerm.length === 8
+    ? `${rawTerm.slice(4, 8)}-${rawTerm.slice(0, 2)}-${rawTerm.slice(2, 4)}`
+    : undefined;
 
   const rawGender = (fields[f.gender] ?? "").trim().toUpperCase();
   const gender = rawGender === "M" ? "male" : rawGender === "F" ? "female" : undefined;
@@ -308,6 +317,7 @@ function parseCareingtonRow(line: string): {
     workPhone,
     dateOfBirth,
     effectiveDate,
+    termDate,
     gender,
     uniqueId,
     seqNum,
@@ -441,6 +451,18 @@ const _normalizeRelationship = (raw: string): "spouse" | "child" | "domestic_par
   return "other";
 };
 
+/**
+ * Whether an employment/coverage status column marks the person as no longer
+ * eligible (e.g. Soar's "Employee Status: Terminated"). Employers do not
+ * always send a Term Date with it, so the status alone must end coverage.
+ */
+const _isTerminatedStatus = (raw: string): boolean =>
+  /^(t|term|termed|terminated|terminate|inactive|cancel+ed|canceled|deceased)$/i.test((raw || "").trim());
+
+/** Employment/coverage status column, under the names employers use. */
+const _terminatedFrom = (row: Record<string, string>): boolean =>
+  _isTerminatedStatus(pickCol(row, "Employee Status", "Employment Status", "Coverage Status", "Member Status", "Status"));
+
 const _addressFrom = (row: Record<string, string>) => {
   const line1 = pickCol(row, "Address 1", "Address1", "ADDRESS1", "Address Line 1", "addr1");
   if (!line1) return undefined;
@@ -533,6 +555,7 @@ function parseCensusCsv(rows: Array<Record<string, string>>): Array<any> {
         dateOfBirth: coveredDob,
         effectiveDate,
         termDate,
+        terminated: _terminatedFrom(row),
         gender,
         address,
         ssn: (coveredSsn || employeeSsn) || undefined,
@@ -564,6 +587,9 @@ function parseCensusCsv(rows: Array<Record<string, string>>): Array<any> {
         email,
         phone,
         address,
+        // Employee Status describes the employee, so a dependent ends only on
+        // its own Term Date (or with the employee).
+        termDate,
       });
     }
   }
@@ -587,6 +613,7 @@ function parseCensusCsv(rows: Array<Record<string, string>>): Array<any> {
         phone: first.phone,
         address: first.address,
         ssn: first.ssn,
+        termDate: first.termDate,
       };
       deps = rest;
     }
@@ -669,6 +696,7 @@ function parseHrCensusCsv(rows: Array<Record<string, string>>): Array<any> {
           address,
           effectiveDate,
           termDate,
+          terminated: _terminatedFrom(row),
           coverage,
           uniqueId,
           location,
@@ -687,6 +715,7 @@ function parseHrCensusCsv(rows: Array<Record<string, string>>): Array<any> {
         email,
         address,
         relationship: _normalizeRelationship(relRaw),
+        termDate,
       });
     }
   }
@@ -714,7 +743,7 @@ function parseHrCensusCsv(rows: Array<Record<string, string>>): Array<any> {
  *   3. Simple flat files with one row per primary (headers: firstName,
  *      lastName, email, phone, dateOfBirth, gender).
  */
-function parseCsvContent(content: string): Array<any> {
+export function parseCsvContent(content: string): Array<any> {
   const { headers, rows } = parseDelimitedRows(content);
   if (rows.length === 0) return [];
 
@@ -743,6 +772,8 @@ function parseCsvContent(content: string): Array<any> {
       location: pickCol(row, "location", "division") || undefined,
       department: pickCol(row, "department", "job title") || undefined,
       effectiveDate: csvToIsoDate(pickCol(row, "effectiveDate", "effective date")),
+      termDate: csvToIsoDate(pickCol(row, "termDate", "term date", "termination date")),
+      terminated: _terminatedFrom(row),
     });
   }
   return records;
@@ -1036,7 +1067,9 @@ function parseXlsxBuffer(
       dateOfBirth: toIsoDate(pick(row, "DATEOFBIRTH", "Date of Birth", "DOB", "dateOfBirth")),
       effectiveDate: toIsoDate(pick(row, "EFFECTIVEDATE", "Effective Date")),
       termDate: toIsoDate(pick(row, "TERMDATE", "Termination Date", "Term Date")),
+      terminated: _isTerminatedStatus(pick(row, "Employee Status", "Employment Status", "Coverage Status", "Member Status", "Status")),
       groupCode: pick(row, "Group Code", "GroupCode", "GROUP CODE") || undefined,
+      coverage,
       studentStatus: pick(row, "Student Status", "StudentStatus") || undefined,
       gender,
       address,
@@ -1112,6 +1145,7 @@ function parseXlsxBuffer(
         dateOfBirth: d!.dateOfBirth,
         relationship: (d!.relationship ?? "other") as "spouse" | "child" | "domestic_partner" | "other",
         seqNum: d!.seqNum ?? String(di + 1).padStart(2, "0"),
+        termDate: d!.termDate,
       }));
     out.push({
       title: p.title,
@@ -1124,9 +1158,15 @@ function parseXlsxBuffer(
       workPhone: p.workPhone,
       dateOfBirth: p.dateOfBirth,
       effectiveDate: p.effectiveDate,
+      termDate: p.termDate,
+      terminated: p.terminated,
       gender: p.gender,
       address: p.address,
       uniqueId: p.uniqueId || undefined,
+      // Carried for preview validation (validateRequiredFields).
+      seqNum: p.seqNum,
+      coverage: p.coverage || undefined,
+      groupCode: p.groupCode,
       dependents: deps.length > 0 ? deps : undefined,
     });
   }
@@ -1211,6 +1251,8 @@ export const processEligibilityFile = action({
         workPhone?: string;
         dateOfBirth?: string;
         effectiveDate?: string;
+        termDate?: string;      // Last day of coverage (ISO)
+        terminated?: boolean;   // Status column says the employee is no longer eligible
         gender?: string;
         address?: any;
         uniqueId?: string;  // Careington/DialCare Unique ID (shared across family)
@@ -1220,7 +1262,7 @@ export const processEligibilityFile = action({
         department?: string;
         tierCode?: string;
         groupMemberId?: string;
-        dependents?: Array<{ firstName: string; lastName: string; dateOfBirth?: string; relationship: string; seqNum?: string }>;
+        dependents?: Array<{ firstName: string; lastName: string; dateOfBirth?: string; relationship: string; seqNum?: string; termDate?: string }>;
       }> = [];
       const errors: Array<{ row: number; message: string }> = [];
 
@@ -1284,6 +1326,7 @@ export const processEligibilityFile = action({
             dateOfBirth: d.dateOfBirth,
             relationship: (d.relationship ?? "other") as "spouse" | "child" | "domestic_partner" | "other",
             seqNum: d.seqNum ?? String(di + 1).padStart(2, "0"),
+            termDate: d.termDate,
           }));
 
           primaryRecords.push({
@@ -1297,6 +1340,7 @@ export const processEligibilityFile = action({
             workPhone: p.workPhone,
             dateOfBirth: p.dateOfBirth,
             effectiveDate: p.effectiveDate,
+            termDate: p.termDate,
             gender: p.gender,
             address: p.address,
             uniqueId: p.uniqueId || undefined,
@@ -1372,6 +1416,8 @@ export const processEligibilityFile = action({
           workPhone: r.workPhone ?? "",
           dateOfBirth: r.dateOfBirth ?? "",
           effectiveDate: r.effectiveDate ?? "",
+          termDate: r.termDate ?? "",
+          terminated: r.terminated === true,
           gender: r.gender ?? "",
           uniqueId: r.uniqueId ?? "",
           ssn: r.ssn ?? "",
@@ -1438,7 +1484,8 @@ function validateRequiredFields(
   if (!record.groupCode) issues.push({ field: "groupCode", message: `Row ${rowNumber}: Group Code is required` });
   if (!record.effectiveDate) issues.push({ field: "effectiveDate", message: `Row ${rowNumber}: Effective Date is required` });
   if (!record.dateOfBirth) issues.push({ field: "dateOfBirth", message: `Row ${rowNumber}: Date of Birth is required` });
-  if (!record.email) issues.push({ field: "email", message: `Row ${rowNumber}: Email Address is required (for e-Fulfillment)` });
+  // Email is required for primaries only — dependents usually have none of their own.
+  if (!record.email && (record.seqNum ?? "00") === "00") issues.push({ field: "email", message: `Row ${rowNumber}: Email Address is required (for e-Fulfillment)` });
   if (record.seqNum && record.seqNum !== "00") {
     if (!record.relationship) issues.push({ field: "relationship", message: `Row ${rowNumber}: Relation is required for dependents` });
   }
@@ -1797,6 +1844,89 @@ async function reserveCounterRange(
   }
 }
 
+/** ISO YYYY-MM-DD (UTC) for a timestamp. Term dates are compared as strings. */
+const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+
+/**
+ * How a row's termination signals apply on `today`. A Term Date is the last
+ * day of coverage, so the member leaves the book the day after it. A
+ * terminated status with no Term Date ends coverage today. A future Term Date
+ * is stored on the member and applied by applyDueEligibilityTerminations.
+ */
+function resolveTermination(
+  termDate: string | undefined,
+  terminated: boolean | undefined,
+  today: string,
+): { date: string; now: boolean } | null {
+  if (termDate) return { date: termDate, now: termDate < today };
+  if (terminated) return { date: today, now: true };
+  return null;
+}
+
+/** Terminate one profile; false when it had already left the book. */
+async function markTerminated(
+  ctx: MutationCtx,
+  member: Doc<"memberProfiles">,
+  terminationDate: string,
+  description: string,
+  now: number,
+): Promise<boolean> {
+  if (hasExited(member.memberType)) return false;
+  await ctx.db.patch(member._id, {
+    ...lifecyclePatchFor("terminated", member, now),
+    terminationDate,
+  });
+  await ctx.db.insert("memberActivities", {
+    memberProfileId: member._id,
+    siteId: member.siteId,
+    groupId: member.groupId,
+    activityType: "status_changed",
+    title: "Terminated by eligibility file",
+    description,
+    metadata: { oldStatus: member.memberType, newStatus: "terminated", terminationDate },
+    actorType: "system",
+    createdAt: now,
+  });
+  return true;
+}
+
+/**
+ * Terminate a member from an eligibility file. A primary takes its dependents
+ * with it; a dependent ending on its own also comes off the primary's
+ * embedded dependents list, which is what vendor files send. Returns the
+ * number of profiles terminated.
+ */
+async function terminateFromEligibility(
+  ctx: MutationCtx,
+  member: Doc<"memberProfiles">,
+  terminationDate: string,
+  description: string,
+  now: number,
+): Promise<number> {
+  let count = (await markTerminated(ctx, member, terminationDate, description, now)) ? 1 : 0;
+
+  if (member.memberRole === "dependent") {
+    const seqNum = member.careingtonSeqNum;
+    const primary = member.primaryMemberId ? await ctx.db.get(member.primaryMemberId) : null;
+    if (seqNum && primary?.dependents?.some((d) => d.seqNum === seqNum)) {
+      await ctx.db.patch(primary._id, {
+        dependents: primary.dependents.filter((d) => d.seqNum !== seqNum),
+        updatedAt: now,
+      });
+    }
+    return count;
+  }
+
+  const dependents = await ctx.db
+    .query("memberProfiles")
+    .withIndex("by_primary_member", (q) => q.eq("primaryMemberId", member._id))
+    .collect();
+  for (const dep of dependents) {
+    if (await markTerminated(ctx, dep, terminationDate, description, now)) count++;
+  }
+  return count;
+}
+
 /**
  * Internal batched mutation: creates members in chunks
  * Called by scheduler from processEligibilityFile action.
@@ -1821,6 +1951,8 @@ export const internalBatchCreateMembers = internalMutation({
         workPhone: v.string(),
         dateOfBirth: v.string(),
         effectiveDate: v.string(),
+        termDate: v.optional(v.string()),     // Last day of coverage (ISO; empty if none)
+        terminated: v.optional(v.boolean()),  // Status column marks the employee terminated
         gender: v.string(),
         uniqueId: v.string(), // Careington/DialCare Unique ID (empty string if not in source file)
         ssn: v.optional(v.string()),
@@ -1840,8 +1972,9 @@ export const internalBatchCreateMembers = internalMutation({
     parseErrors: v.array(v.object({ row: v.number(), message: v.string() })),
   },
   handler: async (ctx, args) => {
-    const results = { created: 0, updated: 0, failed: 0, errors: [] as any[] };
+    const results = { created: 0, updated: 0, terminated: 0, failed: 0, errors: [] as any[] };
     const now = Date.now();
+    const today = isoDay(now);
 
     // Count total dependents so we can reserve enough IDs for primaries + all dependents
     const totalDependents = args.records.reduce(
@@ -1943,25 +2076,49 @@ export const internalBatchCreateMembers = internalMutation({
           }
         }
 
+        const memberName = `${record.firstName} ${record.lastName}`;
+        const termination = resolveTermination(record.termDate || undefined, record.terminated, today);
+
+        // A row whose coverage has already ended never creates a member —
+        // there is nothing to start. Reported so the row is not silently lost.
+        if (termination?.now && !existing) {
+          results.errors.push({
+            rowIndex,
+            message: `Row ${rowIndex + 1}: ${memberName} is terminated in this file (coverage ended ${termination.date}) and is not an existing member — not created`,
+          });
+          continue;
+        }
+        if (!termination && existing && hasExited(existing.memberType)) {
+          results.errors.push({
+            rowIndex,
+            message: `Row ${rowIndex + 1}: ${memberName} is listed as active but is ${existing.memberType} in our system — review for re-enrollment`,
+          });
+        }
+
         // Normalize gender
         const genderLower = (record.gender || "").toLowerCase();
         const validGender = (["male", "female", "non_binary", "prefer_not_to_say", "other"].includes(genderLower))
           ? (genderLower as any)
           : undefined;
 
-        // Build the embedded dependents snapshot (still kept on primary for vendor file generation)
-        const dependents = Array.isArray(record.dependents) && record.dependents.length > 0
-          ? record.dependents.map((d: any, di: number) => {
-              const depSeqNum = d.seqNum ?? String(di + 1).padStart(2, "0");
-              return {
-                firstName: d.firstName,
-                lastName: d.lastName,
-                dateOfBirth: d.dateOfBirth || undefined,
-                relationship: d.relationship || "other",
-                seqNum: depSeqNum,
-                toothlensMemberId: record.uniqueId ? record.uniqueId + depSeqNum : undefined,
-              };
-            })
+        // Build the embedded dependents snapshot (still kept on primary for vendor file generation).
+        // Dependents whose coverage has ended are left off it.
+        const depRows: any[] = Array.isArray(record.dependents) ? record.dependents : [];
+        const depTerminations = depRows.map((d) => resolveTermination(d.termDate || undefined, false, today));
+        const dependents = depRows.length > 0
+          ? depRows
+              .map((d: any, di: number) => {
+                const depSeqNum = d.seqNum ?? String(di + 1).padStart(2, "0");
+                return {
+                  firstName: d.firstName,
+                  lastName: d.lastName,
+                  dateOfBirth: d.dateOfBirth || undefined,
+                  relationship: d.relationship || "other",
+                  seqNum: depSeqNum,
+                  toothlensMemberId: record.uniqueId ? record.uniqueId + depSeqNum : undefined,
+                };
+              })
+              .filter((_, di) => !depTerminations[di]?.now)
           : undefined;
 
         let primaryProfileId: any;
@@ -1981,6 +2138,8 @@ export const internalBatchCreateMembers = internalMutation({
             workPhone: record.workPhone || existing.workPhone,
             dateOfBirth: record.dateOfBirth || existing.dateOfBirth,
             effectiveDate: record.effectiveDate || existing.effectiveDate,
+            // No term in this file withdraws a pending one; an applied term stays as history.
+            terminationDate: termination?.date ?? (hasExited(existing.memberType) ? existing.terminationDate : undefined),
             gender: validGender ?? existing.gender,
             address: record.address || existing.address,
             ssn: record.ssn || (existing as any).ssn,
@@ -2023,6 +2182,7 @@ export const internalBatchCreateMembers = internalMutation({
             workPhone: record.workPhone || undefined,
             dateOfBirth: record.dateOfBirth || undefined,
             effectiveDate: record.effectiveDate || undefined,
+            terminationDate: termination?.date,
             gender: validGender,
             address: record.address,
             ssn: record.ssn || undefined,
@@ -2041,11 +2201,27 @@ export const internalBatchCreateMembers = internalMutation({
           results.created++;
         }
 
+        // ── Terminated employee: end coverage for the whole family ──
+        if (termination?.now) {
+          const primary = await ctx.db.get(primaryProfileId as Id<"memberProfiles">);
+          if (primary) {
+            results.terminated += await terminateFromEligibility(
+              ctx,
+              primary,
+              termination.date,
+              `Employer eligibility file ended coverage on ${termination.date}`,
+              now,
+            );
+          }
+          continue;
+        }
+
         // ── Create/update a separate memberProfile for each dependent ──
-        if (Array.isArray(record.dependents) && record.dependents.length > 0) {
-          for (let di = 0; di < record.dependents.length; di++) {
-            const dep = record.dependents[di] as any;
+        if (depRows.length > 0) {
+          for (let di = 0; di < depRows.length; di++) {
+            const dep = depRows[di];
             const depSeqNum: string = dep.seqNum ?? String(di + 1).padStart(2, "0");
+            const depTermination = depTerminations[di];
 
             // Find existing dependent profile: same Careington ID + same seqNum
             const existingWithSameUniqueId = await ctx.db
@@ -2063,6 +2239,20 @@ export const internalBatchCreateMembers = internalMutation({
             // so an email-based lookup would incorrectly match the primary's profile.
             // If no profile is found by careingtonUniqueId + seqNum, we always create.
 
+            // Dependent's own coverage has ended: terminate it, never create it.
+            if (depTermination?.now) {
+              if (existingDep) {
+                results.terminated += await terminateFromEligibility(
+                  ctx,
+                  existingDep,
+                  depTermination.date,
+                  `Employer eligibility file ended dependent coverage on ${depTermination.date}`,
+                  now,
+                );
+              }
+              continue;
+            }
+
             const depGenderLower = (dep.gender || "").toLowerCase();
             const depGender = (["male", "female", "non_binary", "prefer_not_to_say", "other"].includes(depGenderLower))
               ? (depGenderLower as any)
@@ -2076,6 +2266,7 @@ export const internalBatchCreateMembers = internalMutation({
                 phone: dep.phone || existingDep.phone,
                 address: dep.address || existingDep.address,
                 dateOfBirth: dep.dateOfBirth || existingDep.dateOfBirth,
+                terminationDate: depTermination?.date ?? (hasExited(existingDep.memberType) ? existingDep.terminationDate : undefined),
                 gender: depGender ?? existingDep.gender,
                 ssn: dep.ssn || (existingDep as any).ssn,
                 relationship: dep.relationship || existingDep.relationship,
@@ -2105,6 +2296,7 @@ export const internalBatchCreateMembers = internalMutation({
                 phone: dep.phone || undefined,
                 address: dep.address,
                 dateOfBirth: dep.dateOfBirth || undefined,
+                terminationDate: depTermination?.date,
                 gender: depGender,
                 ssn: dep.ssn || undefined,
                 careingtonUniqueId,
@@ -2131,6 +2323,7 @@ export const internalBatchCreateMembers = internalMutation({
         processedRecords: (file.processedRecords ?? 0) + args.records.length,
         newMembers: (file.newMembers ?? 0) + results.created,
         updatedMembers: (file.updatedMembers ?? 0) + results.updated,
+        terminatedMembers: (file.terminatedMembers ?? 0) + results.terminated,
         errorRecords: (file.errorRecords ?? 0) + results.failed,
       });
     }
@@ -2165,6 +2358,38 @@ export const internalBatchCreateMembers = internalMutation({
     }
 
     return results;
+  },
+});
+
+/**
+ * Daily: end coverage for members whose eligibility-file Term Date has passed.
+ * Employers often send a term ahead of time (e.g. a 10/31 term on an October
+ * upload); the import stores it on the member and this applies it.
+ */
+export const applyDueEligibilityTerminations = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    const today = isoDay(now);
+    const due = await ctx.db
+      .query("memberProfiles")
+      .withIndex("by_termination_date", (q) => q.gt("terminationDate", "").lt("terminationDate", today))
+      .collect();
+
+    let terminated = 0;
+    for (const member of due) {
+      // Re-read: terminating a primary earlier in this loop also ends its dependents.
+      const current = await ctx.db.get(member._id);
+      if (!current?.terminationDate || hasExited(current.memberType)) continue;
+      terminated += await terminateFromEligibility(
+        ctx,
+        current,
+        current.terminationDate,
+        `Eligibility file term date ${current.terminationDate} reached`,
+        now,
+      );
+    }
+    return { terminated };
   },
 });
 

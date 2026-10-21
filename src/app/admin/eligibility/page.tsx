@@ -815,6 +815,9 @@ export default function EligibilityUploadPage() {
                           <div className="bg-green-600 h-2 rounded-full transition-all" style={{ width: `${file.totalRecords > 0 ? (file.processedRecords / file.totalRecords) * 100 : 0}%` }} />
                         </div>
                         <p className="text-xs text-slate-600 mt-1">{file.processedRecords} / {file.totalRecords} members</p>
+                        {file.terminatedMembers > 0 && (
+                          <p className="text-xs text-red-600">{file.terminatedMembers} terminated</p>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex flex-col gap-1 items-end">

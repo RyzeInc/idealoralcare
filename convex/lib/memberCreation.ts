@@ -120,6 +120,7 @@ export interface CreateMemberProfileInput {
   workPhone?: string;
   dateOfBirth?: string;
   effectiveDate?: string;
+  terminationDate?: string;
   gender?:
     | "male"
     | "female"
@@ -299,6 +300,7 @@ export async function createMemberProfile(
     workPhone: input.workPhone,
     dateOfBirth: input.dateOfBirth,
     effectiveDate: input.effectiveDate,
+    terminationDate: input.terminationDate,
     gender: input.gender,
     address: input.address,
     dependents: input.dependents,

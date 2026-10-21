@@ -163,4 +163,15 @@ crons.interval(
 
 crons.interval("eligibility-intake-cleanup", { hours: 1 }, internal.eligibilityIntake.cleanup, {});
 
+// ---------------------------------------------------------------------------
+// Eligibility terminations — daily at 06:00 UTC
+// Applies Term Dates that employer eligibility files sent ahead of time, so a
+// member comes off vendor files and invoices once their coverage has ended.
+// ---------------------------------------------------------------------------
+crons.cron(
+  "eligibility-terminations-daily",
+  "0 6 * * *",
+  internal.admin.eligibility.applyDueEligibilityTerminations,
+);
+
 export default crons;
