@@ -253,15 +253,18 @@ function TierPlanCard({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoInclude, essentialsTierSuffix]);
 
-  // Auto-add (opt-out logic): add product unless user explicitly removed it
+  // Keep an included Oral Care tier aligned with Essentials. An X click must
+  // never put a removed item back in the cart on the next render.
   useEffect(() => {
     if (!autoInclude || userRemoved || !selectedProduct) return;
+    if (!cart.items.some((item) => isEssentialsSlug(item.product.slug))) return;
+    if (!cartProductForFamily && (hasBeenInCartRef.current || localStorage.getItem("newideal-oralcare-removed") === "true")) return;
     if (cartProductForFamily?._id !== selectedProduct._id) {
       if (cartProductForFamily) removeItem(cartProductForFamily._id);
       addItem(selectedProduct);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoInclude, selectedProduct?._id, userRemoved, cartProductForFamily?._id]);
+  }, [autoInclude, selectedProduct?._id, userRemoved, cartProductForFamily?._id, cart.items]);
 
   // Record when oral care first lands in cart
   useEffect(() => {
@@ -279,6 +282,7 @@ function TierPlanCard({
 
   const handleAdd = () => {
     if (!selectedProduct) return;
+    if (autoInclude) localStorage.removeItem("newideal-oralcare-removed");
     if (cartProductForFamily && cartProductForFamily._id !== selectedProduct._id) {
       removeItem(cartProductForFamily._id);
     }
@@ -292,7 +296,10 @@ function TierPlanCard({
   };
 
   const handleRemove = () => {
-    if (cartProductForFamily) removeItem(cartProductForFamily._id);
+    if (cartProductForFamily) {
+      if (autoInclude) localStorage.setItem("newideal-oralcare-removed", "true");
+      removeItem(cartProductForFamily._id);
+    }
   };
 
   const inCart = !!cartProductForFamily && cartProductForFamily._id === selectedProduct?._id;
@@ -688,7 +695,10 @@ function StickyCart() {
               </div>
             </div>
             <button
-              onClick={() => removeItem(item.productId)}
+              onClick={() => {
+                if (item.product.slug?.startsWith("oralcare-")) localStorage.setItem("newideal-oralcare-removed", "true");
+                removeItem(item.productId);
+              }}
               title="Remove"
               style={{
                 width: 26,
@@ -761,7 +771,7 @@ function StickyCart() {
 }
 
 export default function NewIdealPlansPage() {
-  const { itemCount } = useCart();
+  const { cart, itemCount, isLoaded, addItem } = useCart();
   const products = useQuery(api.catalog.queries.list, {});
   const isLoading = products === undefined;
 
@@ -771,6 +781,16 @@ export default function NewIdealPlansPage() {
       (p) => p.category === "newideal" && p.isVisible !== false
     );
   }, [products]);
+
+  useEffect(() => {
+    if (!isLoaded || !newidealProducts.length || cart.items.length || localStorage.getItem("newideal-cart-initialized")) return;
+    const essentials = newidealProducts.find((p) => p.slug === "essentials-employee");
+    const oralCare = newidealProducts.find((p) => p.slug === "oralcare-employee");
+    if (!essentials || !oralCare) return;
+    localStorage.setItem("newideal-cart-initialized", "true");
+    addItem(essentials);
+    if (localStorage.getItem("newideal-oralcare-removed") !== "true") addItem(oralCare);
+  }, [isLoaded, newidealProducts, cart.items.length, addItem]);
 
   return (
     <div className="health-landing" style={{ background: "#f1f5f9" }}>

@@ -91,6 +91,12 @@ const VALID_BODY = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockConvexQuery.mockResolvedValue({
+    name: "Oral Care — Employee",
+    slug: "oralcare-employee",
+    pricing: { monthlyCardCents: 1499, monthlyACHCents: 1299, annualCardCents: 14999, annualACHCents: 12999 },
+    stripeProducts: { monthlyCardId: "prod_card", monthlyACHId: "prod_ach", annualCardId: "prod_annual_card", annualACHId: "prod_annual_ach" },
+  });
 
   // Default: authenticated user
   vi.mocked(auth).mockResolvedValue({ userId: "user_test123" } as any);
@@ -189,7 +195,7 @@ describe("POST /api/stripe/checkout", () => {
       expect(callArg.line_items).toHaveLength(1);
     });
 
-    test("creates 2 line items when 1 dependent is added", async () => {
+    test("keeps flat-rate family billing to one line item", async () => {
       const res = await POST(
         makeRequest({
           ...VALID_BODY,
@@ -206,10 +212,10 @@ describe("POST /api/stripe/checkout", () => {
 
       expect(res.status).toBe(200);
       const callArg = mockSessionCreate.mock.calls[0][0];
-      expect(callArg.line_items).toHaveLength(2);
+      expect(callArg.line_items).toHaveLength(1);
     });
 
-    test("sets the correct quantity on the dependent line item", async () => {
+    test("does not increase quantity for dependents", async () => {
       await POST(
         makeRequest({
           ...VALID_BODY,
@@ -221,11 +227,11 @@ describe("POST /api/stripe/checkout", () => {
       );
 
       const callArg = mockSessionCreate.mock.calls[0][0];
-      const dependentItem = callArg.line_items[1];
-      expect(dependentItem.quantity).toBe(2);
+      expect(callArg.line_items).toHaveLength(1);
+      expect(callArg.line_items[0].quantity).toBe(1);
     });
 
-    test("dependent item product name includes 'Dependent'", async () => {
+    test("records dependents in metadata", async () => {
       await POST(
         makeRequest({
           ...VALID_BODY,
@@ -236,8 +242,7 @@ describe("POST /api/stripe/checkout", () => {
       );
 
       const callArg = mockSessionCreate.mock.calls[0][0];
-      const dependentItem = callArg.line_items[1];
-      expect(dependentItem.price_data.product_data.name).toMatch(/Dependent/i);
+      expect(callArg.metadata.dependentCount).toBe("1");
     });
   });
 
@@ -253,13 +258,6 @@ describe("POST /api/stripe/checkout", () => {
       annual_ach: 12999,
     };
 
-    const DEP_PRICES: Record<string, number> = {
-      monthly_card: 999,
-      monthly_ach: 899,
-      annual_card: 9999,
-      annual_ach: 8999,
-    };
-
     for (const [key, expectedPrimary] of Object.entries(PRIMARY_PRICES)) {
       const [cadence, paymentMethod] = key.split("_") as [string, string];
 
@@ -270,7 +268,7 @@ describe("POST /api/stripe/checkout", () => {
         expect(callArg.line_items[0].price_data.unit_amount).toBe(expectedPrimary);
       });
 
-      test(`dependent unit_amount is ${DEP_PRICES[key]} for ${cadence}/${paymentMethod}`, async () => {
+      test(`dependents do not alter ${cadence}/${paymentMethod} price`, async () => {
         await POST(
           makeRequest({
             planId: "prod_test",
@@ -281,7 +279,8 @@ describe("POST /api/stripe/checkout", () => {
         );
 
         const callArg = mockSessionCreate.mock.calls[0][0];
-        expect(callArg.line_items[1].price_data.unit_amount).toBe(DEP_PRICES[key]);
+        expect(callArg.line_items).toHaveLength(1);
+        expect(callArg.line_items[0].price_data.unit_amount).toBe(expectedPrimary);
       });
     }
   });
@@ -394,6 +393,29 @@ describe("POST /api/stripe/checkout", () => {
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.url).toBe("https://checkout.stripe.com/test-session");
+    });
+  });
+
+  describe("multi-plan cart", () => {
+    test("charges every configured plan", async () => {
+      const res = await POST(makeRequest({ ...VALID_BODY, additionalPlanIds: ["oralcare_extra"] }));
+      expect(res.status).toBe(200);
+      expect(mockSessionCreate.mock.calls[0][0].line_items).toHaveLength(2);
+    });
+
+    test("blocks checkout when an additional plan has no Stripe product", async () => {
+      mockConvexQuery.mockResolvedValueOnce({
+        name: "Essentials Plan", slug: "essentials-employee",
+        pricing: { monthlyCardCents: 5895 },
+        stripeProducts: { monthlyCardId: "prod_essentials" },
+      }).mockResolvedValueOnce({
+        name: "Oral Care", slug: "oralcare-employee",
+        pricing: { monthlyCardCents: 1499 },
+        stripeProducts: {},
+      });
+      const res = await POST(makeRequest({ ...VALID_BODY, additionalPlanIds: ["oralcare_extra"] }));
+      expect(res.status).toBe(400);
+      expect(mockSessionCreate).not.toHaveBeenCalled();
     });
   });
 });

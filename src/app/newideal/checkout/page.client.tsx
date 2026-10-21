@@ -1093,7 +1093,10 @@ export default function NewIdealCheckoutClient() {
                           </span>
                         </span>
                         <button
-                          onClick={() => removeItem(item.productId)}
+                          onClick={() => {
+                            if (item.product.slug?.startsWith("oralcare-")) localStorage.setItem("newideal-oralcare-removed", "true");
+                            removeItem(item.productId);
+                          }}
                           aria-label="Remove"
                           style={{
                             background: "none",

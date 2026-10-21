@@ -147,11 +147,14 @@ export async function POST(req: NextRequest) {
 
     // Optional additional plans (multi-plan cart, e.g. /newideal flow)
     const additionalIds: string[] = Array.isArray(additionalPlanIds) ? additionalPlanIds : [];
+    if (additionalIds.some((id) => typeof id !== "string" || id === planId) || new Set(additionalIds).size !== additionalIds.length) {
+      return NextResponse.json({ error: "Invalid cart items" }, { status: 400 });
+    }
     for (const extraPlanId of additionalIds) {
       try {
         // @ts-ignore - deep type instantiation
         const extra = await convex.query(api.catalog.queries.getById, { id: extraPlanId });
-        if (!extra) continue;
+        if (!extra) return NextResponse.json({ error: "A plan in your cart is no longer available. Please refresh your cart." }, { status: 400 });
         orderSlugs.push(extra.slug);
         const exPricing = extra.pricing;
         const exAmount = cadence === "monthly"
@@ -160,7 +163,7 @@ export async function POST(req: NextRequest) {
         const exSp = extra.stripeProducts;
         const exKey = `${cadence === "monthly" ? "monthly" : "annual"}${paymentMethod === "ach" ? "ACH" : "Card"}Id` as keyof typeof exSp;
         const exProductId = exSp?.[exKey];
-        if (!exAmount || !exProductId) continue;
+        if (!exAmount || !exProductId) return NextResponse.json({ error: `Checkout is not configured for ${extra.name}. Please contact support.` }, { status: 400 });
         lineItems.push({
           price_data: {
             currency: "usd",
@@ -171,7 +174,8 @@ export async function POST(req: NextRequest) {
           quantity: 1,
         });
       } catch (err) {
-        console.warn("[checkout] Failed to add additional plan", extraPlanId, err);
+        console.error("[checkout] Failed to add additional plan", extraPlanId, err);
+        return NextResponse.json({ error: "Could not verify every plan in your cart. Please try again." }, { status: 503 });
       }
     }
 

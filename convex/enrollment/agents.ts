@@ -10,7 +10,6 @@
  */
 
 import { query, internalQuery } from "../_generated/server";
-import { requireAccess } from "../lib/authGuards";
 import { v } from "convex/values";
 import { Id } from "../_generated/dataModel";
 
@@ -106,7 +105,7 @@ async function enrichCodeRow(code: any, ctx: any): Promise<RepUrlResolution> {
 /**
  * List all active groups (distribution partners)
  */
-export const listPublicGroups = internalQuery({
+export const listPublicGroups = query({
   args: {},
   handler: async (ctx): Promise<PublicGroup[]> => {
     const partners = await ctx.db
@@ -128,7 +127,6 @@ export const listPublicGroups = internalQuery({
 export const listPublicAgents = query({
   args: {},
   handler: async (ctx): Promise<PublicAgent[]> => {
-    await requireAccess(ctx, ["partners.view", "groups.view"]);
     const codes = await ctx.db
       .query("brokerTrackingCodes")
       .withIndex("by_status", (q) => q.eq("status", "active"))
