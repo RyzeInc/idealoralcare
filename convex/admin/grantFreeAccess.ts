@@ -671,79 +671,114 @@ export const grantMeFullAccess = mutation({
     durationDays: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requireAccess(ctx, "members.edit");
-    
-    // Get current user (admin) from Clerk
-    const userIdentity = await ctx.auth.getUserIdentity();
-    if (!userIdentity) throw new Error("Not authenticated");
-    
-    const customerId = userIdentity.subject; // Clerk user ID
-    
-    // Get all catalog products
-    const allProducts = await ctx.db
-      .query("catalogProducts")
-      .collect();
-    
-    if (allProducts.length === 0) {
-      throw new Error("No products found in catalog");
-    }
-    
-    const productIds = allProducts.map((p) => p._id);
-    
-    // Create free bundle
+    const identity = await requireAccess(ctx, "members.edit");
+    const customerId = identity.clerkUserId;
+    const allProducts = await ctx.db.query("catalogProducts").collect();
+    if (allProducts.length === 0) throw new Error("No products found in catalog");
+
     const now = Date.now();
     const durationMs = (args.durationDays ?? 365) * 24 * 60 * 60 * 1000;
     const periodEnd = now + durationMs;
-    
-    const bundleId = await ctx.db.insert("subscriptionBundles", {
-      customerId: customerId,
-      cadence: "annual",
-      paymentMethod: "card",
-      stripeCustomerId: `free_local_${customerId}`,
-      stripeSubscriptionId: `free_${Date.now()}`,
-      status: "active",
-      currentPeriodStart: now,
-      currentPeriodEnd: periodEnd,
-      pricingSnapshot: {
+
+    // A prior click may already have granted a bundle but left the admin
+    // without a member profile. Reuse that grant rather than duplicating it.
+    const bundles = await ctx.db.query("subscriptionBundles")
+      .withIndex("by_customer", (q) => q.eq("customerId", customerId)).collect();
+    const existingBundle = bundles.find((bundle) => bundle.status === "active");
+    let bundleId = existingBundle?._id;
+    let grantEnd = existingBundle?.currentPeriodEnd ?? periodEnd;
+    if (existingBundle?.stripeCustomerId.startsWith("free_local_") && grantEnd <= now) {
+      grantEnd = periodEnd;
+      await ctx.db.patch(existingBundle._id, { currentPeriodEnd: grantEnd, updatedAt: now });
+    }
+    if (!bundleId) {
+      bundleId = await ctx.db.insert("subscriptionBundles", {
+        customerId,
         cadence: "annual",
         paymentMethod: "card",
-        totalCents: 0,
-        planCount: productIds.length,
-        capturedAt: now,
-      },
-      createdAt: now,
-      updatedAt: now,
-      activatedAt: now,
-    });
-    
-    // Create entitlements for each product
-    const entitlementIds = [];
-    for (const productId of productIds) {
-      const entitlementId = await ctx.db.insert("entitlements", {
-        customerId: customerId,
-        bundleId: bundleId,
-        productId: productId,
+        stripeCustomerId: `free_local_${customerId}`,
+        stripeSubscriptionId: `free_${now}`,
+        status: "active",
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+        pricingSnapshot: {
+          cadence: "annual",
+          paymentMethod: "card",
+          totalCents: 0,
+          planCount: allProducts.length,
+          capturedAt: now,
+        },
+        createdAt: now,
+        updatedAt: now,
+        activatedAt: now,
+      });
+    }
+
+    const existingProfile = await ctx.db.query("memberProfiles")
+      .withIndex("by_customer", (q) => q.eq("customerId", customerId))
+      .filter((q) => q.neq(q.field("status"), "terminated")).first();
+    let memberProfileId = existingProfile?._id;
+    if (!memberProfileId) {
+      const admin = await ctx.db.query("adminUsers")
+        .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", customerId)).first();
+      const groups = await ctx.db.query("groups").collect();
+      const activeGroups = groups.filter((group) => group.status === "active");
+      const group = activeGroups.find((item) => item.groupCode === "IDEALDO" || item.slug === "default");
+      if (!group) throw new Error("No active individual enrollment group found for a member profile");
+
+      const name = (admin?.name ?? identity.name ?? "Admin Member").trim();
+      const [firstName, ...lastName] = name.split(/\s+/);
+      const profile = await createMemberProfile(ctx, {
+        groupId: group._id,
+        groupOverride: group,
+        customerId,
+        firstName,
+        lastName: lastName.join(" ") || "Member",
+        email: admin?.email ?? identity.email,
+        memberType: "active",
+        memberRole: "primary",
+        signupSource: "admin_free_access",
+      });
+      memberProfileId = profile._id;
+      // This self-service admin grant is for testing member features; keep it
+      // out of vendor rosters, invoices, statements, and commissions.
+      await ctx.db.patch(memberProfileId, { isDemo: true, enrolledBundleId: bundleId });
+    }
+
+    const entitlements = await ctx.db.query("entitlements")
+      .withIndex("by_customer", (q) => q.eq("customerId", customerId)).collect();
+    const grantedProductIds = new Set(entitlements.filter((entitlement) =>
+      entitlement.status === "active" && entitlement.bundleId === bundleId && entitlement.periodEnd > now
+    ).map((entitlement) => String(entitlement.productId)));
+    let newGrants = 0;
+    for (const product of allProducts) {
+      if (grantedProductIds.has(String(product._id))) continue;
+      await ctx.db.insert("entitlements", {
+        customerId,
+        bundleId,
+        productId: product._id,
         periodStart: now,
-        periodEnd: periodEnd,
+        periodEnd: grantEnd,
         status: "active",
         endCondition: "expire",
         createdAt: now,
         activatedAt: now,
-        expiresAt: periodEnd,
+        expiresAt: grantEnd,
         createdVia: "admin_action",
         notes: `Free access granted to admin ${customerId} on ${new Date().toISOString()}`,
       });
-      entitlementIds.push(entitlementId);
+      newGrants++;
     }
-    
+
     return {
       success: true,
       customerId,
       bundleId,
-      productsGranted: productIds.length,
-      entitlements: entitlementIds.length,
-      expiresAt: new Date(periodEnd).toISOString(),
-      message: `✅ Full free access granted! ${productIds.length} product(s) active until ${new Date(periodEnd).toLocaleDateString()}`,
+      memberProfileId,
+      productsGranted: allProducts.length,
+      entitlements: newGrants,
+      expiresAt: new Date(grantEnd).toISOString(),
+      message: `Full free access is ready for your member dashboard (${allProducts.length} product(s)).`,
     };
   },
 });

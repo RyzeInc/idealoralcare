@@ -19,7 +19,9 @@ export default function AdminHome() {
   if (profile === undefined) return <SkeletonCard />;
   const permissions: readonly string[] = profile?.permissions ?? [];
   const full = ["insights.view", "members.view", "billing.view"].every((p) => permissions.includes(p));
-  return full ? <AdminDashboard /> : <StarterHome name={profile?.name} permissions={permissions} />;
+  return full
+    ? <AdminDashboard canGrantAccess={permissions.includes("members.edit")} />
+    : <StarterHome name={profile?.name} permissions={permissions} />;
 }
 
 function StarterHome({ name, permissions }: { name?: string; permissions: readonly string[] }) {
@@ -48,7 +50,7 @@ function StarterHome({ name, permissions }: { name?: string; permissions: readon
   );
 }
 
-function AdminDashboard() {
+function AdminDashboard({ canGrantAccess }: { canGrantAccess: boolean }) {
   const grantAccess = useMutation(api.admin.grantFreeAccess.grantMeFullAccess);
   const [isGranting, setIsGranting] = useState(false);
   const [grantStatus, setGrantStatus] = useState<null | { success: boolean; message: string }>(null);
@@ -247,15 +249,15 @@ function AdminDashboard() {
           <h2 className="text-lg font-semibold text-slate-900">Quick Actions</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-slate-100">
-          <button onClick={handleGrantAccess} disabled={isGranting} className="bg-white px-6 py-4 hover:bg-emerald-50 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed">
+          {canGrantAccess && <button onClick={handleGrantAccess} disabled={isGranting} className="bg-white px-6 py-4 hover:bg-emerald-50 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed">
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium text-slate-900">Grant Free Access</p>
-                <p className="text-sm text-slate-500 mt-0.5">Enable all plans for this admin account</p>
+                <p className="text-sm text-slate-500 mt-0.5">Create a demo member profile and enable all plans for this admin account</p>
               </div>
               <Gift size={16} className="text-emerald-500 flex-shrink-0" />
             </div>
-          </button>
+          </button>}
           <button onClick={async () => {
             setIsSyncing(true);
             setSyncStatus(null);

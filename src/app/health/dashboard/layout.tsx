@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { convexServiceSecret } from "@/lib/convex-service";
 import { ConvexHttpClient } from "convex/browser";
+import { api } from "@/convex/_generated/api";
 
 /**
  * HEALTH DASHBOARD LAYOUT
@@ -27,50 +28,52 @@ export default async function DashboardLayout({
   // Check for active subscription via Convex
   try {
     const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-    if (convexUrl) {
-      const convex = new ConvexHttpClient(convexUrl);
+    if (!convexUrl) {
+      throw new Error("NEXT_PUBLIC_CONVEX_URL is not set");
+    }
+    const convex = new ConvexHttpClient(convexUrl);
 
-      // Parallelize both checks instead of sequential awaits
-      const [isAdmin, bundle] = await Promise.all([
-        convex.query("admin/adminUsers:isAdmin" as any, { clerkUserId: userId }),
-        convex.query("subscriptions/queries:getCustomerBundlePublic" as any, { customerId: userId, serviceSecret: convexServiceSecret() }),
-      ]);
+    // Check staff access before requesting a member bundle. An admin may have
+    // no bundle, and a bundle lookup failure must not revoke admin access.
+    const isAdmin = await convex.query(api.admin.adminUsers.isAdmin, { clerkUserId: userId });
+    if (isAdmin) {
+      return <>{children}</>;
+    }
 
-      // Admins always get dashboard access
-      if (isAdmin) {
-        return <>{children}</>;
-      }
+    const bundle = await convex.query(api.subscriptions.queries.getCustomerBundlePublic, {
+      customerId: userId,
+      serviceSecret: convexServiceSecret(),
+    });
 
-      // Allow access if:
-      // 1. Status is "active"
-      // 2. Status is "cancel_at_period_end" (cancellation scheduled but access continues)
-      // 3. Status is "past_due" but less than 3 days old (grace period for payment retries)
-      if (!bundle) {
-        redirect("/health#plans");
-      }
+    // Allow access if:
+    // 1. Status is "active"
+    // 2. Status is "cancel_at_period_end" (cancellation scheduled but access continues)
+    // 3. Status is "past_due" but less than 3 days old (grace period for payment retries)
+    if (!bundle) {
+      redirect("/health#plans");
+    }
 
-      const now = Date.now();
-      const GRACE_PERIOD_MS = 3 * 24 * 60 * 60 * 1000; // 3 days in milliseconds
+    const now = Date.now();
+    const GRACE_PERIOD_MS = 3 * 24 * 60 * 60 * 1000; // 3 days in milliseconds
 
-      let hasAccess = false;
+    let hasAccess = false;
 
-      if (bundle.status === "active") {
+    if (bundle.status === "active") {
+      hasAccess = true;
+    } else if (bundle.status === "cancel_at_period_end") {
+      hasAccess = true;
+    } else if (bundle.status === "past_due" && bundle.pastDueAt) {
+      // Allow access for 3 days after entering past_due status
+      const daysSincePastDue = now - bundle.pastDueAt;
+      if (daysSincePastDue < GRACE_PERIOD_MS) {
         hasAccess = true;
-      } else if (bundle.status === "cancel_at_period_end") {
-        hasAccess = true;
-      } else if (bundle.status === "past_due" && bundle.pastDueAt) {
-        // Allow access for 3 days after entering past_due status
-        const daysSincePastDue = now - bundle.pastDueAt;
-        if (daysSincePastDue < GRACE_PERIOD_MS) {
-          hasAccess = true;
-        }
-      }
-
-      if (!hasAccess) {
-        redirect("/health#plans");
       }
     }
-  } catch (error) {
+
+    if (!hasAccess) {
+      redirect("/health#plans");
+    }
+  } catch {
     // On error, redirect to plans page (fail-safe - require subscription)
     redirect("/health#plans");
   }
