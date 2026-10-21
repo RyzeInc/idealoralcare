@@ -32,4 +32,12 @@ describe("Stripe fee forecast", () => {
     expect(result.takeHomeCents).toBe(98480);
   });
 
+  it("calculates inbound card and Billing fees before a custom outbound bank payout fee", () => {
+    const result = calculateStripeFees({ ...base, payoutPercent: 1, payoutFixedCents: 25 });
+    expect(result.processingCents).toBe(73);
+    expect(result.billingCents).toBe(10);
+    expect(result.availableCents).toBe(1416);
+    expect(result.payoutFeeCents).toBe(39);
+    expect(result.takeHomeCents).toBe(1377);
+  });
 });

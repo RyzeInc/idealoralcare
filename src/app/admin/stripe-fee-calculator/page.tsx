@@ -97,7 +97,7 @@ export default function StripeFeeCalculatorPage() {
     <Breadcrumbs items={[{ label: "Admin", href: "/admin" }, { label: "Stripe Fee Calculator" }]} />
     <div>
       <h1 className="flex items-center gap-2 text-3xl font-bold text-slate-900"><Calculator className="text-blue-600" /> Stripe Fee Calculator</h1>
-      <p className="mt-2 text-slate-600">Model one Checkout payment or separate payments, then see the exact fees Stripe recorded for recent transactions.</p>
+      <p className="mt-2 text-slate-600">Calculate inbound payment fees and the outbound payout to your bank, then compare the estimate with Stripe’s recorded entries.</p>
     </div>
 
     <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
@@ -135,7 +135,7 @@ export default function StripeFeeCalculatorPage() {
         </details>
 
         <div className="border-t border-slate-200 pt-4">
-          <h3 className="font-semibold text-slate-900">Payout to your bank</h3>
+          <h3 className="font-semibold text-slate-900">Outbound transfer to your bank (Stripe payout)</h3>
           <select value={outboundType} onChange={(event) => setOutboundType(event.target.value as "standard" | "custom")}
             className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900">
             <option value="standard">Standard bank payout (observed $0 fee)</option>
@@ -150,15 +150,19 @@ export default function StripeFeeCalculatorPage() {
       </section>
 
       <section className="self-start rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Estimated per checkout</h2>
+        <h2 className="text-lg font-semibold text-slate-900">Inbound and outbound estimate</h2>
         <p className="mt-1 text-sm text-slate-500">{result.chargeCount} charge{result.chargeCount === 1 ? "" : "s"} · {method === "card" ? "card" : "ACH"}</p>
         <div className="mt-4">
+          <h3 className="mb-1 text-sm font-semibold text-slate-800">Inbound customer payment</h3>
           <ResultRow label="Customer pays" amount={result.grossCents} />
           <ResultRow label="Payment processing" amount={-result.processingCents} />
           <ResultRow label="Inbound payment after processing" amount={result.grossCents - result.processingCents} strong />
           <ResultRow label="Stripe Billing usage" amount={-result.billingCents} />
           <ResultRow label="Available after inbound fees" amount={result.availableCents} strong />
+          <h3 className="mb-1 mt-4 text-sm font-semibold text-slate-800">Outbound bank payout</h3>
+          <ResultRow label="Amount available to send to bank" amount={result.availableCents} />
           <ResultRow label="Bank payout fee" amount={-result.payoutFeeCents} />
+          <ResultRow label="Deposited to your bank" amount={result.takeHomeCents} strong />
         </div>
         <div className="mt-4 rounded-lg bg-blue-50 p-4 text-blue-950">
           <div className="text-sm font-medium">Estimated take-home</div>
@@ -185,7 +189,7 @@ export default function StripeFeeCalculatorPage() {
         {([
           ["Inbound payments", processingEntries],
           ["Billing usage fees", billingEntries],
-          ["Bank payouts", outboundEntries],
+          ["Outbound bank payouts", outboundEntries],
         ] as const).map(([title, entries]) => <div key={title} className="min-w-0">
           <h3 className="mb-2 font-medium text-slate-800">{title}</h3>
           {entries.length === 0 ? <p className="text-sm text-slate-500">No entries in this page of the ledger.</p> : <div className="max-h-80 space-y-2 overflow-auto pr-1">
