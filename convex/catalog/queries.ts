@@ -1,12 +1,30 @@
 /**
  * CATALOG QUERIES
  *
- * Convex queries for reading product catalog
- * These are lightweight, cacheable, and public
+ * Convex queries for reading the product catalog.
+ * Public storefront reads and an admin-only pricing projection live here.
  */
 
 import { query, internalQuery } from "../_generated/server";
 import { v } from "convex/values";
+import { requireAccess } from "../lib/authGuards";
+
+/** All configured membership products and prices for the admin fee forecast. */
+export const listForFeeCalculator = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAccess(ctx, "billing.view");
+    const products = await ctx.db.query("catalogProducts").collect();
+    return products.sort((a, b) => a.order - b.order).map((product) => ({
+      _id: product._id,
+      name: product.name,
+      slug: product.slug,
+      category: product.category,
+      isVisible: product.isVisible,
+      pricing: product.pricing,
+    }));
+  },
+});
 
 /**
  * Get all visible products, optionally filtered by category

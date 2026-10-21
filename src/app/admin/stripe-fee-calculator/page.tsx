@@ -2,8 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Calculator, RefreshCw } from "lucide-react";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { hasConflictingPrograms } from "@/convex/lib/productSlugs";
 import { Breadcrumbs } from "@/components/admin/ui";
-import { calculateStripeFees, type FeeInputs, type PaymentMethod } from "@/lib/stripe-fee-calculator";
+import { calculateStripeFees, catalogUnitPriceCents, type BillingCadence, type FeeInputs, type PaymentMethod } from "@/lib/stripe-fee-calculator";
 
 type LedgerEntry = {
   id: string;
@@ -43,8 +46,10 @@ function ResultRow({ label, amount, strong = false }: { label: string; amount: n
 }
 
 export default function StripeFeeCalculatorPage() {
-  const [firstAmount, setFirstAmount] = useState("14.99");
-  const [secondAmount, setSecondAmount] = useState("0");
+  const products = useQuery(api.catalog.queries.listForFeeCalculator, {});
+  const [selected, setSelected] = useState<{ productId: string; quantity: number }[]>([]);
+  const [selectionInitialized, setSelectionInitialized] = useState(false);
+  const [cadence, setCadence] = useState<BillingCadence>("monthly");
   const [method, setMethod] = useState<PaymentMethod>("card");
   const [separate, setSeparate] = useState(false);
   const [cardPercent, setCardPercent] = useState("2.9");
@@ -52,12 +57,36 @@ export default function StripeFeeCalculatorPage() {
   const [achPercent, setAchPercent] = useState("0.8");
   const [achCap, setAchCap] = useState("5.00");
   const [billingPercent, setBillingPercent] = useState("0.7");
-  const [outboundType, setOutboundType] = useState<"standard" | "custom">("standard");
+  const [includeBilling, setIncludeBilling] = useState(true);
+  const [outboundType, setOutboundType] = useState<"standard" | "instant" | "custom">("standard");
   const [outboundPercent, setOutboundPercent] = useState("0");
   const [outboundFixed, setOutboundFixed] = useState("0");
   const [ledger, setLedger] = useState<Ledger | null>(null);
   const [ledgerError, setLedgerError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!products || selectionInitialized) return;
+    const first = products.find((product) => product.isVisible && product.pricing.monthlyCardCents > 0)
+      ?? products.find((product) => product.pricing.monthlyCardCents > 0);
+    if (first) setSelected([{ productId: first._id, quantity: 1 }]);
+    setSelectionInitialized(true);
+  }, [products, selectionInitialized]);
+
+  const lineItems = useMemo(() => selected.flatMap((item) => {
+    const product = products?.find((candidate) => candidate._id === item.productId);
+    if (!product) return [];
+    const unitPriceCents = catalogUnitPriceCents(product.pricing, cadence, method);
+    return [{ ...item, product, unitPriceCents, totalCents: unitPriceCents * item.quantity }];
+  }), [selected, products, cadence, method]);
+  const pricedLineItems = useMemo(() => lineItems.filter((item) => item.unitPriceCents > 0), [lineItems]);
+  const hasCheckoutConflict = hasConflictingPrograms(lineItems.map((item) => item.product.slug));
+
+  const addProduct = () => {
+    const next = products?.find((product) => !selected.some((item) => item.productId === product._id));
+    if (next) setSelected((items) => [...items, { productId: next._id, quantity: 1 }]);
+  };
+  const canAddProduct = products?.some((product) => !selected.some((item) => item.productId === product._id)) ?? false;
 
   const loadLedger = async () => {
     setLoading(true);
@@ -76,17 +105,18 @@ export default function StripeFeeCalculatorPage() {
   useEffect(() => { void loadLedger(); }, []);
 
   const inputs: FeeInputs = useMemo(() => ({
-    amountsCents: [toCents(firstAmount), toCents(secondAmount)],
+    amountsCents: pricedLineItems.map((item) => item.totalCents),
     paymentMethod: method,
     separateCharges: separate,
     cardPercent: Number(cardPercent) || 0,
     cardFixedCents: toCents(cardFixed),
     achPercent: Number(achPercent) || 0,
     achCapCents: toCents(achCap),
-    billingPercent: Number(billingPercent) || 0,
-    payoutPercent: outboundType === "standard" ? 0 : Number(outboundPercent) || 0,
-    payoutFixedCents: outboundType === "standard" ? 0 : toCents(outboundFixed),
-  }), [firstAmount, secondAmount, method, separate, cardPercent, cardFixed, achPercent, achCap, billingPercent, outboundType, outboundPercent, outboundFixed]);
+    billingPercent: includeBilling ? Number(billingPercent) || 0 : 0,
+    payoutPercent: outboundType === "instant" ? 1.5 : outboundType === "custom" ? Number(outboundPercent) || 0 : 0,
+    payoutFixedCents: outboundType === "custom" ? toCents(outboundFixed) : 0,
+    payoutMinimumCents: outboundType === "instant" ? 50 : 0,
+  }), [pricedLineItems, method, separate, cardPercent, cardFixed, achPercent, achCap, billingPercent, includeBilling, outboundType, outboundPercent, outboundFixed]);
   const result = calculateStripeFees(inputs);
   const comparison = calculateStripeFees({ ...inputs, separateCharges: !separate });
   const processingEntries = ledger?.entries.filter((entry) => (entry.type === "charge" || entry.type === "payment") && entry.amountCents > 0) ?? [];
@@ -97,16 +127,68 @@ export default function StripeFeeCalculatorPage() {
     <Breadcrumbs items={[{ label: "Admin", href: "/admin" }, { label: "Stripe Fee Calculator" }]} />
     <div>
       <h1 className="flex items-center gap-2 text-3xl font-bold text-slate-900"><Calculator className="text-blue-600" /> Stripe Fee Calculator</h1>
-      <p className="mt-2 text-slate-600">Calculate inbound payment fees and the outbound payout to your bank, then compare the estimate with Stripe’s recorded entries.</p>
+      <p className="mt-2 text-slate-600">Build a scenario from your configured membership products, then compare estimated fees with Stripe’s recorded entries.</p>
     </div>
 
     <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
       <section className="space-y-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Transaction scenario</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <NumberField label="Product 1 price ($)" value={firstAmount} onChange={setFirstAmount} />
-          <NumberField label="Product 2 price ($, optional)" value={secondAmount} onChange={setSecondAmount} />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Product scenario</h2>
+            <p className="text-sm text-slate-500">Prices come from the same catalog used by checkout.</p>
+          </div>
+          <button type="button" onClick={addProduct} disabled={!canAddProduct}
+            className="rounded-lg border border-blue-300 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50">
+            Add product
+          </button>
         </div>
+        {products === undefined && <p className="text-sm text-slate-500">Loading catalog products…</p>}
+        {products?.length === 0 && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">No membership products are configured in the catalog.</p>}
+        {products && selected.length === 0 && products.length > 0 && <p className="text-sm text-slate-500">Add a product to start a scenario.</p>}
+        <div className="space-y-3">
+          {lineItems.map((item, index) => <div key={item.productId} className="rounded-lg border border-slate-200 p-3">
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem_auto] sm:items-end">
+              <label className="text-sm font-medium text-slate-700">Product
+                <select value={item.productId} onChange={(event) => {
+                  const productId = event.target.value;
+                  if (selected.some((other, otherIndex) => otherIndex !== index && other.productId === productId)) return;
+                  setSelected((items) => items.map((current, currentIndex) => currentIndex === index ? { ...current, productId } : current));
+                }} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900">
+                  {products?.map((product) => <option key={product._id} value={product._id}
+                    disabled={selected.some((other, otherIndex) => otherIndex !== index && other.productId === product._id)}>
+                    {product.name}{product.isVisible ? "" : " (hidden)"}
+                  </option>)}
+                </select>
+              </label>
+              <label className="text-sm font-medium text-slate-700">Quantity
+                <input type="number" min="1" max="10000" step="1" value={item.quantity}
+                  onChange={(event) => {
+                    const quantity = Math.min(10000, Math.max(1, Math.trunc(Number(event.target.value) || 1)));
+                    setSelected((items) => items.map((current, currentIndex) => currentIndex === index ? { ...current, quantity } : current));
+                  }} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900" />
+              </label>
+              <button type="button" onClick={() => setSelected((items) => items.filter((current) => current.productId !== item.productId))}
+                className="rounded-lg px-3 py-2 text-sm text-red-700 hover:bg-red-50">Remove</button>
+            </div>
+            <p className={`mt-2 text-sm ${item.unitPriceCents > 0 ? "text-slate-600" : "text-amber-700"}`}>
+              {item.unitPriceCents > 0
+                ? `${money(item.unitPriceCents)} each · ${money(item.totalCents)} total`
+                : `No ${cadence} ${method.toUpperCase()} price is configured; excluded from the estimate.`}
+            </p>
+          </div>)}
+        </div>
+        {hasCheckoutConflict && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+          Essentials already includes Balance for Life. Checkout will not sell those two products together; remove one for a realistic scenario.
+        </p>}
+        <fieldset>
+          <legend className="text-sm font-medium text-slate-700">Billing cadence</legend>
+          <div className="mt-2 flex flex-wrap gap-3">
+            {(["monthly", "annual"] as const).map((option) => <label key={option} className="flex items-center gap-2 text-sm text-slate-700">
+              <input type="radio" name="billing-cadence" checked={cadence === option} onChange={() => setCadence(option)} />
+              {option === "monthly" ? "Monthly invoice" : "Annual invoice"}
+            </label>)}
+          </div>
+        </fieldset>
         <fieldset>
           <legend className="text-sm font-medium text-slate-700">Payment method</legend>
           <div className="mt-2 flex flex-wrap gap-3">
@@ -118,9 +200,9 @@ export default function StripeFeeCalculatorPage() {
         </fieldset>
         <label className="flex items-start gap-2 text-sm text-slate-700">
           <input type="checkbox" checked={separate} onChange={(event) => setSeparate(event.target.checked)} className="mt-1" />
-          Model separate charges for the two products
+          Model each selected product as a separate charge and invoice
         </label>
-        <p className="text-xs text-slate-500">The current Essentials + Oral Care checkout uses one Checkout Session with two line items when bought together. Separate purchases or billing dates can create separate charges.</p>
+        <p className="text-xs text-slate-500">Combined checkout uses one charge for the selected line items. Separate purchases or billing dates can create separate charges. Quantity stays on one line item.</p>
 
         <details className="rounded-lg bg-slate-50 p-4">
           <summary className="cursor-pointer font-medium text-slate-800">Fee assumptions (editable)</summary>
@@ -131,27 +213,34 @@ export default function StripeFeeCalculatorPage() {
             <NumberField label="ACH cap ($ / charge)" value={achCap} onChange={setAchCap} />
             <NumberField label="Stripe Billing percentage" value={billingPercent} onChange={setBillingPercent} suffix="%" />
           </div>
-          <p className="mt-3 text-xs text-slate-500">Defaults reflect Stripe’s <a href="https://stripe.com/pricing" target="_blank" rel="noopener noreferrer" className="underline">published US payment rates</a>, <a href="https://stripe.com/billing/pricing" target="_blank" rel="noopener noreferrer" className="underline">Billing rate</a>, and your observed $14.99 charge. Account-specific pricing, international cards, currency conversion, taxes, disputes, and other payment methods can change the actual amount.</p>
+          <label className="mt-3 flex items-start gap-2 text-sm text-slate-700"><input type="checkbox" checked={includeBilling} onChange={(event) => setIncludeBilling(event.target.checked)} className="mt-1" />Include Stripe Billing fee</label>
+          <p className="mt-3 text-xs text-slate-500">Defaults are Stripe’s published <a href="https://stripe.com/pricing" target="_blank" rel="noopener noreferrer" className="underline">US domestic card and ACH rates</a> and <a href="https://stripe.com/billing/pricing" target="_blank" rel="noopener noreferrer" className="underline">pay-as-you-go Billing rate</a>. Your Stripe contract may differ. Taxes, disputes, international cards, and currency conversion are excluded.</p>
         </details>
 
         <div className="border-t border-slate-200 pt-4">
           <h3 className="font-semibold text-slate-900">Outbound transfer to your bank (Stripe payout)</h3>
-          <select value={outboundType} onChange={(event) => setOutboundType(event.target.value as "standard" | "custom")}
+          <select value={outboundType} onChange={(event) => setOutboundType(event.target.value as "standard" | "instant" | "custom")}
             className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900">
-            <option value="standard">Standard bank payout (observed $0 fee)</option>
-            <option value="custom">Instant or custom bank payout (enter your rate)</option>
+            <option value="standard">Standard bank payout (no fee)</option>
+            <option value="instant">Instant US bank payout (1.5%, 50¢ minimum)</option>
+            <option value="custom">Custom bank payout rate</option>
           </select>
           {outboundType === "custom" && <div className="mt-3 grid gap-4 sm:grid-cols-2">
             <NumberField label="Outbound percentage" value={outboundPercent} onChange={setOutboundPercent} suffix="%" />
             <NumberField label="Outbound fixed fee ($)" value={outboundFixed} onChange={setOutboundFixed} />
           </div>}
-          <p className="mt-2 text-xs text-slate-500">Standard bank payouts in your observed Stripe entries had a $0 fee. Instant or custom payout rates may differ. Other fees may post as separate balance entries.</p>
+          <p className="mt-2 text-xs text-slate-500">Stripe lists <a href="https://stripe.com/pricing" target="_blank" rel="noopener noreferrer" className="underline">standard payouts as free and US instant payouts at 1.5% with a 50¢ minimum</a>. Other fees may post as separate balance entries.</p>
         </div>
       </section>
 
       <section className="self-start rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Inbound and outbound estimate</h2>
-        <p className="mt-1 text-sm text-slate-500">{result.chargeCount} charge{result.chargeCount === 1 ? "" : "s"} · {method === "card" ? "card" : "ACH"}</p>
+        <p className="mt-1 text-sm text-slate-500">{result.chargeCount} charge{result.chargeCount === 1 ? "" : "s"} · {cadence} · {method === "card" ? "card" : "ACH"}</p>
+        {lineItems.length > 0 && <div className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
+          {pricedLineItems.map((item) => <div key={item.productId} className="flex justify-between gap-3 py-1">
+            <span>{item.product.name} × {item.quantity}</span><span className="shrink-0 tabular-nums">{money(item.totalCents)}</span>
+          </div>)}
+        </div>}
         <div className="mt-4">
           <h3 className="mb-1 text-sm font-semibold text-slate-800">Inbound customer payment</h3>
           <ResultRow label="Customer pays" amount={result.grossCents} />
@@ -168,10 +257,10 @@ export default function StripeFeeCalculatorPage() {
           <div className="text-sm font-medium">Estimated take-home</div>
           <div className="text-3xl font-bold tabular-nums">{money(result.takeHomeCents)}</div>
         </div>
-        {toCents(firstAmount) > 0 && toCents(secondAmount) > 0 && <p className="mt-4 text-sm text-slate-600">
-          {separate ? "Combining into one charge" : "Splitting into two charges"} would produce {money(comparison.takeHomeCents)} with these assumptions.
+        {pricedLineItems.length > 1 && <p className="mt-4 text-sm text-slate-600">
+          {separate ? "Combining into one charge" : "Charging each product separately"} would produce {money(comparison.takeHomeCents)} with these assumptions.
         </p>}
-        <p className="mt-4 text-xs text-slate-500">This is a forecast rounded to cents. Exact settled fees appear below from Stripe’s balance transactions; Billing fees may post separately and cannot always be matched to one payment.</p>
+        <p className="mt-4 text-xs text-slate-500">This is a forecast for one {cadence} invoice, rounded to cents. Billing is modeled once per invoice, including when line items share a charge. Exact fees appear below from Stripe’s balance transactions; Billing fees may post separately.</p>
       </section>
     </div>
 

@@ -1,5 +1,18 @@
 /** USD forecast only. Stripe's balance transactions are the final source of truth. */
 export type PaymentMethod = "card" | "ach";
+export type BillingCadence = "monthly" | "annual";
+
+export interface CatalogPricing {
+  monthlyCardCents: number;
+  monthlyACHCents: number;
+  annualCardCents: number;
+  annualACHCents: number;
+}
+
+export function catalogUnitPriceCents(pricing: CatalogPricing, cadence: BillingCadence, method: PaymentMethod): number {
+  if (cadence === "monthly") return method === "card" ? pricing.monthlyCardCents : pricing.monthlyACHCents;
+  return method === "card" ? pricing.annualCardCents : pricing.annualACHCents;
+}
 
 export interface FeeInputs {
   amountsCents: number[];
@@ -12,6 +25,7 @@ export interface FeeInputs {
   billingPercent: number;
   payoutPercent: number;
   payoutFixedCents: number;
+  payoutMinimumCents?: number;
 }
 
 export interface FeeResult {
@@ -37,8 +51,8 @@ export function calculateStripeFees(input: FeeInputs): FeeResult {
   // each invoice, which is how the observed $14.99 -> $0.10 example rounds.
   const billingCents = charges.reduce((sum, amount) => sum + Math.round(amount * input.billingPercent / 100), 0);
   const availableCents = grossCents - processingCents - billingCents;
-  const payoutFeeCents = availableCents > 0
-    ? Math.round(availableCents * input.payoutPercent / 100 + input.payoutFixedCents)
+  const payoutFeeCents = availableCents > 0 && (input.payoutPercent > 0 || input.payoutFixedCents > 0)
+    ? Math.max(input.payoutMinimumCents ?? 0, Math.round(availableCents * input.payoutPercent / 100 + input.payoutFixedCents))
     : 0;
   return {
     grossCents,

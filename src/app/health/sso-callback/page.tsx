@@ -3,7 +3,7 @@
 /**
  * SSO CALLBACK
  *
- * Handles the OAuth redirect after Apple / Facebook / Google sign-in or sign-up.
+ * Handles the OAuth redirect after Google sign-in or sign-up.
  * Clerk's AuthenticateWithRedirectCallback completes the flow and then redirects
  * to the `redirectUrlComplete` that was set when initiating the OAuth request.
  */

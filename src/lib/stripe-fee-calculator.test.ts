@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateStripeFees, type FeeInputs } from "./stripe-fee-calculator";
+import { calculateStripeFees, catalogUnitPriceCents, type FeeInputs } from "./stripe-fee-calculator";
 
 const base: FeeInputs = {
   amountsCents: [1499], paymentMethod: "card", separateCharges: false,
@@ -39,5 +39,25 @@ describe("Stripe fee forecast", () => {
     expect(result.availableCents).toBe(1416);
     expect(result.payoutFeeCents).toBe(39);
     expect(result.takeHomeCents).toBe(1377);
+  });
+
+  it("uses catalog prices for monthly and annual card or ACH scenarios", () => {
+    const pricing = {
+      monthlyCardCents: 1499, monthlyACHCents: 1399,
+      annualCardCents: 16499, annualACHCents: 15499,
+    };
+    expect(catalogUnitPriceCents(pricing, "monthly", "card")).toBe(1499);
+    expect(catalogUnitPriceCents(pricing, "monthly", "ach")).toBe(1399);
+    expect(catalogUnitPriceCents(pricing, "annual", "card")).toBe(16499);
+    expect(catalogUnitPriceCents(pricing, "annual", "ach")).toBe(15499);
+  });
+
+  it("applies the published instant payout minimum and rounds Billing per invoice", () => {
+    const combined = calculateStripeFees({ ...base, amountsCents: [1000, 1000], payoutPercent: 1.5, payoutMinimumCents: 50 });
+    const separate = calculateStripeFees({ ...base, amountsCents: [1000, 1000], separateCharges: true, payoutPercent: 1.5, payoutMinimumCents: 50 });
+    expect(combined.payoutFeeCents).toBe(50);
+    expect(combined.billingCents).toBe(14);
+    expect(separate.billingCents).toBe(14);
+    expect(separate.processingCents - combined.processingCents).toBe(30);
   });
 });
