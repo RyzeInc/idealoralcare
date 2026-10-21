@@ -622,6 +622,13 @@ export const SITE_ROUTES: SiteRoute[] = [
     auth: "staff",
   },
   {
+    path: "/admin/stripe-fee-calculator",
+    title: "Stripe fee calculator",
+    purpose: "Estimate net receipts for combined or separate plan charges and inspect actual Stripe fees and payouts.",
+    area: "Admin console",
+    auth: "staff",
+  },
+  {
     path: "/admin/commissions",
     title: "Commissions",
     purpose: "Agent commission reporting.",
@@ -890,6 +897,7 @@ export const API_GROUPS: ApiGroup[] = [
     auth: "staff",
     endpoints: [
       "GET  /api/admin/post-signup-check",
+      "GET  /api/admin/stripe-fees",
       "GET  /api/admin/members/:memberId/id-card",
       "GET  /api/admin/list-bill-invoices/:invoiceId/group-pdf",
       "GET  /api/admin/list-bill-invoices/preview-sample",

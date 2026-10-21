@@ -157,6 +157,7 @@ Internal staff only. Ordered below as the sidebar orders it.
 | Path | Purpose | Access | Sitemap |
 | --- | --- | --- | --- |
 | `/admin/billing` | Subscription billing and group invoices. | Staff | — |
+| `/admin/stripe-fee-calculator` | Estimate net receipts for combined or separate plan charges and inspect actual Stripe fees and payouts. | Staff | — |
 | `/admin/list-bill` | Payroll-deduction groups and monthly employer remittance. | Staff | — |
 | `/admin/list-bill-invoices` | Group-paid roster invoices. | Staff | — |
 | `/admin/vendor-statements` | Locked monthly remittance statements for Toothlens, Careington, Ideal, and Ryze. | Staff | — |
@@ -283,6 +284,7 @@ Server-side admin utilities: PDF generation, invite lookup, vendor delivery. **A
 
 ```
 GET  /api/admin/post-signup-check
+GET  /api/admin/stripe-fees
 GET  /api/admin/members/:memberId/id-card
 GET  /api/admin/list-bill-invoices/:invoiceId/group-pdf
 GET  /api/admin/list-bill-invoices/preview-sample

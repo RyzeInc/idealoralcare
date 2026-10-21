@@ -298,6 +298,7 @@ export const PAGES: PageAccess[] = [
   { portal: "admin", href: "/admin/eligibility/intake", label: "Employer Intake", anyOf: ["eligibility.view"] },
   { portal: "admin", href: "/admin/vendor-files", label: "Vendor Files", anyOf: ["vendorFiles.view"] },
   { portal: "admin", href: "/admin/billing", label: "Billing", anyOf: ["billing.view"] },
+  { portal: "admin", href: "/admin/stripe-fee-calculator", label: "Stripe Fee Calculator", anyOf: ["billing.view"] },
   { portal: "admin", href: "/admin/list-bill", label: "List-Bill Groups", anyOf: ["billing.view"] },
   { portal: "admin", href: "/admin/list-bill-invoices", label: "List-Bill Invoices", anyOf: ["billing.view"] },
   { portal: "admin", href: "/admin/vendor-statements", label: "Vendor Statements", anyOf: ["billing.view"] },
