@@ -6,6 +6,7 @@ import { requireAccess, requireAccessAction } from "../lib/authGuards";
 import { createMemberProfile } from "../lib/memberCreation";
 import { hasExited, lifecyclePatchFor } from "../lib/memberLifecycle";
 import * as XLSX from "xlsx";
+import { isPipeEligibility, validatePipeEligibility } from "../lib/careingtonEligibility";
 
 /**
  * ELIGIBILITY FILE PROCESSING — PRODUCTION PIPELINE
@@ -227,7 +228,7 @@ function parseCareingtonRow(line: string): {
   studentStatus: string | undefined;
 } | null {
   const fields = line.split("|");
-  if (fields.length < 20) return null; // Minimum fields needed
+  if (fields.length !== 28) return null;
 
   const f = CAREINGTON_FIELD_MAP;
   const firstName = (fields[f.firstName] ?? "").trim();
@@ -1266,7 +1267,15 @@ export const processEligibilityFile = action({
       }> = [];
       const errors: Array<{ row: number; message: string }> = [];
 
-      if (file.fileType === "txt") {
+      if (file.fileType === "txt" || (file.fileType === "csv" && isPipeEligibility(content))) {
+        const issues = validatePipeEligibility(content);
+        if (issues.length) {
+          await ctx.runMutation(api.admin.eligibility.updateFileStatus, {
+            fileId: args.fileId, status: "failed",
+            errors: issues.slice(0, 100).map(issue => ({ row: issue.row - 1, message: issue.message })),
+          });
+          throw new Error(`Eligibility file requires correction before import (${issues.length} issue(s)):\n${issues.slice(0, 20).map(issue => issue.message).join("\n")}`);
+        }
         // ── Careington pipe-delimited format ──
         const lines = content.split(/\r?\n/).filter((l: string) => l.trim());
 
@@ -1548,7 +1557,8 @@ export const previewEligibilityFile = action({
     let primaryRecords: Array<any> = [];
     const detectedColumns: string[] = [];
 
-    if (args.fileType === "txt") {
+    if (args.fileType === "txt" || (args.fileType === "csv" && isPipeEligibility(content))) {
+      validationErrors.push(...validatePipeEligibility(content));
       const lines = content.split(/\r?\n/).filter((l) => l.trim());
       type ParsedTxt = ReturnType<typeof parseCareingtonRow>;
       type Family = { primary: NonNullable<ParsedTxt>; dependents: NonNullable<ParsedTxt>[]; rowNumber: number };
@@ -1738,6 +1748,7 @@ export const updateFileStatus = mutation({
   args: {
     fileId: v.id("eligibilityFiles"),
     status: v.string(),
+    errors: v.optional(v.array(v.object({ row: v.number(), message: v.string() }))),
   },
   handler: async (ctx, args) => {
     await requireAccess(ctx, "eligibility.manage");
@@ -1748,6 +1759,10 @@ export const updateFileStatus = mutation({
       status: args.status,
       processedAt: Date.now(),
     };
+    if (args.errors) {
+      updates.errors = args.errors;
+      updates.errorRecords = new Set(args.errors.map(error => error.row)).size;
+    }
 
     if (["completed", "completed_with_errors", "failed"].includes(args.status)) {
       updates.completedAt = Date.now();

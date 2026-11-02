@@ -4,12 +4,14 @@ import { useAuth, useUser } from "@clerk/nextjs";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, LayoutDashboard, LogOut, Settings, User } from "lucide-react";
+import { useMemberBasePath } from "@/lib/use-member-base-path";
 
 /**
  * Custom user menu that replaces Clerk's UserButton
  * Shows user info and logout option
  */
 export default function UserMenu() {
+  const basePath = useMemberBasePath();
   const { signOut } = useAuth();
   const { user } = useUser();
   const router = useRouter();
@@ -40,7 +42,7 @@ export default function UserMenu() {
   const handleLogout = async () => {
     setIsOpen(false);
     await signOut();
-    router.push("/health");
+    router.push(basePath);
   };
 
   if (!user) return null;
@@ -105,7 +107,7 @@ export default function UserMenu() {
           <div className="py-1.5">
             <button
               role="menuitem"
-              onClick={() => navigate("/health/dashboard")}
+              onClick={() => navigate(`${basePath}/dashboard`)}
               className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
             >
               <LayoutDashboard size={16} className="text-gray-400 shrink-0" />
@@ -114,7 +116,7 @@ export default function UserMenu() {
 
             <button
               role="menuitem"
-              onClick={() => navigate("/health/manage-plans")}
+              onClick={() => navigate(`${basePath}/manage-plans`)}
               className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
             >
               <Settings size={16} className="text-gray-400 shrink-0" />

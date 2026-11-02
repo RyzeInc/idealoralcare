@@ -11,7 +11,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Check, CreditCard, Settings, Shield, Unlock, Scale, DollarSign, Clock, Lock } from "lucide-react";
 import HealthHeader from "@/components/health/HealthHeader";
-import { CartProvider, useCart } from "@/lib/health-plans";
+import { useCart } from "@/lib/health-plans";
 import { useSiteThemeOptional } from "@/components/providers/SiteThemeProvider";
 
 const STEPS = [
@@ -379,8 +379,6 @@ function HowItWorksContent() {
 
 export default function HowItWorksPage() {
   return (
-    <CartProvider>
       <HowItWorksContent />
-    </CartProvider>
   );
 }

@@ -13,7 +13,7 @@ import Image from "next/image";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Check, X, ChevronDown, ChevronUp, ShoppingCart } from "lucide-react";
 import HealthHeader from "@/components/health/HealthHeader";
-import { CartProvider, useCart } from "@/lib/health-plans";
+import { useCart } from "@/lib/health-plans";
 import { formatPrice, getPrice } from "@/lib/health-plans/types";
 
 // Extended product type for detail page with additional fields
@@ -615,8 +615,6 @@ export default function PlanDetailPage() {
   const slug = params.slug as string;
   
   return (
-    <CartProvider>
       <PlanDetailContent slug={slug} />
-    </CartProvider>
   );
 }

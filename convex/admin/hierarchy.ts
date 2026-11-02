@@ -4,6 +4,8 @@ import { requireAccess } from "../lib/authGuards";
 import * as unifiedData from "./unifiedData";
 import { restampGroupAttribution } from "../lib/repAttribution";
 import { promoLinkValidator } from "../lib/promoLinks";
+import { siteMarketingValidator } from "../lib/siteMarketing";
+import { normalizeBflMemberCode } from "../lib/bflCodes";
 
 /**
  * ADMIN HIERARCHY MANAGEMENT
@@ -29,6 +31,8 @@ export const createSite = mutation({
     allowedPlanIds: v.optional(v.array(v.id("catalogProducts"))),
     enrollmentDefaults: v.optional(v.any()), // Flexible enrollment defaults object
     promoLinks: v.optional(v.array(promoLinkValidator)),
+    marketing: v.optional(siteMarketingValidator),
+    shopEnabled: v.optional(v.boolean()),
     status: v.optional(v.union(v.literal("active"), v.literal("suspended"), v.literal("onboarding"), v.literal("terminated"))),
   },
   handler: async (ctx, args) => {
@@ -61,6 +65,8 @@ export const createSite = mutation({
         collectDependents: true,
       },
       promoLinks: args.promoLinks,
+      marketing: args.marketing,
+      shopEnabled: args.shopEnabled,
       status: args.status ?? "active",
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -81,6 +87,8 @@ export const updateSite = mutation({
     allowedPlanIds: v.optional(v.array(v.id("catalogProducts"))),
     enrollmentDefaults: v.optional(v.any()),
     promoLinks: v.optional(v.array(promoLinkValidator)),
+    marketing: v.optional(siteMarketingValidator),
+    shopEnabled: v.optional(v.boolean()),
     status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -100,6 +108,8 @@ export const updateSite = mutation({
     if (args.allowedPlanIds !== undefined) updates.allowedPlanIds = args.allowedPlanIds;
     if (args.enrollmentDefaults !== undefined) updates.enrollmentDefaults = args.enrollmentDefaults;
     if (args.promoLinks !== undefined) updates.promoLinks = args.promoLinks;
+    if (args.marketing !== undefined) updates.marketing = args.marketing;
+    if (args.shopEnabled !== undefined) updates.shopEnabled = args.shopEnabled;
     if (args.status !== undefined) updates.status = args.status;
 
     await ctx.db.patch(args.siteId, updates);
@@ -402,6 +412,7 @@ export const updateGroup = mutation({
     description: v.optional(v.string()),
     groupCode: v.optional(v.string()),
     organizationCode: v.optional(v.string()),
+    bflMemberCode: v.optional(v.union(v.string(), v.null())),
     allowedPlanIds: v.optional(v.array(v.id("catalogProducts"))),
     customPricing: v.optional(v.array(v.any())),
     enrollmentOverrides: v.optional(v.any()),
@@ -430,6 +441,7 @@ export const updateGroup = mutation({
     if (args.description !== undefined) updates.description = args.description;
     if (args.groupCode !== undefined) updates.groupCode = args.groupCode;
     if (args.organizationCode !== undefined) updates.organizationCode = args.organizationCode;
+    if (args.bflMemberCode !== undefined) updates.bflMemberCode = normalizeBflMemberCode(args.bflMemberCode);
     if (args.allowedPlanIds !== undefined) updates.allowedPlanIds = args.allowedPlanIds;
     if (args.customPricing !== undefined) updates.customPricing = args.customPricing;
     if (args.enrollmentOverrides !== undefined) updates.enrollmentOverrides = args.enrollmentOverrides;

@@ -41,7 +41,7 @@ import {
 import HealthHeader from "@/components/health/HealthHeader";
 import { AgentRepCodeSelector } from "@/components/health/AgentRepCodeSelector";
 import { ReferralCapture } from "@/components/health/ReferralCapture";
-import { CartProvider, useCart } from "@/lib/health-plans";
+import { useCart } from "@/lib/health-plans";
 import { formatPrice, getPrice } from "@/lib/health-plans/types";
 import { CadenceModal } from "@/components/health/catalog";
 import { MembershipAgreementModal, TermsAndConditionsModal } from "@/components/legal";
@@ -1682,8 +1682,6 @@ function CheckoutContent() {
 
 export default function CheckoutPage() {
   return (
-    <CartProvider>
       <CheckoutContent />
-    </CartProvider>
   );
 }

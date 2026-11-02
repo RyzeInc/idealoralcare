@@ -22,6 +22,7 @@ import {
   ESSENTIALS_RX_PCN,
 } from "@/lib/constants";
 import { isBflSlug } from "@/convex/lib/productSlugs";
+import { resolveBflMemberCode } from "@/convex/lib/bflCodes";
 
 /**
  * IDEAL HEALTH ESSENTIALS — MEMBER FULFILLMENT PACKET
@@ -109,6 +110,9 @@ export function essentialsCoverageLabel(slug?: string | null): string {
 
 // ─── Data type ───────────────────────────────────────────────────────────────
 export interface EssentialsPacketData {
+  bflMemberCode?: string;
+  bflAndroidQrDataUri?: string;
+  bflIosQrDataUri?: string;
   memberName: string;
   memberFirstName: string;
   memberEmail: string;
@@ -274,7 +278,7 @@ function WelcomePage({ data }: { data: EssentialsPacketData }) {
 
 // ─── Standalone Balance for Life: welcome page ───────────────────────────────
 function BflWelcomePage({ data }: { data: EssentialsPacketData }) {
-  const { balanceForLife } = ESSENTIALS_VENDOR_CODES;
+  const balanceForLife = { ...ESSENTIALS_VENDOR_CODES.balanceForLife, memberCode: resolveBflMemberCode(data) };
   return (
     <Page size="LETTER" style={s.page}>
       <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={BRAND} />
@@ -364,7 +368,7 @@ function BflWelcomePage({ data }: { data: EssentialsPacketData }) {
 }
 
 // ─── Page 2: How to use your benefits ────────────────────────────────────────
-const BENEFIT_ROUTES = [
+const benefitRoutes = (data: EssentialsPacketData) => [
   {
     need: "I FEEL SICK AND NEED TO TALK TO A DOCTOR",
     provider: "Lyric Health — Virtual Care",
@@ -383,7 +387,7 @@ const BENEFIT_ROUTES = [
   {
     need: "I NEED MENTAL HEALTH OR WELLBEING SUPPORT",
     provider: "Balance for Life — Member Support Program",
-    detail: `Download the ${ESSENTIALS_VENDOR_CODES.balanceForLife.app}. Or call ${ESSENTIALS_VENDOR_CODES.balanceForLife.phone} (TTD/TTY same number), email ${ESSENTIALS_VENDOR_CODES.balanceForLife.email}, or visit ${ESSENTIALS_VENDOR_CODES.balanceForLife.url}. Group Number: ${ESSENTIALS_VENDOR_CODES.balanceForLife.groupNumber} · Member Code: ${ESSENTIALS_VENDOR_CODES.balanceForLife.memberCode}.`,
+    detail: `Download the ${ESSENTIALS_VENDOR_CODES.balanceForLife.app}. Or call ${ESSENTIALS_VENDOR_CODES.balanceForLife.phone} (TTD/TTY same number), email ${ESSENTIALS_VENDOR_CODES.balanceForLife.email}, or visit ${ESSENTIALS_VENDOR_CODES.balanceForLife.url}. Group Number: ${ESSENTIALS_VENDOR_CODES.balanceForLife.groupNumber} · Member Code: ${resolveBflMemberCode(data)}.`,
   },
 ];
 
@@ -408,7 +412,7 @@ function HowToUseBenefitsPage({ data }: { data: EssentialsPacketData }) {
         </Text>
       </View>
 
-      {BENEFIT_ROUTES.map((route) => (
+      {benefitRoutes(data).map((route) => (
         <View
           key={route.need}
           style={{ backgroundColor: LIGHT_BLUE, padding: 10, marginBottom: 8, borderRadius: 4 }}
@@ -713,7 +717,7 @@ function LabsPage({ data }: { data: EssentialsPacketData }) {
 
 // ─── Page 7: Behavioral health lead-in (BFL letter is appended after) ────────
 function BehavioralHealthPage({ data }: { data: EssentialsPacketData }) {
-  const { balanceForLife } = ESSENTIALS_VENDOR_CODES;
+  const balanceForLife = { ...ESSENTIALS_VENDOR_CODES.balanceForLife, memberCode: resolveBflMemberCode(data) };
   return (
     <Page size="LETTER" style={s.page}>
       <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={BRAND} />
@@ -807,7 +811,7 @@ function MemberCardFrontPage({ data }: { data: EssentialsPacketData }) {
     { label: "Member Number", value: data.essentialsMemberNumber },
     ...(isBflPacket(data)
       ? [
-          { label: "BFL Member Code", value: ESSENTIALS_VENDOR_CODES.balanceForLife.memberCode },
+          { label: "BFL Member Code", value: resolveBflMemberCode(data) },
           { label: "BFL Group", value: ESSENTIALS_VENDOR_CODES.balanceForLife.groupNumber },
         ]
       : [
@@ -868,7 +872,8 @@ function MemberCardFrontPage({ data }: { data: EssentialsPacketData }) {
 }
 
 function MemberCardBackPage({ data }: { data: EssentialsPacketData }) {
-  const { lyric, rxValet, questSelect, balanceForLife } = ESSENTIALS_VENDOR_CODES;
+  const { lyric, rxValet, questSelect } = ESSENTIALS_VENDOR_CODES;
+  const balanceForLife = { ...ESSENTIALS_VENDOR_CODES.balanceForLife, memberCode: resolveBflMemberCode(data) };
   return (
     <Page size="LETTER" style={cardStyles.cardPage}>
       <View style={cardStyles.bleedContainer}>
@@ -1061,12 +1066,36 @@ function MembershipAgreementPage2({ data }: { data: EssentialsPacketData }) {
 }
 
 // ─── Root documents ──────────────────────────────────────────────────────────
+function BflAppDownloadsPage({ data }: { data: EssentialsPacketData }) {
+  if (!data.bflAndroidQrDataUri || !data.bflIosQrDataUri) return null;
+  return (
+    <Page size="LETTER" style={s.page}>
+      <PageHeader logoDataUri={data.bflLogoDataUri} fallbackLabel="Balance for Life" />
+      <Text style={s.h2}>Download the Balance for Life App</Text>
+      <Text style={s.body}>Scan the code for your device. These app download codes were supplied in the Balance for Life welcome letter.</Text>
+      <View style={{ flexDirection: "row", justifyContent: "space-around", marginTop: 24, marginBottom: 24 }}>
+        {[{ label: "Android — Google Play", src: data.bflAndroidQrDataUri }, { label: "iPhone — App Store", src: data.bflIosQrDataUri }].map(qr => (
+          <View key={qr.label} style={{ alignItems: "center", width: 200 }}>
+            <Text style={s.h4}>{qr.label}</Text>
+            <Image src={qr.src} style={{ width: 180, height: 160, objectFit: "contain" }} />
+          </View>
+        ))}
+      </View>
+      <Text style={s.h4}>Your Member Code: {resolveBflMemberCode(data)}</Text>
+      <Text style={s.body}>Use this assigned member code when asked to identify your program. Zenn is available inside the Balance for Life app.</Text>
+      <Text style={s.body}>For help, call {ESSENTIALS_VENDOR_CODES.balanceForLife.phone} or email {ESSENTIALS_VENDOR_CODES.balanceForLife.email}.</Text>
+      <Footer label="Balance for Life App Access" />
+    </Page>
+  );
+}
+
 export function EssentialsPacketPdf({ data }: { data: EssentialsPacketData }) {
   if (isBflPacket(data)) {
     return (
       <Document title="Balance for Life Member Welcome Packet" author="Ideal Health" subject="Member Welcome Packet">
         <BflWelcomePage data={data} />
         <BehavioralHealthPage data={data} />
+        <BflAppDownloadsPage data={data} />
         <MemberCardTitlePage data={data} />
         <MemberCardFrontPage data={data} />
         <MemberCardBackPage data={data} />
@@ -1086,6 +1115,7 @@ export function EssentialsPacketPdf({ data }: { data: EssentialsPacketData }) {
       <PharmacyPage data={data} />
       <LabsPage data={data} />
       <BehavioralHealthPage data={data} />
+      <BflAppDownloadsPage data={data} />
       <MemberCardTitlePage data={data} />
       <MemberCardFrontPage data={data} />
       <MemberCardBackPage data={data} />

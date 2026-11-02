@@ -12,8 +12,10 @@ import { useState, useEffect } from "react";
 import { AuthenticateWithRedirectCallback } from "@clerk/nextjs";
 import { Loader, AlertCircle } from "lucide-react";
 import Link from "next/link";
+import { useMemberBasePath } from "@/lib/use-member-base-path";
 
 export default function SSOCallbackPage() {
+  const basePath = useMemberBasePath();
   const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
@@ -64,7 +66,7 @@ export default function SSOCallbackPage() {
             Please try signing in again.
           </p>
           <Link
-            href="/health/sign-in"
+            href={`${basePath}/sign-in`}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -86,8 +88,8 @@ export default function SSOCallbackPage() {
 
       {/* Clerk completes the OAuth handshake and redirects */}
       <AuthenticateWithRedirectCallback
-        signInFallbackRedirectUrl="/health/dashboard"
-        signUpFallbackRedirectUrl="/health/dashboard"
+        signInFallbackRedirectUrl={`${basePath}/dashboard`}
+        signUpFallbackRedirectUrl={`${basePath}/dashboard`}
       />
 
       <style>{`

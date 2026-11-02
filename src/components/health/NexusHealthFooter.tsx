@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSiteThemeOptional } from "@/components/providers/SiteThemeProvider";
 import styles from "./HealthFooter.module.css";
+import { isSiteMarketingEnabled, type SiteMarketingFeature } from "@/convex/lib/siteMarketing";
 
 export function NexusHealthFooter() {
   const currentYear = new Date().getFullYear();
@@ -13,7 +14,8 @@ export function NexusHealthFooter() {
   const themeCtx = useSiteThemeOptional();
   const site = themeCtx?.site;
 
-  const logoSrc = site?.branding?.logoUrl || "/ideal-oral-health-logo.png";
+  const useDefaultLogo = !themeCtx?.isLoading && (!site || site.slug === "ideal-health" || site.slug === "ryze-health");
+  const logoSrc = site?.branding?.logoUrl || (useDefaultLogo ? "/ideal-oral-health-logo.png" : undefined);
   const logoWidth = site?.branding?.logoWidth || 110;
   const logoAlt = site?.name || "Oral Health Plan";
   const brandName = site?.name || "Ideal Oral Health";
@@ -21,10 +23,10 @@ export function NexusHealthFooter() {
   const supportPhone = site?.enrollmentDefaults?.supportPhone || "(844) 679-9367";
   const footerText = site?.branding?.footerText;
 
-  const resourceLinks = [
-    { label: "Blog", href: `${basePath}/blog` },
-    { label: "FAQ", href: `${basePath}/faq` },
-    { label: "How It Works", href: `${basePath}/how-it-works` },
+  const resourceLinks: { label: string; href: string; feature?: SiteMarketingFeature }[] = [
+    { label: "Blog", href: `${basePath}/blog`, feature: "blog" },
+    { label: "FAQ", href: `${basePath}/faq`, feature: "faq" },
+    { label: "How It Works", href: `${basePath}/how-it-works`, feature: "howItWorks" },
     { label: "Terms and Conditions", href: `${basePath}/terms` },
     { label: "Privacy Policy", href: `${basePath}/privacy` },
     { label: "Program Disclosures", href: `${basePath}/terms` },
@@ -38,13 +40,13 @@ export function NexusHealthFooter() {
 
           {/* Logo column */}
           <div className={styles.logo} style={{ minWidth: 0 }}>
-            <Image
+            {logoSrc ? <Image
               src={logoSrc}
               alt={logoAlt}
               width={logoWidth}
               height={53}
               style={{ objectFit: "contain", height: "auto", maxHeight: "52px", width: logoWidth }}
-            />
+            /> : <span className="text-lg font-semibold">{brandName}</span>}
           </div>
 
           {/* Get in Touch */}
@@ -68,6 +70,10 @@ export function NexusHealthFooter() {
               <a href={`mailto:${supportEmail}`} style={{ color: "#0066CC", textDecoration: "none", fontWeight: 500 }}>
                 {supportEmail}
               </a>
+              {site?.branding?.informationEmail && <div className="mt-3">
+                <p style={{ margin: 0 }}>Information requests:</p>
+                <a href={`mailto:${site.branding.informationEmail}`} style={{ color: "#0066CC", textDecoration: "none" }}>{site.branding.informationEmail}</a>
+              </div>}
             </div>
           </div>
 
@@ -100,7 +106,7 @@ export function NexusHealthFooter() {
               Resources
             </p>
             <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-              {resourceLinks.map(({ label, href }) => (
+              {resourceLinks.filter(link => !link.feature || (!themeCtx?.isLoading && isSiteMarketingEnabled(site?.marketing, link.feature))).map(({ label, href }) => (
                 <li key={label}>
                   <Link
                     href={href}

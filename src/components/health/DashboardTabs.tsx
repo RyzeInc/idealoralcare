@@ -5,6 +5,7 @@ import React from 'react';
 import { HeartPulse, Scan, Search, Video } from 'lucide-react';
 import OverviewTab from './tabs/OverviewTab';
 import { useSiteThemeOptional } from '@/components/providers/SiteThemeProvider';
+import type { MemberDashboardTab } from '@/lib/member-dashboard';
 
 // Lazy load non-critical tabs
 const ProviderSearchTab = lazy(() => import('./tabs/ProviderSearchTab'));
@@ -22,6 +23,7 @@ interface Subscription {
 }
 
 interface DashboardTabsProps {
+  initialTab?: MemberDashboardTab;
   firstName: string | null;
   email: string | null;
   fullName: string | null;
@@ -45,7 +47,7 @@ interface DashboardTabsProps {
   isFamily?: boolean;
 }
 
-type TabId = 'overview' | 'provider-search' | 'oral-scan' | 'teledentistry';
+type TabId = MemberDashboardTab;
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'overview', label: 'Overview', icon: <HeartPulse size={16} /> },
@@ -79,12 +81,14 @@ export default function DashboardTabs({
   userId,
   memberCardData,
   isFamily = false,
+  initialTab = 'overview',
 }: DashboardTabsProps) {
-  const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
   // White-label sites get their own mark beside "Dashboard"; a hardcoded
   // brand icon here is how a partner site ended up showing another brand's tooth.
   const site = useSiteThemeOptional()?.site;
-  const dashboardIcon = site?.branding?.faviconUrl || '/health-assets/IdealLogo.png';
+  const isPrimary = !site || site.slug === 'ideal-health' || site.slug === 'ryze-health';
+  const dashboardIcon = site?.branding?.faviconUrl || site?.branding?.logoUrl || (isPrimary ? '/health-assets/IdealLogo.png' : undefined);
   const dashboardIconAlt = site?.name || 'Ideal Health';
 
   return (
@@ -105,7 +109,7 @@ export default function DashboardTabs({
           onClick={() => setActiveTab('overview')}
           style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
         >
-          <div
+          {dashboardIcon && <div
             style={{
               width: '40px',
               height: '40px',
@@ -113,7 +117,7 @@ export default function DashboardTabs({
             }}
           >
             <img src={dashboardIcon} alt={dashboardIconAlt} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-          </div>
+          </div>}
           <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>Dashboard</h2>
         </button>
         <div style={{ textAlign: 'right' }}>

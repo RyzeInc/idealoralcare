@@ -12,6 +12,13 @@ const nextConfig: NextConfig = {
   // listing it here makes Next require() it at runtime instead.
   serverExternalPackages: ["ssh2", "ssh2-sftp-client"],
   outputFileTracingIncludes: {
+    // Member-only vendor letters contain access codes. Bundle them with the
+    // renderer rather than serving them as unauthenticated public assets.
+    "/api/documents": ["./server-assets/packets/essentials/*"],
+    "/api/generate-essentials-pdf": ["./server-assets/packets/essentials/*"],
+    "/api/stripe/webhook": ["./server-assets/packets/essentials/*"],
+    "/api/debug/pdf-preview": ["./server-assets/packets/essentials/*"],
+    "/api/test-email": ["./server-assets/packets/essentials/*"],
     "/api/admin/eligibility-guide": ["./docs/eligibility-companion/program-manager-guide.pdf"],
   },
 

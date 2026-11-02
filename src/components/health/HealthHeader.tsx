@@ -19,6 +19,9 @@ import { api } from "@/convex/_generated/api";
 import IdealHealthWordmark from "./NexusHealthWordmark";
 import MemberPortalButton from "@/components/auth/MemberPortalButton";
 import styles from "./health-header.module.css";
+import { useSiteThemeOptional } from "@/components/providers/SiteThemeProvider";
+import { isSiteMarketingEnabled } from "@/convex/lib/siteMarketing";
+import { useHydrated } from "@/lib/use-hydrated";
 
 interface HealthHeaderProps {
   /** Show cart icon with item count */
@@ -30,17 +33,21 @@ export default function HealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
   const { isSignedIn } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-  const [isMounted, setIsMounted] = useState(false);
+  const isMounted = useHydrated();
 
   // Drop the Shop link when the storefront is switched off, so the nav never
   // points at a 404. Undefined means still loading: keep the link, because the
   // shop is on in the ordinary case and a link that blinks in on every page
   // load is worse than one that briefly outlives a switch-off.
-  const shopEnabled = useQuery(api.shop.queries.isEnabled) !== false;
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const theme = useSiteThemeOptional();
+  const globalShopEnabled = useQuery(api.shop.queries.isEnabled) !== false;
+  const shopEnabled = globalShopEnabled && (pathname.startsWith("/health/") || pathname === "/health" || theme?.site?.shopEnabled === true);
+  const services = [
+    { feature: "oralScan", path: "oral-health-scan", label: "Oral Health Scan" },
+    { feature: "teledentistry", path: "teledentistry", label: "Teledentistry" },
+    { feature: "dentalDiscount", path: "discount", label: "Dental Discount Network" },
+  ] as const;
+  const visibleServices = theme?.isLoading ? [] : services.filter(service => isSiteMarketingEnabled(theme?.site?.marketing, service.feature));
 
   // Lock background scroll while the mobile menu is open so the page
   // doesn't slide around behind the menu — a common source of confusion.
@@ -54,8 +61,6 @@ export default function HealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
 
   // Compute the base path segment so all links work for any brand route
   const basePath = `/${pathname.split('/')[1]}`;
-
-  const resourceCenterHref = isSignedIn ? `${basePath}/dashboard` : `${basePath}/resources`;
 
   // Determine if Explore Plans should be highlighted
   const isPlansActive = pathname.startsWith(`${basePath}/plans`) ||
@@ -87,17 +92,15 @@ export default function HealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
         <nav className={styles.desktopNav}>
           <ul className="nav-list">
             {/* Services Dropdown */}
-            <li className="nav-item nav-item--dropdown">
+            {visibleServices.length > 0 && <li className="nav-item nav-item--dropdown">
               <a href="#" className="nav-link nav-link--dropdown">Services</a>
               <div className="dropdown-menu">
                 <p className="dropdown-description">Explore our oral health services.</p>
                 <ul className="dropdown-list">
-                  <li><Link href={`${basePath}/oral-health-scan`}>Oral Health Scan</Link></li>
-                  <li><Link href={`${basePath}/teledentistry`}>Teledentistry</Link></li>
-                  <li><Link href={`${basePath}/discount`}>Dental Discount Network</Link></li>
+                  {visibleServices.map(service => <li key={service.feature}><Link href={`${basePath}/${service.path}`}>{service.label}</Link></li>)}
                 </ul>
               </div>
-            </li>
+            </li>}
 
             {/* Shop — deliberately its own item, not under Services. Services
                 are plan benefits; the shop is outbound affiliate retail and
@@ -212,7 +215,7 @@ export default function HealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
               </div>
 
               {/* Services Mobile Dropdown */}
-              <div className={styles.mobileMenuSection}>
+              {visibleServices.length > 0 && <div className={styles.mobileMenuSection}>
                 <button
                   onClick={() => toggleDropdown('services')}
                   className={styles.mobileMenuToggle}
@@ -222,18 +225,10 @@ export default function HealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
                 </button>
                 <div className={`${styles.mobileMenuDropdown} ${openDropdown === 'services' ? styles.open : ''}`}>
                   <div>
-                    <Link href={`${basePath}/oral-health-scan`} onClick={closeMenu} className={styles.mobileMenuLink}>
-                      Oral Health Scan
-                    </Link>
-                    <Link href={`${basePath}/teledentistry`} onClick={closeMenu} className={styles.mobileMenuLink}>
-                      Teledentistry
-                    </Link>
-                    <Link href={`${basePath}/discount`} onClick={closeMenu} className={styles.mobileMenuLink}>
-                      Dental Discount Network
-                    </Link>
+                    {visibleServices.map(service => <Link key={service.feature} href={`${basePath}/${service.path}`} onClick={closeMenu} className={styles.mobileMenuLink}>{service.label}</Link>)}
                   </div>
                 </div>
-              </div>
+              </div>}
 
               {/* Shop — outside the Services group on purpose (see desktop nav) */}
               {shopEnabled && (

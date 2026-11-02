@@ -1,3 +1,4 @@
+import { resolveBflMemberCode } from "./bflCodes";
 /**
  * EMAIL TEMPLATE REGISTRY — the single source of truth for every email we send.
  *
@@ -13,7 +14,6 @@ import { getBaseUrl } from "./env";
 import { BFL_BRAND } from "./bflBrand";
 import {
   ESSENTIALS_BFL_GROUP_NUMBER,
-  ESSENTIALS_BFL_MEMBER_CODE,
   ESSENTIALS_RX_BIN,
   ESSENTIALS_RX_GROUP,
   ESSENTIALS_RX_PCN,
@@ -368,6 +368,7 @@ function benefitsReadyHtml(data: BenefitsReadyEmailData): string {
 }
 
 export interface EssentialsFulfillmentEmailData {
+  bflMemberCode?: string;
   memberFirstName: string;
   essentialsMemberNumber: string;
   essentialsGroupNumber: string;
@@ -488,7 +489,7 @@ function essentialsFulfillmentHtml(data: EssentialsFulfillmentEmailData): string
           GREEN,
           [
             "Call <strong>833-354-2691</strong> (TTD/TTY same number) any time, day or night.",
-            `Or visit <a href="https://balanceforlifebh.com" style="color: #35C48A; text-decoration: none;">balanceforlifebh.com</a> and give Group Number <strong>${ESSENTIALS_BFL_GROUP_NUMBER}</strong> or Member Code <strong>${ESSENTIALS_BFL_MEMBER_CODE}</strong>.`,
+            `Or visit <a href="https://balanceforlifebh.com" style="color: #35C48A; text-decoration: none;">balanceforlifebh.com</a> and give Group Number <strong>${ESSENTIALS_BFL_GROUP_NUMBER}</strong> or Member Code <strong>${escapeHtml(resolveBflMemberCode(data))}</strong>.`,
             "Download the Balance for Life app on the App Store or Google Play to reach a counselor and Zenn, the 24/7 AI wellness companion.",
           ],
           "Up to 10 no-cost counseling sessions per incident, life coaching, and mindfulness support.",
@@ -515,6 +516,7 @@ function essentialsFulfillmentHtml(data: EssentialsFulfillmentEmailData): string
 }
 
 export interface BflFulfillmentEmailData {
+  bflMemberCode?: string;
   memberFirstName: string;
   essentialsMemberNumber: string;
   planName: string;
@@ -555,7 +557,7 @@ function bflFulfillmentHtml(data: BflFulfillmentEmailData): string {
             ${row("Member Number", data.essentialsMemberNumber)}
             ${row("Plan", data.planName)}
             ${row("Balance for Life Group", ESSENTIALS_BFL_GROUP_NUMBER)}
-            ${row("Member Code", ESSENTIALS_BFL_MEMBER_CODE)}
+            ${row("Member Code", escapeHtml(resolveBflMemberCode(data)))}
             ${row("Effective Date", data.effectiveDate, true)}
           </table>
         </div>
@@ -565,7 +567,7 @@ function bflFulfillmentHtml(data: BflFulfillmentEmailData): string {
           <ol style="margin: 0; padding: 0 0 0 20px; font-size: 13px; line-height: 2.0; color: #374151;">
             <li>Download the <strong>Balance for Life app</strong> on the App Store or Google Play &mdash; Zenn, your AI wellness companion, is there 24/7, and a licensed counselor is one tap away.</li>
             <li>Or call <strong>833-354-2691</strong> (TTD/TTY same number) any time, day or night.</li>
-            <li>Or visit <a href="https://www.balanceforlifebh.com" style="color: ${TEAL}; text-decoration: none;">balanceforlifebh.com</a>. Give Member Code <strong>${ESSENTIALS_BFL_MEMBER_CODE}</strong> (Group <strong>${ESSENTIALS_BFL_GROUP_NUMBER}</strong>) when asked.</li>
+            <li>Or visit <a href="https://www.balanceforlifebh.com" style="color: ${TEAL}; text-decoration: none;">balanceforlifebh.com</a>. Give Member Code <strong>${escapeHtml(resolveBflMemberCode(data))}</strong> (Group <strong>${ESSENTIALS_BFL_GROUP_NUMBER}</strong>) when asked.</li>
           </ol>
         </div>
 

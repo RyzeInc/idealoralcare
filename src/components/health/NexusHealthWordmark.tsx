@@ -12,7 +12,8 @@ export default function IdealHealthWordmark() {
   const themeCtx = useSiteThemeOptional();
   const site = themeCtx?.site;
 
-  const logoSrc = site?.branding?.logoUrl || '/ideal-oral-health-logo.png';
+  const useDefaultLogo = !themeCtx?.isLoading && (!site || site.slug === 'ideal-health' || site.slug === 'ryze-health');
+  const logoSrc = site?.branding?.logoUrl || (useDefaultLogo ? '/ideal-oral-health-logo.png' : undefined);
   const logoWidth = site?.branding?.logoWidth || 136;
   const altText = site?.name || 'Oral Health Plan';
 
@@ -22,7 +23,7 @@ export default function IdealHealthWordmark() {
       className={styles.wordmark}
       style={{ '--wordmark-width': `${logoWidth}px` } as CSSProperties}
     >
-      <Image
+      {logoSrc ? <Image
         src={logoSrc}
         alt={altText}
         width={logoWidth}
@@ -31,7 +32,7 @@ export default function IdealHealthWordmark() {
         quality={100}
         unoptimized
         priority
-      />
+      /> : <span style={{ color: 'var(--brand-primary)', fontSize: '1.25rem', fontWeight: 700 }}>{site?.name || 'Oral Health Plan'}</span>}
     </a>
   );
 }

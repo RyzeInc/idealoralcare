@@ -23,7 +23,7 @@ import {
   type EssentialsPacketData,
 } from "@/lib/essentials-packet-pdf";
 import { isBflSlug, isMembershipProgramSlug } from "@/convex/lib/productSlugs";
-import { essentialsAppendPaths } from "@/lib/essentials-packet-assets";
+import { essentialsAppendPaths, bflAppQrData } from "@/lib/essentials-packet-assets";
 import { mergePdfs } from "@/lib/pdf-merge";
 import { PROVIDER_GROUP_CODE } from "@/lib/constants";
 
@@ -86,6 +86,8 @@ export async function GET(req: NextRequest) {
       memberEmail: user.emailAddresses[0]?.emailAddress ?? "",
       essentialsMemberNumber: memberProfile?.essentialsMemberNumber ?? "—",
       essentialsGroupNumber: memberProfile?.essentialsGroupNumber ?? "—",
+      bflMemberCode: memberProfile?.bflMemberCode,
+      ...bflAppQrData({ bflMemberCode: memberProfile?.bflMemberCode }),
       planName: memberProfile?.planName ?? (isBfl ? "Balance for Life" : "Essentials Plan"),
       program: isBfl ? "bfl" : "essentials",
       coverageType: essentialsCoverageLabel(memberProfile?.productSlug),
@@ -122,7 +124,7 @@ export async function GET(req: NextRequest) {
         chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
       }
       let buffer: Buffer = Buffer.concat(chunks);
-      if (key === "packet") buffer = await mergePdfs(buffer, essentialsAppendPaths());
+      if (key === "packet") buffer = await mergePdfs(buffer, essentialsAppendPaths(essentialsData));
 
       return new NextResponse(buffer as unknown as BodyInit, {
         status: 200,

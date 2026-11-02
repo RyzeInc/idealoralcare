@@ -9,7 +9,7 @@ import {
   EssentialsMembershipAgreementPdf,
   type EssentialsPacketData,
 } from "@/lib/essentials-packet-pdf";
-import { essentialsAppendPaths } from "@/lib/essentials-packet-assets";
+import { essentialsAppendPaths, bflAppQrData } from "@/lib/essentials-packet-assets";
 import { mergePdfs } from "@/lib/pdf-merge";
 
 /**
@@ -28,6 +28,7 @@ export async function generateEssentialsPdfs(
   if (!data.memberName || !data.essentialsMemberNumber || !data.effectiveDate) {
     throw new Error("memberName, essentialsMemberNumber, and effectiveDate are required");
   }
+  data = { ...data, ...bflAppQrData(data) };
 
   // Embed the logo as a base64 data URI for @react-pdf/renderer
   if (!data.logoDataUri) {
@@ -45,7 +46,7 @@ export async function generateEssentialsPdfs(
   }
 
   const packetDoc = createElement(EssentialsPacketPdf, { data }) as unknown as ReactElement<DocumentProps>;
-  const packetBuffer = await mergePdfs(await toBuffer(packetDoc), essentialsAppendPaths());
+  const packetBuffer = await mergePdfs(await toBuffer(packetDoc), essentialsAppendPaths(data));
 
   const agreementDoc = createElement(EssentialsMembershipAgreementPdf, {
     data,

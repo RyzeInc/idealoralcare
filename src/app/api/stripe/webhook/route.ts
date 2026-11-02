@@ -427,6 +427,7 @@ export async function POST(req: NextRequest) {
                   memberEmail,
                   essentialsMemberNumber: cardData.essentialsMemberNumber,
                   essentialsGroupNumber: cardData.essentialsGroupNumber,
+                  bflMemberCode: cardData.bflMemberCode,
                   planName: cardData.planName,
                   coverageType: essentialsCoverageLabel(cardData.productSlug),
                   effectiveDate: cardData.effectiveDate,

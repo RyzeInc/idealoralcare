@@ -16,9 +16,11 @@
  * console.log(site.name); // "Ideal Health"
  */
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import React, { createContext, useContext, useEffect, ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import type { SiteMarketing } from "@/convex/lib/siteMarketing";
 
 // Path segments that are never site slugs
 const NON_SITE_SEGMENTS = new Set([
@@ -58,6 +60,7 @@ export interface SiteTheme {
     heroImageUrl?: string;
     customCSS?: string;
     footerText?: string;
+    informationEmail?: string;
   };
   allowedPlanIds?: string[];
   /**
@@ -65,6 +68,8 @@ export interface SiteTheme {
    * `promoLinks` on the sites table — see convex/lib/promoLinks.ts.
    */
   promoLinks?: SitePromoLink[];
+  marketing?: SiteMarketing;
+  shopEnabled?: boolean;
   defaultCadence?: "monthly" | "annual";
   defaultPaymentMethod?: "card" | "ach";
   enrollmentDefaults?: {
@@ -103,8 +108,9 @@ export function SiteThemeProvider({
   children,
   defaultSlug,
 }: SiteThemeProviderProps) {
-  const [siteSlug, setSiteSlug] = useState(defaultSlug ?? "");
-  const [isLoading, setIsLoading] = useState(true);
+  const pathname = usePathname();
+  const segment = pathname?.split("/")[1];
+  const siteSlug = defaultSlug ?? (segment && !NON_SITE_SEGMENTS.has(segment) ? segment : "");
 
   // Only query when we have a slug
   const site = useQuery(
@@ -114,21 +120,16 @@ export function SiteThemeProvider({
 
   const siteTheme = site as unknown as SiteTheme | null | undefined;
 
-  // If no explicit slug was passed, try to resolve from the URL path
-  useEffect(() => {
-    if (!defaultSlug) {
-      const segment = window.location.pathname.split("/")[1];
-      if (segment && !NON_SITE_SEGMENTS.has(segment)) {
-        setSiteSlug(segment);
-      }
-    }
-    setIsLoading(false);
-  }, [defaultSlug]);
-
   // Inject CSS custom properties when site loads
   useEffect(() => {
     if (siteTheme) {
       const root = document.documentElement;
+      const propertyNames = ["--brand-primary", "--brand-secondary", "--brand-accent", "--brand-logo-url"];
+      const previousProperties = propertyNames.map(name => [name, root.style.getPropertyValue(name), root.style.getPropertyPriority(name)]);
+      const previousTitle = document.title;
+      const icon = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
+      const previousIcon = icon?.getAttribute("href");
+      let customStyle: HTMLStyleElement | undefined;
 
       root.style.setProperty("--brand-primary", siteTheme.branding?.primaryColor || "#1e3a5f");
       root.style.setProperty("--brand-secondary", siteTheme.branding?.secondaryColor || "#14b8a6");
@@ -139,24 +140,30 @@ export function SiteThemeProvider({
       }
 
       if (siteTheme.branding?.faviconUrl) {
-        const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-        if (link) link.href = siteTheme.branding.faviconUrl;
+        if (icon) icon.href = siteTheme.branding.faviconUrl;
       }
 
       if (siteTheme.branding?.customCSS) {
-        const styleId = "site-custom-styles";
-        let style = document.getElementById(styleId) as HTMLStyleElement;
-        if (!style) {
-          style = document.createElement("style");
-          style.id = styleId;
-          document.head.appendChild(style);
-        }
-        style.textContent = siteTheme.branding.customCSS;
+        customStyle = document.createElement("style");
+        customStyle.dataset.siteTheme = siteTheme.slug;
+        customStyle.textContent = siteTheme.branding.customCSS;
+        document.head.appendChild(customStyle);
       }
 
       if (siteTheme.name) {
         document.title = siteTheme.name;
       }
+
+      return () => {
+        for (const [name, value, priority] of previousProperties) {
+          if (value) root.style.setProperty(name, value, priority);
+          else root.style.removeProperty(name);
+        }
+        customStyle?.remove();
+        if (icon && previousIcon != null) icon.setAttribute("href", previousIcon);
+        else if (icon) icon.removeAttribute("href");
+        document.title = previousTitle;
+      };
     }
   }, [siteTheme]);
 
@@ -164,8 +171,8 @@ export function SiteThemeProvider({
     <SiteThemeContext.Provider
       value={{
         site: siteTheme || null,
-        isLoading: isLoading && !siteTheme,
-        error: siteTheme === undefined && !isLoading ? "Site not found" : undefined,
+        isLoading: Boolean(siteSlug) && siteTheme === undefined,
+        error: siteTheme === null ? "Site not found" : undefined,
       }}
     >
       {children}

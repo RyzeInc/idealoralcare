@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { isReservedPath } from "@/lib/rep-routing/reserved";
+import { memberSignInPath } from "@/lib/site-links";
 
 /**
  * ROUTE PROTECTION PROXY (Clerk Middleware)
@@ -143,7 +144,7 @@ export default clerkMiddleware(async (auth, request) => {
     if (!userId) {
       const signInPath = request.nextUrl.pathname.startsWith("/employer")
         ? "/employer/sign-in"
-        : SIGN_IN_URL;
+        : memberSignInPath(request.nextUrl.pathname, SIGN_IN_URL);
       const signInUrl = new URL(signInPath, request.url);
       // A path, not request.url: the sign-in page refuses absolute URLs so an
       // attacker cannot use this parameter to bounce a newly signed-in session

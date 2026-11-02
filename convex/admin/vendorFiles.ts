@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { api } from "../_generated/api";
 import { requireAccess, requireAccessAction } from "../lib/authGuards";
 import { PROVIDER_GROUP_CODE } from "../lib/constants";
+import { validatePipeEligibility } from "../lib/careingtonEligibility";
 
 /**
  * VENDOR FILE GENERATION
@@ -202,7 +203,12 @@ function validateCareingtonRows(
   rows: string[],
   opts: { requireEmail?: boolean } = {}
 ): { errors: string[]; warnings: string[] } {
-  const errors: string[] = [];
+  const errors: string[] = validatePipeEligibility(rows.join("\n"), {
+    requireEmail: opts.requireEmail === true,
+    // Existing members can have historical mid-month activation dates. Do not
+    // rewrite those dates or apply the new intake convention retroactively.
+    requireFirstOfMonth: false,
+  }).map(issue => issue.message);
   const warnings: string[] = [];
   const REQUIRED_FIELDS = 28;
   const seenTuples = new Set<string>();

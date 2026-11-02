@@ -24,11 +24,13 @@ import {
   KeyRound,
 } from "lucide-react";
 import HealthHeader from "@/components/health/HealthHeader";
+import { useMemberBasePath } from "@/lib/use-member-base-path";
 import "@/app/health/health.css";
 
 type Step = "email" | "verify";
 
 export default function ForgotPasswordPage() {
+  const basePath = useMemberBasePath();
   const router = useRouter();
   const { signIn, setActive, isLoaded } = useSignIn();
 
@@ -95,7 +97,7 @@ export default function ForgotPasswordPage() {
 
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        router.push("/health/dashboard");
+        router.push(`${basePath}/dashboard`);
       } else {
         setError("Verification failed. Please check your code and try again.");
       }
@@ -118,7 +120,7 @@ export default function ForgotPasswordPage() {
       >
         <div className="container" style={{ textAlign: "center" }}>
           <Link
-            href="/health/sign-in"
+            href={`${basePath}/sign-in`}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -429,7 +431,7 @@ export default function ForgotPasswordPage() {
           {/* Back to sign in */}
           <div style={{ textAlign: "center", marginTop: "2rem" }}>
             <Link
-              href="/health/sign-in"
+              href={`${basePath}/sign-in`}
               style={{ color: "#0066CC", textDecoration: "none", fontWeight: 500, fontSize: "0.9rem" }}
             >
               ← Back to Sign In

@@ -17,7 +17,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import HealthHeader from "@/components/health/HealthHeader";
 import SitePromoLinks from "@/components/health/SitePromoLinks";
-import { CartProvider, useCart } from "@/lib/health-plans";
+import { useCart } from "@/lib/health-plans";
 import { formatPrice, getPrice } from "@/lib/health-plans/types";
 import { CadenceModal } from "@/components/health/catalog";
 import { useBrandName, rebrand } from "@/lib/branding";
@@ -783,10 +783,8 @@ function PlansContent() {
 
 export default function PlansPage() {
   return (
-    <CartProvider>
       <Suspense>
         <PlansContent />
       </Suspense>
-    </CartProvider>
   );
 }

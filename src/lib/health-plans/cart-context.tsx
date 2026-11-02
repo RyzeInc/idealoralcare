@@ -83,7 +83,12 @@ const defaultCart: CartState = {
 
 const CartContext = createContext<CartContextType | null>(null);
 
-export function CartProvider({ children }: { children: React.ReactNode }) {
+export function CartProvider({ children, storageNamespace }: { children: React.ReactNode; storageNamespace?: string }) {
+  // White-label brands keep separate carts on the same host. The original keys
+  // remain in use for /health and /newideal to preserve their existing storage.
+  const cartStorageKey = storageNamespace ? `${STORAGE_KEY}:${storageNamespace}` : STORAGE_KEY;
+  const cadenceStorageKey = storageNamespace ? `${CADENCE_SELECTED_KEY}:${storageNamespace}` : CADENCE_SELECTED_KEY;
+  const sessionStorageKey = storageNamespace ? `${SESSION_ID_KEY}:${storageNamespace}` : SESSION_ID_KEY;
   const [cart, setCart] = useState<CartState>(defaultCart);
   const [isLoaded, setIsLoaded] = useState(false);
   const [showCadenceModal, setShowCadenceModal] = useState(false);
@@ -101,7 +106,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     try {
       const pathname = window.location.pathname;
       const currentNamespace = getCartNamespace(pathname);
-      const previousNamespace = localStorage.getItem(CART_NAMESPACE_KEY);
+      const previousNamespace = storageNamespace ? null : localStorage.getItem(CART_NAMESPACE_KEY);
       const switchedBetweenHealthSites =
         previousNamespace &&
         previousNamespace !== currentNamespace &&
@@ -109,16 +114,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         ["health", "newideal"].includes(currentNamespace);
 
       if (switchedBetweenHealthSites) {
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(CADENCE_SELECTED_KEY);
-        localStorage.removeItem(SESSION_ID_KEY);
+        localStorage.removeItem(cartStorageKey);
+        localStorage.removeItem(cadenceStorageKey);
+        localStorage.removeItem(sessionStorageKey);
       }
 
-      localStorage.setItem(CART_NAMESPACE_KEY, currentNamespace);
+      if (!storageNamespace) localStorage.setItem(CART_NAMESPACE_KEY, currentNamespace);
 
-      const stored = localStorage.getItem(STORAGE_KEY);
-      const cadenceSelected = localStorage.getItem(CADENCE_SELECTED_KEY) === "true";
-      const savedSessionId = localStorage.getItem(SESSION_ID_KEY);
+      const stored = localStorage.getItem(cartStorageKey);
+      const cadenceSelected = localStorage.getItem(cadenceStorageKey) === "true";
+      const savedSessionId = localStorage.getItem(sessionStorageKey);
       
       if (stored) {
         const parsed = JSON.parse(stored);
@@ -153,18 +158,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }
     } catch {
       // Invalid storage, reset
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(CADENCE_SELECTED_KEY);
-      localStorage.removeItem(SESSION_ID_KEY);
-      localStorage.removeItem(CART_NAMESPACE_KEY);
+      localStorage.removeItem(cartStorageKey);
+      localStorage.removeItem(cadenceStorageKey);
+      localStorage.removeItem(sessionStorageKey);
+      if (!storageNamespace) localStorage.removeItem(CART_NAMESPACE_KEY);
     }
     setIsLoaded(true);
-  }, []);
+  }, [cartStorageKey, cadenceStorageKey, sessionStorageKey, storageNamespace]);
   
   // Persist to localStorage on changes
   useEffect(() => {
     if (isLoaded) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(cart));
+      localStorage.setItem(cartStorageKey, JSON.stringify(cart));
       
       // TODO: Sync to Convex cartSessions when checkout API is ready
       // if (sessionId) {
@@ -181,14 +186,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       //   }
       // }
     }
-  }, [cart, isLoaded, sessionId]);
+  }, [cart, isLoaded, sessionId, cartStorageKey]);
   
   // Add item to cart
   const addItem = useCallback((product: CatalogProduct) => {
     // If cadence not selected yet, automatically set to monthly and mark as selected
     if (!hasSelectedCadence) {
       setHasSelectedCadence(true);
-      localStorage.setItem(CADENCE_SELECTED_KEY, "true");
+      localStorage.setItem(cadenceStorageKey, "true");
       setShowCadenceModal(false);
       // Continue to add the item below
     }
@@ -224,7 +229,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       
       return newCart;
     });
-  }, [hasSelectedCadence, sessionId]);
+  }, [hasSelectedCadence, sessionId, cadenceStorageKey]);
   
   // Remove item from cart
   const removeItem = useCallback((productId: string) => {
@@ -269,7 +274,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   // Confirm cadence selection
   const confirmCadence = useCallback(() => {
     setHasSelectedCadence(true);
-    localStorage.setItem(CADENCE_SELECTED_KEY, "true");
+    localStorage.setItem(cadenceStorageKey, "true");
     setShowCadenceModal(false);
     
     // Check for pending add
@@ -278,7 +283,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem("ideal-pending-add");
       // Note: caller should re-trigger addItem with the product
     }
-  }, []);
+  }, [cadenceStorageKey]);
   
   // Request cadence change (shows warning if cart not empty)
   const requestCadenceChange = useCallback(() => {

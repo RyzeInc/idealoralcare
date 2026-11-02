@@ -9,6 +9,10 @@ import { Plus, Edit, Trash2, X, Info, Users, ChevronDown, ChevronRight, Palette,
 import { useToast, Breadcrumbs, RequiredMark, Tooltip } from '@/components/admin/ui';
 import { useEffect, useRef } from 'react';
 import { PROVIDER_GROUP_CODE } from '@/lib/constants';
+import { SiteMarketingSettings } from '@/components/admin/SiteMarketingSettings';
+import { SiteEnrollmentLinks } from '@/components/admin/SiteEnrollmentLinks';
+import type { SiteMarketing } from '@/convex/lib/siteMarketing';
+import { ASSUREVANTAGE_PRESET } from '@/lib/site-presets';
 import {
   PROMO_PLACEMENTS,
   PROMO_PLACEMENT_LABELS,
@@ -305,7 +309,8 @@ function GroupsList({ groups, accounts, sites }: { groups: any[]; accounts: any[
 function CreateSiteModal({ onClose }: { onClose: () => void }) {
   const createSite = useMutation(api.admin.hierarchy.createSite);
   const toast = useToast();
-  const [form, setForm] = useState({ slug: '', name: '', type: 'primary' as const, domain: '' });
+  const [form, setForm] = useState<{ slug: string; name: string; type: 'primary' | 'whitelabel' | 'channel'; domain: string }>({ slug: '', name: '', type: 'primary', domain: '' });
+  const [useAssureArtwork, setUseAssureArtwork] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const handleSave = async (e: React.FormEvent) => {
@@ -318,6 +323,7 @@ function CreateSiteModal({ onClose }: { onClose: () => void }) {
         name: form.name,
         type: form.type,
         domain: form.domain || undefined,
+        ...(useAssureArtwork ? { branding: ASSUREVANTAGE_PRESET.branding, status: 'onboarding' as const } : {}),
       });
       onClose();
     } catch (err) {
@@ -330,6 +336,17 @@ function CreateSiteModal({ onClose }: { onClose: () => void }) {
   return (
     <ModalWrapper title="Create Site" onClose={onClose}>
       <form onSubmit={handleSave} className="space-y-4">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+          <button type="button" className="font-medium text-blue-700" onClick={() => {
+            setForm({ slug: ASSUREVANTAGE_PRESET.slug, name: ASSUREVANTAGE_PRESET.name, type: ASSUREVANTAGE_PRESET.type, domain: '' });
+            setUseAssureArtwork(true);
+          }}>Use supplied AssureVantage branding</button>
+          {useAssureArtwork && <>
+            <img src={ASSUREVANTAGE_PRESET.branding.logoUrl} alt="AssureVantage logo" className="my-2 w-44" />
+            <p className="text-xs text-slate-600">Creates a separate site in Onboarding with the supplied logo and tagline. No domain or changes to existing groups are included.</p>
+            <button type="button" className="mt-2 text-xs text-slate-600 underline" onClick={() => setUseAssureArtwork(false)}>Use manual branding instead</button>
+          </>}
+        </div>
         <Field label="Name" value={form.name} onChange={v => setForm({ ...form, name: v })} required />
         <Field label="Slug" value={form.slug} onChange={v => setForm({ ...form, slug: v })} required placeholder="e.g. ideal-oral-health" />
         <div>
@@ -382,9 +399,11 @@ function EditSiteModal({ site, onClose }: { site: any; onClose: () => void }) {
   const toast = useToast();
   const [uploading, setUploading] = useState({ logo: false, favicon: false });
 
-  type WizardTab = 'identity' | 'branding' | 'enrollment' | 'integrations';
+  type WizardTab = 'identity' | 'branding' | 'marketing' | 'enrollment' | 'integrations';
   const [activeTab, setActiveTab] = useState<WizardTab>('identity');
   const [saving, setSaving] = useState(false);
+  const [marketing, setMarketing] = useState<SiteMarketing>(site.marketing ?? {});
+  const [shopEnabled, setShopEnabled] = useState(site.shopEnabled ?? false);
 
   const [identity, setIdentity] = useState({
     name: site.name || '',
@@ -403,6 +422,7 @@ function EditSiteModal({ site, onClose }: { site: any; onClose: () => void }) {
     heroHeadline: site.branding?.heroHeadline || '',
     heroSubtext: site.branding?.heroSubtext || '',
     footerText: site.branding?.footerText || '',
+    informationEmail: site.branding?.informationEmail || '',
     customCSS: site.branding?.customCSS || '',
   });
 
@@ -563,7 +583,10 @@ function EditSiteModal({ site, onClose }: { site: any; onClose: () => void }) {
         domain: identity.domain || undefined,
         type: identity.type,
         status: identity.status,
+        marketing,
+        shopEnabled,
         branding: {
+          ...site.branding,
           logoUrl: branding.logoUrl || undefined,
           logoWidth: branding.logoWidth || undefined,
           faviconUrl: branding.faviconUrl || undefined,
@@ -573,6 +596,7 @@ function EditSiteModal({ site, onClose }: { site: any; onClose: () => void }) {
           heroHeadline: branding.heroHeadline || undefined,
           heroSubtext: branding.heroSubtext || undefined,
           footerText: branding.footerText || undefined,
+          informationEmail: branding.informationEmail.trim() || undefined,
           customCSS: branding.customCSS || undefined,
         },
         // Blank rows are how an admin clears a promo, so drop them rather than
@@ -628,13 +652,14 @@ function EditSiteModal({ site, onClose }: { site: any; onClose: () => void }) {
   const TABS: { id: WizardTab; label: string; Icon: React.ElementType }[] = [
     { id: 'identity', label: 'Identity', Icon: Building2 },
     { id: 'branding', label: 'Branding', Icon: Palette },
+    { id: 'marketing', label: 'Marketing', Icon: Settings },
     { id: 'enrollment', label: 'Enrollment', Icon: Settings },
     { id: 'integrations', label: 'Integrations', Icon: Plug },
   ];
 
   return (
     <ModalWrapper title={`Brand Config: ${site.name}`} onClose={onClose} wide="2xl">
-      <div className="flex gap-1 border-b border-slate-200 -mx-6 px-6 mb-5">
+      <div className="flex flex-wrap gap-1 border-b border-slate-200 -mx-6 px-6 mb-5">
         {TABS.map(({ id, label, Icon }) => (
           <button
             key={id}
@@ -677,6 +702,8 @@ function EditSiteModal({ site, onClose }: { site: any; onClose: () => void }) {
 
         {activeTab === 'branding' && (
           <>
+            {site.slug === ASSUREVANTAGE_PRESET.slug && <button type="button" className="text-sm text-blue-700 underline" onClick={() => setBranding(current => ({ ...current, ...ASSUREVANTAGE_PRESET.branding }))}>Use supplied AssureVantage logo, colors and tagline</button>}
+            <Field label="Information Request Email" value={branding.informationEmail} onChange={v => setBranding(current => ({ ...current, informationEmail: v }))} placeholder="info@yourbrand.com" tooltip="Shown separately from member support. This does not change the email sender or support address." />
             {/* Logo upload */}
             <div>
               <LabelRow label="Logo" tooltip="PNG or SVG. Resized to max 400×150. A 64×64 favicon is auto-generated from this if none is set." />
@@ -869,8 +896,14 @@ function EditSiteModal({ site, onClose }: { site: any; onClose: () => void }) {
           </>
         )}
 
+        {activeTab === 'marketing' && (
+          <SiteMarketingSettings value={marketing} onChange={setMarketing}
+            shopEnabled={shopEnabled} onShopChange={setShopEnabled} isPrimary={site.slug === 'ideal-health' || site.slug === 'ryze-health'} />
+        )}
+
         {activeTab === 'enrollment' && (
           <>
+            <SiteEnrollmentLinks siteSlug={site.slug} status={identity.status} />
             <div className="grid grid-cols-2 gap-3">
               <Field label="Support Email" value={enrollment.supportEmail} onChange={v => setEnrollment(s => ({ ...s, supportEmail: v }))} placeholder="support@yourbrand.com" />
               <Field label="Support Phone" value={enrollment.supportPhone} onChange={v => setEnrollment(s => ({ ...s, supportPhone: v }))} placeholder="(800) 000-0000" />
@@ -1194,6 +1227,7 @@ function EditGroupModal({ group, accounts, onClose }: { group: any; accounts: an
     description: group.description || '',
     groupCode: group.groupCode || '',
     organizationCode: group.organizationCode || '',
+    bflMemberCode: group.bflMemberCode || '',
     maxMembers: String(group.maxMembers ?? ''),
     effectiveDate: group.effectiveDate ? new Date(group.effectiveDate).toISOString().slice(0, 10) : '',
     terminationDate: group.terminationDate ? new Date(group.terminationDate).toISOString().slice(0, 10) : '',
@@ -1218,6 +1252,7 @@ function EditGroupModal({ group, accounts, onClose }: { group: any; accounts: an
         description: form.description || undefined,
         groupCode: form.groupCode || undefined,
         organizationCode: form.organizationCode || undefined,
+        bflMemberCode: form.bflMemberCode.trim() || null,
         maxMembers: form.maxMembers ? Number(form.maxMembers) : undefined,
         effectiveDate: form.effectiveDate ? new Date(form.effectiveDate).getTime() : undefined,
         terminationDate: form.terminationDate ? new Date(form.terminationDate).getTime() : undefined,
@@ -1248,6 +1283,7 @@ function EditGroupModal({ group, accounts, onClose }: { group: any; accounts: an
         <Field label="Organization Name" value={form.name} onChange={(v) => setForm((f) => ({ ...f, name: v }))} />
         <Field label="Description" value={form.description} onChange={(v) => setForm((f) => ({ ...f, description: v }))} />
         <Field label="Organization Code (Subscriber ID)" value={form.organizationCode} onChange={(v) => setForm((f) => ({ ...f, organizationCode: v }))} placeholder="e.g. ACME-0042 or IDC-0001" />
+        <Field label="Balance for Life Member Code" value={form.bflMemberCode} onChange={v => setForm(current => ({ ...current, bflMemberCode: v }))} placeholder="IDEAL (default)" tooltip="Use the vendor-assigned code, such as CMG, only after confirming it for this group. Blank uses IDEAL. This is not the provider group code or the numeric Essentials group number." />
         <Field label="Provider Group Code" value={form.groupCode} onChange={(v) => setForm((f) => ({ ...f, groupCode: v }))} placeholder={`e.g. ${PROVIDER_GROUP_CODE}`} />
         <Field label="Max Members" value={form.maxMembers} onChange={(v) => setForm((f) => ({ ...f, maxMembers: v }))} placeholder="Leave blank for unlimited" />
         <div className="grid grid-cols-2 gap-3">

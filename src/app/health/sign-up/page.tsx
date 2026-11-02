@@ -20,6 +20,8 @@ import { useRouter, useSearchParams, useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Mail, Phone, Lock, Eye, EyeOff, AlertCircle, Loader, CheckCircle2, User, ShieldCheck } from "lucide-react";
 import HealthHeader from "@/components/health/HealthHeader";
+import { useMemberBasePath } from "@/lib/use-member-base-path";
+import { BrandName } from "@/components/ui/BrandName";
 import { safeReturnPath } from "@/lib/safe-redirect";
 import "@/app/health/health.css";
 
@@ -173,6 +175,7 @@ function ClerkTicketSignUpForm({ ticket }: { ticket: string }) {
 type Step = "form" | "verify";
 
 function PortalSignUpForm({ redirectTo }: { redirectTo: string }) {
+  const basePath = useMemberBasePath();
   const { signUp, isLoaded, setActive } = useSignUp();
   const router = useRouter();
 
@@ -196,7 +199,7 @@ function PortalSignUpForm({ redirectTo }: { redirectTo: string }) {
     try {
       await signUp.authenticateWithRedirect({
         strategy: "oauth_google",
-        redirectUrl: "/health/sso-callback",
+        redirectUrl: `${basePath}/sso-callback`,
         redirectUrlComplete: redirectTo,
       });
     } catch (err: any) {
@@ -400,8 +403,9 @@ function PortalSignUpForm({ redirectTo }: { redirectTo: string }) {
 
 /* ── Main page ───────────────────────────────────────────────────────────── */
 function GetStartedPage() {
+  const basePath = useMemberBasePath();
   const searchParams = useSearchParams();
-  const redirectTo = safeReturnPath(searchParams.get("redirect_url"), "/health/dashboard");
+  const redirectTo = safeReturnPath(searchParams.get("redirect_url"), `${basePath}/dashboard`);
   const clerkTicket = searchParams.get("__clerk_ticket");
   const [showPortalForm, setShowPortalForm] = useState(false);
 
@@ -410,9 +414,7 @@ function GetStartedPage() {
   const routeParams = useParams();
   const siteSlug = typeof routeParams?.siteSlug === "string" ? routeParams.siteSlug : undefined;
   const enrollHref = siteSlug ? `/${siteSlug}/checkout` : "/health/checkout";
-  const signInHref = redirectTo !== "/health/dashboard"
-    ? `/health/sign-in?redirect_url=${encodeURIComponent(redirectTo)}`
-    : "/health/sign-in";
+  const signInHref = `${basePath}/sign-in?redirect_url=${encodeURIComponent(redirectTo)}`;
 
   return (
     <div className="health-landing">
@@ -445,7 +447,7 @@ function GetStartedPage() {
             </div>
 
             <h2 style={{ fontSize: "1.5rem", fontWeight: 700, color: "#0f172a", marginBottom: "0.75rem" }}>
-              New to Ideal Health?
+              New to <BrandName />?
             </h2>
             <p style={{ color: "#475569", marginBottom: "1.75rem", lineHeight: 1.7, fontSize: "1rem" }}>
               Browse plans, add to cart, then create your account and pay — all in one checkout flow. Takes about 3 minutes.

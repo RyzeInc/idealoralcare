@@ -5,6 +5,7 @@ import { api } from "@/convex/_generated/api";
 import HealthHeader from "@/components/health/HealthHeader";
 import DashboardTabs from "@/components/health/DashboardTabs";
 import ProfileCompletionPrompt from "@/components/health/ProfileCompletionPrompt";
+import { memberDashboardTab } from "@/lib/member-dashboard";
 import "@/app/health/health.css";
 
 /**
@@ -17,7 +18,8 @@ import "@/app/health/health.css";
  * - Teledentistry: 24/7 virtual dental consultations
  */
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ tab?: string | string[] }> }) {
+  const initialTab = memberDashboardTab((await searchParams).tab);
   const user = await currentUser();
 
   // Fetch subscription and member profile data from Convex
@@ -109,6 +111,8 @@ export default async function DashboardPage() {
       <section className="section bg--white dashboard-section" style={{ paddingTop: "2rem", paddingBottom: "3rem" }}>
         <div className="container" style={{ maxWidth: "1100px" }}>
           <DashboardTabs
+            key={initialTab}
+            initialTab={initialTab}
             firstName={user?.firstName ?? null}
             email={user?.emailAddresses[0]?.emailAddress ?? null}
             fullName={user?.fullName ?? null}

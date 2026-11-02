@@ -15,10 +15,14 @@
 3. Click **Download Errors (CSV)** to get a clean list to work from (also useful to hand back to the employer if the errors are theirs to fix).
 4. Diagnose by error type:
    - **"Organization … has no Organization Code (Subscriber ID)"** — the whole file failed before processing any rows. Go to [Hierarchy](../guide/02-operations.md#hierarchy-adminhierarchy), open the destination Group, set its Organization Code, then come back and retry.
-   - **Missing required field per row** (e.g., missing DOB, missing address) — these show up as row-level issues but note they do **not** by themselves cause a `failed` status; a file can complete with these as warnings. If you see them listed, decide whether to fix the source data and re-upload, or accept the gap and move on (it'll show up again on the "Missing Census Fields" tile on the Members page later).
+   - **Pipe-file preflight issues** — `.txt` and pipe-delimited `.csv` use the same 28-field checks. Missing required address/DOB/primary email, invalid dates or field counts, duplicate member sequences, and dependent household mismatches block processing before member changes are scheduled. Correct the source and re-upload. The first 100 issues are saved to the failed file's error list. Header-based employer CSV/XLSX formats still use their existing format-specific rules.
    - **A hard processing error** (file truly malformed, unsupported layout) — re-check the file's format against **Download Template**; the parser auto-detects Careington pipe-delimited, flat CSV, employer "census" CSV, and "wide" XLSX layouts, but an unusual header set can fall through to the wrong parser.
 5. Fix what you can in the source file (or ask the employer to) and re-upload as a fresh file, **or** if it's a matter of a few rows and you're confident about the fix, use **Retry Processing** on the existing file entry — this resets its counters and reprocesses every row from scratch.
 6. **Retry Processing is safe to use liberally** — the underlying matching logic (email → Careington Unique ID → Employee ID → SSN → normalized name+DOB, in that order, scoped to the destination group) means re-processing updates existing records rather than creating duplicates.
+
+For pipe-delimited files, 28 fields means 27 pipes, including empty trailing fields. Dependents must follow their primary with the same Unique ID and Group Code. Do not fill blanks with `N/A` or `NULL`. New effective dates follow the October 21 guide's first-of-month convention. Termination dates are validated as real dates without converting them to the first of a month: the supplied guide describes them as the last covered day.
+
+Careington and DialCare exports also check address, postal code, date and household fields before a file can be downloaded. Correct missing member census data rather than inventing addresses or changing vendor group codes to make a file pass. Historical mid-month activations are not rewritten by the export check.
 
 ## Verification
 

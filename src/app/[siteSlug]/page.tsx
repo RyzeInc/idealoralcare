@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import HeroSlideshow from "@/components/health/HeroSlideshow";
+import { SiteMarketing } from "@/components/health/SiteMarketing";
 import HealthHeader from "@/components/health/HealthHeader";
 import { useSiteTheme } from "@/components/providers/SiteThemeProvider";
 import { TrustAnchors, ProblemBand } from "@/components/health/sections";
@@ -9,7 +10,7 @@ import SitePromoLinks from "@/components/health/SitePromoLinks";
 import { Zap, Clock, Smile, Heart, Shield } from "lucide-react";
 
 export default function SiteLandingPage() {
-  const { site, isLoading } = useSiteTheme();
+  const { site } = useSiteTheme();
   const pathname = usePathname();
   const basePath = `/${pathname.split("/")[1]}`;
 
@@ -30,7 +31,7 @@ export default function SiteLandingPage() {
         <div className="container">
           <div className="row">
             <div className="col-12">
-              <HeroSlideshow />
+              <SiteMarketing feature="heroSlideshow"><HeroSlideshow /></SiteMarketing>
             </div>
           </div>
           <div className="row">
@@ -50,39 +51,39 @@ export default function SiteLandingPage() {
 
       <SitePromoLinks placement="landing" />
 
-      <ProblemBand />
+      <SiteMarketing feature="problemBand"><ProblemBand /></SiteMarketing>
 
       {/* Three services */}
-      <section className="related-posts section">
+      <SiteMarketing feature="serviceCards"><section className="related-posts section">
         <div className="container">
           <h2 style={{ textAlign: "center", marginBottom: "1rem" }}>
-            Three Ways to Take Care of Your Smile
+            Explore Oral Health Services
           </h2>
           <p style={{ textAlign: "center", color: "#475569", fontSize: "1.125rem", marginBottom: "3rem", maxWidth: "560px", margin: "0 auto 3rem" }}>
-            AI imaging from home, a dentist whenever you need one, and real savings when you visit in person.
+            Explore the services available through our oral health plans.
           </p>
           <div className="related-posts__grid">
-            <a href={`${basePath}/oral-health-scan`} className="related-posts__card">
+            <SiteMarketing feature="oralScan"><a href={`${basePath}/oral-health-scan`} className="related-posts__card">
               <img src="/health-assets/toothlensscan_1086x1024.png" alt="AI Oral Scanning" />
               <h4>AI Oral Scanning</h4>
               <div className="link-arrow">AI-Powered Detection</div>
-            </a>
-            <a href={`${basePath}/teledentistry`} className="related-posts__card">
+            </a></SiteMarketing>
+            <SiteMarketing feature="teledentistry"><a href={`${basePath}/teledentistry`} className="related-posts__card">
               <img src="/health-assets/teledentistr_1024x1024.png" alt="Teledentistry Consultations" />
               <h4>Teledentistry Consultations</h4>
               <div className="link-arrow">Expert Guidance 24/7</div>
-            </a>
-            <a href={`${basePath}/discount`} className="related-posts__card">
+            </a></SiteMarketing>
+            <SiteMarketing feature="dentalDiscount"><a href={`${basePath}/discount`} className="related-posts__card">
               <img src="/health-assets/dentist-network-discount_1536x1024.png" alt="Dental Discount Network" />
               <h4>Dental Discount Network</h4>
               <div className="link-arrow">Nationwide Access</div>
-            </a>
+            </a></SiteMarketing>
           </div>
         </div>
-      </section>
+      </section></SiteMarketing>
 
       {/* What's Included */}
-      <section className="our-use-case section bg--blue" id="whats-included">
+      <SiteMarketing feature="benefitHighlights"><section className="our-use-case section bg--blue" id="whats-included">
         <div className="container">
           <div className="heading-block">
             <h2>What&apos;s Included in Your Oral Health Savings Plan</h2>
@@ -93,27 +94,27 @@ export default function SiteLandingPage() {
             </div>
             <div className="benefit-tiles" style={{ flex: 1 }}>
               {[
-                { icon: Zap, color: "#2ECC71", title: "AI Oral Scanning", desc: "Analyze photos of your teeth using AI to detect potential issues early." },
-                { icon: Clock, color: "#3498DB", title: "24/7 Teledentistry", desc: "Connect with licensed dentists anytime for consultations and guidance." },
-                { icon: Smile, color: "#F39C12", title: "Dental Network Discounts", desc: "Access thousands of dentists nationwide with negotiated discount rates." },
-                { icon: Heart, color: "#64748b", title: "Preventive Focus", desc: "Emphasis on preventive care and early detection to reduce costly treatments." },
-                { icon: Shield, color: "#64748b", title: "Emergency Support", desc: "Immediate access to emergency dental support when urgent concerns arise." },
+                { feature: "oralScan" as const, icon: Zap, color: "#2ECC71", title: "AI Oral Scanning", desc: "Analyze photos of your teeth using AI to detect potential issues early." },
+                { feature: "teledentistry" as const, icon: Clock, color: "#3498DB", title: "24/7 Teledentistry", desc: "Connect with licensed dentists anytime for consultations and guidance." },
+                { feature: "dentalDiscount" as const, icon: Smile, color: "#F39C12", title: "Dental Network Discounts", desc: "Access thousands of dentists nationwide with negotiated discount rates." },
+                { feature: "benefitHighlights" as const, icon: Heart, color: "#64748b", title: "Preventive Focus", desc: "Emphasis on preventive care and early detection to reduce costly treatments." },
+                { feature: "teledentistry" as const, icon: Shield, color: "#64748b", title: "Emergency Support", desc: "Immediate access to emergency dental support when urgent concerns arise." },
               ].map((item) => (
-                <div key={item.title} className="benefit-tile">
+                <SiteMarketing key={item.title} feature={item.feature}><div className="benefit-tile">
                   <div className="benefit-tile__icon"><item.icon size={28} color={item.color} /></div>
                   <h4 className="benefit-tile__title">{item.title}</h4>
                   <p className="benefit-tile__description">{item.desc}</p>
-                </div>
+                </div></SiteMarketing>
               ))}
             </div>
           </div>
         </div>
-      </section>
+      </section></SiteMarketing>
 
-      <TrustAnchors />
+      <SiteMarketing feature="trustAnchors"><TrustAnchors /></SiteMarketing>
 
       {/* CTA */}
-      <section className="for-organization section bg--white">
+      <SiteMarketing feature="teamCta"><section className="for-organization section bg--white">
         <div className="container">
           <div className="for-organization__row">
             <div className="for-organization__col">
@@ -133,7 +134,7 @@ export default function SiteLandingPage() {
             </div>
           </div>
         </div>
-      </section>
+      </section></SiteMarketing>
     </div>
   );
 }

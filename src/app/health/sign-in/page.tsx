@@ -7,6 +7,9 @@ import Link from "next/link";
 import { Mail, Phone, Lock, Eye, EyeOff, AlertCircle, Loader, KeyRound, Heart, Users, DollarSign, Zap } from "lucide-react";
 import HealthHeader from "@/components/health/HealthHeader";
 import { safeReturnPath } from "@/lib/safe-redirect";
+import { useMemberBasePath } from "@/lib/use-member-base-path";
+import { useBrandName } from "@/lib/branding";
+import { useSiteThemeOptional } from "@/components/providers/SiteThemeProvider";
 import "@/app/health/health.css";
 
 
@@ -43,6 +46,8 @@ const blurStyle = (e: React.FocusEvent<HTMLInputElement>) => {
 };
 
 function PlanShowcase() {
+  const basePath = useMemberBasePath();
+  const brandName = useBrandName();
   const features = [
     { icon: Heart, label: "Comprehensive Coverage", description: "Oral health services for the whole family" },
     { icon: DollarSign, label: "Save Up to 40%", description: "On dental procedures at network providers" },
@@ -74,7 +79,7 @@ function PlanShowcase() {
           borderRadius: "100px",
         }}>
           <Heart size={14} />
-          Ideal Oral Savings Plan
+          {brandName} Savings Plan
         </div>
         <h2 style={{ fontSize: "clamp(1.5rem, 3vw, 2rem)", fontWeight: "800", color: "#0f172a", lineHeight: 1.2, marginBottom: "0.75rem" }}>
           Join thousands of members saving on dental care
@@ -135,7 +140,7 @@ function PlanShowcase() {
       </div>
 
       <Link
-        href="/health/plans"
+        href={`${basePath}/plans`}
         style={{ display: "inline-flex", alignItems: "center", gap: "8px", color: "#14b8a6", textDecoration: "none", fontWeight: "600", fontSize: "0.95rem" }}
       >
         View all plans →
@@ -145,9 +150,12 @@ function PlanShowcase() {
 }
 
 function SignInForm() {
+  const basePath = useMemberBasePath();
+  const theme = useSiteThemeOptional();
+  const supportEmail = theme?.site?.enrollmentDefaults?.supportEmail || "support@getidealoh.com";
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = safeReturnPath(searchParams.get("redirect_url"), "/health/dashboard");
+  const redirectTo = safeReturnPath(searchParams.get("redirect_url"), `${basePath}/dashboard`);
   const { signIn, isLoaded, setActive } = useSignIn();
 
   const [mode, setMode] = useState<"email" | "phone">("email");
@@ -188,7 +196,7 @@ function SignInForm() {
     try {
       await signIn.authenticateWithRedirect({
         strategy: "oauth_google",
-        redirectUrl: "/health/sso-callback",
+        redirectUrl: `${basePath}/sso-callback`,
         redirectUrlComplete: redirectTo,
       });
     } catch (err: any) {
@@ -336,9 +344,7 @@ function SignInForm() {
       (SECOND_FACTOR_PRIORITY as readonly string[]).includes(s) && s !== verificationMethod
   );
   const formValid = identifier.trim() !== "" && password.length >= 1 && isLoaded;
-  const signUpHref = redirectTo !== "/health/dashboard"
-    ? `/health/sign-up?redirect_url=${encodeURIComponent(redirectTo)}`
-    : "/health/sign-up";
+  const signUpHref = `${basePath}/sign-up?redirect_url=${encodeURIComponent(redirectTo)}`;
 
   return (
     <div className="health-landing">
@@ -462,7 +468,7 @@ function SignInForm() {
                     <div>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
                         <label htmlFor="password" style={{ fontWeight: 600, color: "#0f172a", fontSize: "0.95rem" }}>Password</label>
-                        <Link href="/health/forgot-password" style={{ color: "#0066CC", fontSize: "0.8125rem", fontWeight: 500, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "3px" }}>
+                        <Link href={`${basePath}/forgot-password`} style={{ color: "#0066CC", fontSize: "0.8125rem", fontWeight: 500, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "3px" }}>
                           <KeyRound size={13} /> Forgot password?
                         </Link>
                       </div>
@@ -593,7 +599,7 @@ function SignInForm() {
 
               <div style={{ textAlign: "center", marginTop: "1rem" }}>
                 <p style={{ color: "#64748b", fontSize: "0.875rem", marginBottom: "0.5rem" }}>Need help signing in?</p>
-                <a href="mailto:support@getidealoh.com" style={{ color: "#0066CC", textDecoration: "none", fontWeight: 500 }}>
+                <a href={`mailto:${supportEmail}`} style={{ color: "#0066CC", textDecoration: "none", fontWeight: 500 }}>
                   Contact support
                 </a>
               </div>

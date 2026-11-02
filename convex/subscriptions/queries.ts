@@ -1,3 +1,5 @@
+import { resolveBflMemberCode } from "../lib/bflCodes";
+import type { Doc } from "../_generated/dataModel";
 /**
  * SUBSCRIPTION QUERIES
  *
@@ -662,6 +664,7 @@ export const getMemberCardDataPublic = query({
       // packet and ID card always show what the eligibility files submitted.
       essentialsMemberNumber: resolveEssentialsMemberNumber(profile as any),
       essentialsGroupNumber: resolveEssentialsGroupNumber(group as any),
+      bflMemberCode: resolveBflMemberCode(group as Doc<"groups"> | null),
       networks: {
         careington: { name: "Dental Discount Network", memberUrl: "https://getidealoh.com/health/dashboard" },
         dialCare: { name: "Teledentistry Program", memberUrl: "https://www.dialcare.com" },
@@ -781,6 +784,7 @@ async function resolvePacketData(ctx: QueryCtx, memberProfileId: any) {
     hasAccount: !!profile.customerId,
     essentialsMemberNumber: resolveEssentialsMemberNumber(profile),
     essentialsGroupNumber: resolveEssentialsGroupNumber(group),
+    bflMemberCode: resolveBflMemberCode(group),
     networks: {
       careington: { name: "Dental Discount Network", memberUrl: "https://getidealoh.com/health/dashboard" },
       dialCare: { name: "Teledentistry Program", memberUrl: "https://www.dialcare.com" },

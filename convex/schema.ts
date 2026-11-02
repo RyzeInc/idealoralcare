@@ -2,6 +2,7 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { shopNetworkValidator } from "./shop/constants";
 import { promoLinkValidator } from "./lib/promoLinks";
+import { siteMarketingValidator } from "./lib/siteMarketing";
 import { roleTypeValidator } from "./lib/access/validators";
 
 export default defineSchema({
@@ -1007,6 +1008,7 @@ export default defineSchema({
       heroImageUrl: v.optional(v.string()),
       customCSS: v.optional(v.string()), // Custom CSS overrides
       footerText: v.optional(v.string()),
+      informationEmail: v.optional(v.string()),
     }),
     
     // PRODUCT CATALOG SETTINGS
@@ -1028,6 +1030,7 @@ export default defineSchema({
     // brand's site the way the hardcoded `networks` block in
     // subscriptions/queries.ts currently does.
     promoLinks: v.optional(v.array(promoLinkValidator)),
+    marketing: v.optional(siteMarketingValidator),
 
 
     // ENROLLMENT FLOW CONFIGURATION
@@ -1177,6 +1180,7 @@ export default defineSchema({
     organizationCode: v.optional(v.string()),
     // ESSENTIALS GROUP NUMBER (6-digit numeric, required by the Essentials vendor files)
     essentialsGroupNumber: v.optional(v.string()),
+    bflMemberCode: v.optional(v.string()), // Assigned BFL access code; separate from numeric vendor group IDs
     
     // PLAN & PRICING CONSTRAINTS
     allowedPlanIds: v.optional(v.array(v.id("catalogProducts"))), // null = inherit from account/site

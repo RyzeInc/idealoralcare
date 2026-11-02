@@ -238,6 +238,7 @@ export const sendEssentialsPacketEmail = action({
     memberEmail: v.string(),
     essentialsMemberNumber: v.string(),
     essentialsGroupNumber: v.string(),
+    bflMemberCode: v.optional(v.string()),
     planName: v.string(),
     effectiveDate: v.string(),
     // Optional fields
@@ -268,6 +269,7 @@ export const sendEssentialsPacketEmail = action({
       memberEmail: args.memberEmail,
       essentialsMemberNumber: args.essentialsMemberNumber,
       essentialsGroupNumber: args.essentialsGroupNumber,
+      bflMemberCode: args.bflMemberCode,
       planName: args.planName,
       coverageType: args.coverageType,
       effectiveDate: args.effectiveDate,
@@ -304,6 +306,7 @@ export const sendEssentialsPacketEmail = action({
       ? EMAIL_TEMPLATES["bfl-fulfillment-packet"].render({
           memberFirstName: args.memberFirstName,
           essentialsMemberNumber: args.essentialsMemberNumber,
+          bflMemberCode: args.bflMemberCode,
           planName: args.planName,
           effectiveDate: args.effectiveDate,
           memberServicesPhone: "844-433-2502",
@@ -313,6 +316,7 @@ export const sendEssentialsPacketEmail = action({
           memberFirstName: args.memberFirstName,
           essentialsMemberNumber: args.essentialsMemberNumber,
           essentialsGroupNumber: args.essentialsGroupNumber,
+          bflMemberCode: args.bflMemberCode,
           planName: args.planName,
           coverageType: args.coverageType ?? "Employee",
           effectiveDate: args.effectiveDate,
