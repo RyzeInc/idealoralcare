@@ -47,6 +47,7 @@ import { CadenceModal } from "@/components/health/catalog";
 import { MembershipAgreementModal, TermsAndConditionsModal } from "@/components/legal";
 import "@/app/health/health.css";
 import { useBrandName, rebrand } from "@/lib/branding";
+import { SatelliteAuthRedirect } from "@/components/auth/SatelliteAuthRedirect";
 
 /* ─── Inline auth (sign-in / sign-up) used in checkout Step 3 ─────────────── */
 function GoogleIcon() {
@@ -1682,6 +1683,8 @@ function CheckoutContent() {
 
 export default function CheckoutPage() {
   return (
-      <CheckoutContent />
+    <Suspense fallback={null}>
+      <SatelliteAuthRedirect mode="checkout"><CheckoutContent /></SatelliteAuthRedirect>
+    </Suspense>
   );
 }

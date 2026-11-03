@@ -22,7 +22,8 @@ import { ArrowLeft, ArrowRight, Mail, Phone, Lock, Eye, EyeOff, AlertCircle, Loa
 import HealthHeader from "@/components/health/HealthHeader";
 import { useMemberBasePath } from "@/lib/use-member-base-path";
 import { BrandName } from "@/components/ui/BrandName";
-import { safeReturnPath } from "@/lib/safe-redirect";
+import { safeAuthReturn, isSatelliteAuthReturn, navigateAfterAuth } from "@/lib/auth-return";
+import { SatelliteAuthRedirect } from "@/components/auth/SatelliteAuthRedirect";
 import "@/app/health/health.css";
 
 /* ── Enrollment steps strip (mirrors Crunch's stepper concept) ─────────── */
@@ -226,7 +227,7 @@ function PortalSignUpForm({ redirectTo }: { redirectTo: string }) {
       const result = await signUp.create(params);
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        router.push(redirectTo);
+        navigateAfterAuth(redirectTo, router.push);
       } else if (result.unverifiedFields?.includes("email_address")) {
         await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
         setStep("verify");
@@ -249,7 +250,7 @@ function PortalSignUpForm({ redirectTo }: { redirectTo: string }) {
       const result = await signUp.attemptEmailAddressVerification({ code: verificationCode });
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        router.push(redirectTo);
+        navigateAfterAuth(redirectTo, router.push);
       } else {
         setError("Verification failed. Please check your code.");
       }
@@ -405,9 +406,9 @@ function PortalSignUpForm({ redirectTo }: { redirectTo: string }) {
 function GetStartedPage() {
   const basePath = useMemberBasePath();
   const searchParams = useSearchParams();
-  const redirectTo = safeReturnPath(searchParams.get("redirect_url"), `${basePath}/dashboard`);
+  const redirectTo = safeAuthReturn(searchParams.get("redirect_url"), `${basePath}/dashboard`);
   const clerkTicket = searchParams.get("__clerk_ticket");
-  const [showPortalForm, setShowPortalForm] = useState(false);
+  const [showPortalForm, setShowPortalForm] = useState(() => isSatelliteAuthReturn(redirectTo));
 
   // This page is also rendered under /[siteSlug]/sign-up (a re-export of this
   // page) — stay on the visitor's site so checkout attribution isn't lost.
@@ -520,7 +521,7 @@ function GetStartedPage() {
 export default function HealthSignUpPage() {
   return (
     <Suspense fallback={null}>
-      <GetStartedPage />
+      <SatelliteAuthRedirect mode="sign-up"><GetStartedPage /></SatelliteAuthRedirect>
     </Suspense>
   );
 }

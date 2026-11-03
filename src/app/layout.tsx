@@ -1,11 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { ClerkProvider } from "@clerk/nextjs";
+import { DomainClerkProvider } from "@/components/providers/DomainClerkProvider";
 import { ConvexClientProvider } from "@/components/providers/ConvexClientProvider";
 import { RepVisitTracker } from "@/components/providers/RepVisitTracker";
 import { Suspense } from "react";
 import { GoogleAnalytics } from "@/components/seo/GoogleAnalytics";
 import { WebSiteJsonLd } from "@/components/seo/JsonLd";
 import { SITE_CREDIT } from "@/lib/site-credit";
+import { headers } from "next/headers";
+import { domainSite } from "@/lib/site-domains";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -51,27 +53,23 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const site = domainSite((await headers()).get("host"));
   return (
     <html lang="en">
       <body>
         <GoogleAnalytics />
-        <WebSiteJsonLd />
+        {!site && <WebSiteJsonLd />}
         {/*
           signInUrl / signUpUrl tell Clerk where YOUR sign-in pages live.
           Without these, Clerk redirects to its hosted page at accounts.getidealoh.com.
           These are also read from NEXT_PUBLIC_CLERK_SIGN_IN_URL env var if set.
         */}
-        <ClerkProvider
-          signInUrl="/health/sign-in"
-          signUpUrl="/health/sign-up"
-          signInFallbackRedirectUrl="/health/dashboard"
-          signUpFallbackRedirectUrl="/health/dashboard"
-        >
+        <DomainClerkProvider>
           <ConvexClientProvider>
             {/* Records ?ref= landings for the production funnel. Inside
                 Suspense because it reads searchParams, which would otherwise
@@ -81,7 +79,7 @@ export default function RootLayout({
             </Suspense>
             {children}
           </ConvexClientProvider>
-        </ClerkProvider>
+        </DomainClerkProvider>
       </body>
     </html>
   );

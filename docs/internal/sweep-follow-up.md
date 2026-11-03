@@ -21,7 +21,11 @@ The supplied folder is already accessible. Reviewed the brand images, draft pres
 
 The five-row fake eligibility sample passes the new preflight. Wellness Patriots' one-row `.csv` is recognized as the 28-field pipe format; its literal `SAMPLE` ID is a test placeholder rather than a production numeric member ID. That does not reverse Kyle's recorded acceptance of the delivery/layout test.
 
-These are local code changes. No domains, DNS records, vendor configurations, memberships, payment records, or production site records were changed. Existing marketing defaults are preserved. The controls do not replace Lyric with another benefit or change member entitlements.
+The November 1 changes were deployed to the shared application and Convex. Existing marketing defaults are preserved. The controls do not replace Lyric with another benefit or change member entitlements.
+
+## November 3 domain connection
+
+The owner connected the AssureVantage domain in GoDaddy/Vercel and confirmed the shared production Clerk satellite is verified. Domain routing, the primary-domain authentication handoff, safe satellite returns, and separate site setup are now implemented. The deployment helper copies the existing oral offering without moving Ideal groups or changing prices. See the [branding and domain notes](assurevantage-brand-source.md) for configuration and remaining live account verification. Broker vanity routing now uses a public resolver that returns only an active referral code and destination hint; the detailed resolver remains internal.
 
 ## Inputs still required
 

@@ -9,7 +9,7 @@
  * All resolution is done via direct Convex _id lookups.
  */
 
-import { query, internalQuery } from "../_generated/server";
+import { query, internalQuery, type QueryCtx } from "../_generated/server";
 import { v } from "convex/values";
 import { Id } from "../_generated/dataModel";
 
@@ -304,9 +304,8 @@ export interface RepUrlResolution {
  *
  * Used by /[agentSlug]/route.ts for URL routing.
  */
-export const resolveRepUrl = internalQuery({
-  args: { segment: v.string() },
-  handler: async (ctx, { segment }): Promise<RepUrlResolution | null> => {
+async function resolveRepSegment(ctx: QueryCtx, { segment }: { segment: string }): Promise<RepUrlResolution | null> {
+    if (!segment.trim() || segment.length > 128) return null;
     const raw = segment.trim();
     const upper = raw.toUpperCase();
     const normalized = raw.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -351,5 +350,22 @@ export const resolveRepUrl = internalQuery({
     }
 
     return null;
+}
+
+export const resolveRepUrl = internalQuery({
+  args: { segment: v.string() },
+  handler: resolveRepSegment,
+});
+
+/** Public routing needs only the active code and destination, never broker records. */
+export const resolveRepLink = query({
+  args: { segment: v.string() },
+  returns: v.union(v.null(), v.object({
+    repCode: v.string(),
+    productHint: v.union(v.literal("essentials"), v.literal("oralcare"), v.literal("plans"), v.null()),
+  })),
+  handler: async (ctx, args) => {
+    const resolved = await resolveRepSegment(ctx, args);
+    return resolved ? { repCode: resolved.repCode, productHint: resolved.productHint } : null;
   },
 });

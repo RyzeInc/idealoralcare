@@ -8,9 +8,9 @@
  *   Step 2 – User enters code + new password → session created, redirect to dashboard
  */
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useSignIn } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -25,12 +25,16 @@ import {
 } from "lucide-react";
 import HealthHeader from "@/components/health/HealthHeader";
 import { useMemberBasePath } from "@/lib/use-member-base-path";
+import { safeAuthReturn, navigateAfterAuth } from "@/lib/auth-return";
+import { SatelliteAuthRedirect } from "@/components/auth/SatelliteAuthRedirect";
 import "@/app/health/health.css";
 
 type Step = "email" | "verify";
 
-export default function ForgotPasswordPage() {
+function ForgotPasswordContent() {
   const basePath = useMemberBasePath();
+  const params = useSearchParams();
+  const redirectTo = safeAuthReturn(params.get("redirect_url"), `${basePath}/dashboard`);
   const router = useRouter();
   const { signIn, setActive, isLoaded } = useSignIn();
 
@@ -97,7 +101,7 @@ export default function ForgotPasswordPage() {
 
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        router.push(`${basePath}/dashboard`);
+        navigateAfterAuth(redirectTo, router.push);
       } else {
         setError("Verification failed. Please check your code and try again.");
       }
@@ -120,7 +124,7 @@ export default function ForgotPasswordPage() {
       >
         <div className="container" style={{ textAlign: "center" }}>
           <Link
-            href={`${basePath}/sign-in`}
+            href={`${basePath}/sign-in?redirect_url=${encodeURIComponent(redirectTo)}`}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -431,7 +435,7 @@ export default function ForgotPasswordPage() {
           {/* Back to sign in */}
           <div style={{ textAlign: "center", marginTop: "2rem" }}>
             <Link
-              href={`${basePath}/sign-in`}
+              href={`${basePath}/sign-in?redirect_url=${encodeURIComponent(redirectTo)}`}
               style={{ color: "#0066CC", textDecoration: "none", fontWeight: 500, fontSize: "0.9rem" }}
             >
               ← Back to Sign In
@@ -448,4 +452,8 @@ export default function ForgotPasswordPage() {
       `}</style>
     </div>
   );
+}
+
+export default function ForgotPasswordPage() {
+  return <Suspense fallback={null}><SatelliteAuthRedirect mode="sign-in"><ForgotPasswordContent /></SatelliteAuthRedirect></Suspense>;
 }

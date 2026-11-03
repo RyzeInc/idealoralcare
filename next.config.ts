@@ -46,6 +46,8 @@ const nextConfig: NextConfig = {
         "localhost:3001",
         "getidealoh.com",
         "www.getidealoh.com",
+        "assurevantage.com",
+        "www.assurevantage.com",
         // Remove *.app.github.dev in production deploys
         ...(process.env.NODE_ENV === "development" ? ["*.app.github.dev"] : []),
       ],
@@ -117,7 +119,7 @@ const nextConfig: NextConfig = {
             value: [
               "default-src 'self'",
               // Clerk (dev + prod custom domain) + Stripe + Cloudflare
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://clerk.getidealoh.com https://js.stripe.com https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://clerk.getidealoh.com https://clerk.www.assurevantage.com https://clerk.assurevantage.com https://js.stripe.com https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com",
               // Inline styles + Google Fonts
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               // Images: Clerk CDN + QR code generator + general
@@ -125,11 +127,11 @@ const nextConfig: NextConfig = {
               // Fonts: local + Google Fonts CDN
               "font-src 'self' data: https://fonts.gstatic.com",
               // API connections: Convex + Clerk (dev + prod) + Stripe + Clerk telemetry
-              "connect-src 'self' https://*.convex.cloud https://*.convex.site wss://*.convex.cloud https://*.clerk.accounts.dev https://clerk.getidealoh.com https://api.stripe.com https://r.stripe.com https://www.google-analytics.com https://analytics.google.com https://clerk-telemetry.com",
+              "connect-src 'self' https://*.convex.cloud https://*.convex.site wss://*.convex.cloud https://*.clerk.accounts.dev https://clerk.getidealoh.com https://clerk.www.assurevantage.com https://clerk.assurevantage.com https://api.stripe.com https://r.stripe.com https://www.google-analytics.com https://analytics.google.com https://clerk-telemetry.com",
               // Iframes: Clerk + Stripe + Cloudflare + Toothlens SmileScan + Ryze telemedicine
               // ⚠️  CRITICAL: selfcheck.toothlens.com MUST remain in frame-src.
               // Removing it breaks the SmileScan iframe (core product feature).
-              "frame-src https://*.clerk.accounts.dev https://clerk.getidealoh.com https://js.stripe.com https://hooks.stripe.com https://challenges.cloudflare.com https://selfcheck.toothlens.com https://ryze.telemedsimplified.com",
+              "frame-src https://*.clerk.accounts.dev https://clerk.getidealoh.com https://clerk.www.assurevantage.com https://clerk.assurevantage.com https://js.stripe.com https://hooks.stripe.com https://challenges.cloudflare.com https://selfcheck.toothlens.com https://ryze.telemedsimplified.com",
               "worker-src 'self' blob:",
             ].join("; "),
           },

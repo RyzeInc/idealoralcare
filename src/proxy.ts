@@ -1,9 +1,10 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest, type NextFetchEvent } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { isReservedPath } from "@/lib/rep-routing/reserved";
 import { memberSignInPath } from "@/lib/site-links";
+import { domainClerkOptions, domainEntryPath, domainSite } from "@/lib/site-domains";
 
 /**
  * ROUTE PROTECTION PROXY (Clerk Middleware)
@@ -61,7 +62,7 @@ const AGENT_COOKIE_MAX_AGE = 60 * 60 * 24 * 90; // 90 days
  * Pick the landing page for a resolved vanity URL. An explicit ?to= param
  * overrides the rep code's stored productHint.
  */
-function agentDestination(to: string | null, hint: string | undefined): string {
+function agentDestination(to: string | null, hint: string | null | undefined): string {
   if (to === "essentials") return "/newideal/essentials";
   if (to === "oralcare") return "/newideal/oralcare";
   if (to === "health") return "/health/plans";
@@ -74,13 +75,13 @@ async function tryAgentRedirect(
   slug: string,
   requestUrl: string,
   userAgent?: string,
+  siteSlug?: string,
 ) {
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
   if (!convexUrl) return null;
   try {
     const client = new ConvexHttpClient(convexUrl);
-    const agentsApi = (api as Record<string, any>)["enrollment/agents"];
-    const result = await client.query(agentsApi.resolveRepUrl, { segment: slug });
+    const result = await client.query(api.enrollment.agents.resolveRepLink, { segment: slug });
     if (!result?.repCode) return null;
 
     // Record the visit before redirecting. Awaited rather than fired and
@@ -100,7 +101,7 @@ async function tryAgentRedirect(
       // Visit tracking is best-effort; never let it break the redirect.
     }
 
-    const dest = agentDestination(new URL(requestUrl).searchParams.get("to"), result.productHint);
+    const dest = siteSlug ? `/${encodeURIComponent(siteSlug)}/plans` : agentDestination(new URL(requestUrl).searchParams.get("to"), result.productHint);
     const redirect = new URL(`${dest}?ref=${encodeURIComponent(result.repCode)}`, requestUrl);
     const response = NextResponse.redirect(redirect);
     // httpOnly=false so client JS can also read it for the cookie-fallback in CartProvider
@@ -117,11 +118,13 @@ async function tryAgentRedirect(
   }
 }
 
-export default clerkMiddleware(async (auth, request) => {
+const authenticateRequest = clerkMiddleware(async (auth, request) => {
   // Never block webhook endpoints
   if (isPublicApiRoute(request)) {
     return NextResponse.next();
   }
+
+  const site = domainSite(request.nextUrl.hostname);
 
   if (isAuthRoute(request)) {
     return NextResponse.next();
@@ -132,16 +135,20 @@ export default clerkMiddleware(async (auth, request) => {
   // (/230001, /allenjackson, /230001?to=essentials)
   // Must run before Clerk so the redirect bypasses auth checks.
   const segments = request.nextUrl.pathname.split("/").filter(Boolean);
-  if (segments.length === 1 && !isReservedPath(segments[0])) {
-    const agentResponse = await tryAgentRedirect(segments[0], request.url, request.headers.get("user-agent") ?? undefined);
+  if (segments.length === 1 && !isReservedPath(segments[0]) && segments[0] !== site?.slug) {
+    const agentResponse = await tryAgentRedirect(segments[0], request.url, request.headers.get("user-agent") ?? undefined, site?.slug);
     if (agentResponse) return agentResponse;
   }
 
   // Enforce auth on protected routes — redirect to local sign-in page,
   // NOT to Clerk's hosted page (which would go to accounts.getidealoh.com).
   if (isProtectedRoute(request)) {
-    const { userId } = await auth();
+    const authState = await auth();
+    const { userId } = authState;
     if (!userId) {
+      if (site) {
+        return authState.redirectToSignIn({ returnBackUrl: new URL(`${request.nextUrl.pathname}${request.nextUrl.search}`, site.origin).href });
+      }
       const signInPath = request.nextUrl.pathname.startsWith("/employer")
         ? "/employer/sign-in"
         : memberSignInPath(request.nextUrl.pathname, SIGN_IN_URL);
@@ -155,7 +162,19 @@ export default clerkMiddleware(async (auth, request) => {
       return NextResponse.redirect(signInUrl);
     }
   }
-});
+}, request => domainClerkOptions(request.nextUrl.hostname));
+
+export default function proxy(request: NextRequest, event: NextFetchEvent) {
+  if (isPublicApiRoute(request)) return NextResponse.next();
+  // Resolve the entry route before Clerk starts a cross-domain session sync.
+  const entryPath = domainEntryPath(request.nextUrl.hostname, request.nextUrl.pathname);
+  if (entryPath) {
+    const target = request.nextUrl.clone();
+    target.pathname = entryPath;
+    return NextResponse.redirect(target);
+  }
+  return authenticateRequest(request, event);
+}
 
 export const config = {
   matcher: [
@@ -163,5 +182,6 @@ export const config = {
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
     // Always run for API routes
     "/(api|trpc)(.*)",
+    "/__clerk/(.*)",
   ],
 };

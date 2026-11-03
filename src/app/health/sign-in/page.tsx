@@ -6,7 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mail, Phone, Lock, Eye, EyeOff, AlertCircle, Loader, KeyRound, Heart, Users, DollarSign, Zap } from "lucide-react";
 import HealthHeader from "@/components/health/HealthHeader";
-import { safeReturnPath } from "@/lib/safe-redirect";
+import { safeAuthReturn, navigateAfterAuth } from "@/lib/auth-return";
+import { SatelliteAuthRedirect } from "@/components/auth/SatelliteAuthRedirect";
 import { useMemberBasePath } from "@/lib/use-member-base-path";
 import { useBrandName } from "@/lib/branding";
 import { useSiteThemeOptional } from "@/components/providers/SiteThemeProvider";
@@ -155,7 +156,7 @@ function SignInForm() {
   const supportEmail = theme?.site?.enrollmentDefaults?.supportEmail || "support@getidealoh.com";
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = safeReturnPath(searchParams.get("redirect_url"), `${basePath}/dashboard`);
+  const redirectTo = safeAuthReturn(searchParams.get("redirect_url"), `${basePath}/dashboard`);
   const { signIn, isLoaded, setActive } = useSignIn();
 
   const [mode, setMode] = useState<"email" | "phone">("email");
@@ -231,7 +232,7 @@ function SignInForm() {
       console.log("[sign-in] result.status:", result.status, "supportedFirstFactors:", result.supportedFirstFactors, "supportedSecondFactors:", result.supportedSecondFactors);
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        router.push(redirectTo);
+        navigateAfterAuth(redirectTo, router.push);
       } else if (result.status === "needs_second_factor") {
         // MFA required — pick the highest-priority strategy this UI supports
         const supported = result.supportedSecondFactors ?? [];
@@ -306,7 +307,7 @@ function SignInForm() {
 
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        router.push(redirectTo);
+        navigateAfterAuth(redirectTo, router.push);
       } else if (result.status === "needs_second_factor") {
         // Additional verification needed
         setFactorStage("second");
@@ -468,7 +469,7 @@ function SignInForm() {
                     <div>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
                         <label htmlFor="password" style={{ fontWeight: 600, color: "#0f172a", fontSize: "0.95rem" }}>Password</label>
-                        <Link href={`${basePath}/forgot-password`} style={{ color: "#0066CC", fontSize: "0.8125rem", fontWeight: 500, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "3px" }}>
+                        <Link href={`${basePath}/forgot-password?redirect_url=${encodeURIComponent(redirectTo)}`} style={{ color: "#0066CC", fontSize: "0.8125rem", fontWeight: 500, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "3px" }}>
                           <KeyRound size={13} /> Forgot password?
                         </Link>
                       </div>
@@ -635,7 +636,7 @@ function SignInForm() {
 export default function HealthSignInPage() {
   return (
     <Suspense fallback={null}>
-      <SignInForm />
+      <SatelliteAuthRedirect mode="sign-in"><SignInForm /></SatelliteAuthRedirect>
     </Suspense>
   );
 }
