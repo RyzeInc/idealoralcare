@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { convexTest } from "convex-test";
 import schema from "../schema";
-import { internal } from "../_generated/api";
+import { api, internal } from "../_generated/api";
 
 async function setup() {
   const t = convexTest(schema);
@@ -23,6 +23,9 @@ describe("AssureVantage launch setup", () => {
     expect(created).toMatchObject({ created: true, status: "onboarding" });
     const site = await t.run(ctx => ctx.db.get(created.siteId));
     expect(site).toMatchObject({ slug: "assurevantage", domain: "www.assurevantage.com", name: "AssureVantage", allowedPlanIds: [ids.product], enrollmentDefaults: { supportEmail: "support@getidealoh.com" }, branding: { informationEmail: "info@assurevantage.com" } });
+    expect(await t.query(api.enrollment.sessions.getDTCHierarchy, { siteSlug: "assurevantage" })).toBeNull();
+    await t.mutation(internal.admin.launchSites.configureAssureVantage, { activate: true, enableMemberBranding: true });
+    expect(await t.query(api.enrollment.sessions.getDTCHierarchy, { siteSlug: "assurevantage" })).toEqual({ siteId: created.siteId, accountId: created.accountId, groupId: created.groupId });
     expect(await t.run(async ctx => ({ primary: await ctx.db.get(ids.primary), group: await ctx.db.get(ids.group), product: await ctx.db.get(ids.product) }))).toEqual(before);
   });
   test("is idempotent, preserves manual edits and requires explicit activation", async () => {
@@ -34,6 +37,8 @@ describe("AssureVantage launch setup", () => {
     expect(repeated).toMatchObject({ siteId: created.siteId, created: false, status: "active" });
     expect((await t.run(ctx => ctx.db.get(created.siteId)))?.branding.primaryColor).toBe("#abcdef");
     expect(await t.run(ctx => ctx.db.query("sites").collect())).toHaveLength(2);
+    expect(await t.run(ctx => ctx.db.query("accounts").collect())).toHaveLength(2);
+    expect(await t.run(ctx => ctx.db.query("groups").collect())).toHaveLength(2);
     await t.run(ctx => ctx.db.patch(created.siteId, { status: "suspended" }));
     await expect(t.mutation(internal.admin.launchSites.configureAssureVantage, { activate: true })).rejects.toThrow(/suspended/);
   });

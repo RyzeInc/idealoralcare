@@ -102,6 +102,7 @@ Distribution partners see their own book here, and only their own book. Partners
 | --- | --- | --- | --- |
 | `/partner` | Book-of-business summary for the signed-in partner. | Partner | — |
 | `/partner/members` | Every member the partner is credited for. | Partner | — |
+| `/partner/members/:id` | Member detail within the signed-in partner's authorized book. | Partner | — |
 | `/partner/production` | Funnel, lead sources, and follow-ups. | Partner | — |
 | `/partner/retention` | Cohorts, churn, and revenue movement. | Partner | — |
 | `/partner/downline` | Sub-agencies and reps beneath this partner.<br><em>Hidden for reps, who have no downline.</em> | Partner | — |
@@ -195,6 +196,8 @@ Internal staff only. Ordered below as the sidebar orders it.
 | Path | Purpose | Access | Sitemap |
 | --- | --- | --- | --- |
 | `/admin/members/:id` | Single member: subscription, dependents, scans, billing, audit trail. | Staff | — |
+| `/admin/brokers/new` | Create a distribution partner and configure its onboarding. | Staff | — |
+| `/admin/brokers/:id` | Broker contacts, attribution, production and enrollment links. | Staff | — |
 | `/admin/list-bill-invoices/:groupId` | Invoice history for one list-bill group. | Staff | — |
 | `/admin/list-bill-invoices/invoice/:invoiceId` | Single list-bill invoice with line items and payment status. | Staff | — |
 | `/admin/vendor-statements/:statementId` | One locked statement with its document and line detail. | Staff | — |

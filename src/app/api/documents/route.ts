@@ -1,3 +1,5 @@
+import { memberLogoDataUri } from "@/lib/member-logo";
+import { memberDocumentPrefix } from "@/convex/lib/memberBrand";
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { convexServiceSecret } from "@/lib/convex-service";
@@ -155,9 +157,10 @@ export async function GET(req: NextRequest) {
     memberServicesPhone: "(844) 679-9367",
     memberWebsite: "www.getidealoh.com",
     networks: memberProfile?.networks,
+    brand: memberProfile?.brand,
   };
 
-  data.logoDataUri = logoDataUri("ideal-oral-health-logo.png");
+  data.logoDataUri = memberLogoDataUri(data.brand);
 
   const docComponents: Record<string, React.ComponentType<{ data: FulfillmentPacketData }>> = {
     packet: FulfillmentPacketPdf,
@@ -166,9 +169,9 @@ export async function GET(req: NextRequest) {
   };
 
   const filenameMap: Record<string, string> = {
-    packet: "Ideal_Oral_Health_Membership_Packet.pdf",
-    agreement: "Ideal_Oral_Health_Membership_Agreement.pdf",
-    card: "Ideal_Oral_Health_Member_Card.pdf",
+    packet: `${memberDocumentPrefix(data.brand)}_Membership_Packet.pdf`,
+    agreement: `${memberDocumentPrefix(data.brand)}_Membership_Agreement.pdf`,
+    card: `${memberDocumentPrefix(data.brand)}_Member_Card.pdf`,
   };
 
   try {

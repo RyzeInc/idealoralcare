@@ -5,6 +5,8 @@ import { v } from "convex/values";
 import { getBaseUrl } from "../lib/env";
 import { sendViaResendOrThrow } from "../lib/resend";
 import { EMAIL_TEMPLATES } from "../lib/emailTemplates";
+import { memberBrandFields, memberDocumentPrefix } from "../lib/memberBrand";
+import { escapeHtml } from "../lib/sanitize";
 
 /**
  * Email Fulfillment Actions
@@ -29,6 +31,7 @@ const IDEAL_DEFAULTS = {
 } as const;
 
 const brandArg = {
+  ...memberBrandFields,
   name: v.optional(v.string()),
   fromName: v.optional(v.string()),
   fromEmail: v.optional(v.string()),
@@ -59,14 +62,14 @@ function applyBrand(
   const name = brand.name ?? IDEAL_DEFAULTS.name;
   const supportEmail = brand.supportEmail ?? IDEAL_DEFAULTS.supportEmail;
   const supportPhone = brand.supportPhone ?? IDEAL_DEFAULTS.supportPhone;
-  const rewrite = (text: string) =>
+  const rewrite = (text: string, html = false) =>
     text
-      .replace(/Ideal Oral Health/g, name)
-      .replace(/support@getidealoh\.com/g, supportEmail)
-      .replace(/\(844\) 679-9367/g, supportPhone);
+      .replace(/Ideal Oral Health/g, () => html ? escapeHtml(name) : name)
+      .replace(/support@getidealoh\.com/g, () => html ? escapeHtml(supportEmail) : supportEmail)
+      .replace(/\(844\) 679-9367/g, () => html ? escapeHtml(supportPhone) : supportPhone);
   return {
     subject: rewrite(rendered.subject),
-    html: rewrite(rendered.html),
+    html: rewrite(rendered.html, true),
     from: `${brand.fromName ?? name} <${brand.fromEmail ?? IDEAL_DEFAULTS.fromEmail}>`,
     replyTo: brand.replyToEmail ?? IDEAL_DEFAULTS.replyToEmail,
   };
@@ -150,6 +153,7 @@ export const sendFulfillmentPacketEmail = action({
       memberServicesPhone: args.memberServicesPhone,
       memberWebsite: args.memberWebsite,
       networks: args.networks,
+      brand: args.brand,
     };
 
     const pdfHeaders: Record<string, string> = {
@@ -192,6 +196,7 @@ export const sendFulfillmentPacketEmail = action({
       groupCode: args.groupCode,
       memberServicesPhone: args.memberServicesPhone ?? "(844) 679-9367",
       portalUrl: baseUrl,
+      brand: args.brand,
     };
     const rendered =
       templateId === "benefits-ready"
@@ -203,11 +208,11 @@ export const sendFulfillmentPacketEmail = action({
       ...applyBrand(args.brand, rendered),
       attachments: [
         {
-          filename: "Ideal_Oral_Health_Membership_Packet.pdf",
+          filename: `${memberDocumentPrefix(args.brand)}_Membership_Packet.pdf`,
           content: pdfBase64,
         },
         {
-          filename: "Ideal_Oral_Health_Membership_Agreement.pdf",
+          filename: `${memberDocumentPrefix(args.brand)}_Membership_Agreement.pdf`,
           content: agreementPdfBase64,
         },
       ],

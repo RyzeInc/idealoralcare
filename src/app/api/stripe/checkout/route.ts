@@ -74,6 +74,11 @@ export async function POST(req: NextRequest) {
 
     // Fetch product details from Convex — pricing and Stripe product IDs come from DB
     const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || "");
+    // A branded checkout must have a provisionable member hierarchy before payment.
+    if (siteSlug) {
+      const hierarchy = await convex.query(api.enrollment.sessions.getDTCHierarchy, { siteSlug });
+      if (!hierarchy) return NextResponse.json({ error: "Enrollment is not available for this site yet." }, { status: 400 });
+    }
     let productName = "Oral Health Plan";
     let amount: number | undefined;
     let stripeProductId: string | undefined;

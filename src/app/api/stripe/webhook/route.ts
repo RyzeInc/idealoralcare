@@ -456,6 +456,7 @@ export async function POST(req: NextRequest) {
                   planName: cardData.planName,
                   effectiveDate: cardData.effectiveDate,
                   networks: cardData.networks,
+                  brand: cardData.brand,
                 };
                 let rendered: { pdfBase64?: string; agreementPdfBase64?: string } = {};
                 try {

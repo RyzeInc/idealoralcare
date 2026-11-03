@@ -1,3 +1,4 @@
+import { memberLogoDataUri } from "@/lib/member-logo";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { ConvexHttpClient } from "convex/browser";
@@ -5,8 +6,6 @@ import { pdf } from "@react-pdf/renderer";
 import { createElement, type ReactElement } from "react";
 import type { DocumentProps } from "@react-pdf/renderer";
 import { Readable } from "stream";
-import path from "path";
-import fs from "fs";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
@@ -72,11 +71,7 @@ export async function GET(
 
   const member = memberDetail.member;
 
-  let logoDataUri: string | undefined;
-  const logoPath = path.join(process.cwd(), "public", "ideal-oral-health-logo.png");
-  if (fs.existsSync(logoPath)) {
-    logoDataUri = `data:image/png;base64,${fs.readFileSync(logoPath).toString("base64")}`;
-  }
+  const logoDataUri = memberLogoDataUri(cardData.brand);
 
   const primary: FulfillmentPacketData = {
     memberName: cardData.memberName,
@@ -90,6 +85,7 @@ export async function GET(
     memberServicesPhone: cardData.supportPhone,
     memberWebsite: cardData.memberWebsite,
     networks: cardData.networks,
+    brand: cardData.brand,
     logoDataUri,
   };
 
@@ -107,7 +103,7 @@ export async function GET(
         ...cardData.networks,
         toothlens: {
           ...cardData.networks.toothlens,
-          memberUrl: `https://selfcheck.toothlens.com/ai/idealhealth?uid=${toothlensId}`,
+          memberUrl: cardData.brand?.portalUrl ? `${cardData.brand.portalUrl}?tab=oral-scan` : `https://selfcheck.toothlens.com/ai/idealhealth?uid=${toothlensId}`,
         },
       },
     };

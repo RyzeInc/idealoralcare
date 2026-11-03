@@ -9,19 +9,23 @@ const subscribe = () => () => {};
 const getOrigin = () => window.location.origin;
 const getServerOrigin = () => "";
 
-export function SiteEnrollmentLinks({ siteSlug, status }: { siteSlug: string; status: string }) {
+export function SiteEnrollmentLinks({ siteSlug, siteDomain, status }: { siteSlug: string; siteDomain?: string; status: string }) {
   const origin = useSyncExternalStore(subscribe, getOrigin, getServerOrigin);
   const agents = useQuery(api.enrollment.agents.listPublicAgents, {});
   const [destination, setDestination] = useState<SiteLinkDestination>("plans");
   const [referralCode, setReferralCode] = useState("");
   const [notice, setNotice] = useState("");
-  const url = origin ? buildSiteEnrollmentLink({ origin, siteSlug, destination, referralCode }) : "";
+  let url = "";
+  let domainError = false;
+  try { url = origin ? buildSiteEnrollmentLink({ origin, siteSlug, siteDomain, destination, referralCode }) : ""; }
+  catch { domainError = true; }
 
   return (
     <fieldset className="space-y-3 rounded-lg border border-slate-200 p-4">
       <legend className="px-1 text-sm font-semibold text-slate-800">Landing and broker links</legend>
-      <p className="text-xs text-slate-500">Use this website&apos;s address to share the brand before its custom domain is ready. Broker codes stay the same after a rename.</p>
+      <p className="text-xs text-slate-500">{siteDomain ? "Links use this site's configured domain. Verify its connection before sharing." : "Links use this website's address until a custom domain is configured."} Broker codes stay the same after a rename.</p>
       {status !== "active" && <p className="text-xs text-amber-700">This site is {status}. Activate and verify it before sharing enrollment links.</p>}
+      {domainError && <p role="alert" className="text-xs text-red-700">Correct the custom domain before generating links. Enter a domain without a path.</p>}
       <label className="block text-sm text-slate-700">
         Destination
         <select value={destination} onChange={event => { setDestination(event.target.value as SiteLinkDestination); setNotice(""); }} className="mt-1 w-full rounded border border-slate-300 px-2 py-2">

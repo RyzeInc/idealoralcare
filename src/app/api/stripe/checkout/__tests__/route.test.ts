@@ -58,6 +58,7 @@ vi.mock("convex/browser", () => ({
 
 vi.mock("@/convex/_generated/api", () => ({
   api: {
+    enrollment: { sessions: { getDTCHierarchy: "enrollment.sessions.getDTCHierarchy" } },
     catalog: {
       queries: {
         getById: "catalog.queries.getById",
@@ -125,6 +126,21 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("POST /api/stripe/checkout", () => {
+  test("refuses a branded sale before charging when member provisioning is not configured", async () => {
+    mockConvexQuery.mockResolvedValueOnce(null);
+    const res = await POST(makeRequest({ ...VALID_BODY, siteSlug: "assurevantage" }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/Enrollment is not available/);
+    expect(mockSessionCreate).not.toHaveBeenCalled();
+    expect(mockCustomerCreate).not.toHaveBeenCalled();
+  });
+
+  test("keeps the ready site's slug in checkout metadata for fulfillment", async () => {
+    mockConvexQuery.mockResolvedValueOnce({ siteId: "site-assure", accountId: "dtc", groupId: "dtc-group" });
+    const res = await POST(makeRequest({ ...VALID_BODY, siteSlug: "assurevantage" }));
+    expect(res.status).toBe(200);
+    expect(mockSessionCreate.mock.calls[0][0].metadata.siteSlug).toBe("assurevantage");
+  });
   // -------------------------------------------------------------------------
   // Authentication
   // -------------------------------------------------------------------------

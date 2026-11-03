@@ -1,4 +1,5 @@
 import { resolveBflMemberCode } from "./bflCodes";
+import { memberPlanName, type MemberBrand } from "./memberBrand";
 /**
  * EMAIL TEMPLATE REGISTRY — the single source of truth for every email we send.
  *
@@ -79,6 +80,7 @@ function sampleDate(): string {
 // ============================================================================
 
 export interface FulfillmentEmailData {
+  brand?: MemberBrand;
   memberFirstName: string;
   memberId: string;
   planName: string;
@@ -89,6 +91,10 @@ export interface FulfillmentEmailData {
 }
 
 function fulfillmentHtml(data: FulfillmentEmailData): string {
+  const name = escapeHtml(data.brand?.name ?? "Ideal Oral Health");
+  const dashboardUrl = data.brand?.portalUrl ?? `${data.portalUrl}/health/dashboard`;
+  const scanUrl = new URL(dashboardUrl);
+  scanUrl.searchParams.set("tab", "oral-scan");
   const BLUE = "#0066CC";
   const TEAL = "#14b8a6";
   const CYAN = "#0d9de0";
@@ -97,7 +103,7 @@ function fulfillmentHtml(data: FulfillmentEmailData): string {
       <!-- Header -->
       <div style="background: linear-gradient(135deg, #1E88E5 0%, #35C48A 100%); color: white; padding: 28px 24px; text-align: center; border-radius: 8px 8px 0 0;">
         <h1 style="margin: 0; font-size: 22px;">Your Membership Packet &amp; Program Guide</h1>
-        <p style="margin: 8px 0 0; font-size: 14px; opacity: 0.9;">Ideal Oral Health — AI Dental Scan &middot; Teledentistry &middot; Dental Savings</p>
+        <p style="margin: 8px 0 0; font-size: 14px; opacity: 0.9;">${name} — AI Dental Scan &middot; Teledentistry &middot; Dental Savings</p>
       </div>
 
       <div style="padding: 28px 24px;">
@@ -153,7 +159,7 @@ function fulfillmentHtml(data: FulfillmentEmailData): string {
         <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px;">
           <h3 style="margin: 0 0 10px; font-size: 15px; color: ${BLUE};">AI Dental Scan</h3>
           <ol style="margin: 0; padding: 0 0 0 20px; font-size: 13px; line-height: 2.0; color: #374151;">
-            <li>Log in to your <a href="${data.portalUrl}/health/dashboard" style="color: ${BLUE}; text-decoration: none;">Member Portal</a> and open the <strong>Oral Scan</strong> tab.</li>
+            <li>Log in to your <a href="${escapeHtml(dashboardUrl)}" style="color: ${BLUE}; text-decoration: none;">Member Portal</a> and open the <strong>Oral Scan</strong> tab.</li>
             <li>Upload or take a clear photo of your teeth.</li>
             <li>Review your results and any recommended next steps.</li>
           </ol>
@@ -187,7 +193,7 @@ function fulfillmentHtml(data: FulfillmentEmailData): string {
         <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px;">
           <h3 style="margin: 0 0 10px; font-size: 15px; color: ${TEAL};">Dental Savings Network</h3>
           <ol style="margin: 0; padding: 0 0 0 20px; font-size: 13px; line-height: 2.0; color: #374151;">
-            <li>Search for a participating provider in your <a href="${data.portalUrl}/health/dashboard" style="color: ${TEAL}; text-decoration: none;">Member Portal</a> or contact <a href="mailto:${SUPPORT_EMAIL}" style="color: ${TEAL}; text-decoration: none;">${SUPPORT_EMAIL}</a>.</li>
+            <li>Search for a participating provider in your <a href="${escapeHtml(dashboardUrl)}" style="color: ${TEAL}; text-decoration: none;">Member Portal</a> or contact <a href="mailto:${SUPPORT_EMAIL}" style="color: ${TEAL}; text-decoration: none;">${SUPPORT_EMAIL}</a>.</li>
             <li>Confirm the provider accepts the discount program <strong>before</strong> your visit.</li>
             <li>Present your Member ID card at your appointment.</li>
             <li>Pay the discounted member amount directly at time of service.</li>
@@ -226,12 +232,12 @@ function fulfillmentHtml(data: FulfillmentEmailData): string {
 
         <!-- CTA + QR Code -->
         <div style="text-align: center; margin: 24px 0 16px;">
-          <a href="${data.portalUrl}/health/dashboard" style="display: inline-block; padding: 14px 36px; background: ${BLUE}; color: white; font-weight: 700; font-size: 15px; text-decoration: none; border-radius: 8px;">
+          <a href="${escapeHtml(dashboardUrl)}" style="display: inline-block; padding: 14px 36px; background: ${BLUE}; color: white; font-weight: 700; font-size: 15px; text-decoration: none; border-radius: 8px;">
             Go to Your Member Portal
           </a>
           <div style="margin-top: 16px;">
             <p style="font-size: 12px; color: #6b7280; margin: 0 0 8px;">Or scan this QR code to open your dashboard:</p>
-            <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent("https://www.getidealoh.com/health/dashboard")}" alt="QR Code to Member Dashboard" width="150" height="150" style="border: 1px solid #e5e7eb; border-radius: 8px;" />
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(scanUrl.href)}" alt="QR Code to Member Dashboard" width="150" height="150" style="border: 1px solid #e5e7eb; border-radius: 8px;" />
           </div>
         </div>
 
@@ -260,6 +266,7 @@ function fulfillmentHtml(data: FulfillmentEmailData): string {
  * and program details in hand even if they never set a password.
  */
 export interface BenefitsReadyEmailData {
+  brand?: MemberBrand;
   memberFirstName: string;
   memberId: string;
   planName: string;
@@ -275,7 +282,7 @@ function benefitsReadyHtml(data: BenefitsReadyEmailData): string {
   const BLUE = "#0066CC";
   const TEAL = "#14b8a6";
   const CYAN = "#0d9de0";
-  const activationUrl = data.activationUrl ?? `${data.portalUrl}/health/sign-in`;
+  const activationUrl = data.activationUrl ?? (data.brand?.portalUrl?.replace(/\/dashboard$/, "/sign-in") || `${data.portalUrl}/health/sign-in`);
   const activationLabel = data.activationUrl ? "Set Your Password" : "Sign In to Your Portal";
   return `
     <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; color: #333; background: #f9fafb;">
@@ -1527,7 +1534,7 @@ export const EMAIL_TEMPLATES = {
       "src/app/api/stripe/webhook/route.ts → checkout.session.completed (non-essentials products)",
     attachments: "fulfillment-pdfs",
     render: (data) => ({
-      subject: "Your Ideal Oral Health Membership Packet & Program Guide",
+      subject: memberPlanName("Your Ideal Oral Health Membership Packet & Program Guide", data.brand),
       html: fulfillmentHtml(data),
     }),
     sample: (o) => ({

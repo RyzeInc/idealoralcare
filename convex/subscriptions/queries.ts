@@ -1,4 +1,5 @@
 import { resolveBflMemberCode } from "../lib/bflCodes";
+import { resolveMemberBrand, memberPlanName } from "../lib/memberBrand";
 import type { Doc } from "../_generated/dataModel";
 /**
  * SUBSCRIPTION QUERIES
@@ -594,6 +595,8 @@ export const getMemberCardDataPublic = query({
       (profile as any).subscriberId ||
       (group as any)?.organizationCode ||
       profile.memberId;
+    const memberSite = await ctx.db.get((group as Doc<"groups"> | null)?.siteId ?? profile.siteId);
+    const brand = resolveMemberBrand(memberSite);
 
     // Try to get a plan name from active entitlements
     let planName = "Ideal Oral Savings Plan";
@@ -656,7 +659,8 @@ export const getMemberCardDataPublic = query({
       memberName: `${profile.firstName} ${profile.lastName}`,
       memberId: memberFacingId,
       subscriberId,
-      planName,
+      planName: memberPlanName(planName, brand),
+      brand,
       productSlug,
       effectiveDate,
       barcode: profile.barcode,
@@ -666,12 +670,12 @@ export const getMemberCardDataPublic = query({
       essentialsGroupNumber: resolveEssentialsGroupNumber(group as any),
       bflMemberCode: resolveBflMemberCode(group as Doc<"groups"> | null),
       networks: {
-        careington: { name: "Dental Discount Network", memberUrl: "https://getidealoh.com/health/dashboard" },
+        careington: { name: "Dental Discount Network", memberUrl: brand?.portalUrl ?? "https://getidealoh.com/health/dashboard" },
         dialCare: { name: "Teledentistry Program", memberUrl: "https://www.dialcare.com" },
-        toothlens: { name: "AI Oral Scanning", memberUrl: "https://toothlens.com" },
+        toothlens: { name: "AI Oral Scanning", memberUrl: brand?.portalUrl ? `${brand.portalUrl}?tab=oral-scan` : "https://toothlens.com" },
       },
-      supportPhone: "(844) 679-9367",
-      supportEmail: "support@getidealoh.com",
+      supportPhone: brand?.supportPhone ?? "(844) 679-9367",
+      supportEmail: brand?.supportEmail ?? "support@getidealoh.com",
     };
   },
 });
@@ -710,6 +714,8 @@ async function resolvePacketData(ctx: QueryCtx, memberProfileId: any) {
   if (!profile) return null;
 
   const group: any = profile.groupId ? await ctx.db.get(profile.groupId) : null;
+  const memberSite = await ctx.db.get(group?.siteId ?? profile.siteId) as Doc<"sites"> | null;
+  const brand = resolveMemberBrand(memberSite);
 
   // Bundle and entitlement are best-effort — absent for members who have not
   // registered, which is exactly the case this resolver exists for.
@@ -777,7 +783,8 @@ async function resolvePacketData(ctx: QueryCtx, memberProfileId: any) {
     memberEmail: profile.email ?? null,
     memberId: memberFacingId,
     subscriberId,
-    planName,
+    planName: memberPlanName(planName, brand),
+    brand,
     productSlug,
     effectiveDate,
     barcode: profile.barcode,
@@ -786,12 +793,12 @@ async function resolvePacketData(ctx: QueryCtx, memberProfileId: any) {
     essentialsGroupNumber: resolveEssentialsGroupNumber(group),
     bflMemberCode: resolveBflMemberCode(group),
     networks: {
-      careington: { name: "Dental Discount Network", memberUrl: "https://getidealoh.com/health/dashboard" },
+      careington: { name: "Dental Discount Network", memberUrl: brand?.portalUrl ?? "https://getidealoh.com/health/dashboard" },
       dialCare: { name: "Teledentistry Program", memberUrl: "https://www.dialcare.com" },
-      toothlens: { name: "AI Oral Scanning", memberUrl: "https://toothlens.com" },
+      toothlens: { name: "AI Oral Scanning", memberUrl: brand?.portalUrl ? `${brand.portalUrl}?tab=oral-scan` : "https://toothlens.com" },
     },
-    supportPhone: "(844) 679-9367",
-    supportEmail: "support@getidealoh.com",
+    supportPhone: brand?.supportPhone ?? "(844) 679-9367",
+    supportEmail: brand?.supportEmail ?? "support@getidealoh.com",
   };
 }
 

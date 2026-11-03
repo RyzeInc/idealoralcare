@@ -1021,6 +1021,8 @@ export default defineSchema({
     // compliance posture that forbids affiliate retail — so absent/false means
     // the shop 404s for that site. See docs/internal/SHOP_DESIGN.md rule 6.
     shopEnabled: v.optional(v.boolean()),
+    // Explicit opt-in; existing groups retain their established member materials.
+    memberBrandingEnabled: v.optional(v.boolean()),
 
     // THIRD-PARTY PROMO LINKS
     // A white-label partner may want to surface an offer we neither sell nor

@@ -1,8 +1,7 @@
 import { pdf } from "@react-pdf/renderer";
 import { createElement, type ReactElement } from "react";
 import type { DocumentProps } from "@react-pdf/renderer";
-import path from "path";
-import fs from "fs";
+import { memberLogoDataUri } from "./member-logo";
 import { Readable } from "stream";
 import { FulfillmentPacketPdf, MembershipAgreementPdf, FulfillmentPacketData } from "@/lib/fulfillment-pdf";
 
@@ -21,11 +20,7 @@ export async function generateFulfillmentPdfs(
 
   // Embed the logo as a base64 data URI for @react-pdf/renderer
   if (!data.logoDataUri) {
-    const logoPath = path.join(process.cwd(), "public", "ideal-oral-health-logo.png");
-    if (fs.existsSync(logoPath)) {
-      const logoBuffer = fs.readFileSync(logoPath);
-      data.logoDataUri = `data:image/png;base64,${logoBuffer.toString("base64")}`;
-    }
+    data.logoDataUri = memberLogoDataUri(data.brand);
   }
 
   const packetDoc = createElement(FulfillmentPacketPdf, { data }) as unknown as ReactElement<DocumentProps>;

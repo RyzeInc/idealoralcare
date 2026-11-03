@@ -10,8 +10,10 @@
  */
 
 import { PROVIDER_GROUP_CODE } from './constants';
+import type { MemberBrand } from '@/convex/lib/memberBrand';
 
 export interface MemberCardData {
+  brand?: MemberBrand;
   memberName: string;
   memberId: string;
   planName: string;
@@ -55,10 +57,10 @@ export function renderCardFront(cardData: MemberCardData): RenderedCardSide {
     data: cardData,
     fragments: {
       header: {
-        logo: 'ideal-oral-health-logo.png',
-        brandName: 'Ideal Oral Health',
+        logo: cardData.brand?.logoUrl ?? 'ideal-oral-health-logo.png',
+        brandName: cardData.brand?.name ?? 'Ideal Oral Health',
         cardType: 'Member ID Card',
-        website: 'www.getidealoh.com',
+        website: cardData.brand?.portalUrl ? new URL(cardData.brand.portalUrl).host : 'www.getidealoh.com',
         phone: cardData.supportPhone,
       },
       content: [
@@ -112,8 +114,8 @@ export function renderCardBack(cardData: MemberCardData): RenderedCardSide {
     data: cardData,
     fragments: {
       header: {
-        logo: 'ideal-oral-health-logo.png',
-        brandName: 'Ideal Oral Health',
+        logo: cardData.brand?.logoUrl ?? 'ideal-oral-health-logo.png',
+        brandName: cardData.brand?.name ?? 'Ideal Oral Health',
         cardType: 'Important Information',
       },
       content: [
@@ -140,14 +142,14 @@ export function renderCardBack(cardData: MemberCardData): RenderedCardSide {
           section: 'How to Use',
           items: [
             '1. Present card at participating provider',
-            '2. Mention you are an Ideal Oral Health member',
+            `2. Mention you are an ${cardData.brand?.name ?? 'Ideal Oral Health'} member`,
             '3. Ask about member discounts',
           ],
         },
       ],
       footer: {
         main: 'THIS IS NOT INSURANCE. IT IS A DISCOUNT PROGRAM.',
-        website: 'www.getidealoh.com',
+        website: cardData.brand?.portalUrl ? new URL(cardData.brand.portalUrl).host : 'www.getidealoh.com',
         supportEmail: cardData.supportEmail,
       },
     },

@@ -527,13 +527,15 @@ export const getDTCHierarchy = query({
       .filter((q) => q.eq(q.field("slug"), slug))
       .first();
 
-    if (!site) return null;
+    if (!site || site.status !== "active" || !site.enrollmentDefaults.allowSelfEnrollment) return null;
 
     // Find the first active account under this site
-    const account = await ctx.db
+    const accounts = await ctx.db
       .query("accounts")
       .withIndex("by_site", (q: any) => q.eq("siteId", site._id))
-      .first();
+      .filter(q => q.eq(q.field("status"), "active"))
+      .collect();
+    const account = accounts.find(account => account.accountType === "individual") ?? accounts[0];
 
     if (!account) return null;
 
@@ -541,6 +543,7 @@ export const getDTCHierarchy = query({
     const group = await ctx.db
       .query("groups")
       .withIndex("by_account", (q: any) => q.eq("accountId", account._id))
+      .filter(q => q.eq(q.field("status"), "active"))
       .first();
 
     if (!group) return null;

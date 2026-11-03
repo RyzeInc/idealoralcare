@@ -1,5 +1,7 @@
 # Sweep follow-up — November 1, 2026
 
+Updated implementation details and the status of every original email action are in the [November 3 audit](email-action-audit-2026-11-03.md). Open business and vendor confirmations remain open even where preventive code is implemented.
+
 ## Implemented in the working tree
 
 - Per-site marketing visibility, editable in Hierarchy → Sites → Edit → Marketing.

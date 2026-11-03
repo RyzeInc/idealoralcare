@@ -1,6 +1,6 @@
 import { action } from "../_generated/server";
 import { v } from "convex/values";
-import { api } from "../_generated/api";
+import { api, internal } from "../_generated/api";
 import { requireAccessAction } from "../lib/authGuards";
 import { PROVIDER_GROUP_CODE } from "../lib/constants";
 
@@ -36,6 +36,8 @@ export const getMemberCardData: any = action({
     const memberDetail = await ctx.runQuery(api.admin.members.getMemberDetail, { memberId: args.memberId });
     if (!memberDetail) throw new Error("Member not found");
     const member = memberDetail.member;
+    const packet = await ctx.runQuery(internal.subscriptions.queries.getPacketDataForProfileInternal, { memberProfileId: args.memberId });
+    const brand = packet?.brand;
 
     // Resolve Subscriber ID = Organization Code from the member's Organization (group),
     // falling back to a value stored on the member, then to the memberId.
@@ -57,7 +59,8 @@ export const getMemberCardData: any = action({
       memberName: `${member.firstName} ${member.lastName}`,
       memberId: memberFacingId || member.memberId || "MBR-2026-00001",
       email: member.email,
-      planName: "Oral Health Plan",
+      planName: brand ? packet!.planName : "Oral Health Plan",
+      brand,
       effectiveDate: firstOfNextMonth(member.createdAt),
       barcode: member.barcode,
       // Provider Group Code (Careington/DialCare-required) — sourced from PROVIDER_GROUP_CODE constant.
@@ -67,7 +70,7 @@ export const getMemberCardData: any = action({
       networks: {
         careington: {
           name: "Dental Discount Network",
-          memberUrl: "https://getidealoh.com/health/dashboard",
+          memberUrl: brand?.portalUrl ?? "https://getidealoh.com/health/dashboard",
         },
         dialCare: {
           name: "Teledentistry Program",
@@ -75,12 +78,12 @@ export const getMemberCardData: any = action({
         },
         toothlens: {
           name: "AI Oral Scanning",
-          memberUrl: `https://selfcheck.toothlens.com/ai/idealhealth?uid=${member.memberId}`,
+          memberUrl: brand?.portalUrl ? `${brand.portalUrl}?tab=oral-scan` : `https://selfcheck.toothlens.com/ai/idealhealth?uid=${member.memberId}`,
         },
       },
-      supportPhone: "(800) IDEAL-CARE",
+      supportPhone: brand?.supportPhone ?? "(844) 679-9367",
       supportEmail: "support@getidealoh.com",
-      memberWebsite: "www.getidealoh.com",
+      memberWebsite: brand?.portalUrl ? new URL(brand.portalUrl).host : "www.getidealoh.com",
     };
   },
 });

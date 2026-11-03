@@ -12,13 +12,17 @@ const nextConfig: NextConfig = {
   // listing it here makes Next require() it at runtime instead.
   serverExternalPackages: ["ssh2", "ssh2-sftp-client"],
   outputFileTracingIncludes: {
+    "/register": ["./public/partnerkit/page-*.jpg"],
+    "/api/member-card-pdf": ["./public/brands/assurevantage/logo.png", "./public/ideal-oral-health-logo.png", "./public/careington-logo.png"],
+    "/api/generate-fulfillment-pdf": ["./public/brands/assurevantage/logo.png", "./public/ideal-oral-health-logo.png", "./public/careington-logo.png"],
+    "/api/admin/members/*/id-card": ["./public/brands/assurevantage/logo.png", "./public/ideal-oral-health-logo.png", "./public/careington-logo.png"],
     // Member-only vendor letters contain access codes. Bundle them with the
     // renderer rather than serving them as unauthenticated public assets.
-    "/api/documents": ["./server-assets/packets/essentials/*"],
+    "/api/documents": ["./server-assets/packets/essentials/*", "./public/brands/assurevantage/logo.png", "./public/ideal-oral-health-logo.png", "./public/careington-logo.png"],
     "/api/generate-essentials-pdf": ["./server-assets/packets/essentials/*"],
-    "/api/stripe/webhook": ["./server-assets/packets/essentials/*"],
-    "/api/debug/pdf-preview": ["./server-assets/packets/essentials/*"],
-    "/api/test-email": ["./server-assets/packets/essentials/*"],
+    "/api/stripe/webhook": ["./server-assets/packets/essentials/*", "./public/brands/assurevantage/logo.png", "./public/ideal-oral-health-logo.png", "./public/careington-logo.png"],
+    "/api/debug/pdf-preview": ["./server-assets/packets/essentials/*", "./public/brands/assurevantage/logo.png", "./public/ideal-oral-health-logo.png", "./public/careington-logo.png"],
+    "/api/test-email": ["./server-assets/packets/essentials/*", "./public/brands/assurevantage/logo.png", "./public/ideal-oral-health-logo.png", "./public/careington-logo.png"],
     "/api/admin/eligibility-guide": ["./docs/eligibility-companion/program-manager-guide.pdf"],
   },
 

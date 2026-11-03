@@ -14,6 +14,13 @@ describe("brand enrollment links", () => {
       .toBe("https://existing.example/assurevantage/plans?ref=230001");
   });
 
+  test("uses the configured custom domain once supplied, keeping the broker code", () => {
+    expect(buildSiteEnrollmentLink({ origin: "https://www.getidealoh.com", siteDomain: "www.assurevantage.com", siteSlug: "assurevantage", destination: "plans", referralCode: "100401" })).toBe("https://www.assurevantage.com/assurevantage/plans?ref=100401");
+  });
+  test.each(["https://example.com/path", "https://user:password@example.com", "https://example.com?ref=other", "//evil.example"])("rejects an invalid configured domain: %s", siteDomain => {
+    expect(() => buildSiteEnrollmentLink({ origin: "https://www.getidealoh.com", siteDomain, siteSlug: "assurevantage", destination: "plans" })).toThrow();
+  });
+
   test("scan links go to the authenticated member tool, preserving the brand", () => {
     const url = new URL(buildSiteEnrollmentLink({ origin: "https://existing.example", siteSlug: "assurevantage", destination: "scan" }));
     expect(url.pathname).toBe("/assurevantage/dashboard");

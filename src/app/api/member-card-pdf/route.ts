@@ -1,3 +1,5 @@
+import { memberLogoDataUri } from "@/lib/member-logo";
+import { memberDocumentPrefix } from "@/convex/lib/memberBrand";
 import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { convexServiceSecret } from "@/lib/convex-service";
@@ -6,8 +8,6 @@ import { api } from "@/convex/_generated/api";
 import { pdf } from "@react-pdf/renderer";
 import { createElement, type ReactElement } from "react";
 import type { DocumentProps } from "@react-pdf/renderer";
-import path from "path";
-import fs from "fs";
 import { MemberCardPdf, type FulfillmentPacketData } from "@/lib/fulfillment-pdf";
 import { PROVIDER_GROUP_CODE } from "@/lib/constants";
 
@@ -59,14 +59,10 @@ export async function GET() {
     memberServicesPhone: "(844) 679-9367",
     memberWebsite: "www.getidealoh.com",
     networks: memberProfile?.networks,
+    brand: memberProfile?.brand,
   };
 
-  // Load logo as base64 data URI
-  const logoPath = path.join(process.cwd(), "public", "ideal-oral-health-logo.png");
-  if (fs.existsSync(logoPath)) {
-    const logoBuffer = fs.readFileSync(logoPath);
-    data.logoDataUri = `data:image/png;base64,${logoBuffer.toString("base64")}`;
-  }
+  data.logoDataUri = memberLogoDataUri(data.brand);
 
   try {
     const document = createElement(
@@ -85,7 +81,7 @@ export async function GET() {
     // Generate filename: IdealOralHealthCard-membername-memberid.pdf
     const sanitizedName = data.memberName.replace(/[^a-zA-Z0-9-]/g, "").replace(/\s+/g, "");
     const sanitizedId = data.memberId.replace(/[^a-zA-Z0-9-]/g, "");
-    const filename = `IdealOralHealthCard-${sanitizedName}-${sanitizedId}.pdf`;
+    const filename = `${memberDocumentPrefix(data.brand)}Card-${sanitizedName}-${sanitizedId}.pdf`;
 
     return new NextResponse(buffer, {
       status: 200,

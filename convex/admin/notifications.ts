@@ -87,6 +87,7 @@ export const resendMemberPacket = action({
         planName: data.planName,
         effectiveDate: data.effectiveDate,
         networks: data.networks,
+    brand: data.brand,
       });
     }
 

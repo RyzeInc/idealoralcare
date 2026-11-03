@@ -794,6 +794,7 @@ async function sendPacket(
     planName: data.planName,
     effectiveDate: data.effectiveDate,
     networks: data.networks,
+    brand: data.brand,
     templateId: variant === "benefits-ready" ? "benefits-ready" : "fulfillment-packet",
   });
   return res?.emailId;

@@ -404,6 +404,7 @@ function EditSiteModal({ site, onClose }: { site: any; onClose: () => void }) {
   const [saving, setSaving] = useState(false);
   const [marketing, setMarketing] = useState<SiteMarketing>(site.marketing ?? {});
   const [shopEnabled, setShopEnabled] = useState(site.shopEnabled ?? false);
+  const [memberBrandingEnabled, setMemberBrandingEnabled] = useState(site.memberBrandingEnabled ?? false);
 
   const [identity, setIdentity] = useState({
     name: site.name || '',
@@ -580,11 +581,12 @@ function EditSiteModal({ site, onClose }: { site: any; onClose: () => void }) {
       await updateSite({
         siteId: site._id,
         name: identity.name,
-        domain: identity.domain || undefined,
+        domain: identity.domain.trim(),
         type: identity.type,
         status: identity.status,
         marketing,
         shopEnabled,
+        memberBrandingEnabled,
         branding: {
           ...site.branding,
           logoUrl: branding.logoUrl || undefined,
@@ -702,6 +704,8 @@ function EditSiteModal({ site, onClose }: { site: any; onClose: () => void }) {
 
         {activeTab === 'branding' && (
           <>
+            <label className="flex gap-2 text-sm"><input type="checkbox" checked={memberBrandingEnabled} onChange={event => setMemberBrandingEnabled(event.target.checked)} />Use this brand on oral member welcome emails, packets and cards</label>
+            <p className="text-xs text-slate-500">Applies to members enrolled under this site, including future resends. Leave off for groups retaining Ideal materials. This does not change benefits or the verified email-sending domain.</p>
             {site.slug === ASSUREVANTAGE_PRESET.slug && <button type="button" className="text-sm text-blue-700 underline" onClick={() => setBranding(current => ({ ...current, ...ASSUREVANTAGE_PRESET.branding }))}>Use supplied AssureVantage logo, colors and tagline</button>}
             <Field label="Information Request Email" value={branding.informationEmail} onChange={v => setBranding(current => ({ ...current, informationEmail: v }))} placeholder="info@yourbrand.com" tooltip="Shown separately from member support. This does not change the email sender or support address." />
             {/* Logo upload */}
@@ -903,7 +907,7 @@ function EditSiteModal({ site, onClose }: { site: any; onClose: () => void }) {
 
         {activeTab === 'enrollment' && (
           <>
-            <SiteEnrollmentLinks siteSlug={site.slug} status={identity.status} />
+            <SiteEnrollmentLinks siteSlug={site.slug} siteDomain={site.domain} status={identity.status} />
             <div className="grid grid-cols-2 gap-3">
               <Field label="Support Email" value={enrollment.supportEmail} onChange={v => setEnrollment(s => ({ ...s, supportEmail: v }))} placeholder="support@yourbrand.com" />
               <Field label="Support Phone" value={enrollment.supportPhone} onChange={v => setEnrollment(s => ({ ...s, supportPhone: v }))} placeholder="(800) 000-0000" />

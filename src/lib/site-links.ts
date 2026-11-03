@@ -1,4 +1,5 @@
 import { isReservedPath } from "./rep-routing/reserved";
+import { siteOrigin } from "@/convex/lib/memberBrand";
 
 export type SiteLinkDestination = "landing" | "plans" | "enroll" | "scan";
 
@@ -13,13 +14,14 @@ export function siteBasePath(slug: string): string {
 }
 
 /** Use the current deployment's path-based site; no custom domain is required. */
-export function buildSiteEnrollmentLink({ origin, siteSlug, destination, referralCode = "" }: {
+export function buildSiteEnrollmentLink({ origin, siteSlug, siteDomain, destination, referralCode = "" }: {
   origin: string;
   siteSlug: string;
+  siteDomain?: string;
   destination: SiteLinkDestination;
   referralCode?: string;
 }): string {
-  const base = new URL(origin);
+  const base = new URL(siteOrigin(siteDomain, origin));
   if (!["http:", "https:"].includes(base.protocol)) throw new Error("A website URL is required");
   const suffix = destination === "landing" ? "" : destination === "scan" ? "/dashboard" : `/${destination}`;
   const url = new URL(`${siteBasePath(siteSlug)}${suffix}`, base.origin);

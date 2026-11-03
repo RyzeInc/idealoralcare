@@ -21,6 +21,7 @@ import {
 } from "@/lib/pdf-theme";
 import { renderCardFront, renderCardBack, type MemberCardData } from "@/lib/card-renderer";
 import { PROVIDER_GROUP_CODE } from "@/lib/constants";
+import type { MemberBrand } from "@/convex/lib/memberBrand";
 
 const CAREINGTON_LOGO_PATH = path.resolve(process.cwd(), "public", "careington-logo.png");
 const CAREINGTON_LOGO_DATA_URI = `data:image/png;base64,${fs.readFileSync(CAREINGTON_LOGO_PATH).toString("base64")}`;
@@ -94,6 +95,7 @@ const SERVICE_SCHEDULE = [
 
 // ─── Data type ────────────────────────────────────────────────────────────────
 export interface FulfillmentPacketData {
+  brand?: MemberBrand;
   memberName: string;
   memberFirstName: string;
   memberEmail: string;
@@ -117,25 +119,35 @@ export interface FulfillmentPacketData {
   };
 }
 
+function brandName(data: FulfillmentPacketData) { return data.brand?.name ?? "Ideal Oral Health"; }
+function portalUrl(data: FulfillmentPacketData) { return data.brand?.portalUrl ?? "https://www.getidealoh.com/health/dashboard"; }
+function website(data: FulfillmentPacketData) { return data.brand?.portalUrl ? new URL(data.brand.portalUrl).host : data.memberWebsite ?? "www.getidealoh.com"; }
+function packetText(data: FulfillmentPacketData, text: string) {
+  if (!data.brand) return text;
+  return text.replace(/Ideal Oral Health|Ideal Health/g, () => brandName(data))
+    .replace(/(?:www\.)?getidealoh\.com\/health\/dashboard/g, () => portalUrl(data).replace(/^https?:\/\//, ""))
+    .replace(/support@getidealoh\.com/g, () => data.brand?.supportEmail ?? "support@getidealoh.com");
+}
+
 // ─── Page 1: Welcome Letter ───────────────────────────────────────────────────
 function WelcomePage({ data }: { data: FulfillmentPacketData }) {
-  const phone = data.memberServicesPhone ?? "(844) 679-9367";
-  const website = data.memberWebsite ?? "www.getidealoh.com";
+  const phone = data.brand?.supportPhone ?? data.memberServicesPhone ?? "(844) 679-9367";
+  const memberWebsite = website(data);
 
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} />
+      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
 
       {/* Title */}
       <Text style={{ ...s.h1, textAlign: "center" }}>Member Fulfillment Packet</Text>
       <Text style={{ fontSize: 10, color: GRAY, textAlign: "center", marginBottom: 12 }}>
-        Ideal Oral Health — AI Dental Scan - Teledentistry - Dental Savings Program
+        {brandName(data)} — AI Dental Scan - Teledentistry - Dental Savings Program
       </Text>
 
       {/* Meta table */}
       <View style={{ flexDirection: "row", marginBottom: 8 }}>
         {[
-          { label: "Program Name", value: "Ideal Oral Health" },
+          { label: "Program Name", value: brandName(data) },
           { label: "Member ID", value: data.memberId },
           { label: "Effective Date", value: data.effectiveDate },
         ].map((item) => (
@@ -176,10 +188,10 @@ function WelcomePage({ data }: { data: FulfillmentPacketData }) {
       </Text>
 
       {[
-        `Welcome to Ideal Oral Health. We are excited to have you enrolled and to help connect you with dental savings and oral health support through your membership.`,
+        `Welcome to ${brandName(data)}. We are excited to have you enrolled and to help connect you with dental savings and oral health support through your membership.`,
         `Your program is designed to make it easier to access participating providers, understand your member benefits, and use your included services with confidence. Please keep this packet for your records and refer to it whenever you need your membership details or support information.`,
         `For your convenience, your membership card(s) and summary materials are included with this packet. Please present your card at each appointment and keep your member information available when scheduling services.`,
-        `To find participating providers, get help using your plan, or request additional information, contact Member Services at ${phone} or visit ${website}.`,
+        `To find participating providers, get help using your plan, or request additional information, contact Member Services at ${phone} or visit ${memberWebsite}.`,
       ].map((para) => (
         <Text key={para.slice(0, 40)} style={s.body}>
           {para}
@@ -204,9 +216,9 @@ function WelcomePage({ data }: { data: FulfillmentPacketData }) {
       </Text>
       <View style={{ backgroundColor: LIGHT_GREEN, padding: 8, marginBottom: 8, borderRadius: 4 }}>
         {[
-          { n: 1, text: "Log in to your Member Portal at www.getidealoh.com/health/dashboard to access your AI Oral Scan, view your card, and manage your membership." },
-          { n: 2, text: "To locate a participating dental provider, visit your Member Portal at getidealoh.com/health/dashboard or contact support@getidealoh.com for assistance." },
-          { n: 3, text: "When scheduling an appointment, inform the provider's office you are an Ideal Oral Health member." },
+          { n: 1, text: packetText(data, "Log in to your Member Portal at www.getidealoh.com/health/dashboard to access your AI Oral Scan, view your card, and manage your membership.") },
+          { n: 2, text: packetText(data, "To locate a participating dental provider, visit your Member Portal at getidealoh.com/health/dashboard or contact support@getidealoh.com for assistance.") },
+          { n: 3, text: packetText(data, "When scheduling an appointment, inform the provider's office you are an Ideal Oral Health member.") },
           { n: 4, text: "Present your Member ID card upon arrival to receive savings. The provider will collect payment at the time of service." },
         ].map((item) => (
           <Numbered key={item.n} n={item.n} text={item.text} />
@@ -224,7 +236,7 @@ function WelcomePage({ data }: { data: FulfillmentPacketData }) {
           data.groupCode,
         ],
         ["Effective Date", data.effectiveDate, "Term", data.term ?? "Annual"],
-        ["Website", website, "Member Services", phone],
+        ["Website", memberWebsite, "Member Services", phone],
       ].map((row, i) => (
         <View key={i} style={{ flexDirection: "row", marginBottom: 2 }}>
           <View style={s.summaryLabelCell}>
@@ -242,7 +254,7 @@ function WelcomePage({ data }: { data: FulfillmentPacketData }) {
         </View>
       ))}
 
-      <Text style={s.footer}>Ideal Oral Health | Fulfillment Packet | {data.effectiveDate}</Text>
+      <Text style={s.footer}>{brandName(data)} | Fulfillment Packet | {data.effectiveDate}</Text>
     </Page>
   );
 }
@@ -251,11 +263,11 @@ function WelcomePage({ data }: { data: FulfillmentPacketData }) {
 function AIScanningSummaryPage({ data }: { data: FulfillmentPacketData }) {
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} />
+      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
 
       <Text style={s.h2}>AI Oral Scan</Text>
       <Text style={s.body}>
-        Your Ideal Oral Health membership includes access to an AI-powered dental assessment tool that lets you monitor your oral health from home. Simply upload or take a photo of your teeth from your Member Portal and receive an instant AI-driven screening of potential dental issues.
+        Your {brandName(data)} membership includes access to an AI-powered dental assessment tool that lets you monitor your oral health from home. Simply upload or take a photo of your teeth from your Member Portal and receive an instant AI-driven screening of potential dental issues.
       </Text>
 
       <Text style={{ ...s.h4, color: GREEN, marginTop: 6 }}>What AI Oral Scan Can Do:</Text>
@@ -271,7 +283,7 @@ function AIScanningSummaryPage({ data }: { data: FulfillmentPacketData }) {
 
       <Text style={{ ...s.h4, color: GREEN, marginTop: 6 }}>How to Use AI Oral Scan:</Text>
       {[
-        { n: 1, text: "Log in to your Member Portal at www.getidealoh.com/health/dashboard." },
+        { n: 1, text: packetText(data, "Log in to your Member Portal at www.getidealoh.com/health/dashboard.") },
         { n: 2, text: "Open the Oral Scan tab from your dashboard." },
         { n: 3, text: "Upload or take a clear photo of your teeth following the on-screen guide." },
         { n: 4, text: "Review your AI-generated results and any recommended next steps." },
@@ -300,7 +312,7 @@ function AIScanningSummaryPage({ data }: { data: FulfillmentPacketData }) {
         </Text>
       </View>
 
-      <Text style={s.footer}>Ideal Oral Health | AI Oral Scan</Text>
+      <Text style={s.footer}>{brandName(data)} | AI Oral Scan</Text>
     </Page>
   );
 }
@@ -309,12 +321,12 @@ function AIScanningSummaryPage({ data }: { data: FulfillmentPacketData }) {
 function ProgramSummaryPage({ data }: { data: FulfillmentPacketData }) {
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} />
+      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
 
       <Text style={s.h2}>Dental Savings Network</Text>
 
       <Text style={s.body}>
-        Your Ideal Oral Health membership includes access to one of the largest dental discount networks in the nation, with a focus on neighborhood dentists and transparent, member-friendly pricing.
+        Your {brandName(data)} membership includes access to one of the largest dental discount networks in the nation, with a focus on neighborhood dentists and transparent, member-friendly pricing.
       </Text>
 
       <Text style={{ ...s.h4, color: GREEN, marginTop: 6 }}>Dental Discount Features:</Text>
@@ -330,7 +342,7 @@ function ProgramSummaryPage({ data }: { data: FulfillmentPacketData }) {
 
       <Text style={{ ...s.h4, color: GREEN, marginTop: 12 }}>How to access the discount:</Text>
       {[
-        "To locate a participating provider, please email support@getidealoh.com or visit getidealoh.com/health/dashboard to access the online provider search.",
+        packetText(data, "To locate a participating provider, please email support@getidealoh.com or visit getidealoh.com/health/dashboard to access the online provider search."),
         "When scheduling an appointment, please inform the participating provider\u2019s office you are a member of the Careington Dental Network.",
         "Please present your Careington ID card upon arrival to receive savings.",
         "The provider will collect payment at the time of service. You are responsible for paying the total bill, less the applicable savings, when service is provided.",
@@ -342,10 +354,10 @@ function ProgramSummaryPage({ data }: { data: FulfillmentPacketData }) {
       ))}
 
       <Text style={{ fontSize: 8, fontFamily: "Helvetica-Oblique", color: GRAY, marginTop: 14, lineHeight: 1.5 }}>
-        THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance. This plan does not meet the minimum creditable coverage requirements under M.G.L. c.111M and 956 CMR 5.00. This plan is not a Qualified Health Plan under the Affordable Care Act. The range of discounts will vary depending on the type of provider and service. The plan does not pay providers directly. Plan members must pay for all services but will receive a discount from participating providers. The list of participating providers is at getidealoh.com/health/dashboard. A written list of participating providers is available upon request. You may cancel within the first 30 days after effective date or receipt of membership materials (whichever is later) and receive a full refund. Discount Plan Organization and administrator: Careington International Corporation, 7400 Gaylord Parkway, Frisco, TX 75034; phone 800-441-0380.{"\n\n"}This plan is not available in Vermont or Washington.
+        THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance. This plan does not meet the minimum creditable coverage requirements under M.G.L. c.111M and 956 CMR 5.00. This plan is not a Qualified Health Plan under the Affordable Care Act. The range of discounts will vary depending on the type of provider and service. The plan does not pay providers directly. Plan members must pay for all services but will receive a discount from participating providers. The list of participating providers is at {portalUrl(data).replace(/^https?:\/\//, "")}. A written list of participating providers is available upon request. You may cancel within the first 30 days after effective date or receipt of membership materials (whichever is later) and receive a full refund. Discount Plan Organization and administrator: Careington International Corporation, 7400 Gaylord Parkway, Frisco, TX 75034; phone 800-441-0380.{"\n\n"}This plan is not available in Vermont or Washington.
       </Text>
 
-      <Text style={s.footer}>Ideal Oral Health | Dental Savings Network</Text>
+      <Text style={s.footer}>{brandName(data)} | Dental Savings Network</Text>
     </Page>
   );
 }
@@ -354,7 +366,7 @@ function ProgramSummaryPage({ data }: { data: FulfillmentPacketData }) {
 function DialCareSummaryPage({ data }: { data: FulfillmentPacketData }) {
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} />
+      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
 
       <Text style={s.h2}>Teledentistry (DialCare)</Text>
       <Text style={s.body}>
@@ -406,7 +418,7 @@ function DialCareSummaryPage({ data }: { data: FulfillmentPacketData }) {
         State availability may vary. Please visit dialcare.com/states for up-to-date information.
       </Text>
 
-      <Text style={s.footer}>Ideal Oral Health | Teledentistry — DialCare</Text>
+      <Text style={s.footer}>{brandName(data)} | Teledentistry — DialCare</Text>
     </Page>
   );
 }
@@ -414,7 +426,7 @@ function DialCareSummaryPage({ data }: { data: FulfillmentPacketData }) {
 // ─── Membership Agreement ────────────────────────────────────────────────────
 function MembershipAgreementPage({ data }: { data: FulfillmentPacketData }) {
   const fields: [string, string][] = [
-    ["Program", "Ideal Oral Health"],
+    ["Program", brandName(data)],
     ["Group Code", data.groupCode],
     ["Member ID", data.memberId],
     ["Member Name", data.memberName],
@@ -427,7 +439,7 @@ function MembershipAgreementPage({ data }: { data: FulfillmentPacketData }) {
 
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} />
+      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
 
       <Text style={s.h2}>Membership Agreement</Text>
 
@@ -446,7 +458,7 @@ function MembershipAgreementPage({ data }: { data: FulfillmentPacketData }) {
 
       {/* Intro */}
       <Text style={s.bodySmall}>
-        To add a family member to your plan or change mode of payment, contact Ideal Oral Health at support@getidealoh.com. For assistance using your plan, please call Member Services at 1-855-335-2255.
+        To add a family member to your plan or change mode of payment, contact {brandName(data)} at {data.brand?.supportEmail ?? "support@getidealoh.com"}. For assistance using your plan, please call Member Services at 1-855-335-2255.
       </Text>
 
       <Text style={{ ...s.bodySmall, marginTop: 8 }}>
@@ -459,7 +471,7 @@ function MembershipAgreementPage({ data }: { data: FulfillmentPacketData }) {
         By joining a plan, for yourself or on behalf of a minor child for whom you are a parent or legal guardian, you confirm that you are at least 18 years old and you authorize Ryze LLC to charge your credit card or checking account for the plan you have selected. By joining, you indicate you have read and agree to the terms and conditions of the plan.
       </Text>
       <Text style={{ ...s.bodySmall, fontStyle: 'italic' }}>
-        This charge will automatically renew at the end of your membership term, and your credit card or checking account will be automatically charged for the appropriate amount, until you notify Ideal Health that you wish to cancel the plan.
+        This charge will automatically renew at the end of your membership term, and your credit card or checking account will be automatically charged for the appropriate amount, until you notify {data.brand?.name ?? "Ideal Health"} that you wish to cancel the plan.
       </Text>
 
       {/* Termination Conditions */}
@@ -506,18 +518,18 @@ function MembershipAgreementPage({ data }: { data: FulfillmentPacketData }) {
         You have the right to request an appeal if you are dissatisfied with the complaint resolution. After completing the complaint resolution process, if you remain dissatisfied you may contact your state insurance department. Contact information for your state insurance department is available upon request.
       </Text>
 
-      <Text style={s.footer}>Ideal Oral Health | Membership Agreement</Text>
+      <Text style={s.footer}>{brandName(data)} | Membership Agreement</Text>
     </Page>
   );
 }
 
 // ─── Page 6: Schedule of Services ────────────────────────────────────────────
 function SchedulePage({ data }: { data: FulfillmentPacketData }) {
-  const phone = data.memberServicesPhone ?? "(844) 679-9367";
+  const phone = data.brand?.supportPhone ?? data.memberServicesPhone ?? "(844) 679-9367";
 
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} />
+      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
 
       <Text style={s.h2}>Sample Schedule of Services</Text>
       <Text style={{ fontSize: 9, fontFamily: "Helvetica-Oblique", color: GRAY, marginBottom: 8 }}>
@@ -530,7 +542,7 @@ function SchedulePage({ data }: { data: FulfillmentPacketData }) {
         {[
           ["Business Hours", "Mon–Fri 7am–7pm CT"],
           ["Customer Service", phone],
-          ["Mail", "Ideal Oral Health Member Services"],
+          ["Mail", `${brandName(data)} Member Services`],
         ].map(([label, value]) => (
           <View key={label} style={s.contactCell}>
             <Text style={{ fontSize: 8.5, fontFamily: "Helvetica-Bold", color: BLUE }}>
@@ -591,7 +603,7 @@ function SchedulePage({ data }: { data: FulfillmentPacketData }) {
         <Numbered key={i} n={i + 1} text={item} />
       ))}
 
-      <Text style={s.footer}>Ideal Oral Health | Sample Schedule of Services</Text>
+      <Text style={s.footer}>{brandName(data)} | Sample Schedule of Services</Text>
     </Page>
   );
 }
@@ -614,7 +626,7 @@ function MemberCardTitlePage({ data }: { data: FulfillmentPacketData }) {
           />
         )}
         <Text style={cardStyles.titleMain}>Member ID Card</Text>
-        <Text style={cardStyles.titleSub}>Ideal Oral Health</Text>
+        <Text style={cardStyles.titleSub}>{brandName(data)}</Text>
 
         <View style={cardStyles.titleField}>
           <Text style={cardStyles.titleLabel}>Member Name</Text>
@@ -662,14 +674,14 @@ function MemberCardFrontPage({ data }: { data: FulfillmentPacketData }) {
                 />
               )}
               <View style={cardStyles.headerText}>
-                <Text style={cardStyles.brandName}>Ideal Oral Health</Text>
+                <Text style={cardStyles.brandName}>{brandName(data)}</Text>
                 <Text style={cardStyles.cardType}>Member ID Card</Text>
               </View>
             </View>
             <View style={cardStyles.headerRight}>
-              <Text style={cardStyles.headerRightLine}>www.getidealoh.com</Text>
+              <Text style={cardStyles.headerRightLine}>{website(data)}</Text>
               <Text style={cardStyles.headerRightLine}>
-                {data.memberServicesPhone ?? '(844) 679-9367'}
+                {data.brand?.supportPhone ?? data.memberServicesPhone ?? '(844) 679-9367'}
               </Text>
             </View>
           </View>
@@ -788,8 +800,8 @@ function MemberCardBackPage({ data }: { data: FulfillmentPacketData }) {
 export function FulfillmentPacketPdf({ data }: { data: FulfillmentPacketData }) {
   return (
     <Document
-      title="Ideal Oral Health Member Fulfillment Packet"
-      author="Ideal Oral Health"
+      title={`${brandName(data)} Member Fulfillment Packet`}
+      author={brandName(data)}
       subject="Member Fulfillment Packet"
     >
       <WelcomePage data={data} />
@@ -806,8 +818,8 @@ export function FulfillmentPacketPdf({ data }: { data: FulfillmentPacketData }) 
 export function MembershipAgreementPdf({ data }: { data: FulfillmentPacketData }) {
   return (
     <Document
-      title={`Ideal Oral Health Membership Agreement - ${data.memberName}`}
-      author="Ideal Oral Health"
+      title={`${brandName(data)} Membership Agreement - ${data.memberName}`}
+      author={brandName(data)}
       subject="Membership Agreement"
     >
       <MembershipAgreementPage data={data} />
@@ -818,8 +830,8 @@ export function MembershipAgreementPdf({ data }: { data: FulfillmentPacketData }
 export function MemberCardPdf({ data }: { data: FulfillmentPacketData }) {
   return (
     <Document
-      title={`Ideal Oral Health Member Card - ${data.memberName}`}
-      author="Ideal Oral Health"
+      title={`${brandName(data)} Member Card - ${data.memberName}`}
+      author={brandName(data)}
       subject="Member Card"
     >
       <MemberCardTitlePage data={data} />
@@ -839,8 +851,8 @@ export function MemberCardsPdf({ people }: { people: FulfillmentPacketData[] }) 
 
   return (
     <Document
-      title="Ideal Oral Health Member ID Cards"
-      author="Ideal Oral Health"
+      title={`${people[0] ? brandName(people[0]) : "Ideal Oral Health"} Member ID Cards`}
+      author={people[0] ? brandName(people[0]) : "Ideal Oral Health"}
       subject="Member ID Cards"
     >
       {pages}

@@ -133,14 +133,14 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', minWidth: 0 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/ideal-oral-health-logo.png"
-                  alt="Ideal Oral Health"
+                {(!cardData.brand || cardData.brand.logoUrl) && <img
+                  src={cardData.brand ? cardData.brand.logoUrl : "/ideal-oral-health-logo.png"}
+                  alt={cardData.brand?.name ?? "Ideal Oral Health"}
                   style={{ height: '28px', width: 'auto', objectFit: 'contain', flexShrink: 0 }}
-                />
+                />}
                 <div className="member-card-brandtext" style={{ minWidth: 0 }}>
                   <div style={{ fontSize: '0.625rem', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap' }}>
-                    Ideal Oral Health
+                    {cardData.brand?.name ?? "Ideal Oral Health"}
                   </div>
                   <div style={{ fontSize: '0.5625rem', color: '#64748b' }}>
                     Member ID Card
@@ -148,7 +148,7 @@ export default function MemberIdCard({ cardData, onDownload }: MemberIdCardProps
                 </div>
               </div>
               <div style={{ fontSize: '0.5625rem', color: '#94a3b8', textAlign: 'right', flexShrink: 0 }}>
-                <div>www.getidealoh.com</div>
+                <div>{cardData.brand?.portalUrl ? new URL(cardData.brand.portalUrl).host : "www.getidealoh.com"}</div>
                 <div>{cardData.supportPhone ?? '(844) 679-9367'}</div>
               </div>
             </div>

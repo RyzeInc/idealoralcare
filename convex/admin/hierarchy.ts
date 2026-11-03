@@ -6,6 +6,9 @@ import { restampGroupAttribution } from "../lib/repAttribution";
 import { promoLinkValidator } from "../lib/promoLinks";
 import { siteMarketingValidator } from "../lib/siteMarketing";
 import { normalizeBflMemberCode } from "../lib/bflCodes";
+import { siteOrigin } from "../lib/memberBrand";
+
+const normalizedDomain = (domain: string | undefined) => domain ? new URL(siteOrigin(domain, "https://www.getidealoh.com")).host : domain;
 
 /**
  * ADMIN HIERARCHY MANAGEMENT
@@ -33,10 +36,12 @@ export const createSite = mutation({
     promoLinks: v.optional(v.array(promoLinkValidator)),
     marketing: v.optional(siteMarketingValidator),
     shopEnabled: v.optional(v.boolean()),
+    memberBrandingEnabled: v.optional(v.boolean()),
     status: v.optional(v.union(v.literal("active"), v.literal("suspended"), v.literal("onboarding"), v.literal("terminated"))),
   },
   handler: async (ctx, args) => {
     await requireAccess(ctx, "groups.manage");
+    const domain = normalizedDomain(args.domain);
     const existingSite = await ctx.db
       .query("sites")
       .filter((q) => q.eq(q.field("slug"), args.slug))
@@ -50,7 +55,7 @@ export const createSite = mutation({
       slug: args.slug,
       name: args.name,
       type: args.type,
-      domain: args.domain,
+      domain,
       branding: args.branding ?? {},
       allowedPlanIds: args.allowedPlanIds ?? [],
       enrollmentDefaults: args.enrollmentDefaults ?? {
@@ -67,6 +72,7 @@ export const createSite = mutation({
       promoLinks: args.promoLinks,
       marketing: args.marketing,
       shopEnabled: args.shopEnabled,
+      memberBrandingEnabled: args.memberBrandingEnabled,
       status: args.status ?? "active",
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -89,10 +95,12 @@ export const updateSite = mutation({
     promoLinks: v.optional(v.array(promoLinkValidator)),
     marketing: v.optional(siteMarketingValidator),
     shopEnabled: v.optional(v.boolean()),
+    memberBrandingEnabled: v.optional(v.boolean()),
     status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await requireAccess(ctx, "groups.manage");
+    const domain = normalizedDomain(args.domain);
     const site = await ctx.db.get(args.siteId);
     if (!site) throw new Error("Site not found");
 
@@ -103,13 +111,14 @@ export const updateSite = mutation({
     if (args.slug !== undefined) updates.slug = args.slug;
     if (args.name !== undefined) updates.name = args.name;
     if (args.type !== undefined) updates.type = args.type;
-    if (args.domain !== undefined) updates.domain = args.domain;
+    if (args.domain !== undefined) updates.domain = domain;
     if (args.branding !== undefined) updates.branding = args.branding;
     if (args.allowedPlanIds !== undefined) updates.allowedPlanIds = args.allowedPlanIds;
     if (args.enrollmentDefaults !== undefined) updates.enrollmentDefaults = args.enrollmentDefaults;
     if (args.promoLinks !== undefined) updates.promoLinks = args.promoLinks;
     if (args.marketing !== undefined) updates.marketing = args.marketing;
     if (args.shopEnabled !== undefined) updates.shopEnabled = args.shopEnabled;
+    if (args.memberBrandingEnabled !== undefined) updates.memberBrandingEnabled = args.memberBrandingEnabled;
     if (args.status !== undefined) updates.status = args.status;
 
     await ctx.db.patch(args.siteId, updates);
