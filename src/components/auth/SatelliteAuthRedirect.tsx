@@ -17,12 +17,14 @@ export function SatelliteAuthRedirect({ children, mode }: { children: ReactNode;
   const site = useMemo(() => domainSite(host), [host]);
   const { isLoaded, isSignedIn } = useAuth();
   const clerk = useClerk();
+  const clerkLoaded = clerk.loaded;
   const pathname = usePathname();
   const params = useSearchParams();
   const redirectNeeded = Boolean(site) && (mode !== "checkout" || !isSignedIn);
 
   useEffect(() => {
-    if (!site || !isLoaded || !redirectNeeded) return;
+    // Server auth may be loaded before the browser's URL builders are ready.
+    if (!site || !isLoaded || !clerkLoaded || !redirectNeeded) return;
     const returnPath = mode === "checkout"
       ? `${pathname}${params.size ? `?${params.toString()}` : ""}`
       : safeReturnPath(params.get("redirect_url"), `/${site.slug}/dashboard`);
@@ -31,8 +33,8 @@ export function SatelliteAuthRedirect({ children, mode }: { children: ReactNode;
       ? returnPath : `/${site.slug}/dashboard`;
     const redirectUrl = new URL(path, site.origin).href;
     const target = mode === "sign-up" ? clerk.buildSignUpUrl({ redirectUrl }) : clerk.buildSignInUrl({ redirectUrl });
-    replaceAuthLocation(target);
-  }, [site, isLoaded, redirectNeeded, mode, clerk, pathname, params]);
+    if (target) replaceAuthLocation(target);
+  }, [site, isLoaded, clerkLoaded, redirectNeeded, mode, clerk, pathname, params]);
 
   if (redirectNeeded) return <div role="status" className="p-8 text-center">Opening secure sign-in…</div>;
   return <>{children}</>;

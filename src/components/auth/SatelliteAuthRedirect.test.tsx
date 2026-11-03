@@ -4,19 +4,19 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { SatelliteAuthRedirect } from "./SatelliteAuthRedirect";
 
 const mocks = vi.hoisted(() => ({
-  loaded: true, signedIn: false, satellite: true,
+  loaded: true, clerkLoaded: true, signedIn: false, satellite: true,
   path: "/assurevantage/checkout", query: "plan=family&ref=100001",
   replace: vi.fn(), signIn: vi.fn(() => "https://www.getidealoh.com/assurevantage/sign-in?clerk-sync=1"),
   signUp: vi.fn(() => "https://www.getidealoh.com/assurevantage/sign-up?clerk-sync=1"),
 }));
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({ isLoaded: mocks.loaded, isSignedIn: mocks.signedIn }),
-  useClerk: () => ({ buildSignInUrl: mocks.signIn, buildSignUpUrl: mocks.signUp }),
+  useClerk: () => ({ loaded: mocks.clerkLoaded, buildSignInUrl: mocks.signIn, buildSignUpUrl: mocks.signUp }),
 }));
 vi.mock("next/navigation", () => ({ usePathname: () => mocks.path, useSearchParams: () => new URLSearchParams(mocks.query) }));
 vi.mock("@/lib/auth-return", () => ({ replaceAuthLocation: mocks.replace }));
 vi.mock("@/lib/site-domains", () => ({ domainSite: () => mocks.satellite ? { slug: "assurevantage", origin: "https://www.assurevantage.com" } : null }));
-beforeEach(() => { mocks.loaded = true; mocks.signedIn = false; mocks.satellite = true; mocks.query = "plan=family&ref=100001"; vi.clearAllMocks(); });
+beforeEach(() => { mocks.loaded = true; mocks.clerkLoaded = true; mocks.signedIn = false; mocks.satellite = true; mocks.query = "plan=family&ref=100001"; vi.clearAllMocks(); });
 afterEach(cleanup);
 
 describe("satellite account entry", () => {
@@ -43,6 +43,15 @@ describe("satellite account entry", () => {
     render(<SatelliteAuthRedirect mode="sign-in"><div>Credentials</div></SatelliteAuthRedirect>);
     expect(mocks.replace).not.toHaveBeenCalled();
     expect(screen.getByRole("status")).toBeTruthy();
+  });
+  test("waits for browser Clerk even when server auth is already loaded", () => {
+    mocks.clerkLoaded = false;
+    const view = render(<SatelliteAuthRedirect mode="checkout"><div>Checkout fields</div></SatelliteAuthRedirect>);
+    expect(mocks.signIn).not.toHaveBeenCalled();
+    expect(mocks.replace).not.toHaveBeenCalled();
+    mocks.clerkLoaded = true;
+    view.rerender(<SatelliteAuthRedirect mode="checkout"><div>Checkout fields</div></SatelliteAuthRedirect>);
+    expect(mocks.replace).toHaveBeenCalledWith(expect.stringContaining("clerk-sync=1"));
   });
   test("preserves the member scan destination through sign-up", async () => {
     mocks.query = "redirect_url=" + encodeURIComponent("/assurevantage/dashboard?tab=oral-scan");
