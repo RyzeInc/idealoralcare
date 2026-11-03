@@ -15,15 +15,19 @@ vi.mock("@clerk/nextjs", () => ({
 }));
 vi.mock("next/navigation", () => ({ usePathname: () => mocks.path, useSearchParams: () => new URLSearchParams(mocks.query) }));
 vi.mock("@/lib/auth-return", () => ({ replaceAuthLocation: mocks.replace }));
-vi.mock("@/lib/site-domains", () => ({ domainSite: () => mocks.satellite ? { slug: "assurevantage", origin: "https://www.assurevantage.com" } : null }));
+vi.mock("@/lib/site-domains", () => ({ PRIMARY_AUTH_ORIGIN: "https://www.getidealoh.com", domainSite: () => mocks.satellite ? { slug: "assurevantage", origin: "https://www.assurevantage.com" } : null }));
 beforeEach(() => { mocks.loaded = true; mocks.clerkLoaded = true; mocks.signedIn = false; mocks.satellite = true; mocks.query = "plan=family&ref=100001"; vi.clearAllMocks(); });
 afterEach(cleanup);
 
 describe("satellite account entry", () => {
   test("uses Clerk's sync-aware URL builder and returns to the same checkout with the broker code", async () => {
     render(<SatelliteAuthRedirect mode="checkout"><div>Checkout fields</div></SatelliteAuthRedirect>);
-    await waitFor(() => expect(mocks.signIn).toHaveBeenCalledWith({ redirectUrl: "https://www.assurevantage.com/assurevantage/checkout?plan=family&ref=100001" }));
+    const destination = "https://www.assurevantage.com/assurevantage/checkout?plan=family&ref=100001";
+    await waitFor(() => expect(mocks.signIn).toHaveBeenCalledWith({ signInForceRedirectUrl: destination, signUpForceRedirectUrl: destination }));
     expect(mocks.replace).toHaveBeenCalledWith(expect.stringContaining("clerk-sync=1"));
+    const target = new URL(mocks.replace.mock.calls[0][0]);
+    expect(target.searchParams.get("redirect_url")).toBe(destination);
+    expect(target.searchParams.get("clerk-sync")).toBe("1");
     expect(screen.queryByText("Checkout fields")).toBeNull();
   });
   test("allows the signed-in member to continue checkout on the satellite", () => {
@@ -56,6 +60,8 @@ describe("satellite account entry", () => {
   test("preserves the member scan destination through sign-up", async () => {
     mocks.query = "redirect_url=" + encodeURIComponent("/assurevantage/dashboard?tab=oral-scan");
     render(<SatelliteAuthRedirect mode="sign-up"><div>Credentials</div></SatelliteAuthRedirect>);
-    await waitFor(() => expect(mocks.signUp).toHaveBeenCalledWith({ redirectUrl: "https://www.assurevantage.com/assurevantage/dashboard?tab=oral-scan" }));
+    const destination = "https://www.assurevantage.com/assurevantage/dashboard?tab=oral-scan";
+    await waitFor(() => expect(mocks.signUp).toHaveBeenCalledWith({ signInForceRedirectUrl: destination, signUpForceRedirectUrl: destination }));
+    expect(new URL(mocks.replace.mock.calls[0][0]).searchParams.get("redirect_url")).toBe(destination);
   });
 });

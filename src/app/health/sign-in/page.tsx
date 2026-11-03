@@ -151,6 +151,7 @@ function PlanShowcase() {
 }
 
 function SignInForm() {
+  const brandName = useBrandName();
   const basePath = useMemberBasePath();
   const theme = useSiteThemeOptional();
   const supportEmail = theme?.site?.enrollmentDefaults?.supportEmail || "support@getidealoh.com";
@@ -396,7 +397,7 @@ function SignInForm() {
                 Sign In
               </h2>
               <p style={{ fontSize: "0.9rem", color: "#64748b", marginBottom: "1.25rem" }}>
-                Access your Ideal Health member portal
+                Access your {brandName} member portal
               </p>
 
               {/* Google SSO */}

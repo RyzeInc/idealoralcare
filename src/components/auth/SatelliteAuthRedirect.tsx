@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useSyncExternalStore, type ReactNode } from "react";
 import { useAuth, useClerk } from "@clerk/nextjs";
 import { usePathname, useSearchParams } from "next/navigation";
-import { domainSite } from "@/lib/site-domains";
+import { domainSite, PRIMARY_AUTH_ORIGIN } from "@/lib/site-domains";
 import { safeReturnPath } from "@/lib/safe-redirect";
 import { replaceAuthLocation } from "@/lib/auth-return";
 
@@ -32,8 +32,14 @@ export function SatelliteAuthRedirect({ children, mode }: { children: ReactNode;
     const path = returnPath === `/${site.slug}` || returnPath.startsWith(`/${site.slug}/`)
       ? returnPath : `/${site.slug}/dashboard`;
     const redirectUrl = new URL(path, site.origin).href;
-    const target = mode === "sign-up" ? clerk.buildSignUpUrl({ redirectUrl }) : clerk.buildSignInUrl({ redirectUrl });
-    if (target) replaceAuthLocation(target);
+    const options = { signInForceRedirectUrl: redirectUrl, signUpForceRedirectUrl: redirectUrl };
+    const target = mode === "sign-up" ? clerk.buildSignUpUrl(options) : clerk.buildSignInUrl(options);
+    if (target) {
+      const authUrl = new URL(target, PRIMARY_AUTH_ORIGIN);
+      // Our custom forms read redirect_url; keep Clerk's sync parameters too.
+      authUrl.searchParams.set("redirect_url", redirectUrl);
+      replaceAuthLocation(authUrl.href);
+    }
   }, [site, isLoaded, clerkLoaded, redirectNeeded, mode, clerk, pathname, params]);
 
   if (redirectNeeded) return <div role="status" className="p-8 text-center">Opening secure sign-in…</div>;
