@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { ProgramLink as Link } from "@/components/newideal/ProgramLink";
 import type { Metadata } from "next";
 import {
   Smile,
@@ -23,7 +23,8 @@ export const metadata: Metadata = {
     "The Ideal Oral Savings Plan: AI Oral Scanning, 24/7 teledentistry, and a nationwide Dental Discount Network with savings of 20–60% at 100,000+ providers.",
 };
 
-export default function OralCarePage() {
+export default async function OralCarePage({ params }: { params?: Promise<{ siteSlug?: string }> }) {
+  await params;
   return (
     <div className="health-landing" style={{ background: "#f1f5f9" }}>
       <NewIdealHeader />

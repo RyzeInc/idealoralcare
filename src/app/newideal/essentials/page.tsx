@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { ProgramLink as Link } from "@/components/newideal/ProgramLink";
 import type { Metadata } from "next";
 import {
   Heart,
@@ -86,7 +86,8 @@ const PROGRAMS = [
   },
 ];
 
-export default function EssentialsPage() {
+export default async function EssentialsPage({ params }: { params?: Promise<{ siteSlug?: string }> }) {
+  await params;
   return (
     <div className="health-landing" style={{ background: "#f1f5f9" }}>
       <NewIdealHeader />

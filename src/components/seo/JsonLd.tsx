@@ -49,14 +49,14 @@ export function OrganizationJsonLd() {
 }
 
 /** WebSite schema, including the developer credit — rendered once from the root layout */
-export function WebSiteJsonLd() {
+export function WebSiteJsonLd({ name = "Ideal Health", url = "https://getidealoh.com" }: { name?: string; url?: string } = {}) {
   return (
     <JsonLd
       data={{
         "@context": "https://schema.org",
         "@type": "WebSite",
-        name: "Ideal Health",
-        url: "https://getidealoh.com",
+        name,
+        url,
         creator: {
           "@type": "Organization",
           name: SITE_CREDIT.name,

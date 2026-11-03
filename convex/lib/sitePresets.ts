@@ -2,7 +2,7 @@
 export const ASSUREVANTAGE_PRESET = {
   slug: "assurevantage",
   name: "AssureVantage",
-  type: "whitelabel" as const,
+  type: "primary" as const,
   branding: {
     logoUrl: "/brands/assurevantage/logo.png",
     logoWidth: 220,

@@ -89,7 +89,8 @@ export async function GET(req: NextRequest) {
       essentialsMemberNumber: memberProfile?.essentialsMemberNumber ?? "—",
       essentialsGroupNumber: memberProfile?.essentialsGroupNumber ?? "—",
       bflMemberCode: memberProfile?.bflMemberCode,
-      ...bflAppQrData({ bflMemberCode: memberProfile?.bflMemberCode }),
+      brand: memberProfile?.brand,
+      ...bflAppQrData({ bflMemberCode: memberProfile?.bflMemberCode, brand: memberProfile?.brand }),
       planName: memberProfile?.planName ?? (isBfl ? "Balance for Life" : "Essentials Plan"),
       program: isBfl ? "bfl" : "essentials",
       coverageType: essentialsCoverageLabel(memberProfile?.productSlug),
@@ -97,7 +98,7 @@ export async function GET(req: NextRequest) {
         memberProfile?.effectiveDate ??
         new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
       term: bundleData?.pricingSnapshot?.totalCents > 100000 ? "Annual" : "Monthly",
-      logoDataUri: logoDataUri("ideal-health-logo.png"),
+      logoDataUri: memberProfile?.brand ? memberLogoDataUri(memberProfile.brand) : logoDataUri("ideal-health-logo.png"),
       bflLogoDataUri: logoDataUri("newideal/balance-for-life-logo.png"),
     };
 
@@ -107,7 +108,7 @@ export async function GET(req: NextRequest) {
       card: EssentialsMemberCardPdf,
     } as const;
 
-    const filePrefix = isBfl ? "Ideal_Health_Balance_for_Life" : "Ideal_Health_Essentials";
+    const filePrefix = essentialsData.brand?.name ? `${memberDocumentPrefix(essentialsData.brand)}_${isBfl ? "Balance_for_Life" : "Essentials"}` : isBfl ? "Ideal_Health_Balance_for_Life" : "Ideal_Health_Essentials";
     const essentialsFilenames = {
       packet: `${filePrefix}_Welcome_Packet.pdf`,
       agreement: `${filePrefix}_Membership_Agreement.pdf`,

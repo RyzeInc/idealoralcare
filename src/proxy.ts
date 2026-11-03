@@ -101,7 +101,12 @@ async function tryAgentRedirect(
       // Visit tracking is best-effort; never let it break the redirect.
     }
 
-    const dest = siteSlug ? `/${encodeURIComponent(siteSlug)}/plans` : agentDestination(new URL(requestUrl).searchParams.get("to"), result.productHint);
+    const to = new URL(requestUrl).searchParams.get("to");
+    const mainDestination = to === "essentials" || (!to && result.productHint === "essentials")
+      ? "/assurevantage/essentials"
+      : to === "oralcare" || to === "health" || (!to && result.productHint === "oralcare")
+        ? "/assurevantage/plans" : "/";
+    const dest = siteSlug === "assurevantage" ? mainDestination : siteSlug ? `/${encodeURIComponent(siteSlug)}/plans` : agentDestination(to, result.productHint);
     const redirect = new URL(`${dest}?ref=${encodeURIComponent(result.repCode)}`, requestUrl);
     const response = NextResponse.redirect(redirect);
     // httpOnly=false so client JS can also read it for the cookie-fallback in CartProvider

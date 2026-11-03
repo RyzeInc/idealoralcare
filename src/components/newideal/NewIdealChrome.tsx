@@ -1,4 +1,6 @@
-import Link from "next/link";
+"use client";
+
+import { ProgramLink as Link, useProgramBrand } from "@/components/newideal/ProgramLink";
 import Image from "next/image";
 import { ShoppingCart } from "lucide-react";
 
@@ -11,6 +13,7 @@ const NAV = [
 ];
 
 export function NewIdealHeader() {
+  const brand = useProgramBrand();
   return (
     <header
       style={{
@@ -42,10 +45,11 @@ export function NewIdealHeader() {
           }}
         >
           <Image
-            src="/newideal/logo.png"
-            alt="Ideal Health"
-            width={168}
-            height={168}
+            src={brand.logo}
+            alt={brand.name}
+            width={220}
+            height={74}
+            style={{ width: 180, height: "auto" }}
             priority
           />
         </Link>
@@ -90,7 +94,9 @@ export function NewIdealHeader() {
   );
 }
 
-export function NewIdealFooter() {
+export function NewIdealFooter({ inSiteShell = false }: { inSiteShell?: boolean } = {}) {
+  const brand = useProgramBrand();
+  if (brand.mainBrand && !inSiteShell) return null;
   return (
     <footer
       style={{
@@ -119,15 +125,16 @@ export function NewIdealFooter() {
             }}
           >
             <Image
-              src="/newideal/logo.png"
-              alt="Ideal Health"
-              width={36}
-              height={36}
+              src={brand.logo}
+              alt={brand.name}
+              width={140}
+              height={47}
+              style={{ background: "white", padding: 4, borderRadius: 4 }}
             />
             <span
               style={{ color: "white", fontWeight: 700, fontSize: "1.05rem" }}
             >
-              Ideal Health
+              {brand.name}
             </span>
           </div>
           <p style={{ fontSize: "0.875rem", lineHeight: 1.6, margin: 0 }}>
@@ -192,8 +199,8 @@ export function NewIdealFooter() {
           gap: 12,
         }}
       >
-        <span>© {new Date().getFullYear()} Ideal Health. All rights reserved.</span>
-        <span>Powered by Ideal Health</span>
+        <span>© {new Date().getFullYear()} {brand.name}. All rights reserved.</span>
+        <span>Powered by {brand.name}</span>
       </div>
     </footer>
   );

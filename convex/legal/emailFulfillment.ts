@@ -64,7 +64,7 @@ function applyBrand(
   const supportPhone = brand.supportPhone ?? IDEAL_DEFAULTS.supportPhone;
   const rewrite = (text: string, html = false) =>
     text
-      .replace(/Ideal Oral Health/g, () => html ? escapeHtml(name) : name)
+      .replace(/Ideal Oral Health|Ideal Health/g, () => html ? escapeHtml(name) : name)
       .replace(/support@getidealoh\.com/g, () => html ? escapeHtml(supportEmail) : supportEmail)
       .replace(/\(844\) 679-9367/g, () => html ? escapeHtml(supportPhone) : supportPhone);
   return {
@@ -281,6 +281,7 @@ export const sendEssentialsPacketEmail = action({
       term: args.term,
       memberAddress: args.memberAddress,
       periodicCharge: args.periodicCharge,
+      brand: args.brand,
     };
 
     const pdfHeaders: Record<string, string> = { "Content-Type": "application/json" };
@@ -328,7 +329,7 @@ export const sendEssentialsPacketEmail = action({
           memberServicesPhone: "844-433-2502",
           portalUrl: baseUrl,
         });
-    const filePrefix = isBfl ? "Ideal_Health_Balance_for_Life" : "Ideal_Health_Essentials";
+    const filePrefix = args.brand?.name ? `${memberDocumentPrefix(args.brand)}_${isBfl ? "Balance_for_Life" : "Essentials"}` : isBfl ? "Ideal_Health_Balance_for_Life" : "Ideal_Health_Essentials";
 
     return await sendViaResendOrThrow({
       to: args.memberEmail,

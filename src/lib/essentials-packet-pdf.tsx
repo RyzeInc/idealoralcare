@@ -1,3 +1,4 @@
+import type { MemberBrand } from "@/convex/lib/memberBrand";
 import React from "react";
 import { Document, Page, Text, View, Image } from "@react-pdf/renderer";
 import {
@@ -110,6 +111,7 @@ export function essentialsCoverageLabel(slug?: string | null): string {
 
 // ─── Data type ───────────────────────────────────────────────────────────────
 export interface EssentialsPacketData {
+  brand?: MemberBrand;
   bflMemberCode?: string;
   bflAndroidQrDataUri?: string;
   bflIosQrDataUri?: string;
@@ -138,12 +140,14 @@ export interface EssentialsPacketData {
 
 const isBflPacket = (data: EssentialsPacketData) => data.program === "bfl";
 
-const BRAND = "IDEAL HEALTH";
+const brandName = (data: EssentialsPacketData) => data.brand?.name ?? "Ideal Health";
+const programName = (data: EssentialsPacketData) => `${brandName(data)} Essentials`;
+const memberWebsite = (data: EssentialsPacketData) => data.brand?.portalUrl ? new URL(data.brand.portalUrl).host : ESSENTIALS_SUPPORT.website;
 
-function Footer({ label }: { label: string }) {
+function Footer({ label, data }: { label: string; data: EssentialsPacketData }) {
   return (
     <Text fixed style={s.footer}>
-      Ideal Health Essentials | {label}
+      {programName(data)} | {label}
     </Text>
   );
 }
@@ -166,16 +170,16 @@ function ContactStrip({ items }: { items: { label: string; value: string }[] }) 
 function WelcomePage({ data }: { data: EssentialsPacketData }) {
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={BRAND} />
+      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
 
       <Text style={{ ...s.h1, textAlign: "center" }}>Member Welcome Packet</Text>
       <Text style={{ fontSize: 10, color: GRAY, textAlign: "center", marginBottom: 12 }}>
-        Ideal Health Essentials — Virtual Care · Pharmacy · Labs · Behavioral Health
+        {programName(data)} — Virtual Care · Pharmacy · Labs · Behavioral Health
       </Text>
 
       <ContactStrip
         items={[
-          { label: "Program Name", value: "Ideal Health Essentials" },
+          { label: "Program Name", value: programName(data) },
           { label: "Member Number", value: data.essentialsMemberNumber },
           { label: "Effective Date", value: data.effectiveDate },
         ]}
@@ -204,7 +208,7 @@ function WelcomePage({ data }: { data: EssentialsPacketData }) {
       <Text style={{ fontSize: 10, marginTop: 8, marginBottom: 6 }}>Dear {data.memberFirstName},</Text>
 
       {[
-        `Welcome to Ideal Health. We are committed to providing high-quality, non-insurance benefit plans tailored to your needs, with the goal of offering peace of mind through affordable and effective health benefit solutions.`,
+        `Welcome to ${brandName(data)}. We are committed to providing high-quality, non-insurance benefit plans tailored to your needs, with the goal of offering peace of mind through affordable and effective health benefit solutions.`,
         `This is not a traditional insurance policy — it works differently than what you may be used to. Each benefit has its own procedure and its own contact, and this packet explains what to do and who to call for each one. Please keep it for your records.`,
         `For help using your benefits, contact Member Services at ${ESSENTIALS_SUPPORT.phone} or ${ESSENTIALS_SUPPORT.email}, ${ESSENTIALS_SUPPORT.hours}.`,
       ].map((para) => (
@@ -271,7 +275,7 @@ function WelcomePage({ data }: { data: EssentialsPacketData }) {
         </View>
       ))}
 
-      <Footer label={`Welcome Packet | ${data.effectiveDate}`} />
+      <Footer data={data} label={`Welcome Packet | ${data.effectiveDate}`} />
     </Page>
   );
 }
@@ -281,14 +285,14 @@ function BflWelcomePage({ data }: { data: EssentialsPacketData }) {
   const balanceForLife = { ...ESSENTIALS_VENDOR_CODES.balanceForLife, memberCode: resolveBflMemberCode(data) };
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={BRAND} />
+      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
 
       <Text style={{ ...s.h1, textAlign: "center" }}>Member Welcome Packet</Text>
       {data.bflLogoDataUri ? (
         <Image src={data.bflLogoDataUri} style={{ width: 150, alignSelf: "center", marginTop: 2, marginBottom: 6 }} />
       ) : null}
       <Text style={{ fontSize: 10, color: GRAY, textAlign: "center", marginBottom: 12 }}>
-        Behavioral health care, right when you need it — through Ideal Health
+        Behavioral health care, right when you need it — through {brandName(data)}
       </Text>
 
       <ContactStrip
@@ -319,7 +323,7 @@ function BflWelcomePage({ data }: { data: EssentialsPacketData }) {
       )}
       <Text style={{ fontSize: 10, marginTop: 8, marginBottom: 6 }}>Dear {data.memberFirstName},</Text>
       {[
-        `Welcome to Balance for Life through Ideal Health. Balance for Life is a confidential, 24/7 member support program for emotional, mental and overall wellbeing — counseling, live support, coaching and an app that keeps all of it in your pocket.`,
+        `Welcome to Balance for Life through ${brandName(data)}. Balance for Life is a confidential, 24/7 member support program for emotional, mental and overall wellbeing — counseling, live support, coaching and an app that keeps all of it in your pocket.`,
         `There is nothing to file and no one to refer you. Download the app or call whenever you need support, and give your member code when asked. This packet explains what is included and how to reach it. Please keep it for your records.`,
         `For questions about your membership or billing, contact Member Services at ${ESSENTIALS_SUPPORT.phone} or ${ESSENTIALS_SUPPORT.email}, ${ESSENTIALS_SUPPORT.hours}.`,
       ].map((para) => (
@@ -362,7 +366,7 @@ function BflWelcomePage({ data }: { data: EssentialsPacketData }) {
         </View>
       ))}
 
-      <Footer label={`Welcome Packet | ${data.effectiveDate}`} />
+      <Footer data={data} label={`Welcome Packet | ${data.effectiveDate}`} />
     </Page>
   );
 }
@@ -394,7 +398,7 @@ const benefitRoutes = (data: EssentialsPacketData) => [
 function HowToUseBenefitsPage({ data }: { data: EssentialsPacketData }) {
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={BRAND} />
+      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
 
       <Text style={s.h2}>How to Use Your Essential Benefits</Text>
       <Text style={s.body}>
@@ -436,7 +440,7 @@ function HowToUseBenefitsPage({ data }: { data: EssentialsPacketData }) {
         <Bullet key={item} text={item} small />
       ))}
 
-      <Footer label="How to Use Your Benefits" />
+      <Footer data={data} label="How to Use Your Benefits" />
     </Page>
   );
 }
@@ -446,7 +450,7 @@ function VirtualCarePage({ data }: { data: EssentialsPacketData }) {
   const { lyric } = ESSENTIALS_VENDOR_CODES;
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={BRAND} />
+      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
 
       <Text style={s.h2}>Virtual Care — Lyric Health</Text>
       <Text style={s.body}>
@@ -509,7 +513,7 @@ function VirtualCarePage({ data }: { data: EssentialsPacketData }) {
         <Bullet key={item} text={item} small />
       ))}
 
-      <Footer label="Virtual Care — Urgent & Primary" />
+      <Footer data={data} label="Virtual Care — Urgent & Primary" />
     </Page>
   );
 }
@@ -519,7 +523,7 @@ function DermatologyPage({ data }: { data: EssentialsPacketData }) {
   const { lyric } = ESSENTIALS_VENDOR_CODES;
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={BRAND} />
+      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
 
       <Text style={s.h2}>Virtual Dermatology — 72-Hour Response</Text>
       <Text style={s.body}>
@@ -588,7 +592,7 @@ function DermatologyPage({ data }: { data: EssentialsPacketData }) {
         </Text>
       </View>
 
-      <Footer label="Virtual Care — Dermatology" />
+      <Footer data={data} label="Virtual Care — Dermatology" />
     </Page>
   );
 }
@@ -598,7 +602,7 @@ function PharmacyPage({ data }: { data: EssentialsPacketData }) {
   const { rxValet } = ESSENTIALS_VENDOR_CODES;
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={BRAND} />
+      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
 
       <Text style={s.h2}>Pharmacy — RxValet</Text>
       <Text style={s.body}>
@@ -651,7 +655,7 @@ function PharmacyPage({ data }: { data: EssentialsPacketData }) {
         </View>
       ))}
 
-      <Footer label="Pharmacy — RxValet" />
+      <Footer data={data} label="Pharmacy — RxValet" />
     </Page>
   );
 }
@@ -661,7 +665,7 @@ function LabsPage({ data }: { data: EssentialsPacketData }) {
   const { questSelect } = ESSENTIALS_VENDOR_CODES;
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={BRAND} />
+      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
 
       <Text style={s.h2}>Laboratory Testing — QuestSelect</Text>
       <Text style={s.body}>
@@ -710,7 +714,7 @@ function LabsPage({ data }: { data: EssentialsPacketData }) {
         <Bullet key={item} text={item} />
       ))}
 
-      <Footer label="Laboratory Testing — QuestSelect" />
+      <Footer data={data} label="Laboratory Testing — QuestSelect" />
     </Page>
   );
 }
@@ -720,7 +724,7 @@ function BehavioralHealthPage({ data }: { data: EssentialsPacketData }) {
   const balanceForLife = { ...ESSENTIALS_VENDOR_CODES.balanceForLife, memberCode: resolveBflMemberCode(data) };
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={BRAND} />
+      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
 
       <Text style={s.h2}>Behavioral Health &amp; Wellbeing — Balance for Life</Text>
       {data.bflLogoDataUri ? (
@@ -778,7 +782,7 @@ function BehavioralHealthPage({ data }: { data: EssentialsPacketData }) {
         </Text>
       </View>
 
-      <Footer label="Behavioral Health — Balance for Life" />
+      <Footer data={data} label="Behavioral Health — Balance for Life" />
     </Page>
   );
 }
@@ -790,7 +794,7 @@ function MemberCardTitlePage({ data }: { data: EssentialsPacketData }) {
       <View style={cardStyles.titleContainer}>
         {data.logoDataUri ? <Image style={cardStyles.titleLogo} src={data.logoDataUri} /> : null}
         <Text style={cardStyles.titleMain}>Your Member ID Card</Text>
-        <Text style={cardStyles.titleSub}>{isBflPacket(data) ? "Balance for Life" : "Ideal Health Essentials"}</Text>
+        <Text style={cardStyles.titleSub}>{isBflPacket(data) ? "Balance for Life" : programName(data)}</Text>
 
         <View style={cardStyles.titleField}>
           <Text style={cardStyles.titleLabel}>MEMBER</Text>
@@ -832,12 +836,12 @@ function MemberCardFrontPage({ data }: { data: EssentialsPacketData }) {
             <View style={cardStyles.headerLeft}>
               {data.logoDataUri ? <Image style={cardStyles.logo} src={data.logoDataUri} /> : null}
               <View style={cardStyles.headerText}>
-                <Text style={cardStyles.brandName}>Ideal Health</Text>
+                <Text style={cardStyles.brandName}>{brandName(data)}</Text>
                 <Text style={cardStyles.cardType}>{isBflPacket(data) ? "Balance for Life Member Card" : "Essentials Member Card"}</Text>
               </View>
             </View>
             <View style={cardStyles.headerRight}>
-              <Text style={cardStyles.headerRightLine}>{ESSENTIALS_SUPPORT.website}</Text>
+              <Text style={cardStyles.headerRightLine}>{memberWebsite(data)}</Text>
               <Text>{ESSENTIALS_SUPPORT.phone}</Text>
             </View>
           </View>
@@ -937,7 +941,7 @@ function MemberCardBackPage({ data }: { data: EssentialsPacketData }) {
           <View style={cardStyles.footer}>
             <Text style={cardStyles.footerMain}>THIS IS NOT INSURANCE.</Text>
             <Text style={cardStyles.footerSub}>
-              Member Services {ESSENTIALS_SUPPORT.phone} · {ESSENTIALS_SUPPORT.website}
+              Member Services {ESSENTIALS_SUPPORT.phone} · {memberWebsite(data)}
             </Text>
           </View>
         </View>
@@ -950,15 +954,15 @@ function MemberCardBackPage({ data }: { data: EssentialsPacketData }) {
 function MembershipAgreementPage({ data }: { data: EssentialsPacketData }) {
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={BRAND} />
+      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
 
       <Text style={{ ...s.h1, textAlign: "center" }}>Membership Agreement</Text>
       <Text style={{ fontSize: 10, color: GRAY, textAlign: "center", marginBottom: 10 }}>
-        Ideal Health Essentials — Terms and Conditions
+        {programName(data)} — Terms and Conditions
       </Text>
 
       {[
-        ["Program", isBflPacket(data) ? "Ideal Health Essentials — Balance for Life" : "Ideal Health Essentials"],
+        ["Program", isBflPacket(data) ? `${programName(data)} — Balance for Life` : programName(data)],
         ["Member Name", data.memberName],
         ["Member Number", data.essentialsMemberNumber],
         ["Group Number", data.essentialsGroupNumber],
@@ -982,8 +986,8 @@ function MembershipAgreementPage({ data }: { data: EssentialsPacketData }) {
       <Text style={{ ...s.h4, marginTop: 10 }}>Agreement</Text>
       <Text style={s.bodySmall}>
         These terms and conditions (&quot;Terms&quot;) outline the agreement between you
-        (&quot;Member&quot;) and Ideal Health Essentials (&quot;Provider&quot;) regarding the Ideal
-        Health Essentials Monthly Membership Plan (&quot;Membership Plan&quot;). By enrolling in the
+        (&quot;Member&quot;) and {programName(data)} (&quot;Provider&quot;) regarding the {programName(data)}
+        Monthly Membership Plan (&quot;Membership Plan&quot;). By enrolling in the
         Membership Plan, you acknowledge that you have read, understood and agree to these Terms.
       </Text>
 
@@ -997,7 +1001,7 @@ function MembershipAgreementPage({ data }: { data: EssentialsPacketData }) {
           : "Telehealth and discount programs are provided through third-party organizations and are not connected to the Essentials provider."}
       </Text>
       <Text style={s.bodySmall}>
-        Individuals ages 2 to 65 are eligible for Ideal Health membership. Dependents under the age
+        Individuals ages 2 to 65 are eligible for {brandName(data)} membership. Dependents under the age
         of two are not eligible. Dependent children are eligible until the last day of their 25th
         year. Individuals are eligible until the last day of their 64th year.
       </Text>
@@ -1013,7 +1017,7 @@ function MembershipAgreementPage({ data }: { data: EssentialsPacketData }) {
         <Bullet key={item} text={item} small />
       ))}
 
-      <Footer label="Membership Agreement (1 of 2)" />
+      <Footer data={data} label="Membership Agreement (1 of 2)" />
     </Page>
   );
 }
@@ -1021,7 +1025,7 @@ function MembershipAgreementPage({ data }: { data: EssentialsPacketData }) {
 function MembershipAgreementPage2({ data }: { data: EssentialsPacketData }) {
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={BRAND} />
+      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
 
       <Text style={{ ...s.h2, marginBottom: 8 }}>Membership Agreement (continued)</Text>
       <Text style={{ fontSize: 9, color: GRAY, marginBottom: 8 }}>
@@ -1060,7 +1064,7 @@ function MembershipAgreementPage2({ data }: { data: EssentialsPacketData }) {
         </Text>
       </View>
 
-      <Footer label="Membership Agreement (2 of 2)" />
+      <Footer data={data} label="Membership Agreement (2 of 2)" />
     </Page>
   );
 }
@@ -1084,7 +1088,7 @@ function BflAppDownloadsPage({ data }: { data: EssentialsPacketData }) {
       <Text style={s.h4}>Your Member Code: {resolveBflMemberCode(data)}</Text>
       <Text style={s.body}>Use this assigned member code when asked to identify your program. Zenn is available inside the Balance for Life app.</Text>
       <Text style={s.body}>For help, call {ESSENTIALS_VENDOR_CODES.balanceForLife.phone} or email {ESSENTIALS_VENDOR_CODES.balanceForLife.email}.</Text>
-      <Footer label="Balance for Life App Access" />
+      <Footer data={data} label="Balance for Life App Access" />
     </Page>
   );
 }
@@ -1092,7 +1096,7 @@ function BflAppDownloadsPage({ data }: { data: EssentialsPacketData }) {
 export function EssentialsPacketPdf({ data }: { data: EssentialsPacketData }) {
   if (isBflPacket(data)) {
     return (
-      <Document title="Balance for Life Member Welcome Packet" author="Ideal Health" subject="Member Welcome Packet">
+      <Document title="Balance for Life Member Welcome Packet" author={brandName(data)} subject="Member Welcome Packet">
         <BflWelcomePage data={data} />
         <BehavioralHealthPage data={data} />
         <BflAppDownloadsPage data={data} />
@@ -1104,8 +1108,8 @@ export function EssentialsPacketPdf({ data }: { data: EssentialsPacketData }) {
   }
   return (
     <Document
-      title="Ideal Health Essentials Member Welcome Packet"
-      author="Ideal Health"
+      title={`${programName(data)} Member Welcome Packet`}
+      author={brandName(data)}
       subject="Member Welcome Packet"
     >
       <WelcomePage data={data} />
@@ -1126,8 +1130,8 @@ export function EssentialsPacketPdf({ data }: { data: EssentialsPacketData }) {
 export function EssentialsMembershipAgreementPdf({ data }: { data: EssentialsPacketData }) {
   return (
     <Document
-      title={`Ideal Health Essentials Membership Agreement - ${data.memberName}`}
-      author="Ideal Health"
+      title={`${programName(data)} Membership Agreement - ${data.memberName}`}
+      author={brandName(data)}
       subject="Membership Agreement"
     >
       <MembershipAgreementPage data={data} />
@@ -1139,8 +1143,8 @@ export function EssentialsMembershipAgreementPdf({ data }: { data: EssentialsPac
 export function EssentialsMemberCardPdf({ data }: { data: EssentialsPacketData }) {
   return (
     <Document
-      title={`Ideal Health Essentials Member Card - ${data.memberName}`}
-      author="Ideal Health"
+      title={`${programName(data)} Member Card - ${data.memberName}`}
+      author={brandName(data)}
       subject="Member Card"
     >
       <MemberCardTitlePage data={data} />

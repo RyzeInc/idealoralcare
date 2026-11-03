@@ -1,3 +1,4 @@
+import type { MemberBrand } from "@/convex/lib/memberBrand";
 import path from "path";
 import fs from "node:fs";
 import { resolveBflMemberCode } from "@/convex/lib/bflCodes";
@@ -30,17 +31,17 @@ export const ESSENTIALS_APPENDED_DOCUMENTS = [
 ] as const;
 
 /** Absolute paths, in the order they are appended to the packet. */
-export function essentialsAppendPaths(data?: { bflMemberCode?: string }): string[] {
+export function essentialsAppendPaths(data?: { bflMemberCode?: string; brand?: MemberBrand }): string[] {
   // The legacy appendix prints IDEAL. Custom-code groups use the native BFL
   // instructions and card, which carry their assigned code, instead of a
   // contradictory access code. A code-free vendor appendix can be added later.
-  if (resolveBflMemberCode(data) !== ESSENTIALS_BFL_MEMBER_CODE) return [];
+  if (data?.brand || resolveBflMemberCode(data) !== ESSENTIALS_BFL_MEMBER_CODE) return [];
   return ESSENTIALS_APPENDED_DOCUMENTS.map((doc) => path.join(ASSET_DIR, doc.file));
 }
 
 /** Original QR images from the supplied code-free BFL welcome letter, unmodified. */
-export function bflAppQrData(data: { bflMemberCode?: string }): { bflAndroidQrDataUri?: string; bflIosQrDataUri?: string } {
-  if (resolveBflMemberCode(data) === ESSENTIALS_BFL_MEMBER_CODE) return {};
+export function bflAppQrData(data: { bflMemberCode?: string; brand?: MemberBrand }): { bflAndroidQrDataUri?: string; bflIosQrDataUri?: string } {
+  if (!data.brand && resolveBflMemberCode(data) === ESSENTIALS_BFL_MEMBER_CODE) return {};
   const read = (name: string) => `data:image/png;base64,${fs.readFileSync(path.join(ASSET_DIR, name)).toString("base64")}`;
   return { bflAndroidQrDataUri: read("bfl-android-qr.png"), bflIosQrDataUri: read("bfl-ios-qr.png") };
 }

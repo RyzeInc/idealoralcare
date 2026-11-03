@@ -1,3 +1,4 @@
+import { memberLogoDataUri } from "./member-logo";
 import { pdf } from "@react-pdf/renderer";
 import { createElement, type ReactElement } from "react";
 import type { DocumentProps } from "@react-pdf/renderer";
@@ -31,7 +32,8 @@ export async function generateEssentialsPdfs(
   data = { ...data, ...bflAppQrData(data) };
 
   // Embed the logo as a base64 data URI for @react-pdf/renderer
-  if (!data.logoDataUri) {
+  if (data.brand) data.logoDataUri = memberLogoDataUri(data.brand);
+  if (!data.logoDataUri && !data.brand) {
     const logoPath = path.join(process.cwd(), "public", "ideal-health-logo.png");
     if (fs.existsSync(logoPath)) {
       data.logoDataUri = `data:image/png;base64,${fs.readFileSync(logoPath).toString("base64")}`;

@@ -19,7 +19,7 @@ const nextConfig: NextConfig = {
     // Member-only vendor letters contain access codes. Bundle them with the
     // renderer rather than serving them as unauthenticated public assets.
     "/api/documents": ["./server-assets/packets/essentials/*", "./public/brands/assurevantage/logo.png", "./public/ideal-oral-health-logo.png", "./public/careington-logo.png"],
-    "/api/generate-essentials-pdf": ["./server-assets/packets/essentials/*"],
+    "/api/generate-essentials-pdf": ["./server-assets/packets/essentials/*", "./public/brands/assurevantage/logo.png"],
     "/api/stripe/webhook": ["./server-assets/packets/essentials/*", "./public/brands/assurevantage/logo.png", "./public/ideal-oral-health-logo.png", "./public/careington-logo.png"],
     "/api/debug/pdf-preview": ["./server-assets/packets/essentials/*", "./public/brands/assurevantage/logo.png", "./public/ideal-oral-health-logo.png", "./public/careington-logo.png"],
     "/api/test-email": ["./server-assets/packets/essentials/*", "./public/brands/assurevantage/logo.png", "./public/ideal-oral-health-logo.png", "./public/careington-logo.png"],

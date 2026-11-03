@@ -1,5 +1,7 @@
 # Email action audit — November 3, 2026
 
+**Brand correction:** The owner's later clarification establishes AssureVantage as the main brand replacing Ideal Health. The [primary-brand rollout](primary-brand-rollout.md) supersedes this audit's earlier separate-brand interpretation. Both public domains use the same AssureVantage homepage; legacy group memberships remain intact.
+
 This audit distinguishes implemented application behavior from business or vendor completion. The supplied email text and attachments establish the requirements; they do not establish that invoices were paid, an agreement was executed, a filing was accepted, or a vendor accepted a production file.
 
 ## Application changes and verification

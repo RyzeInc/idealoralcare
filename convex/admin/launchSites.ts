@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import { ASSUREVANTAGE_PRESET } from "../lib/sitePresets";
 import { PROVIDER_GROUP_CODE } from "../lib/constants";
+import { isMembershipProgramSlug } from "../lib/productSlugs";
 
 async function ensureDtcHierarchy(ctx: MutationCtx, siteId: Id<"sites">) {
   const accounts = await ctx.db.query("accounts").withIndex("by_site", q => q.eq("siteId", siteId)).collect();
@@ -27,16 +28,18 @@ async function ensureDtcHierarchy(ctx: MutationCtx, siteId: Id<"sites">) {
 
 /** Deployment-console setup only. Never moves existing groups, accounts or members. */
 export const configureAssureVantage = internalMutation({
-  args: { activate: v.optional(v.boolean()), enableMemberBranding: v.optional(v.boolean()) },
-  handler: async (ctx, { activate = false, enableMemberBranding }) => {
+  args: { activate: v.optional(v.boolean()), enableMemberBranding: v.optional(v.boolean()), promoteToPrimary: v.optional(v.boolean()) },
+  handler: async (ctx, { activate = false, enableMemberBranding, promoteToPrimary = false }) => {
     const preset = ASSUREVANTAGE_PRESET;
     const existing = await ctx.db.query("sites").withIndex("by_slug", q => q.eq("slug", preset.slug)).unique();
     if (existing) {
       if (activate && ["suspended", "terminated"].includes(existing.status)) throw new Error("This site has been suspended or terminated; review it before reactivation");
       if (existing.domain && !["assurevantage.com", "www.assurevantage.com"].includes(existing.domain)) throw new Error("AssureVantage already has a different domain; review the assignment");
       const hierarchy = await ensureDtcHierarchy(ctx, existing._id);
+      const programs = promoteToPrimary ? (await ctx.db.query("catalogProducts").withIndex("by_visible", q => q.eq("isVisible", true)).collect()).filter(product => product.category === "dental" || isMembershipProgramSlug(product.slug) || product.slug.startsWith("oralcare-")) : [];
       await ctx.db.patch(existing._id, {
         domain: "www.assurevantage.com",
+        ...(promoteToPrimary ? { type: "primary" as const, allowedPlanIds: [...new Set([...existing.allowedPlanIds, ...programs.map(product => product._id)])] } : {}),
         ...(enableMemberBranding !== undefined ? { memberBrandingEnabled: enableMemberBranding } : {}),
         ...(activate ? { status: "active" as const, activatedAt: existing.activatedAt ?? Date.now() } : {}),
         updatedAt: Date.now(),
@@ -46,7 +49,7 @@ export const configureAssureVantage = internalMutation({
     const primary = await ctx.db.query("sites").withIndex("by_slug", q => q.eq("slug", "ideal-health")).unique();
     if (!primary || primary.status !== "active") throw new Error("An active Ideal site is required as the existing oral-program template");
     const visible = await ctx.db.query("catalogProducts").withIndex("by_visible", q => q.eq("isVisible", true)).collect();
-    const plans = visible.filter(product => product.category === "dental");
+    const plans = visible.filter(product => product.category === "dental" || isMembershipProgramSlug(product.slug) || product.slug.startsWith("oralcare-"));
     if (!plans.length) throw new Error("No visible oral plans found; configure the intended offering before launch");
     const now = Date.now();
     const siteId = await ctx.db.insert("sites", {

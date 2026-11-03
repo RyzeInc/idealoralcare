@@ -1,4 +1,5 @@
 "use client";
+import { rebrand } from "@/lib/branding";
 
 /**
  * NEW IDEAL HEALTH — PLANS CATALOG
@@ -12,7 +13,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
+import { ProgramLink as Link, useProgramBrand } from "@/components/newideal/ProgramLink";
 import Image from "next/image";
 import { useQuery } from "convex/react";
 import { ArrowRight, Check, Loader, Heart, Smile, ShoppingCart, ChevronDown, ScanLine, Stethoscope, Phone, Video, Pill, FlaskConical, Brain } from "lucide-react";
@@ -147,6 +148,7 @@ const PLAN_GROUPS = [
 ];
 
 function NewIdealHeader({ cartCount }: { cartCount: number }) {
+  const brand = useProgramBrand();
   return (
     <header
       style={{
@@ -169,7 +171,7 @@ function NewIdealHeader({ cartCount }: { cartCount: number }) {
         }}
       >
         <Link href="/newideal" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none" }}>
-          <Image src="/newideal/logo.png" alt="Ideal Health" width={168} height={168} priority />
+          <Image src={brand.logo} alt={brand.name} width={220} height={74} style={{ width: 180, height: "auto" }} priority />
         </Link>
         <nav style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <Link href="/newideal" style={{ fontSize: "0.875rem", color: "#64748b", textDecoration: "none", fontWeight: 500 }}>
@@ -645,6 +647,7 @@ function TierPlanCard({
 }
 
 function StickyCart() {
+  const brand = useProgramBrand();
   const { cart, itemCount, subtotalCents, removeItem } = useCart();
   if (itemCount === 0) return null;
 
@@ -689,7 +692,7 @@ function StickyCart() {
           >
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#f97316", flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#0f172a", lineHeight: 1.3 }}>{item.product.name}</div>
+              <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#0f172a", lineHeight: 1.3 }}>{rebrand(item.product.name, brand.name)}</div>
               <div style={{ fontSize: "0.8125rem", color: "#64748b", marginTop: 2, fontWeight: 500 }}>
                 {formatPrice(item.product.pricing.monthlyCardCents)}/mo
               </div>
@@ -771,6 +774,7 @@ function StickyCart() {
 }
 
 export default function NewIdealPlansPage() {
+  const brand = useProgramBrand();
   const { cart, itemCount, isLoaded, addItem } = useCart();
   const products = useQuery(api.catalog.queries.list, {});
   const isLoading = products === undefined;
@@ -840,7 +844,7 @@ export default function NewIdealPlansPage() {
                 letterSpacing: "-0.02em",
               }}
             >
-              Choose your Ideal Health membership
+              Choose your {brand.name} membership
             </h1>
             <p
               style={{
@@ -878,8 +882,7 @@ export default function NewIdealPlansPage() {
               style={{ padding: 32, textAlign: "center", color: "var(--text-muted)" }}
             >
               <p style={{ margin: 0 }}>
-                Plans are not seeded yet. Run{" "}
-                <code>npx convex run admin/seedNewIdeal:seedNewIdeal</code> from the project root.
+                Plans are currently unavailable. Please contact member support for help.
               </p>
             </div>
           ) : (

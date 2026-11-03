@@ -1,4 +1,5 @@
-import Link from "next/link";
+import { ProgramLink as Link } from "@/components/newideal/ProgramLink";
+import { MAIN_BRAND } from "@/lib/program-brand";
 import Image from "next/image";
 import { CheckCircle2 } from "lucide-react";
 
@@ -6,7 +7,9 @@ export const metadata = {
   title: "Welcome | New Ideal Health",
 };
 
-export default async function NewIdealSuccessPage({ searchParams }: { searchParams: Promise<{ program?: string }> }) {
+export default async function NewIdealSuccessPage({ searchParams, params }: { searchParams: Promise<{ program?: string }>; params?: Promise<{ siteSlug?: string }> }) {
+  const main = (await params)?.siteSlug === MAIN_BRAND.slug;
+  const brandName = main ? MAIN_BRAND.name : "New Ideal Health";
   const isBfl = (await searchParams).program === "bfl";
   return (
     <div className="health-landing">
@@ -22,7 +25,7 @@ export default async function NewIdealSuccessPage({ searchParams }: { searchPara
         }}
       >
         <div className="container" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Image src="/newideal/logo.png" alt="New Ideal Health" width={156} height={156} />
+          <Image src={main ? MAIN_BRAND.branding.logoUrl : "/newideal/logo.png"} alt={brandName} width={220} height={74} style={{ width: 180, height: "auto" }} />
         </div>
       </header>
 
@@ -52,7 +55,7 @@ export default async function NewIdealSuccessPage({ searchParams }: { searchPara
               margin: "0 0 0.75rem 0",
             }}
           >
-            {isBfl ? "Welcome to Balance for Life" : "Welcome to New Ideal Health"}
+            {isBfl ? "Welcome to Balance for Life" : `Welcome to ${brandName}`}
           </h1>
           <p
             style={{

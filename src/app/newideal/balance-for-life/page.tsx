@@ -1,5 +1,6 @@
+import { MAIN_BRAND } from "@/lib/program-brand";
 import Image from "next/image";
-import Link from "next/link";
+import { ProgramLink as Link } from "@/components/newideal/ProgramLink";
 import type { Metadata } from "next";
 import { Fraunces, Inter } from "next/font/google";
 import {
@@ -11,7 +12,7 @@ import { BFL_BRAND as B } from "@/convex/lib/bflBrand";
 import styles from "./bfl.module.css";
 
 /**
- * Balance for Life, sold on its own through Ideal Health.
+ * Balance for Life, sold on its own through {brandName}.
  *
  * Styled to Balance for Life's own brand (balanceforlifebh.com) — their
  * violet and teal, Inter with Fraunces for display, pill buttons, warm canvas
@@ -77,7 +78,8 @@ const ALSO_INCLUDED = [
   { icon: <Stethoscope size={20} />, title: "Preferred provider network", body: "Inpatient and outpatient care, including residential treatment, at additional self-pay cost or through your own insurance." },
 ];
 
-export default function BalanceForLifePage() {
+export default async function BalanceForLifePage({ params }: { params?: Promise<{ siteSlug?: string }> }) {
+  const brandName = (await params)?.siteSlug === MAIN_BRAND.slug ? MAIN_BRAND.name : "Ideal Health";
   return (
     <div className={`health-landing ${inter.variable} ${fraunces.variable}`} style={{ background: B.canvas, fontFamily: "var(--bfl-sans), system-ui, sans-serif", color: B.ink }}>
       <NewIdealHeader />
@@ -88,14 +90,14 @@ export default function BalanceForLifePage() {
           <div className={styles.heroInner}>
             <div className={styles.heroCopy}>
               <Image src={B.logo} alt="Balance for Life" width={220} height={48} priority style={{ height: "auto", width: 200 }} />
-              <p style={{ margin: 0, fontSize: "0.8125rem", fontWeight: 600, color: B.violet700 }}>Offered through Ideal Health</p>
+              <p style={{ margin: 0, fontSize: "0.8125rem", fontWeight: 600, color: B.violet700 }}>Offered through {brandName}</p>
               <h1 id="bfl-title" style={{ margin: 0, maxWidth: "18ch", fontSize: "clamp(2.4rem, 5.2vw, 3.6rem)", fontWeight: 700, lineHeight: 1.05, letterSpacing: "-0.02em", color: B.ink }}>
                 Behavioral health care{" "}
                 <span style={{ ...display, display: "block", fontWeight: 400, fontStyle: "italic", letterSpacing: 0 }}>right when you&nbsp;need&nbsp;it</span>
               </h1>
               <p style={{ margin: 0, maxWidth: "40ch", fontSize: "1.1875rem", lineHeight: 1.6, color: B.ink }}>
                 Someone to talk to on the hard nights, and a licensed counselor when you&apos;re ready. $19.95 a month
-                through Ideal Health.
+                through {brandName}.
               </p>
               <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 20, marginTop: 6 }}>
                 <BflEnrollButton />
@@ -247,7 +249,7 @@ export default function BalanceForLifePage() {
       {/* ── Getting started through Ideal ── */}
       <section style={{ background: B.canvas, padding: "clamp(48px, 7vw, 88px) 0" }}>
         <div className="container" style={{ maxWidth: 820 }}>
-          <SectionHeading eyebrow="Getting started" title="Enroll with Ideal Health, then just open the app" />
+          <SectionHeading eyebrow="Getting started" title={`Enroll with ${brandName}, then just open the app`} />
           <ol style={{ listStyle: "none", padding: 0, margin: "28px 0 0", display: "grid", gap: 16 }}>
             {[
               "Enroll online. Your membership starts the first of the month after you enroll.",

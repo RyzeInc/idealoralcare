@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { ProgramLink as Link, useProgramBrand } from "@/components/newideal/ProgramLink";
 import { useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { ArrowRight, Loader } from "lucide-react";
@@ -25,6 +25,7 @@ export function BflEnrollButton({
   onDark?: boolean;
 }) {
   const router = useRouter();
+  const brand = useProgramBrand();
   const { cart, addItem, isInCart } = useCart();
   const product = useQuery(api.catalog.queries.getBySlug, { slug: BFL_SLUG });
   const [going, setGoing] = useState(false);
@@ -47,7 +48,7 @@ export function BflEnrollButton({
     if (!product) return;
     setGoing(true);
     if (!isInCart(product._id)) addItem(product);
-    router.push("/newideal/checkout");
+    router.push(brand.link("/newideal/checkout"));
   };
 
   const ready = !!product;

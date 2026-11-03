@@ -1,4 +1,5 @@
 "use client";
+import { rebrand } from "@/lib/branding";
 
 /**
  * NEW IDEAL HEALTH — CHECKOUT
@@ -18,7 +19,7 @@
  */
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
+import { ProgramLink as Link, useProgramBrand } from "@/components/newideal/ProgramLink";
 import Image from "next/image";
 import {
   useUser,
@@ -154,6 +155,7 @@ function StepIndicator({ wizardStep }: { wizardStep: number }) {
 }
 
 function InlineAuth() {
+  const brand = useProgramBrand();
   const { signIn, isLoaded: siLoaded, setActive: siSetActive } = useSignIn();
   const { signUp, isLoaded: suLoaded, setActive: suSetActive } = useSignUp();
 
@@ -265,7 +267,7 @@ function InlineAuth() {
     setOauthLoading("oauth_google");
     try {
       const fn = tab === "signin" ? signIn!.authenticateWithRedirect : signUp!.authenticateWithRedirect;
-      await fn({ strategy: "oauth_google", redirectUrl: "/health/sso-callback", redirectUrlComplete: "/newideal/checkout" });
+      await fn({ strategy: "oauth_google", redirectUrl: brand.mainBrand ? "/assurevantage/sso-callback" : "/health/sso-callback", redirectUrlComplete: brand.link("/newideal/checkout") });
     } catch (err: unknown) {
       const e = err as { errors?: { message: string }[] };
       setError(e?.errors?.[0]?.message || "OAuth failed.");
@@ -632,6 +634,7 @@ function InlineAuth() {
 }
 
 function CheckoutHeader() {
+  const brand = useProgramBrand();
   return (
     <header
       style={{
@@ -658,10 +661,11 @@ function CheckoutHeader() {
           style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none" }}
         >
           <Image
-            src="/newideal/logo.png"
-            alt="Ideal Health"
-            width={156}
-            height={156}
+            src={brand.logo}
+            alt={brand.name}
+            width={220}
+            height={74}
+            style={{ width: 180, height: "auto" }}
           />
         </Link>
         <nav style={{ display: "flex", alignItems: "center", gap: 20 }}>
@@ -734,6 +738,7 @@ function StepHeader({
 }
 
 export default function NewIdealCheckoutClient() {
+  const brand = useProgramBrand();
   const { user, isLoaded, isSignedIn } = useUser();
   const {
     cart,
@@ -813,10 +818,10 @@ export default function NewIdealCheckoutClient() {
           planId: primary.product._id,
           cadence: "monthly",
           paymentMethod: cart.paymentMethod,
-          siteSlug: "newideal",
+          siteSlug: brand.siteSlug,
           additionalPlanIds: ordered.slice(1).map((i) => i.productId),
-          successUrl: `${origin}/newideal/success?session_id={CHECKOUT_SESSION_ID}${isBflOrder ? "&program=bfl" : ""}`,
-          cancelUrl: `${origin}/newideal/checkout`,
+          successUrl: `${origin}${brand.link("/newideal/success")}?session_id={CHECKOUT_SESSION_ID}${isBflOrder ? "&program=bfl" : ""}`,
+          cancelUrl: `${origin}${brand.link("/newideal/checkout")}`,
           referralCode: cart.referralCode || undefined,
           memberProfile: (() => {
             try {
@@ -895,7 +900,7 @@ export default function NewIdealCheckoutClient() {
                 lineHeight: 1.65,
               }}
             >
-              Add an Ideal Health membership to get started
+              Add a {brand.name} membership to get started
             </p>
           </div>
         </section>
@@ -997,7 +1002,7 @@ export default function NewIdealCheckoutClient() {
                 maxWidth: 680,
               }}
             >
-              Secure payment and instant access to your Ideal Health membership
+              Secure payment and instant access to your {brand.name} membership
             </p>
           </div>
         </div>
@@ -1046,7 +1051,7 @@ export default function NewIdealCheckoutClient() {
                           {(item.product.category || "").replace(/-/g, " ")}
                         </div>
                         <div style={{ fontWeight: 500 }}>
-                          {item.product.name}
+                          {rebrand(item.product.name, brand.name)}
                         </div>
                       </div>
                       <div
@@ -1277,7 +1282,7 @@ export default function NewIdealCheckoutClient() {
                           {isBflOrder ? "Balance for Life Membership Agreement" : "Essentials Plan Membership Agreement"}
                         </div>
                         <div style={{ fontSize: "0.875rem", color: "#64748b", marginBottom: essentialsAgreed ? 0 : 8 }}>
-                          {membershipItem?.product.name}
+                          {rebrand(membershipItem?.product.name ?? "", brand.name)}
                         </div>
                         {!essentialsAgreed && (
                           <div
@@ -1403,7 +1408,7 @@ export default function NewIdealCheckoutClient() {
                       }}
                     >
                       <strong>I understand this is NOT insurance.</strong>{" "}
-                      Ideal Health is a membership program providing access to
+                      {brand.name} is a membership program providing access to
                       telehealth, pharmacy savings, lab services, mental
                       wellness support, and discounted dental care.
                       {!agreedToNotInsurance && (
@@ -1489,7 +1494,7 @@ export default function NewIdealCheckoutClient() {
                       >
                         <div>
                           <div style={{ fontWeight: 500, fontSize: "0.9375rem" }}>
-                            {item.product.name}
+                            {rebrand(item.product.name, brand.name)}
                           </div>
                           <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
                             Monthly membership

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Smile, Heart, Brain } from "lucide-react";
 import { BFL_BRAND } from "@/convex/lib/bflBrand";
 
@@ -228,6 +229,9 @@ function PlanCard({
 }
 
 export function LandingCards() {
+  const params = useSearchParams();
+  const referral = params.get("ref");
+  const destination = (path: string) => referral ? `${path}?ref=${encodeURIComponent(referral)}` : path;
   return (
     <div
       style={{
@@ -239,7 +243,7 @@ export function LandingCards() {
       }}
     >
       <PlanCard
-        href="/health"
+        href={destination("/assurevantage/plans")}
         imageSrc="/newideal/site-files/pinky-swear.png"
         imageAlt="Oral Care Savings"
         headerGradient="linear-gradient(150deg, rgba(13,148,136,0.82) 0%, rgba(6,182,212,0.7) 100%)"
@@ -259,7 +263,7 @@ export function LandingCards() {
         btnBg="#0d9488"
       />
       <PlanCard
-        href="/newideal/balance-for-life"
+        href={destination("/assurevantage/balance-for-life")}
         imageSrc="/newideal/site-files/mental-health-pic.png"
         imageAlt="Balance for Life"
         headerGradient="linear-gradient(150deg, rgba(40,37,96,0.86) 0%, rgba(0,112,122,0.72) 100%)"
@@ -279,7 +283,7 @@ export function LandingCards() {
         btnBg={BFL_BRAND.violet500}
       />
       <PlanCard
-        href="/newideal"
+        href={destination("/assurevantage/essentials")}
         imageSrc="/newideal/site-files/happy-family.png"
         imageAlt="Essentials Plan"
         headerGradient="linear-gradient(150deg, rgba(12,74,110,0.82) 0%, rgba(3,105,161,0.7) 100%)"

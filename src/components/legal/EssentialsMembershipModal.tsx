@@ -1,5 +1,6 @@
 "use client";
 
+import { useProgramBrand } from "@/components/newideal/ProgramLink";
 import React, { useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ export const EssentialsMembershipModal: React.FC<EssentialsMembershipModalProps>
   program = "essentials",
 }) => {
   const isBfl = program === "bfl";
+  const { name: brandName } = useProgramBrand();
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [hasStroke, setHasStroke] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -109,8 +111,8 @@ export const EssentialsMembershipModal: React.FC<EssentialsMembershipModalProps>
 
             <h3 className="font-semibold text-base">Essentials Terms and Conditions</h3>
             <p>
-              These terms and conditions ("Terms") outline the agreement between you ("Member") and Ideal Health
-              Essentials ("Provider") regarding the Ideal Health Essentials Monthly Membership Plan ("Membership
+              These terms and conditions ("Terms") outline the agreement between you ("Member") and {brandName}
+              Essentials ("Provider") regarding the {brandName} Essentials Monthly Membership Plan ("Membership
               Plan"). By enrolling in the Membership Plan, you acknowledge that you have read, understood, and
               agree to these Terms.
             </p>
@@ -120,7 +122,7 @@ export const EssentialsMembershipModal: React.FC<EssentialsMembershipModalProps>
               {isBfl ? (
                 <>
                   <p className="mb-1">
-                    Balance for Life is offered on its own as part of the Ideal Health Essentials membership program:
+                    Balance for Life is offered on its own as part of the {brandName} Essentials membership program:
                   </p>
                   <ul className="list-disc pl-5 space-y-0.5">
                     <li>Balance for Life — Individual: {formattedPrice} per month</li>
@@ -129,7 +131,7 @@ export const EssentialsMembershipModal: React.FC<EssentialsMembershipModalProps>
               ) : (
                 <>
                   <p className="mb-1">
-                    The Ideal Health Essentials Plan Membership offers several options:
+                    The {brandName} Essentials Plan Membership offers several options:
                   </p>
                   <ul className="list-disc pl-5 space-y-0.5">
                     <li>Individual Plan: $58.95 per month</li>
@@ -145,7 +147,7 @@ export const EssentialsMembershipModal: React.FC<EssentialsMembershipModalProps>
                 what is explicitly stated in the plan documents.
               </p>
               <p className="mt-1">
-                Individuals ages 2 to 65 are eligible for Ideal Health membership. Dependents under the age of
+                Individuals ages 2 to 65 are eligible for {brandName} membership. Dependents under the age of
                 two are not eligible. Dependent children are eligible until the last day of their 25th year.
                 Individuals are eligible until the last day of their 64th year.
               </p>
@@ -241,7 +243,7 @@ export const EssentialsMembershipModal: React.FC<EssentialsMembershipModalProps>
               className="mt-1"
             />
             <span className="text-sm">
-              I have read, understood, and agree to the Ideal Health Essentials Terms and Conditions above.
+              I have read, understood, and agree to the {brandName} Essentials Terms and Conditions above.
             </span>
           </label>
 

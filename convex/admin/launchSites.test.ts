@@ -16,6 +16,23 @@ async function setup() {
 }
 
 describe("AssureVantage launch setup", () => {
+  test("promotes the existing site to the primary brand and includes existing membership programs without moving legacy groups", async () => {
+    const { t, ids } = await setup();
+    const created = await t.mutation(internal.admin.launchSites.configureAssureVantage, {});
+    const bflId = await t.run(async ctx => {
+      await ctx.db.patch(created.siteId, { type: "whitelabel" });
+      const product = await ctx.db.get(ids.product);
+      const { _id, _creationTime, ...fields } = product!;
+      void _id; void _creationTime;
+      return ctx.db.insert("catalogProducts", { ...fields, slug: "bfl-individual", name: "Balance for Life", category: "newideal" });
+    });
+    const before = await t.run(ctx => ctx.db.get(ids.group));
+    await t.mutation(internal.admin.launchSites.configureAssureVantage, { promoteToPrimary: true });
+    const site = await t.run(ctx => ctx.db.get(created.siteId));
+    expect(site?.type).toBe("primary");
+    expect(site?.allowedPlanIds).toEqual([ids.product, bflId]);
+    expect(await t.run(ctx => ctx.db.get(ids.group))).toEqual(before);
+  });
   test("creates a separate brand from the oral catalog without moving legacy groups or changing prices", async () => {
     const { t, ids } = await setup();
     const before = await t.run(async ctx => ({ primary: await ctx.db.get(ids.primary), group: await ctx.db.get(ids.group), product: await ctx.db.get(ids.product) }));
@@ -23,6 +40,7 @@ describe("AssureVantage launch setup", () => {
     expect(created).toMatchObject({ created: true, status: "onboarding" });
     const site = await t.run(ctx => ctx.db.get(created.siteId));
     expect(site).toMatchObject({ slug: "assurevantage", domain: "www.assurevantage.com", name: "AssureVantage", allowedPlanIds: [ids.product], enrollmentDefaults: { supportEmail: "support@getidealoh.com" }, branding: { informationEmail: "info@assurevantage.com" } });
+    expect(site?.type).toBe("primary");
     expect(await t.query(api.enrollment.sessions.getDTCHierarchy, { siteSlug: "assurevantage" })).toBeNull();
     await t.mutation(internal.admin.launchSites.configureAssureVantage, { activate: true, enableMemberBranding: true });
     expect(await t.query(api.enrollment.sessions.getDTCHierarchy, { siteSlug: "assurevantage" })).toEqual({ siteId: created.siteId, accountId: created.accountId, groupId: created.groupId });

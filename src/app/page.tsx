@@ -1,10 +1,16 @@
 import { LandingCards } from "./landing-cards";
-import { Heart } from "lucide-react";
+import Image from "next/image";
+import { Suspense } from "react";
+import { MAIN_BRAND, MAIN_ORIGIN } from "@/lib/program-brand";
+import { WebSiteJsonLd } from "@/components/seo/JsonLd";
 
 export const metadata = {
-  title: "Get Ideal Health — Choose Your Plan",
+  alternates: { canonical: MAIN_ORIGIN },
+  openGraph: { title: "AssureVantage — Choose Your Plan", siteName: "AssureVantage", url: MAIN_ORIGIN },
+  twitter: { title: "AssureVantage — Choose Your Plan", description: "Explore oral savings, Balance for Life and Essentials memberships.", images: [MAIN_BRAND.branding.logoUrl] },
+  title: "AssureVantage — Choose Your Plan",
   description:
-    "Explore Ideal Health's Oral Savings Plans from $14.99/mo, Balance for Life mental wellbeing support for $19.95/mo, or the Essentials membership from $58.95/mo. Membership programs, not insurance.",
+    "Explore AssureVantage's Oral Savings Plans from $14.99/mo, Balance for Life mental wellbeing support for $19.95/mo, or the Essentials membership from $58.95/mo. Membership programs, not insurance.",
 };
 
 export default function RootPage() {
@@ -20,6 +26,7 @@ export default function RootPage() {
         overflow: "hidden",
       }}
     >
+      <WebSiteJsonLd name={MAIN_BRAND.name} url={MAIN_ORIGIN} />
       {/* Background texture */}
       <div
         style={{
@@ -42,30 +49,8 @@ export default function RootPage() {
           padding: "2rem 1.5rem 0",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: "50%",
-              background: "rgba(255,255,255,0.15)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Heart size={20} color="white" />
-          </div>
-          <span
-            style={{
-              color: "#fff",
-              fontWeight: 700,
-              fontSize: "1.4rem",
-              letterSpacing: "-0.02em",
-            }}
-          >
-            Ideal Health
-          </span>
+        <div style={{ background: "white", borderRadius: 12, padding: "12px 22px" }}>
+          <Image src={MAIN_BRAND.branding.logoUrl} alt="AssureVantage" width={220} height={74} priority style={{ width: 220, height: "auto" }} />
         </div>
       </header>
 
@@ -93,7 +78,7 @@ export default function RootPage() {
             marginBottom: "1rem",
           }}
         >
-          Welcome to Get Ideal Health
+          Welcome to AssureVantage
         </p>
         <h1
           style={{
@@ -127,7 +112,7 @@ export default function RootPage() {
         </p>
 
         {/* Interactive cards (client component) */}
-        <LandingCards />
+        <Suspense fallback={null}><LandingCards /></Suspense>
 
         {/* Trust line */}
         <p

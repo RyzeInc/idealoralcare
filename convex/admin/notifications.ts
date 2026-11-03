@@ -71,6 +71,7 @@ export const resendMemberPacket = action({
         essentialsMemberNumber: data.essentialsMemberNumber,
         essentialsGroupNumber: data.essentialsGroupNumber,
         bflMemberCode: data.bflMemberCode,
+                  brand: data.brand,
         planName: data.planName,
         coverageType,
         effectiveDate: data.effectiveDate,

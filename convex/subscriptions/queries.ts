@@ -1,3 +1,4 @@
+import { isMembershipProgramSlug } from "../lib/productSlugs";
 import { resolveBflMemberCode } from "../lib/bflCodes";
 import { resolveMemberBrand, memberPlanName } from "../lib/memberBrand";
 import type { Doc } from "../_generated/dataModel";
@@ -634,6 +635,7 @@ export const getMemberCardDataPublic = query({
       if (product && (product as any).slug) productSlug = (product as any).slug;
     }
 
+    if (brand && isMembershipProgramSlug(productSlug)) Object.assign(brand, { supportEmail: "info@getidealhealth.com", supportPhone: "844-433-2502" });
     const effectiveTs = (bundle as any)?.currentPeriodStart ?? (profile as any).enrolledAt ?? profile._creationTime;
     const _baseDate = new Date(effectiveTs);
     const effectiveDate = new Date(_baseDate.getFullYear(), _baseDate.getMonth() + 1, 1).toLocaleDateString("en-US", {
@@ -752,6 +754,7 @@ async function resolvePacketData(ctx: QueryCtx, memberProfileId: any) {
     }
   }
 
+  if (brand && isMembershipProgramSlug(productSlug)) Object.assign(brand, { supportEmail: "info@getidealhealth.com", supportPhone: "844-433-2502" });
   const subscriberId =
     profile.subscriberId || group?.organizationCode || profile.memberId;
 

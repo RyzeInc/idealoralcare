@@ -1,6 +1,6 @@
 import '../health/health.css';
 import HealthFlowBackground from '@/components/background/HealthFlowBackground';
-import { IdealHealthFooter } from '@/components/health/NexusHealthFooter';
+import { SiteFooter } from '@/components/health/SiteFooter';
 import { SiteThemeProvider } from '@/components/providers/SiteThemeProvider';
 import { CartProvider } from '@/lib/health-plans/cart-context';
 import { Suspense } from 'react';
@@ -48,7 +48,7 @@ export default async function SiteSlugLayout({
             <div className="flex-grow">
               {children}
             </div>
-            <IdealHealthFooter />
+            <SiteFooter />
           </div>
         </>
       </CartProvider>

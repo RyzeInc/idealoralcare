@@ -26,3 +26,12 @@ test.each(["bfl", "essentials"] as const)("renders a real custom-code %s packet 
   // Synthetic artifact for text inspection and review; no member data is used.
   writeFileSync(`/tmp/idealoralcare-cmg-${program}-sample.pdf`, packet);
 }, 20000);
+
+test.each(["bfl", "essentials"] as const)("new primary-brand %s packets keep the assigned access code without an Ideal-branded appendix", async program => {
+  const data = { memberName: "Sample Member", memberFirstName: "Sample", memberEmail: "sample@example.com", essentialsMemberNumber: "100000001", essentialsGroupNumber: "123456", bflMemberCode: "IDEAL", planName: program === "bfl" ? "Balance for Life" : "Essentials", effectiveDate: "Nov 1, 2026", program, brand: { name: "AssureVantage", logoUrl: "/brands/assurevantage/logo.png", portalUrl: "https://www.assurevantage.com/assurevantage/dashboard" } };
+  expect(essentialsAppendPaths(data)).toEqual([]);
+  const result = await generateEssentialsPdfs(data);
+  expect((await PDFDocument.load(Buffer.from(result.pdf, "base64"))).getAuthor()).toBe("AssureVantage");
+  expect((await PDFDocument.load(Buffer.from(result.agreementPdf, "base64"))).getAuthor()).toBe("AssureVantage");
+  writeFileSync(`/tmp/idealoralcare-assure-${program}-sample.pdf`, Buffer.from(result.pdf, "base64"));
+}, 20000);

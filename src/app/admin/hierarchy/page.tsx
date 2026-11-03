@@ -127,7 +127,7 @@ function SitesList({ sites }: { sites: any[] }) {
               <tr key={site._id} className="hover:bg-slate-50">
                 <td className="px-6 py-4 font-medium text-slate-900">{site.name}</td>
                 <td className="px-6 py-4 text-slate-600 font-mono text-sm">{site.slug}</td>
-                <td className="px-6 py-4 text-slate-600">{site.type}</td>
+                <td className="px-6 py-4 text-slate-600">{site.slug === 'ideal-health' || site.slug === 'newideal' ? 'Legacy Ideal' : site.type}</td>
                 <td className="px-6 py-4 text-slate-600">{site.domain || '—'}</td>
                 <td className="px-6 py-4">
                   <button onClick={() => handleToggleStatus(site)} className={`px-3 py-1 rounded-full text-xs font-semibold cursor-pointer ${site.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
@@ -704,7 +704,7 @@ function EditSiteModal({ site, onClose }: { site: any; onClose: () => void }) {
 
         {activeTab === 'branding' && (
           <>
-            <label className="flex gap-2 text-sm"><input type="checkbox" checked={memberBrandingEnabled} onChange={event => setMemberBrandingEnabled(event.target.checked)} />Use this brand on oral member welcome emails, packets and cards</label>
+            <label className="flex gap-2 text-sm"><input type="checkbox" checked={memberBrandingEnabled} onChange={event => setMemberBrandingEnabled(event.target.checked)} />Use this brand on member welcome emails, packets and cards</label>
             <p className="text-xs text-slate-500">Applies to members enrolled under this site, including future resends. Leave off for groups retaining Ideal materials. This does not change benefits or the verified email-sending domain.</p>
             {site.slug === ASSUREVANTAGE_PRESET.slug && <button type="button" className="text-sm text-blue-700 underline" onClick={() => setBranding(current => ({ ...current, ...ASSUREVANTAGE_PRESET.branding }))}>Use supplied AssureVantage logo, colors and tagline</button>}
             <Field label="Information Request Email" value={branding.informationEmail} onChange={v => setBranding(current => ({ ...current, informationEmail: v }))} placeholder="info@yourbrand.com" tooltip="Shown separately from member support. This does not change the email sender or support address." />

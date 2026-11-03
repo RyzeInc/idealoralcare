@@ -5,7 +5,8 @@ import { safeAuthReturn, isSatelliteAuthReturn } from "../auth-return";
 describe("AssureVantage domain routing", () => {
   test.each(["assurevantage.com", "www.assurevantage.com", "WWW.ASSUREVANTAGE.COM"])("selects the configured brand for %s", host => {
     expect(domainSite(host)).toMatchObject({ slug: "assurevantage", origin: ASSURE_ORIGIN });
-    expect(domainEntryPath(host, "/")).toBe("/assurevantage");
+    expect(domainEntryPath(host, "/")).toBeNull();
+    expect(domainEntryPath(host, "/assurevantage")).toBe("/");
     expect(domainEntryPath(host, "/health/dashboard")).toBe("/assurevantage/dashboard");
   });
   test.each(["getidealoh.com", "www.getidealoh.com", "nexusoralhealth.com", "www.assurevantage.com.evil.test", "assurevantage.com@evil.test"])("preserves existing routing for %s", host => {

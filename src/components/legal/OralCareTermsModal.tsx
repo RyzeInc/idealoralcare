@@ -1,5 +1,6 @@
 "use client";
 
+import { useProgramBrand } from "@/components/newideal/ProgramLink";
 import React, { useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ export const OralCareTermsModal: React.FC<OralCareTermsModalProps> = ({
   planName,
   memberData,
 }) => {
+  const { name: brandName } = useProgramBrand();
   const [agreed, setAgreed] = useState(false);
   const [hasStroke, setHasStroke] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -137,7 +139,7 @@ export const OralCareTermsModal: React.FC<OralCareTermsModalProps> = ({
             <h3 className="font-semibold text-base">Oral Care Savings Membership — Terms &amp; Conditions</h3>
 
             <p>
-              By enrolling in the Ideal Health Oral Care Savings Membership ("Oral Care Plan"), you acknowledge
+              By enrolling in the {brandName} Oral Care Savings Membership ("Oral Care Plan"), you acknowledge
               that you have read, understood, and agree to these terms.
             </p>
 
@@ -188,7 +190,7 @@ export const OralCareTermsModal: React.FC<OralCareTermsModalProps> = ({
               <p>
                 Dental network savings are only available at participating providers. Provider
                 availability varies by location. Members are responsible for verifying provider
-                participation and savings amounts prior to receiving services. Ideal Health does not
+                participation and savings amounts prior to receiving services. {brandName} does not
                 guarantee the availability of any specific provider.
               </p>
             </div>
@@ -196,7 +198,7 @@ export const OralCareTermsModal: React.FC<OralCareTermsModalProps> = ({
             <div>
               <h4 className="font-semibold mb-1">Payment and Billing</h4>
               <p>
-                By enrolling, you authorize Ideal Health to charge your payment method the monthly
+                By enrolling, you authorize {brandName} to charge your payment method the monthly
                 membership fee for the Oral Care Plan. Charges will renew automatically each month
                 until cancelled.
               </p>
@@ -205,7 +207,7 @@ export const OralCareTermsModal: React.FC<OralCareTermsModalProps> = ({
             <div>
               <h4 className="font-semibold mb-1">Cancellation</h4>
               <p>
-                You may cancel this membership at any time by contacting Ideal Health at{" "}
+                You may cancel this membership at any time by contacting {brandName} at{" "}
                 <strong>support@getidealoh.com</strong>. To avoid charges for the following month,
                 cancellation requests must be received at least <strong>30 days in advance</strong> of
                 your next billing date. You will retain access to your savings through the end of
@@ -216,8 +218,8 @@ export const OralCareTermsModal: React.FC<OralCareTermsModalProps> = ({
             <div>
               <h4 className="font-semibold mb-1">Limitation of Liability</h4>
               <p>
-                Ideal Health is not responsible for the quality of care or services provided by network
-                providers, or for any savings amounts that may differ from those advertised. Ideal Health&apos;s
+                {brandName} is not responsible for the quality of care or services provided by network
+                providers, or for any savings amounts that may differ from those advertised. {brandName}&apos;s
                 liability is limited to fees paid in the three months prior to any claim.
               </p>
             </div>
@@ -225,7 +227,7 @@ export const OralCareTermsModal: React.FC<OralCareTermsModalProps> = ({
             <div>
               <h4 className="font-semibold mb-1">Governing Law</h4>
               <p>
-                These Terms are governed by the laws of the jurisdiction in which Ideal Health operates.
+                These Terms are governed by the laws of the jurisdiction in which {brandName} operates.
               </p>
             </div>
           </div>

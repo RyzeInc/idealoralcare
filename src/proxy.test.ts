@@ -20,9 +20,9 @@ beforeEach(() => {
   mocks.auth.mockResolvedValue({ userId: null, redirectToSignIn: mocks.signIn });
 });
 
-test("brand entry redirects before Clerk sync and preserves referral query parameters", async () => {
-  const response = await proxy(new NextRequest("https://www.assurevantage.com/?ref=100001"), event);
-  expect(response?.headers.get("location")).toBe("https://www.assurevantage.com/assurevantage?ref=100001");
+test("the old brand entry returns to the shared homepage and preserves referral parameters", async () => {
+  const response = await proxy(new NextRequest("https://www.assurevantage.com/assurevantage?ref=100001"), event);
+  expect(response?.headers.get("location")).toBe("https://www.assurevantage.com/?ref=100001");
   expect(mocks.options).not.toHaveBeenCalled();
 });
 
@@ -46,7 +46,7 @@ test("public webhook endpoints do not start a satellite auth handshake", async (
 });
 
 test.each([
-  ["www.assurevantage.com", "/assurevantage/plans"],
+  ["www.assurevantage.com", "/assurevantage/essentials"],
   ["www.getidealoh.com", "/newideal/essentials"],
 ])("broker vanity links preserve attribution on %s", async (host, destination) => {
   mocks.lookup.mockResolvedValue({ repCode: "100001", productHint: "essentials" });

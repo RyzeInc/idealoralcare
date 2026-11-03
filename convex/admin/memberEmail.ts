@@ -773,6 +773,7 @@ async function sendPacket(
       essentialsMemberNumber: data.essentialsMemberNumber,
       essentialsGroupNumber: data.essentialsGroupNumber,
       bflMemberCode: data.bflMemberCode,
+                  brand: data.brand,
       planName: data.planName,
       coverageType: isBfl ? "Individual" : coverageType,
       effectiveDate: data.effectiveDate,
