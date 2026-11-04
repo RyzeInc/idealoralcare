@@ -1,5 +1,4 @@
 "use client";
-import { rebrand } from "@/lib/branding";
 
 /**
  * NEW IDEAL HEALTH — PLANS CATALOG
@@ -171,7 +170,7 @@ function NewIdealHeader({ cartCount }: { cartCount: number }) {
         }}
       >
         <Link href="/newideal" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none" }}>
-          <Image src={brand.logo} alt={brand.name} width={220} height={74} style={{ width: 180, height: "auto" }} priority />
+          <Image src={brand.logo} alt={brand.name} width={brand.mainBrand ? 220 : 168} height={brand.mainBrand ? 74 : 168} style={brand.mainBrand ? { width: 180, height: "auto" } : undefined} priority />
         </Link>
         <nav style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <Link href="/newideal" style={{ fontSize: "0.875rem", color: "#64748b", textDecoration: "none", fontWeight: 500 }}>
@@ -692,7 +691,7 @@ function StickyCart() {
           >
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#f97316", flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#0f172a", lineHeight: 1.3 }}>{rebrand(item.product.name, brand.name)}</div>
+              <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#0f172a", lineHeight: 1.3 }}>{brand.productName(item.product.name)}</div>
               <div style={{ fontSize: "0.8125rem", color: "#64748b", marginTop: 2, fontWeight: 500 }}>
                 {formatPrice(item.product.pricing.monthlyCardCents)}/mo
               </div>

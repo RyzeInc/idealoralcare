@@ -20,7 +20,7 @@ beforeEach(() => {
   mocks.auth.mockResolvedValue({ userId: null, redirectToSignIn: mocks.signIn });
 });
 
-test("the old brand entry returns to the shared homepage and preserves referral parameters", async () => {
+test("the Assure entry returns to its own homepage and preserves referral parameters", async () => {
   const response = await proxy(new NextRequest("https://www.assurevantage.com/assurevantage?ref=100001"), event);
   expect(response?.headers.get("location")).toBe("https://www.assurevantage.com/?ref=100001");
   expect(mocks.options).not.toHaveBeenCalled();
@@ -53,4 +53,18 @@ test.each([
   const response = await proxy(new NextRequest(`https://${host}/samplebroker`), event);
   expect(response!.headers.get("location")).toBe(`https://${host}${destination}?ref=100001`);
   expect(response!.headers.get("set-cookie")).toContain("ideal_ref=100001");
+});
+
+
+test("new-brand marketing on an Ideal URL moves to Assure without changing Ideal's homepage", async () => {
+  const response = await proxy(new NextRequest("https://www.getidealoh.com/assurevantage/essentials?ref=100001"), event);
+  expect(response!.headers.get("location")).toBe("https://www.assurevantage.com/assurevantage/essentials?ref=100001");
+  expect(mocks.options).not.toHaveBeenCalled();
+});
+
+test("Ideal's homepage stays on Ideal and Clerk's shared sign-in remains reachable", async () => {
+  for (const path of ["/", "/health", "/newideal/essentials", "/assurevantage/sign-in", "/assurevantage/sign-up", "/assurevantage/sso-callback"]) {
+    const response = await proxy(new NextRequest(`https://www.getidealoh.com${path}`), event);
+    expect(response?.headers.get("location")).toBeFalsy();
+  }
 });

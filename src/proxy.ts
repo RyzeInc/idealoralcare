@@ -4,7 +4,7 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { isReservedPath } from "@/lib/rep-routing/reserved";
 import { memberSignInPath } from "@/lib/site-links";
-import { domainClerkOptions, domainEntryPath, domainSite } from "@/lib/site-domains";
+import { domainClerkOptions, domainEntryPath, domainSite, marketingRedirectOrigin } from "@/lib/site-domains";
 
 /**
  * ROUTE PROTECTION PROXY (Clerk Middleware)
@@ -171,6 +171,10 @@ const authenticateRequest = clerkMiddleware(async (auth, request) => {
 
 export default function proxy(request: NextRequest, event: NextFetchEvent) {
   if (isPublicApiRoute(request)) return NextResponse.next();
+  const marketingOrigin = marketingRedirectOrigin(request.nextUrl.hostname, request.nextUrl.pathname);
+  if (marketingOrigin) {
+    return NextResponse.redirect(new URL(`${request.nextUrl.pathname}${request.nextUrl.search}`, marketingOrigin));
+  }
   // Resolve the entry route before Clerk starts a cross-domain session sync.
   const entryPath = domainEntryPath(request.nextUrl.hostname, request.nextUrl.pathname);
   if (entryPath) {

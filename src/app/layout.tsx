@@ -6,6 +6,9 @@ import { Suspense } from "react";
 import { GoogleAnalytics } from "@/components/seo/GoogleAnalytics";
 import { SITE_CREDIT } from "@/lib/site-credit";
 import "./globals.css";
+import { headers } from "next/headers";
+import { domainSite } from "@/lib/site-domains";
+import { WebSiteJsonLd } from "@/components/seo/JsonLd";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -50,15 +53,17 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const site = domainSite((await headers()).get("host"));
   return (
     <html lang="en">
       <body>
         <GoogleAnalytics />
+        {!site && <WebSiteJsonLd />}
         {/*
           signInUrl / signUpUrl tell Clerk where YOUR sign-in pages live.
           Without these, Clerk redirects to its hosted page at accounts.getidealoh.com.

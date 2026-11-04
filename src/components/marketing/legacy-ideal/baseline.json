@@ -1,0 +1,13 @@
+{
+  "baseline": "43aaa07",
+  "files": {
+    "src/app/health/page.tsx": "c6d8db4c0d960ef42f4e1f3471b1deeab4196a11d0962e49cb97080cb7fde529",
+    "src/components/marketing/legacy-ideal/HealthHeader.tsx": "95878c80c983c408c8b37794034fc5a16f0bd545c1144a6762c1b168dcbd544a",
+    "src/components/marketing/legacy-ideal/HeroSlideshow.tsx": "ffc4eb2d1261f00dba1b1b23d48f12bfd6ecc5ccf8fdb30275373cafa45e0460",
+    "src/components/marketing/legacy-ideal/NewIdealChrome.tsx": "a9a2177d5e17388e71048146f40ef7088127f5d7d71021111135fa7007d69e58",
+    "src/components/marketing/legacy-ideal/NexusHealthFooter.tsx": "6042d470c970faf348de59585b241d1f594c3aac39a6414900624812493b439b",
+    "src/components/marketing/legacy-ideal/NexusHealthWordmark.tsx": "d361af9ae484488cda50f3bcb55a3d275f8edb389ddf64cf0a6067fe2ff92e7a",
+    "src/components/marketing/legacy-ideal/landing-cards.tsx": "26d8f28ac70519867093ce95ffc6ca41d0377aa798a592fccce1ec28977e7a10",
+    "src/components/marketing/legacy-ideal/page.tsx": "a4838264db70e1ad4f96efc7bffdb0b8957839fc98d8fa8c04f66a7f4d5e9d67"
+  }
+}

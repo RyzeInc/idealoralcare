@@ -4,6 +4,8 @@ import { ProgramLink as Link, useProgramBrand } from "@/components/newideal/Prog
 import Image from "next/image";
 import { ShoppingCart } from "lucide-react";
 
+import { NewIdealHeader as LegacyHeader, NewIdealFooter as LegacyFooter } from "@/components/marketing/legacy-ideal/NewIdealChrome";
+
 const NAV = [
   { href: "/newideal", label: "Overview" },
   { href: "/newideal/essentials", label: "Essentials" },
@@ -14,6 +16,7 @@ const NAV = [
 
 export function NewIdealHeader() {
   const brand = useProgramBrand();
+  if (!brand.mainBrand) return <LegacyHeader />;
   return (
     <header
       style={{
@@ -96,7 +99,8 @@ export function NewIdealHeader() {
 
 export function NewIdealFooter({ inSiteShell = false }: { inSiteShell?: boolean } = {}) {
   const brand = useProgramBrand();
-  if (brand.mainBrand && !inSiteShell) return null;
+  if (!brand.mainBrand) return <LegacyFooter />;
+  if (!inSiteShell) return null;
   return (
     <footer
       style={{

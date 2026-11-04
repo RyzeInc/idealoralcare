@@ -1,5 +1,4 @@
 "use client";
-import { rebrand } from "@/lib/branding";
 
 /**
  * NEW IDEAL HEALTH — CHECKOUT
@@ -663,9 +662,9 @@ function CheckoutHeader() {
           <Image
             src={brand.logo}
             alt={brand.name}
-            width={220}
-            height={74}
-            style={{ width: 180, height: "auto" }}
+            width={brand.mainBrand ? 220 : 156}
+            height={brand.mainBrand ? 74 : 156}
+            style={brand.mainBrand ? { width: 180, height: "auto" } : undefined}
           />
         </Link>
         <nav style={{ display: "flex", alignItems: "center", gap: 20 }}>
@@ -1051,7 +1050,7 @@ export default function NewIdealCheckoutClient() {
                           {(item.product.category || "").replace(/-/g, " ")}
                         </div>
                         <div style={{ fontWeight: 500 }}>
-                          {rebrand(item.product.name, brand.name)}
+                          {brand.productName(item.product.name)}
                         </div>
                       </div>
                       <div
@@ -1282,7 +1281,7 @@ export default function NewIdealCheckoutClient() {
                           {isBflOrder ? "Balance for Life Membership Agreement" : "Essentials Plan Membership Agreement"}
                         </div>
                         <div style={{ fontSize: "0.875rem", color: "#64748b", marginBottom: essentialsAgreed ? 0 : 8 }}>
-                          {rebrand(membershipItem?.product.name ?? "", brand.name)}
+                          {brand.productName(membershipItem?.product.name ?? "")}
                         </div>
                         {!essentialsAgreed && (
                           <div
@@ -1494,7 +1493,7 @@ export default function NewIdealCheckoutClient() {
                       >
                         <div>
                           <div style={{ fontWeight: 500, fontSize: "0.9375rem" }}>
-                            {rebrand(item.product.name, brand.name)}
+                            {brand.productName(item.product.name)}
                           </div>
                           <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
                             Monthly membership

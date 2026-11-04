@@ -23,12 +23,20 @@ import { useSiteThemeOptional } from "@/components/providers/SiteThemeProvider";
 import { isSiteMarketingEnabled } from "@/convex/lib/siteMarketing";
 import { useHydrated } from "@/lib/use-hydrated";
 
+import LegacyHealthHeader from "@/components/marketing/legacy-ideal/HealthHeader";
+
 interface HealthHeaderProps {
   /** Show cart icon with item count */
   cartItemCount?: number;
 }
 
-export default function HealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
+export default function HealthHeader(props: HealthHeaderProps) {
+  const pathname = usePathname();
+  if (pathname === "/health" || pathname.startsWith("/health/")) return <LegacyHealthHeader {...props} />;
+  return <ConfigurableHealthHeader {...props} />;
+}
+
+function ConfigurableHealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
   const pathname = usePathname();
   const { isSignedIn } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

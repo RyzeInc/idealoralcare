@@ -1,7 +1,7 @@
 import './health.css';
 import { Suspense } from 'react';
 import HealthFlowBackground from '@/components/background/HealthFlowBackground';
-import { IdealHealthFooter } from '@/components/health/NexusHealthFooter';
+import { IdealHealthFooter } from '@/components/marketing/legacy-ideal/NexusHealthFooter';
 import { SiteThemeProvider } from '@/components/providers/SiteThemeProvider';
 import { CartProvider } from '@/lib/health-plans/cart-context';
 import { ReferralCapture } from '@/components/health/ReferralCapture';

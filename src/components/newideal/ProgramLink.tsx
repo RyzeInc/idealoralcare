@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { rebrand } from "@/lib/branding";
 import { usePathname } from "next/navigation";
 import type { ComponentProps } from "react";
 import { MAIN_BRAND, programLink } from "@/lib/program-brand";
@@ -13,6 +14,7 @@ export function useProgramBrand() {
     name: mainBrand ? MAIN_BRAND.name : "Ideal Health",
     logo: mainBrand ? MAIN_BRAND.branding.logoUrl : "/newideal/logo.png",
     siteSlug: mainBrand ? MAIN_BRAND.slug : "newideal",
+    productName: (name: string) => mainBrand ? rebrand(name, MAIN_BRAND.name) : name,
     link: (href: string) => programLink(href, mainBrand),
   };
 }

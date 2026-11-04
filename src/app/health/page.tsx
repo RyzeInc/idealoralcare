@@ -1,7 +1,5 @@
 import Link from "next/link";
-import SitePromoLinks from "@/components/health/SitePromoLinks";
 import HeroSlideshow from "@/components/health/HeroSlideshow";
-import { SiteMarketing } from "@/components/health/SiteMarketing";
 import HealthHeader from "@/components/health/HealthHeader";
 import { TrustAnchors, ProblemBand } from "@/components/health/sections";
 import { Zap, Clock, Smile, Heart, Shield } from "lucide-react";
@@ -32,7 +30,7 @@ export default function HealthLanding() {
         <div className="container">
           <div className="row">
             <div className="col-12">
-              <SiteMarketing feature="heroSlideshow"><HeroSlideshow /></SiteMarketing>
+              <HeroSlideshow />
             </div>
           </div>
           <div className="row">
@@ -59,38 +57,36 @@ export default function HealthLanding() {
         </div>
       </section>
 
-      <SitePromoLinks placement="landing" />
-
       {/* ── Problem Band ─────────────────────────────────────────── */}
-      <SiteMarketing feature="problemBand"><ProblemBand /></SiteMarketing>
+      <ProblemBand />
 
       {/* ── Feature Preview Cards ───────────────────────────────── */}
-      <SiteMarketing feature="serviceCards"><section className="related-posts section">
+      <section className="related-posts section">
         <div className="container">
-          <h2 style={{ textAlign: "center", marginBottom: "1rem" }}>Explore Oral Health Services</h2>
-          <p style={{ textAlign: "center", color: "#475569", fontSize: "1.125rem", marginBottom: "3rem", maxWidth: "560px", margin: "0 auto 3rem" }}>Explore the services available through our oral health plans.</p>
+          <h2 style={{ textAlign: "center", marginBottom: "1rem" }}>Three Ways to Take Care of Your Smile</h2>
+          <p style={{ textAlign: "center", color: "#475569", fontSize: "1.125rem", marginBottom: "3rem", maxWidth: "560px", margin: "0 auto 3rem" }}>AI imaging from home, a dentist whenever you need one, and real savings when you visit in person.</p>
           <div className="related-posts__grid">
-            <SiteMarketing feature="oralScan"><Link href="/health/oral-health-scan" className="related-posts__card">
+            <Link href="/health/oral-health-scan" className="related-posts__card">
               <img src="/health-assets/toothlensscan_1086x1024.png" alt="AI Oral Scanning" />
               <h4>AI Oral Scanning</h4>
               <div className="link-arrow">AI-Powered Detection</div>
-            </Link></SiteMarketing>
-            <SiteMarketing feature="teledentistry"><Link href="/health/teledentistry" className="related-posts__card">
+            </Link>
+            <Link href="/health/teledentistry" className="related-posts__card">
               <img src="/health-assets/teledentistr_1024x1024.png" alt="Teledentistry Consultations" />
               <h4>Teledentistry Consultations</h4>
               <div className="link-arrow">Expert Guidance 24/7</div>
-            </Link></SiteMarketing>
-            <SiteMarketing feature="dentalDiscount"><Link href="/health/discount" className="related-posts__card">
+            </Link>
+            <Link href="/health/discount" className="related-posts__card">
               <img src="/health-assets/dentist-network-discount_1536x1024.png" alt="Dental Discount Network" />
               <h4>Dental Discount Network</h4>
               <div className="link-arrow">Nationwide Access</div>
-            </Link></SiteMarketing>
+            </Link>
           </div>
         </div>
-      </section></SiteMarketing>
+      </section>
 
       {/* ── What's Included — image left + benefit tiles right ──── */}
-      <SiteMarketing feature="benefitHighlights"><section className="our-use-case section bg--blue" id="whats-included">
+      <section className="our-use-case section bg--blue" id="whats-included">
         <div className="container">
           <div className="heading-block">
             <h2>What&apos;s Included in Your Oral Health Savings Plan</h2>
@@ -100,21 +96,21 @@ export default function HealthLanding() {
               <img src="/health-assets/image-2-1.png" alt="Dentist providing teledentistry consultation" />
             </div>
             <div className="benefit-tiles" style={{ flex: 1 }}>
-              <SiteMarketing feature="oralScan"><div className="benefit-tile">
+              <div className="benefit-tile">
                 <div className="benefit-tile__icon"><Zap size={28} color="#2ECC71" /></div>
                 <h4 className="benefit-tile__title">AI Oral Scanning</h4>
                 <p className="benefit-tile__description">AI Oral Scanning analyzes photos of your teeth using AI to detect potential issues early.</p>
-              </div></SiteMarketing>
-              <SiteMarketing feature="teledentistry"><div className="benefit-tile">
+              </div>
+              <div className="benefit-tile">
                 <div className="benefit-tile__icon"><Clock size={28} color="#3498DB" /></div>
                 <h4 className="benefit-tile__title">24/7 Teledentistry</h4>
                 <p className="benefit-tile__description">Connect with licensed dentists anytime via our Teledentistry Program for consultations and guidance.</p>
-              </div></SiteMarketing>
-              <SiteMarketing feature="dentalDiscount"><div className="benefit-tile">
+              </div>
+              <div className="benefit-tile">
                 <div className="benefit-tile__icon"><Smile size={28} color="#F39C12" /></div>
                 <h4 className="benefit-tile__title">Dental Network Discounts</h4>
                 <p className="benefit-tile__description">Access thousands of dentists nationwide through the Careington POS Dental Discount Network with negotiated discount rates.</p>
-              </div></SiteMarketing>
+              </div>
               <div className="benefit-tile">
                 <div className="benefit-tile__icon"><Heart size={28} color="#64748b" /></div>
                 <h4 className="benefit-tile__title">Preventive Focus</h4>
@@ -133,10 +129,10 @@ export default function HealthLanding() {
             </div>
           </div>
         </div>
-      </section></SiteMarketing>
+      </section>
 
       {/* ── Why It Works Better ─────────────────────────────────── */}
-      <SiteMarketing feature="whyItWorks"><section className="benefits section bg--white">
+      <section className="benefits section bg--white">
         <div className="container">
           <h2>Built Around How You Actually Live</h2>
           <ul className="benefits__list">
@@ -148,10 +144,10 @@ export default function HealthLanding() {
             <li>Whether it&apos;s a routine check-in or an urgent concern, you&apos;ll always have someone in your corner.</li>
           </ul>
         </div>
-      </section></SiteMarketing>
+      </section>
 
       {/* ── How to Get Started ──────────────────────────────────── */}
-      <SiteMarketing feature="howItWorks"><section style={{ padding: "100px 0", backgroundColor: "#f8fafc" }}>
+      <section style={{ padding: "100px 0", backgroundColor: "#f8fafc" }}>
         <div className="container">
           <div className="how-it-works-section__layout" style={{ display: "flex", gap: "56px", alignItems: "center" }}>
             {/* Image — left */}
@@ -188,13 +184,13 @@ export default function HealthLanding() {
             </div>
           </div>
         </div>
-      </section></SiteMarketing>
+      </section>
 
       {/* ── Trust Anchors ───────────────────────────────────────── */}
-      <SiteMarketing feature="trustAnchors"><TrustAnchors /></SiteMarketing>
+      <TrustAnchors />
 
       {/* ── For Your Team ───────────────────────────────────────── */}
-      <SiteMarketing feature="teamCta"><section className="for-organization section bg--white">
+      <section className="for-organization section bg--white">
         <div className="container">
           <div className="for-organization__row">
             <div className="for-organization__col">
@@ -205,7 +201,7 @@ export default function HealthLanding() {
                 without the hassle — and that makes a difference in how they show up every day.
               </p>
               <div className="for-organization__btn_w">
-                <Link className="button button--accent" href="/register">Schedule a Demo</Link>
+                <a className="button button--accent" href="/register">Schedule a Demo</a>
               </div>
             </div>
             <div className="for-organization__img">
@@ -213,10 +209,10 @@ export default function HealthLanding() {
             </div>
           </div>
         </div>
-      </section></SiteMarketing>
+      </section>
 
       {/* ── FAQ ─────────────────────────────────────────────────── */}
-      <SiteMarketing feature="faq"><section className="faq section">
+      <section className="faq section">
         <div className="container">
           <h2>Questions You Might Have</h2>
           <div className="faq__list">
@@ -224,21 +220,21 @@ export default function HealthLanding() {
               <h4>Is this real dental insurance?</h4>
               <div>No — The <BrandName /> Savings Plan is a membership, not an insurance plan. Because this is not insurance, there are no deductibles, no waiting periods, no claim forms, and no annual coverage caps. You get AI scanning, 24/7 dentist access, and a nationwide dental discount network — starting the day after you enroll.</div>
             </div>
-            <SiteMarketing feature="oralScan"><div className="accordion">
+            <div className="accordion">
               <h4>How does the AI scanning work — do I need any equipment?</h4>
               <div>No special equipment needed — just your smartphone. You&apos;ll take a few guided photos of your teeth and gums, and our AI analyzes them to give you an oral health score, identify areas of concern, and suggest next steps. Most scans take under five minutes.</div>
-            </div></SiteMarketing>
-            <SiteMarketing feature="teledentistry"><div className="accordion">
+            </div>
+            <div className="accordion">
               <h4>What if I have a dental emergency?</h4>
               <div>Use Dialcare Teledensistry - 24/7. You&apos;ll be connected with a licensed dentist who can assess your situation, provide pain management guidance, write a prescription if needed, and refer you to an in-person provider. You don&apos;t have to wait until Monday morning.</div>
-            </div></SiteMarketing>
-            <SiteMarketing feature="dentalDiscount"><div className="accordion">
+            </div>
+            <div className="accordion">
               <h4>How much can I actually save on dental procedures?</h4>
               <div>Members typically save 20%-50% on common procedures like cleanings, fillings, and root canals. You can search our provider network before your appointment to see exact member pricing — no surprises at checkout.</div>
-            </div></SiteMarketing>
+            </div>
           </div>
         </div>
-      </section></SiteMarketing>
+      </section>
     </div>
   );
 }

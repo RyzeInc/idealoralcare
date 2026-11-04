@@ -25,7 +25,7 @@ export default async function NewIdealSuccessPage({ searchParams, params }: { se
         }}
       >
         <div className="container" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Image src={main ? MAIN_BRAND.branding.logoUrl : "/newideal/logo.png"} alt={brandName} width={220} height={74} style={{ width: 180, height: "auto" }} />
+          <Image src={main ? MAIN_BRAND.branding.logoUrl : "/newideal/logo.png"} alt={brandName} width={main ? 220 : 156} height={main ? 74 : 156} style={main ? { width: 180, height: "auto" } : undefined} />
         </div>
       </header>
 

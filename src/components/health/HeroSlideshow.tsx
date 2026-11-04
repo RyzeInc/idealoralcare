@@ -2,6 +2,8 @@
 
 import { useCallback, useState, useEffect, useRef, useMemo } from 'react';
 import { getImageProps } from 'next/image';
+import { usePathname } from 'next/navigation';
+import LegacyHeroSlideshow from '@/components/marketing/legacy-ideal/HeroSlideshow';
 import styles from './HeroSlideshow.module.css';
 import { useSiteThemeOptional } from '@/components/providers/SiteThemeProvider';
 import { isSiteMarketingEnabled, type SiteMarketingFeature } from '@/convex/lib/siteMarketing';
@@ -72,6 +74,11 @@ function ResponsiveHeroImage({
 }
 
 export default function HeroSlideshow() {
+  const pathname = usePathname();
+  return pathname === "/health" || pathname.startsWith("/health/") ? <LegacyHeroSlideshow /> : <ConfigurableHeroSlideshow />;
+}
+
+function ConfigurableHeroSlideshow() {
   const theme = useSiteThemeOptional();
   const slides = useMemo(() => theme?.isLoading ? [] : allSlides.filter(slide => isSiteMarketingEnabled(theme?.site?.marketing, slide.feature)), [theme?.isLoading, theme?.site?.marketing]);
   const [currentSlide, setCurrentSlide] = useState(0);

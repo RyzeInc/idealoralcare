@@ -25,8 +25,18 @@ export function domainClerkOptions(host: string | null | undefined) {
 /** Keep visible path-based routes so existing links/cart/site params agree. */
 export function domainEntryPath(host: string, pathname: string): string | null {
   const site = domainSite(host);
-  if (pathname === "/assurevantage") return "/";
   if (!site) return null;
+  if (pathname === "/assurevantage") return "/";
   if (pathname === "/health" || pathname.startsWith("/health/")) return `/${site.slug}${pathname.slice(7)}`;
   return null;
+}
+
+/** New-brand pages belong on the new domain. Clerk's primary auth pages stay here. */
+export function marketingRedirectOrigin(host: string, pathname: string): string | null {
+  const hostname = host.toLowerCase().replace(/\.$/, "");
+  if (hostname !== "getidealoh.com" && hostname !== "www.getidealoh.com") return null;
+  if (pathname !== "/assurevantage" && !pathname.startsWith("/assurevantage/")) return null;
+  const section = pathname.split("/")[2];
+  if (["sign-in", "sign-up", "forgot-password", "sso-callback"].includes(section)) return null;
+  return ASSURE_ORIGIN;
 }
