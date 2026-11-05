@@ -23,6 +23,15 @@ describe("AssureVantage domain routing", () => {
 });
 
 describe("cross-domain auth return allowlist", () => {
+  test("admin sign-in returns to the protected console on the configured satellite", () => {
+    for (const path of ["/admin", "/admin/hierarchy?tab=sites"]) {
+      const destination = ASSURE_ORIGIN + path;
+      expect(isSatelliteAuthReturn(destination)).toBe(true);
+      expect(safeAuthReturn(destination, "/assurevantage/dashboard")).toBe(destination);
+    }
+    expect(isSatelliteAuthReturn("https://evil.test/admin")).toBe(false);
+    expect(isSatelliteAuthReturn("https://www.assurevantage.com/administrator")).toBe(false);
+  });
   test("preserves checkout and scan query parameters on the configured satellite", () => {
     for (const path of ["/assurevantage/checkout?ref=100001&plan=family", "/assurevantage/dashboard?tab=oral-scan&__clerk_synced=false"]) {
       expect(safeAuthReturn(ASSURE_ORIGIN + path, "/health/dashboard")).toBe(ASSURE_ORIGIN + path);
@@ -35,7 +44,7 @@ describe("cross-domain auth return allowlist", () => {
     "https://www.assurevantage.com@evil.test/assurevantage/dashboard",
     "https://evil@www.assurevantage.com/assurevantage/dashboard",
     "http://www.assurevantage.com/assurevantage/dashboard",
-    "https://www.assurevantage.com/admin",
+    "https://www.assurevantage.com/administrator",
     "https://www.assurevantage.com/assurevantage/sign-in",
     "//evil.test", "/\\evil.test", "javascript:alert(1)",
   ])("refuses an unsafe or looping destination: %s", url => {

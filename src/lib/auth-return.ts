@@ -6,12 +6,13 @@ export function isSatelliteAuthReturn(raw: string | null | undefined): boolean {
   try {
     const url = new URL(raw);
     return url.origin === ASSURE_ORIGIN && !url.username && !url.password &&
-      (url.pathname === "/assurevantage" || url.pathname.startsWith("/assurevantage/")) &&
+      (url.pathname === "/assurevantage" || url.pathname.startsWith("/assurevantage/") ||
+        url.pathname === "/admin" || url.pathname.startsWith("/admin/")) &&
       !/^\/assurevantage\/(sign-in|sign-up|sso-callback|forgot-password)(?:\/|$)/.test(url.pathname);
   } catch { return false; }
 }
 
-/** The one cross-origin exception is the configured satellite and its own routes. */
+/** The one cross-origin exception is the configured satellite, its brand routes and its protected admin console. */
 export function safeAuthReturn(raw: string | null | undefined, fallback: string): string {
   if (isSatelliteAuthReturn(raw)) return new URL(raw!).href;
   return safeReturnPath(raw, fallback);
