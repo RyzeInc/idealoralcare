@@ -57,7 +57,7 @@ interface CatalogProduct {
 }
 
 function PlanCard({ product }: { product: CatalogProduct }) {
-  const { cart, addItem, removeItem, isInCart } = useCart();
+  const { cart, addItem, removeItem, isInCart, monthlyOnly } = useCart();
   const brandName = useBrandName();
   const inCart = isInCart(product._id);
   const isFamily = product.slug?.includes('family');
@@ -162,7 +162,7 @@ function PlanCard({ product }: { product: CatalogProduct }) {
       }}>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
+          gridTemplateColumns: monthlyOnly ? '1fr' : '1fr 1fr',
           gap: '16px',
           marginBottom: '20px'
         }}>
@@ -200,7 +200,7 @@ function PlanCard({ product }: { product: CatalogProduct }) {
           </div>
 
           {/* Annual Pricing */}
-          <div style={{
+          {!monthlyOnly && <div style={{
             padding: '12px 16px',
             borderRadius: 'var(--radius-sm)',
             background: cart.cadence === 'annual' ? 'rgba(20, 184, 166, 0.06)' : 'transparent',
@@ -238,7 +238,8 @@ function PlanCard({ product }: { product: CatalogProduct }) {
                 Primary + add family members
               </div>
             )}
-          </div>
+          </div>}
+
         </div>
 
         {/* CTA Button */}
@@ -438,7 +439,8 @@ function StickyCart() {
 }
 
 function CadenceToggle() {
-  const { cart, setCadence } = useCart();
+  const { cart, setCadence, monthlyOnly } = useCart();
+  if (monthlyOnly) return <p>Monthly billing · Essentials and Balance for Life</p>;
   
   return (
     <div style={{

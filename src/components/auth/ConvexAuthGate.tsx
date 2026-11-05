@@ -33,10 +33,11 @@ export function ConvexAuthGate({
     return <div className="py-16 text-center text-sm text-slate-400">{label}</div>;
   }
   if (!isAuthenticated) {
-    // The server layout already redirected anyone who isn't signed in — this is
-    // the moment between that decision and the client picking up the session,
-    // not a real deny path.
-    return null;
+    // Keep protected queries unmounted if the backend rejects the session.
+    return <div role="alert" className="py-16 text-center text-sm text-slate-600">
+      <p>We couldn’t connect your account. Reload to try again.</p>
+      <button className="mt-4 rounded bg-slate-900 px-4 py-2 text-white" onClick={() => window.location.reload()}>Reconnect</button>
+    </div>;
   }
   return <>{children}</>;
 }

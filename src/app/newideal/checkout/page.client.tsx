@@ -634,6 +634,7 @@ function InlineAuth() {
 
 function CheckoutHeader() {
   const brand = useProgramBrand();
+  if (brand.mainBrand) return null;
   return (
     <header
       style={{
@@ -781,7 +782,7 @@ export default function NewIdealCheckoutClient() {
   const hasEssentials = !!membershipItem;
   const programConflict = hasConflictingPrograms(cart.items.map((i) => i.product.slug));
   const hasOralCare = cart.items.some((i) =>
-    i.product.slug?.startsWith("oralcare-")
+    !isMembershipProgramSlug(i.product.slug)
   );
 
   const canSubmit =
@@ -1344,7 +1345,7 @@ export default function NewIdealCheckoutClient() {
                           Oral Care Discount Membership Terms
                         </div>
                         <div style={{ fontSize: "0.875rem", color: "#64748b", marginBottom: oralCareAgreed ? 0 : 8 }}>
-                          {cart.items.find((i) => i.product.slug?.startsWith("oralcare-"))?.product.name}
+                          {cart.items.find((i) => !isMembershipProgramSlug(i.product.slug))?.product.name}
                         </div>
                         {!oralCareAgreed && (
                           <div
@@ -1754,10 +1755,10 @@ export default function NewIdealCheckoutClient() {
               memberName: user!.fullName ?? user!.id,
               email: user!.emailAddresses[0]?.emailAddress ?? "",
               planName:
-                cart.items.find((i) => i.product.slug?.startsWith("oralcare-"))?.product.name ??
+                cart.items.find((i) => !isMembershipProgramSlug(i.product.slug))?.product.name ??
                 "Oral Care Savings",
               periodicCharge: (() => {
-                const item = cart.items.find((i) => i.product.slug?.startsWith("oralcare-"));
+                const item = cart.items.find((i) => !isMembershipProgramSlug(i.product.slug));
                 return item ? formatPrice(item.product.pricing.monthlyCardCents) + "/mo" : undefined;
               })(),
               memberSignature: signature,
@@ -1771,7 +1772,7 @@ export default function NewIdealCheckoutClient() {
           setOralCareModalOpen(false);
         }}
         planName={
-          cart.items.find((i) => i.product.slug?.startsWith("oralcare-"))?.product.name
+          cart.items.find((i) => !isMembershipProgramSlug(i.product.slug))?.product.name
         }
         memberData={user ? { memberName: user.fullName ?? undefined, email: user.emailAddresses[0]?.emailAddress } : undefined}
       />

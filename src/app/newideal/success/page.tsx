@@ -90,7 +90,7 @@ export default async function NewIdealSuccessPage({ searchParams, params }: { se
             >
               <li>You will receive a welcome email within a few minutes.</li>
               <li>Your member ID and program access instructions will be included.</li>
-              <li>Your monthly billing will continue automatically — cancel anytime.</li>
+              <li>{main ? "Your membership will renew on the billing schedule you selected — cancel anytime." : "Your monthly billing will continue automatically — cancel anytime."}</li>
               <li>
                 Questions? Contact{" "}
                 <a href="mailto:support@getidealoh.com">support@getidealoh.com</a>.

@@ -1,0 +1,39 @@
+.platform { position: sticky; top: 0; z-index: 60; background: #fff; color: #12334c; box-shadow: 0 2px 16px #12334c12; }
+.nav { max-width: 1280px; margin: auto; padding: 16px 24px; display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: center; }
+.nav a { text-decoration: none; color: inherit; font-weight: 600; }
+.nav a[aria-current] { color: #0369a1; text-decoration: underline; text-underline-offset: 6px; }
+.nav .cartLink, .checkout { background: #075985; color: white; border-radius: 24px; padding: 12px 18px; text-decoration: none; display: inline-block; }
+.cartLink { margin-left: auto; }
+.summary { max-width: 1232px; margin: auto; padding: 8px 24px; border-top: 1px solid #e2e8f0; }
+.summary summary { cursor: pointer; }
+.summary div { padding: 8px 0; display: flex; justify-content: space-between; gap: 12px; }
+.summary button { cursor: pointer; color: #075985; }
+.catalog { max-width: 1280px; margin: auto; padding: 48px 24px; color: #12334c; }
+.catalog h1 { font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1.1; margin: 16px 0; }
+.eyebrow { color: #0369a1; font-weight: 700; }
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; margin: 28px 0; }
+.card { display: flex; flex-direction: column; gap: 20px; padding: 28px; background: white; border: 1px solid #cbd5e1; border-radius: 24px; box-shadow: 0 8px 32px #0759850a; }
+.card h2 { font-size: 1.6rem; }
+.card p { line-height: 1.65; flex: 1; }
+.card label { display: grid; gap: 8px; }
+.card select { width: 100%; padding: 12px; border: 1px solid #94a3b8; border-radius: 8px; background: white; }
+.card strong { font-size: 1.5rem; }
+.card button, .billing button { padding: 12px 18px; background: #075985; color: white; border: 0; border-radius: 12px; font-weight: 700; cursor: pointer; }
+.card button:disabled { background: #e0f2fe; color: #075985; cursor: default; }
+.billing { display: flex; gap: 12px; margin-top: 24px; }
+.billing button[aria-pressed="false"] { background: white; color: #075985; outline: 1px solid #075985; }
+@media (max-width: 850px) { .cards { grid-template-columns: 1fr; } .nav { gap: 14px; padding: 12px 16px; font-size: .875rem; } .cartLink { margin-left: 0; } }
+
+.icon { display: inline-flex; align-self: flex-start; border-radius: 16px; padding: 14px; background: #e0f2fe; color: #0369a1; }
+.card[data-offering="bfl"] .icon { background: #ede9fe; color: #7c3aed; }
+.card[data-offering="oral"] .icon { background: #ccfbf1; color: #0f766e; }
+.card { transition: box-shadow .2s, border-color .2s; }
+.card:hover { box-shadow: 0 12px 36px #07598518; }
+.selected { border-color: #0284c7; box-shadow: 0 0 0 2px #0284c725; }
+.badge { display: flex; gap: 6px; color: #0369a1; font-size: .875rem; font-weight: 600; }
+
+.explore { position: relative; }
+.explore summary { cursor: pointer; font-weight: 600; }
+.explore > div { position: absolute; top: calc(100% + 12px); left: 0; min-width: 230px; padding: 12px; display: grid; gap: 4px; background: white; border: 1px solid #cbd5e1; border-radius: 12px; box-shadow: 0 8px 24px #12334c20; }
+.explore a { padding: 8px; border-radius: 6px; }
+.explore a:hover { background: #e0f2fe; }

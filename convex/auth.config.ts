@@ -15,19 +15,23 @@
  */
 const DEV_CLERK = "https://fast-molly-5.clerk.accounts.dev";
 const PROD_CLERK = "https://clerk.getidealoh.com";
+const PROD_SATELLITE_CLERK = "https://clerk.assurevantage.com";
 
 /**
- * Trust exactly one Clerk instance per deployment. Set CLERK_JWT_ISSUER_DOMAIN
- * on each Convex deployment (production: https://clerk.getidealoh.com). Without
- * it, both instances are trusted, as before — which lets anyone who signs up
- * on the dev Clerk app present a token production accepts, so set it on prod.
+ * Satellite sessions use their own issuer URL, signed by the same Clerk
+ * instance as the primary domain. Keep the production allowlist explicit;
+ * never accept arbitrary issuers or mix the development app into production.
  */
 const issuer = process.env.CLERK_JWT_ISSUER_DOMAIN;
-const providers: { domain: string; applicationID: string }[] = issuer
-  ? [{ domain: issuer, applicationID: "convex" }]
-  : [
-      { domain: DEV_CLERK, applicationID: "convex" },
-      { domain: PROD_CLERK, applicationID: "convex" },
-    ];
+const productionIssuers = [PROD_CLERK, PROD_SATELLITE_CLERK];
+const domains = issuer
+  ? productionIssuers.includes(issuer) ? productionIssuers : [issuer]
+  : process.env.CONVEX_DEPLOYMENT?.startsWith("prod:")
+    ? productionIssuers
+    : [DEV_CLERK, ...productionIssuers];
 
-export default { providers };
+const authConfig = {
+  providers: domains.map(domain => ({ domain, applicationID: "convex" })),
+};
+
+export default authConfig;

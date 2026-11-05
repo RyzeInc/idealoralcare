@@ -10,6 +10,7 @@
  */
 
 import Link from "next/link";
+import { usesAssurePlatformNavigation } from "@/lib/program-brand";
 import { usePathname } from "next/navigation";
 import { ShoppingCart, Menu, X } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -32,6 +33,7 @@ interface HealthHeaderProps {
 
 export default function HealthHeader(props: HealthHeaderProps) {
   const pathname = usePathname();
+  if (usesAssurePlatformNavigation(pathname)) return null;
   if (pathname === "/health" || pathname.startsWith("/health/")) return <LegacyHealthHeader {...props} />;
   return <ConfigurableHealthHeader {...props} />;
 }

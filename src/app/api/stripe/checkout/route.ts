@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { hasConflictingPrograms } from "@/convex/lib/productSlugs";
+import { hasConflictingPrograms, isMembershipProgramSlug } from "@/convex/lib/productSlugs";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { ConvexHttpClient } from "convex/browser";
 import Stripe from "stripe";
@@ -88,6 +88,9 @@ export async function POST(req: NextRequest) {
       // @ts-ignore - Avoid deep type instantiation issue with api.catalog.queries
       const product = await convex.query(api.catalog.queries.getById, { id: planId });
       if (product) {
+        if (cadence === "annual" && isMembershipProgramSlug(product.slug)) {
+          return NextResponse.json({ error: "Essentials and Balance for Life are available with monthly billing only." }, { status: 400 });
+        }
         productName = product.name;
         orderSlugs.push(product.slug);
         const pricing = product.pricing;
@@ -161,6 +164,9 @@ export async function POST(req: NextRequest) {
         // @ts-ignore - deep type instantiation
         const extra = await convex.query(api.catalog.queries.getById, { id: extraPlanId });
         if (!extra) return NextResponse.json({ error: "A plan in your cart is no longer available. Please refresh your cart." }, { status: 400 });
+        if (cadence === "annual" && isMembershipProgramSlug(extra.slug)) {
+          return NextResponse.json({ error: "Essentials and Balance for Life are available with monthly billing only." }, { status: 400 });
+        }
         orderSlugs.push(extra.slug);
         const exPricing = extra.pricing;
         const exAmount = cadence === "monthly"
@@ -187,6 +193,10 @@ export async function POST(req: NextRequest) {
         { error: "Balance for Life is already included in the Essentials Plan. Remove one of them to continue." },
         { status: 400 }
       );
+    }
+
+    if (cadence === "annual" && orderSlugs.some(isMembershipProgramSlug)) {
+      return NextResponse.json({ error: "Essentials and Balance for Life are available with monthly billing only." }, { status: 400 });
     }
 
     // Family plan is flat-rate. Dependents are collected post-enrollment.

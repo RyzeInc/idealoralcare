@@ -58,26 +58,28 @@ describe("brand marketing", () => {
   });
 
   test("navigation honors service switches and the site shop opt-in", () => {
-    mocks.sites.assurevantage = site("assurevantage", { marketing: { oralScan: false } });
-    const view = render(<SiteThemeProvider defaultSlug="assurevantage"><HealthHeader /></SiteThemeProvider>);
+    mocks.path = "/flourishxv/plans";
+    mocks.sites.flourishxv = site("flourishxv", { marketing: { oralScan: false } });
+    const view = render(<SiteThemeProvider defaultSlug="flourishxv"><HealthHeader /></SiteThemeProvider>);
     expect(screen.queryByRole("link", { name: "Oral Health Scan" })).toBeNull();
     expect(screen.getByRole("link", { name: "Teledentistry" })).toBeTruthy();
     expect(screen.queryByRole("link", { name: "Shop" })).toBeNull();
-    mocks.sites.assurevantage = site("assurevantage", { shopEnabled: true });
-    view.rerender(<SiteThemeProvider defaultSlug="assurevantage"><HealthHeader /></SiteThemeProvider>);
-    expect(screen.getByRole("link", { name: "Shop" }).getAttribute("href")).toBe("/assurevantage/shop");
+    mocks.sites.flourishxv = site("flourishxv", { shopEnabled: true });
+    view.rerender(<SiteThemeProvider defaultSlug="flourishxv"><HealthHeader /></SiteThemeProvider>);
+    expect(screen.getByRole("link", { name: "Shop" }).getAttribute("href")).toBe("/flourishxv/shop");
     mocks.globalShop = false;
-    view.rerender(<SiteThemeProvider defaultSlug="assurevantage"><HealthHeader /></SiteThemeProvider>);
+    view.rerender(<SiteThemeProvider defaultSlug="flourishxv"><HealthHeader /></SiteThemeProvider>);
     expect(screen.queryByRole("link", { name: "Shop" })).toBeNull();
   });
 
   test("the mobile menu honors the same settings and keeps member links on the brand", async () => {
-    mocks.sites.assurevantage = site("assurevantage", { marketing: { oralScan: false } });
-    render(<SiteThemeProvider defaultSlug="assurevantage"><HealthHeader /></SiteThemeProvider>);
+    mocks.path = "/flourishxv/plans";
+    mocks.sites.flourishxv = site("flourishxv", { marketing: { oralScan: false } });
+    render(<SiteThemeProvider defaultSlug="flourishxv"><HealthHeader /></SiteThemeProvider>);
     await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
     expect(screen.queryByRole("link", { name: "Oral Health Scan" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Shop" })).toBeNull();
-    expect(screen.getAllByRole("link", { name: "Member Portal" }).every(link => link.getAttribute("href")?.startsWith("/assurevantage/"))).toBe(true);
+    expect(screen.getAllByRole("link", { name: "Member Portal" }).every(link => link.getAttribute("href")?.startsWith("/flourishxv/"))).toBe(true);
     expect(document.body.style.overflow).toBe("hidden");
     await userEvent.click(screen.getByRole("button", { name: "Close menu" }));
     expect(document.body.style.overflow).toBe("");

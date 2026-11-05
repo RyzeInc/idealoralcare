@@ -17,8 +17,11 @@ import { useCart } from "@/lib/health-plans";
 import { formatPrice, getPrice } from "@/lib/health-plans/types";
 import styles from "./catalog.module.css";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export function StickyCart() {
+  const pathname = usePathname();
+  const basePath = `/${pathname.split("/")[1]}`;
   const {
     cart,
     itemCount,
@@ -155,7 +158,7 @@ export function StickyCart() {
           </div>
           
           {/* Checkout Button */}
-          <Link href="/health/checkout" style={{ textDecoration: "none" }}>
+          <Link href={basePath === "/assurevantage" ? `${basePath}/program-checkout` : `${basePath}/checkout`} style={{ textDecoration: "none" }}>
             <button className={styles.stickyCartCheckoutBtn}>
               Checkout
               <ArrowRight size={18} />

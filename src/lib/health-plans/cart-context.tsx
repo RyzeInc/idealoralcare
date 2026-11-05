@@ -21,6 +21,9 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import type { CartState, CartItem, CatalogProduct, Cadence, PaymentMethod } from "@/lib/health-plans/types";
 
+import { isBflSlug, isEssentialsSlug, isMembershipProgramSlug } from "@/convex/lib/productSlugs";
+import { normalizeProgramCart } from "./cart-rules";
+
 const STORAGE_KEY = "ideal-health-cart";
 const CADENCE_SELECTED_KEY = "ideal-cadence-selected";
 const SESSION_ID_KEY = "ideal-cart-session-id";
@@ -41,6 +44,7 @@ interface CartContextType {
   cart: CartState;
   isLoaded: boolean;
   showCadenceModal: boolean;
+  monthlyOnly: boolean;
   
   // Cart actions
   addItem: (product: CatalogProduct) => void;
@@ -136,7 +140,7 @@ export function CartProvider({ children, storageNamespace }: { children: React.R
             parsed.referralCodeSource = "url";
           }
         }
-        setCart(parsed);
+        setCart(normalizeProgramCart(parsed));
       } else {
         // No localStorage at all — still check cookie
         const m = document.cookie.match(/(?:^|; )ideal_ref=([^;]+)/);
@@ -203,17 +207,22 @@ export function CartProvider({ children, storageNamespace }: { children: React.R
       if (prev.items.some((item) => item.productId === product._id)) {
         return prev;
       }
-      const newCart = {
+      const newCart = normalizeProgramCart({
         ...prev,
         items: [
-          ...prev.items,
+          ...prev.items.filter((item) => {
+            if (isEssentialsSlug(product.slug)) return !isEssentialsSlug(item.product.slug) && !isBflSlug(item.product.slug);
+            if (isBflSlug(product.slug)) return !isMembershipProgramSlug(item.product.slug);
+            if (product.category === "dental") return item.product.category !== "dental";
+            return true;
+          }),
           {
             productId: product._id,
             product,
             addedAt: Date.now(),
           },
         ],
-      };
+      });
       
       // TODO: Call Convex addItem mutation when checkout API is ready
       // if (sessionId) {
@@ -268,7 +277,7 @@ export function CartProvider({ children, storageNamespace }: { children: React.R
   
   // Set cadence
   const setCadence = useCallback((cadence: Cadence) => {
-    setCart((prev) => ({ ...prev, cadence }));
+    setCart((prev) => normalizeProgramCart({ ...prev, cadence }));
   }, []);
   
   // Confirm cadence selection
@@ -287,8 +296,8 @@ export function CartProvider({ children, storageNamespace }: { children: React.R
   
   // Request cadence change (shows warning if cart not empty)
   const requestCadenceChange = useCallback(() => {
-    setShowCadenceModal(true);
-  }, []);
+    if (!cart.items.some((item) => isMembershipProgramSlug(item.product.slug))) setShowCadenceModal(true);
+  }, [cart.items]);
   
   // Set payment method
   const setPaymentMethod = useCallback((method: PaymentMethod) => {
@@ -381,6 +390,7 @@ export function CartProvider({ children, storageNamespace }: { children: React.R
         cart,
         isLoaded,
         showCadenceModal,
+        monthlyOnly: cart.items.some((item) => isMembershipProgramSlug(item.product.slug)),
         addItem,
         removeItem,
         clearCart,

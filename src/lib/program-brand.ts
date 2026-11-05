@@ -11,3 +11,9 @@ export function programLink(href: string, mainBrand: boolean) {
     .replace(/^\/assurevantage\/checkout(?=\?|$)/, "/assurevantage/program-checkout")
     .replace(/^\/assurevantage\/success(?=\?|$)/, "/assurevantage/program-success");
 }
+
+/** Shared public navigation stays out of member dashboards and auth screens. */
+export function usesAssurePlatformNavigation(pathname: string): boolean {
+  return pathname.startsWith("/assurevantage/") &&
+    !/^\/assurevantage\/(sign-in|sign-up|forgot-password|sso-callback|dashboard|manage-plans|claim-invite)(?:\/|$)/.test(pathname);
+}

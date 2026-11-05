@@ -450,3 +450,31 @@ describe("POST /api/stripe/checkout", () => {
     });
   });
 });
+
+describe("membership checkout restrictions", () => {
+  test.each(["essentials-employee", "bfl-individual"])("rejects annual billing for %s", async slug => {
+    mockConvexQuery.mockResolvedValueOnce({ slug, name: slug, pricing: { annualCardCents: 12000 }, stripeProducts: { annualCardId: "prod_annual" } });
+    const response = await POST(makeRequest({ ...VALID_BODY, cadence: "annual" }));
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toContain("monthly");
+    expect(mockSessionCreate).not.toHaveBeenCalled();
+  });
+
+  test("rejects annual membership when it is an additional cart item", async () => {
+    mockConvexQuery.mockResolvedValueOnce({ name: "Oral", slug: "oral-individual", pricing: { annualCardCents: 14999 }, stripeProducts: { annualCardId: "prod_oral" } })
+      .mockResolvedValueOnce({ name: "Essentials", slug: "essentials-employee", pricing: {}, stripeProducts: {} });
+    const response = await POST(makeRequest({ ...VALID_BODY, cadence: "annual", additionalPlanIds: ["essentials"] }));
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toContain("monthly");
+    expect(mockSessionCreate).not.toHaveBeenCalled();
+  });
+
+  test("rejects Essentials and standalone Balance for Life together", async () => {
+    mockConvexQuery.mockResolvedValueOnce({ name: "Essentials", slug: "essentials-employee", pricing: { monthlyCardCents: 5895 }, stripeProducts: { monthlyCardId: "prod_essentials" } })
+      .mockResolvedValueOnce({ name: "Balance for Life", slug: "bfl-individual", pricing: { monthlyCardCents: 1995 }, stripeProducts: { monthlyCardId: "prod_bfl" } });
+    const response = await POST(makeRequest({ ...VALID_BODY, additionalPlanIds: ["bfl"] }));
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toContain("already included");
+    expect(mockSessionCreate).not.toHaveBeenCalled();
+  });
+});

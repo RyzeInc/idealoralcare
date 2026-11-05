@@ -1,5 +1,7 @@
 "use client";
 
+import { usePathname } from "next/navigation";
+
 /**
  * HEALTH CHECKOUT PAGE
  * 
@@ -42,7 +44,7 @@ import { MembershipAgreementModal, TermsAndConditionsModal } from "@/components/
 import styles from "./checkout.module.css";
 import { useBrandName, rebrand } from "@/lib/branding";
 
-function CheckoutContent() {
+export function CheckoutContent() {
   const { user, isLoaded, isSignedIn } = useUser();
   const {
     cart,
@@ -52,6 +54,8 @@ function CheckoutContent() {
     removeItem
   } = useCart();
   const brandName = useBrandName();
+  const pathname = usePathname();
+  const siteSlug = pathname.startsWith("/assurevantage/") ? "assurevantage" : undefined;
   
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [agreedToNotInsurance, setAgreedToNotInsurance] = useState(false);
@@ -150,6 +154,12 @@ function CheckoutContent() {
           cadence: cart.cadence,
           paymentMethod: cart.paymentMethod,
           dependents: dependentList,
+          siteSlug,
+          referralCode: cart.referralCode,
+          ...(siteSlug ? {
+            successUrl: `${window.location.origin}/assurevantage/program-success?session_id={CHECKOUT_SESSION_ID}`,
+            cancelUrl: `${window.location.origin}/assurevantage/program-checkout`,
+          } : {}),
         }),
       });
       const data = await response.json();
@@ -200,7 +210,7 @@ function CheckoutContent() {
           <p className={styles.emptyCartText}>
             Browse our health plans and add what you need.
           </p>
-          <Link href="/health/plans" className={styles.emptyCartCta}>
+          <Link href={siteSlug ? "/assurevantage/program-plans" : "/health/plans"} className={styles.emptyCartCta}>
             Browse Plans
           </Link>
         </div>
@@ -212,7 +222,7 @@ function CheckoutContent() {
     <div className={styles.checkoutContainer}>
       {/* Header */}
       <div className={styles.checkoutHeader}>
-        <Link href="/health/plans" className={styles.backLink}>
+        <Link href={siteSlug ? "/assurevantage/program-plans" : "/health/plans"} className={styles.backLink}>
           <ArrowLeft size={18} />
           Back to Plans
         </Link>
@@ -416,14 +426,14 @@ function CheckoutContent() {
                 </p>
                 <div className={styles.accountSignupButtons}>
                   <Link
-                    href="/health/sign-up"
+                    href={siteSlug ? "/assurevantage/sign-up" : "/health/sign-up"}
                     className={styles.signupBtn}
                     style={{ textDecoration: "none", display: "inline-block" }}
                   >
                     Create Account
                   </Link>
                   <Link
-                    href="/health/sign-in"
+                    href={siteSlug ? "/assurevantage/sign-in" : "/health/sign-in"}
                     className={styles.signinBtn}
                     style={{ textDecoration: "none", display: "inline-block" }}
                   >

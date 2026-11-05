@@ -12,7 +12,7 @@ import type { Cadence } from "@/lib/health-plans/types";
 import styles from "./catalog.module.css";
 
 export function CadenceToggle() {
-  const { cart, setCadence, itemCount, requestCadenceChange } = useCart();
+  const { cart, setCadence, itemCount, requestCadenceChange, monthlyOnly } = useCart();
   
   const handleChange = (cadence: Cadence) => {
     if (itemCount > 0 && cadence !== cart.cadence) {
@@ -23,6 +23,8 @@ export function CadenceToggle() {
     }
   };
   
+  if (monthlyOnly) return <span>Monthly billing</span>;
+
   return (
     <div className={styles.cadenceToggle}>
       <button

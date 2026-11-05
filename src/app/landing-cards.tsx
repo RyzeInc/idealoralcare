@@ -306,3 +306,10 @@ export function LandingCards() {
     </div>
   );
 }
+
+/** Retain referral attribution when entering the shared AssureVantage catalog. */
+export function SharedCatalogLink() {
+  const params = useSearchParams();
+  const referral = params.get("ref");
+  return <Link href={`/assurevantage/program-plans${referral ? `?ref=${encodeURIComponent(referral)}` : ""}`} style={{ color: "white", marginTop: 28, padding: "14px 24px", border: "1px solid white", borderRadius: 24, fontWeight: 700 }}>Explore three offerings · One shared cart →</Link>;
+}

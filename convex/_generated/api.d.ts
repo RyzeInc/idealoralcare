@@ -154,6 +154,7 @@ import type * as lib_env from "../lib/env.js";
 import type * as lib_essentialsCodes from "../lib/essentialsCodes.js";
 import type * as lib_hash from "../lib/hash.js";
 import type * as lib_memberBilling from "../lib/memberBilling.js";
+import type * as lib_memberBrand from "../lib/memberBrand.js";
 import type * as lib_memberCreation from "../lib/memberCreation.js";
 import type * as lib_memberLifecycle from "../lib/memberLifecycle.js";
 import type * as lib_periods from "../lib/periods.js";
@@ -348,6 +349,7 @@ declare const fullApi: ApiFromModules<{
   "lib/essentialsCodes": typeof lib_essentialsCodes;
   "lib/hash": typeof lib_hash;
   "lib/memberBilling": typeof lib_memberBilling;
+  "lib/memberBrand": typeof lib_memberBrand;
   "lib/memberCreation": typeof lib_memberCreation;
   "lib/memberLifecycle": typeof lib_memberLifecycle;
   "lib/periods": typeof lib_periods;

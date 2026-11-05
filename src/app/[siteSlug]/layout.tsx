@@ -1,4 +1,5 @@
 import '../health/health.css';
+import { PlatformNav } from '@/components/assurevantage/PlatformNav';
 import HealthFlowBackground from '@/components/background/HealthFlowBackground';
 import { SiteFooter } from '@/components/health/SiteFooter';
 import { SiteThemeProvider } from '@/components/providers/SiteThemeProvider';
@@ -44,6 +45,7 @@ export default async function SiteSlugLayout({
         <>
           <Suspense fallback={null}><ReferralCapture /></Suspense>
           <HealthFlowBackground />
+          {siteSlug === "assurevantage" && <PlatformNav />}
           <div className="flex flex-col min-h-screen">
             <div className="flex-grow">
               {children}

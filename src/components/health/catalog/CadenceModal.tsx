@@ -15,9 +15,9 @@ import type { Cadence } from "@/lib/health-plans/types";
 import styles from "./catalog.module.css";
 
 export function CadenceModal() {
-  const { cart, showCadenceModal, setCadence, confirmCadence } = useCart();
+  const { cart, showCadenceModal, setCadence, confirmCadence, monthlyOnly } = useCart();
   
-  if (!showCadenceModal) return null;
+  if (!showCadenceModal || monthlyOnly) return null;
   
   const handleSelect = (cadence: Cadence) => {
     setCadence(cadence);

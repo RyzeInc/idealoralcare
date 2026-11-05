@@ -50,9 +50,9 @@ export default async function AdminLayout({
 
   return (
     <AdminProviders>
-      <AdminShell>
-        <ConvexAuthGate>{children}</ConvexAuthGate>
-      </AdminShell>
+      <ConvexAuthGate label="Connecting to secure admin…">
+        <AdminShell>{children}</AdminShell>
+      </ConvexAuthGate>
     </AdminProviders>
   );
 }

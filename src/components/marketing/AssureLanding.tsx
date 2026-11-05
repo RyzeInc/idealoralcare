@@ -1,4 +1,4 @@
-import { LandingCards } from "@/app/landing-cards";
+import { LandingCards, SharedCatalogLink } from "@/app/landing-cards";
 import Image from "next/image";
 import { Suspense } from "react";
 import { MAIN_BRAND, MAIN_ORIGIN } from "@/lib/program-brand";
@@ -113,6 +113,8 @@ export default function RootPage() {
 
         {/* Interactive cards (client component) */}
         <Suspense fallback={null}><LandingCards /></Suspense>
+
+        <Suspense fallback={null}><SharedCatalogLink /></Suspense>
 
         {/* Trust line */}
         <p

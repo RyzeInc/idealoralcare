@@ -2,99 +2,14 @@
 
 import { ProgramLink as Link, useProgramBrand } from "@/components/newideal/ProgramLink";
 import Image from "next/image";
-import { ShoppingCart } from "lucide-react";
+
 
 import { NewIdealHeader as LegacyHeader, NewIdealFooter as LegacyFooter } from "@/components/marketing/legacy-ideal/NewIdealChrome";
-
-const NAV = [
-  { href: "/newideal", label: "Overview" },
-  { href: "/newideal/essentials", label: "Essentials" },
-  { href: "/newideal/oralcare", label: "Oral Care" },
-  { href: "/newideal/balance-for-life", label: "Balance for Life" },
-  { href: "/newideal/plans", label: "Plans & Pricing" },
-];
 
 export function NewIdealHeader() {
   const brand = useProgramBrand();
   if (!brand.mainBrand) return <LegacyHeader />;
-  return (
-    <header
-      style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 50,
-        background: "rgba(255,255,255,0.9)",
-        backdropFilter: "blur(12px)",
-        borderBottom: "1px solid rgba(0,0,0,0.06)",
-        padding: "14px 0",
-      }}
-    >
-      <div
-        className="container"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 24,
-        }}
-      >
-        <Link
-          href="/newideal"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            textDecoration: "none",
-          }}
-        >
-          <Image
-            src={brand.logo}
-            alt={brand.name}
-            width={220}
-            height={74}
-            style={{ width: 180, height: "auto" }}
-            priority
-          />
-        </Link>
-
-        <nav
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 22,
-            flexWrap: "wrap",
-          }}
-        >
-          {NAV.map((n) => (
-            <Link
-              key={n.href}
-              href={n.href}
-              style={{
-                fontSize: "0.9375rem",
-                color: "var(--text-secondary)",
-                textDecoration: "none",
-                fontWeight: 500,
-              }}
-            >
-              {n.label}
-            </Link>
-          ))}
-          <Link
-            href="/newideal/plans"
-            className="button button--primary"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "10px 18px",
-            }}
-          >
-            <ShoppingCart size={16} /> Enroll
-          </Link>
-        </nav>
-      </div>
-    </header>
-  );
+  return null;
 }
 
 export function NewIdealFooter({ inSiteShell = false }: { inSiteShell?: boolean } = {}) {
