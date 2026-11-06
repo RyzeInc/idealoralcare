@@ -39,6 +39,6 @@ export function marketingRedirectOrigin(host: string, pathname: string): string 
   if (hostname !== "getidealoh.com" && hostname !== "www.getidealoh.com") return null;
   if (pathname !== "/assurevantage" && !pathname.startsWith("/assurevantage/")) return null;
   const section = pathname.split("/")[2];
-  if (["sign-in", "sign-up", "forgot-password", "sso-callback", "program-checkout", "program-success"].includes(section)) return null;
+  if (["sign-in", "sign-up", "forgot-password", "sso-callback", "program-checkout", "program-success", "checkout"].includes(section)) return null;
   return ASSURE_ORIGIN;
 }

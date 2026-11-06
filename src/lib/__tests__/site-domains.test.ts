@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { domainSite, domainEntryPath, domainClerkOptions, ASSURE_ORIGIN, PRIMARY_AUTH_ORIGIN } from "../site-domains";
+import { domainSite, domainEntryPath, domainClerkOptions, marketingRedirectOrigin, ASSURE_ORIGIN, PRIMARY_AUTH_ORIGIN } from "../site-domains";
 import { safeAuthReturn, isSatelliteAuthReturn } from "../auth-return";
 
 describe("AssureVantage domain routing", () => {
@@ -51,4 +51,10 @@ describe("cross-domain auth return allowlist", () => {
     expect(isSatelliteAuthReturn(url)).toBe(false);
     expect(safeAuthReturn(url, "/health/dashboard")).toBe("/health/dashboard");
   });
+});
+
+test("the functional checkout alias stays on the shared host to preserve its saved cart", () => {
+  expect(marketingRedirectOrigin("www.getidealoh.com", "/assurevantage/checkout")).toBeNull();
+  expect(marketingRedirectOrigin("www.getidealoh.com", "/assurevantage/program-checkout")).toBeNull();
+  expect(marketingRedirectOrigin("www.getidealoh.com", "/assurevantage/essentials")).toBe(ASSURE_ORIGIN);
 });
