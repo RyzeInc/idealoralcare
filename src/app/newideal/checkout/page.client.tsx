@@ -300,7 +300,7 @@ function StepIndicator({ wizardStep }: { wizardStep: number }) {
   );
 }
 
-function InlineAuth() {
+export function InlineAuth() {
   const brand = useProgramBrand();
   const { signIn, isLoaded: siLoaded, setActive: siSetActive } = useSignIn();
   const { signUp, isLoaded: suLoaded, setActive: suSetActive } = useSignUp();
@@ -984,6 +984,7 @@ function InlineAuth() {
                       </Field>
                       <Field label="Gender" optional>
                         <select
+                          aria-label="Gender (optional)"
                           value={gender}
                           onChange={(e) => setGender(e.target.value)}
                           disabled={busy}
@@ -1081,6 +1082,7 @@ function InlineAuth() {
                     >
                       <Field label="State" error={fe.state}>
                         <select
+                          aria-label="State"
                           value={state}
                           onChange={(e) => setState(e.target.value)}
                           disabled={busy}

@@ -14,6 +14,7 @@ import { assureProductName, START_DATE_NOTE } from "@/lib/assure-content";
 import { useSiteThemeOptional } from "@/components/providers/SiteThemeProvider";
 import { AssureLink as Link } from "./AssureLink";
 import styles from "./experience.module.css";
+import { MembershipPhoto } from "./MembershipPhoto";
 const GROUPS = [
   {
     key: "essentials",
@@ -166,6 +167,9 @@ export default function OfferingCatalog({ focus }: { focus?: "oral" }) {
                       data-offering={group.key}
                       key={group.key}
                     >
+                      <MembershipPhoto
+                        program={group.key as "essentials" | "bfl" | "oral"}
+                      />
                       <span className={styles.icon}>
                         <group.icon size={25} />
                       </span>

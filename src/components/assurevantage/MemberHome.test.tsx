@@ -10,6 +10,7 @@ vi.mock("@clerk/nextjs", () => ({
   }),
 }));
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/assurevantage/dashboard",
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("@/components/health/ProfileCompletionPrompt", () => ({

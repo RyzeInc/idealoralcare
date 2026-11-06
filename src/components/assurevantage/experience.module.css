@@ -980,3 +980,227 @@
 .site :global(.health-landing) span[style*="94a3b8"] {
   color: var(--av-muted) !important;
 }
+
+.membershipPhoto {
+  position: relative;
+  height: 180px;
+  width: calc(100% + 56px);
+  flex-shrink: 0;
+  margin: -28px -28px 26px;
+  overflow: hidden;
+  border-radius: 19px 19px 0 0;
+}
+.membershipPhoto img {
+  object-fit: cover;
+}
+@media (max-width: 600px) {
+  .membershipPhoto {
+    height: 170px;
+    width: calc(100% + 48px);
+    margin: -24px -24px 24px;
+  }
+}
+
+.checkoutGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(285px, 1fr);
+  gap: 32px;
+  align-items: start;
+  padding-block: 0 64px;
+}
+.checkoutSection,
+.checkoutSummary {
+  border: 1px solid var(--av-line);
+  border-radius: 20px;
+  padding: 28px;
+  background: #fff;
+  margin-bottom: 24px;
+  min-width: 0;
+}
+.checkoutSection h2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.25rem;
+  margin-bottom: 28px;
+}
+.stepNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--av-teal);
+  color: white;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  font-size: 0.875rem;
+}
+.orderItems,
+.summaryItems,
+.checkoutChecklist {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+}
+.orderItems li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: var(--av-cream);
+  border: 1px solid var(--av-line);
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+.orderItems li div {
+  display: grid;
+  gap: 6px;
+}
+.orderItems li span {
+  color: var(--av-muted);
+  font-size: 0.9375rem;
+}
+.orderItems button {
+  background: none;
+  border: 0;
+  padding: 8px;
+  color: var(--av-muted);
+}
+.paymentChoices {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.paymentChoices button {
+  padding: 18px;
+  border: 1px solid var(--av-line);
+  background: #fff;
+  color: var(--av-ink);
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+}
+.paymentChoices button[aria-pressed="true"] {
+  background: #edf6f3;
+  border: 2px solid var(--av-teal);
+  padding: 17px;
+}
+.agreementChoices {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.agreementChoices > div {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--av-line);
+  border-radius: 12px;
+}
+.agreementChoices .secondary {
+  justify-self: start;
+  font-size: 0.875rem;
+}
+.checkoutSummary {
+  position: sticky;
+  top: 100px;
+}
+.checkoutSummary h2 {
+  font-size: 1.5rem;
+}
+.summaryItems li {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--av-line);
+}
+.summaryItems strong {
+  white-space: nowrap;
+}
+.orderTotal {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  margin-block: 24px 12px;
+  font-size: 1.3rem;
+}
+.checkoutChecklist {
+  background: var(--av-cream);
+  border: 1px solid var(--av-line);
+  border-radius: 12px;
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+  font-size: 0.875rem;
+}
+.checkoutSummary .button {
+  width: 100%;
+  margin-bottom: 18px;
+}
+.checkoutError {
+  background: #fff1ef;
+  color: #943221 !important;
+  padding: 14px;
+  border: 1px solid #dcb2a9;
+  border-radius: 10px;
+}
+.checkoutSection .billing {
+  justify-content: flex-start;
+}
+.checkoutSection :global(.health-landing) p {
+  font-size: 0.9375rem;
+}
+@media (max-width: 900px) {
+  .checkoutGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .checkoutSummary {
+    position: static;
+  }
+}
+@media (max-width: 600px) {
+  .checkoutGrid {
+    gap: 8px;
+  }
+  .checkoutSection,
+  .checkoutSummary {
+    padding: 20px;
+  }
+  .checkoutSection h2 {
+    font-size: 1.1rem;
+  }
+}
+
+.checkoutSection
+  :global(.health-landing)
+  :is(span, button, label)[style*="148, 163, 184"],
+.checkoutSection
+  :global(.health-landing)
+  :is(span, button, label)[style*="100, 116, 139"] {
+  color: var(--av-muted) !important;
+}
+
+.checkoutSection :global(.health-landing) {
+  min-height: 0 !important;
+}
+.checkoutSummary .button:disabled {
+  background: #c8d9d7;
+  color: #244852;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.checkoutSection .billing button:disabled {
+  background: #edf2f0;
+  color: #52636a;
+  cursor: not-allowed;
+  border-color: var(--av-line);
+}
+.agreementChoices button:disabled {
+  color: var(--av-muted);
+  cursor: not-allowed;
+}

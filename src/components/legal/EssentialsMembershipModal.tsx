@@ -39,10 +39,10 @@ export const EssentialsMembershipModal: React.FC<EssentialsMembershipModalProps>
 
   const formattedPrice = formatPrice(memberData.periodicChargeCents);
 
-  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const startDrawing = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!canvasRef.current) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
     setIsDrawing(true);
-    setHasStroke(true);
     const rect = canvasRef.current.getBoundingClientRect();
     const ctx = canvasRef.current.getContext("2d");
     if (ctx) {
@@ -54,8 +54,9 @@ export const EssentialsMembershipModal: React.FC<EssentialsMembershipModalProps>
     }
   };
 
-  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const draw = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDrawing || !canvasRef.current) return;
+    setHasStroke(true);
     const rect = canvasRef.current.getBoundingClientRect();
     const ctx = canvasRef.current.getContext("2d");
     if (ctx) {
@@ -259,10 +260,10 @@ export const EssentialsMembershipModal: React.FC<EssentialsMembershipModalProps>
                 height={80}
                 className="w-full"
                 style={{ touchAction: "none" }}
-                onMouseDown={startDrawing}
-                onMouseMove={draw}
-                onMouseUp={stopDrawing}
-                onMouseLeave={stopDrawing}
+                onPointerDown={startDrawing}
+                onPointerMove={draw}
+                onPointerUp={stopDrawing}
+                onPointerCancel={stopDrawing}
               />
             </div>
             <div className="flex justify-between items-center mt-0.5">

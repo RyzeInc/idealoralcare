@@ -422,3 +422,5 @@ export function useCart() {
   }
   return context;
 }
+
+export function useCartOptional() { return useContext(CartContext); }

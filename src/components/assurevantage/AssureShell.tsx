@@ -9,6 +9,7 @@ import { PlatformNav } from "./PlatformNav";
 import { CustomerError } from "./CustomerError";
 import { AssureFooter } from "./AssureFooter";
 import styles from "./experience.module.css";
+import { CartTransferRestore } from "./CartTransferRestore";
 export function AssureShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   return (
@@ -23,7 +24,11 @@ export function AssureShell({ children }: { children: ReactNode }) {
             <PlatformNav />
           </Suspense>
           <div id="assure-content" tabIndex={-1}>
-            <CustomerError key={pathname}>{children}</CustomerError>
+            <CustomerError key={pathname}>
+              <Suspense fallback={<p role="status">Loading your cart…</p>}>
+                <CartTransferRestore>{children}</CartTransferRestore>
+              </Suspense>
+            </CustomerError>
           </div>
           <Suspense fallback={null}>
             <AssureFooter />

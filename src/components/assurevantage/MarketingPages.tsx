@@ -1,5 +1,6 @@
 import { SiteMarketing } from "@/components/health/SiteMarketing";
 import Image from "next/image";
+import { MembershipPhoto } from "./MembershipPhoto";
 import {
   ArrowRight,
   Check,
@@ -291,6 +292,15 @@ export function AssureHome() {
               },
             ].map((item) => (
               <article className={styles.benefitCard} key={item.path}>
+                <MembershipPhoto
+                  program={
+                    item.path === "essentials"
+                      ? "essentials"
+                      : item.path === "balance-for-life"
+                        ? "bfl"
+                        : "oral"
+                  }
+                />
                 <span className={styles.icon}>
                   <item.icon size={24} />
                 </span>

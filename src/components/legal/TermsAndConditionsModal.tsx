@@ -4,12 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 
 interface TermsAndConditionsModalProps {
+  brandName?: string;
   isOpen: boolean;
   onClose: () => void;
   onAccept: () => void;
 }
 
 export const TermsAndConditionsModal: React.FC<TermsAndConditionsModalProps> = ({
+  brandName,
   isOpen,
   onClose,
   onAccept,
@@ -44,7 +46,7 @@ export const TermsAndConditionsModal: React.FC<TermsAndConditionsModalProps> = (
 
               <h3 className="font-semibold">Description of the Essentials Plan</h3>
               <p>
-                The Ideal Health Essentials Plan is a membership program —{" "}
+                The {brandName || "Ideal Health"} Essentials Plan is a membership program —{" "}
                 <strong>NOT insurance</strong> — that provides members access to telehealth
                 consultations, prescription savings, lab services, mental wellness support, and
                 discounted dental care through our network of participating
@@ -105,7 +107,7 @@ export const TermsAndConditionsModal: React.FC<TermsAndConditionsModalProps> = (
 
               <h3 className="font-semibold">Description of the Oral Care Plan</h3>
               <p>
-                The Ideal Health Oral Care Plan is a savings membership —{" "}
+                The {brandName || "Ideal Health"} Oral Care Plan is a savings membership —{" "}
                 <strong>NOT insurance</strong> — that combines AI Oral Scanning, 24/7 teledentistry,
                 emergency dental support, and the Dental Discount Network. Network savings range
                 from 20–60% off at 100,000+ participating dentists nationwide.
@@ -160,7 +162,7 @@ export const TermsAndConditionsModal: React.FC<TermsAndConditionsModalProps> = (
               <p>Submit complaints in writing to:</p>
               <div className="bg-gray-100 p-2 rounded text-xs">
                 <p>
-                  <strong>Ideal Health / Ryze LLC</strong><br />
+                  <strong>{brandName || "Ideal Health"} / Ryze LLC</strong><br />
                   1200 E Ridge Rd STE 1, McAllen, TX 78503<br />
                   Email: support@getidealoh.com
                 </p>

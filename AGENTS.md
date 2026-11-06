@@ -6,3 +6,5 @@
 - Functional fixes, eligibility processing, and explicitly requested group-specific member benefits may proceed without changing legacy public marketing. Preserve existing groups, member branding, vendor codes and retail prices unless the task explicitly changes them.
 - Clerk still uses getidealoh.com as its technical primary domain. The `/assurevantage/sign-in`, `sign-up`, `forgot-password` and `sso-callback` pages there support shared authentication; do not remove them as part of marketing isolation.
 - Verify both domains and original enrollment destinations when changing routing or shared marketing components. See `docs/internal/primary-brand-rollout.md`.
+
+- Cart and checkout must remain public. All AssureVantage retail memberships use the same review, payment method, inline account, agent/rep, and agreement/payment flow. The current Clerk primary hosts the AssureVantage-branded `/assurevantage/program-checkout` and `program-success` pages so account creation can stay inline; these functional routes are exempt from the marketing-domain redirect. Never wrap cart review or checkout in a sign-in redirect.

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 
 interface MembershipAgreementModalProps {
+  brandName?: string;
   isOpen: boolean;
   onClose: () => void;
   onAccept: (signature: string) => void;
@@ -27,6 +28,7 @@ interface MembershipAgreementModalProps {
 }
 
 export const MembershipAgreementModal: React.FC<MembershipAgreementModalProps> = ({
+  brandName,
   isOpen,
   onClose,
   onAccept,
@@ -44,10 +46,10 @@ export const MembershipAgreementModal: React.FC<MembershipAgreementModalProps> =
     ? "Member and Family"
     : "Member Only";
 
-  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const startDrawing = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!canvasRef.current) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
     setIsDrawing(true);
-    setHasStroke(true);
     const rect = canvasRef.current.getBoundingClientRect();
     const scaleX = canvasRef.current.width / rect.width;
     const scaleY = canvasRef.current.height / rect.height;
@@ -60,8 +62,9 @@ export const MembershipAgreementModal: React.FC<MembershipAgreementModalProps> =
     }
   };
 
-  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const draw = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDrawing || !canvasRef.current) return;
+    setHasStroke(true);
     const rect = canvasRef.current.getBoundingClientRect();
     const scaleX = canvasRef.current.width / rect.width;
     const scaleY = canvasRef.current.height / rect.height;
@@ -103,7 +106,7 @@ export const MembershipAgreementModal: React.FC<MembershipAgreementModalProps> =
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Ideal Oral Health Membership Agreement</DialogTitle>
+          <DialogTitle>{brandName || "Ideal Oral Health"} Membership Agreement</DialogTitle>
         </DialogHeader>
 
         {/* Scrollable Agreement Content */}
@@ -159,7 +162,7 @@ export const MembershipAgreementModal: React.FC<MembershipAgreementModalProps> =
                   <span className="font-medium">Processing Fee:</span> $0.00
                 </div>
                 <div className="col-span-2 mt-1 text-xs">
-                  To add a family member to your plan or change mode of payment, contact Ideal Oral Health at support@getidealoh.com. For assistance using your plan, please call Member Services at 1-855-335-2255.
+                  To add a family member to your plan or change mode of payment, contact {brandName || "Ideal Oral Health"} at support@getidealoh.com. For assistance using your plan, please call Member Services at 1-855-335-2255.
                 </div>
               </div>
             </div>
@@ -182,7 +185,7 @@ export const MembershipAgreementModal: React.FC<MembershipAgreementModalProps> =
                 By joining, you indicate you have read and agree to the terms and conditions of the plan. 
               </p>
               <p>
-                <em>This charge will automatically renew at the end of your membership term, and your credit card or checking account will be automatically charged for the appropriate amount, until you notify Ideal Health that you wish to cancel the plan.</em>
+                <em>This charge will automatically renew at the end of your membership term, and your credit card or checking account will be automatically charged for the appropriate amount, until you notify {brandName || "Ideal Health"} that you wish to cancel the plan.</em>
               </p>
 
               <h3 className="font-semibold">Termination Conditions</h3>
@@ -285,10 +288,11 @@ export const MembershipAgreementModal: React.FC<MembershipAgreementModalProps> =
               ref={canvasRef}
               width={500}
               height={120}
-              onMouseDown={startDrawing}
-              onMouseMove={draw}
-              onMouseUp={stopDrawing}
-              onMouseLeave={stopDrawing}
+              style={{ touchAction: "none" }}
+              onPointerDown={startDrawing}
+              onPointerMove={draw}
+              onPointerUp={stopDrawing}
+              onPointerCancel={stopDrawing}
               className="border rounded bg-white cursor-crosshair w-full"
             />
           </div>

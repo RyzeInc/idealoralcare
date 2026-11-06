@@ -3,6 +3,7 @@ import { checkoutConfirmation } from "@/lib/checkout-confirmation";
 import { START_DATE_NOTE } from "@/lib/assure-content";
 import { AssureLink as Link } from "./AssureLink";
 import styles from "./experience.module.css";
+import { ClearCompletedCart } from "./ClearCompletedCart";
 export async function EnrollmentConfirmation({
   sessionId,
 }: {
@@ -13,6 +14,7 @@ export async function EnrollmentConfirmation({
     state === "received" ? CheckCircle : state === "processing" ? Clock : Info;
   return (
     <main>
+      {state !== "unverified" && <ClearCompletedCart />}
       <section className={styles.pageHero}>
         <div className={`${styles.container} ${styles.narrow}`}>
           <span className={styles.icon}>
