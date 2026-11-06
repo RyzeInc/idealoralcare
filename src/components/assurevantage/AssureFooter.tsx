@@ -1,4 +1,9 @@
 "use client";
+import { SiteMarketing } from "@/components/health/SiteMarketing";
+import {
+  SERVICE_MARKETING_FEATURES,
+  type SiteMarketingFeature,
+} from "@/convex/lib/siteMarketing";
 import Image from "next/image";
 import { AssureLink as Link } from "./AssureLink";
 import styles from "./experience.module.css";
@@ -36,9 +41,20 @@ export function AssureFooter() {
                 ["balance-for-life", "Mental wellbeing"],
                 ["oralcare", "Oral Care"],
               ].map(([path, label]) => (
-                <li key={path}>
-                  <Link href={`/assurevantage/${path}`}>{label}</Link>
-                </li>
+                <FooterPromotion
+                  key={path}
+                  feature={
+                    path === "balance-for-life"
+                      ? undefined
+                      : SERVICE_MARKETING_FEATURES[
+                          path as keyof typeof SERVICE_MARKETING_FEATURES
+                        ]
+                  }
+                >
+                  <li>
+                    <Link href={`/assurevantage/${path}`}>{label}</Link>
+                  </li>
+                </FooterPromotion>
               ))}
             </ul>
           </div>
@@ -52,9 +68,20 @@ export function AssureFooter() {
                 ["dashboard", "Member portal"],
                 ["help", "Get help"],
               ].map(([path, label]) => (
-                <li key={path}>
-                  <Link href={`/assurevantage/${path}`}>{label}</Link>
-                </li>
+                <FooterPromotion
+                  key={path}
+                  feature={
+                    path === "faq"
+                      ? "faq"
+                      : path === "how-it-works"
+                        ? "howItWorks"
+                        : undefined
+                  }
+                >
+                  <li>
+                    <Link href={`/assurevantage/${path}`}>{label}</Link>
+                  </li>
+                </FooterPromotion>
               ))}
             </ul>
           </div>
@@ -69,9 +96,11 @@ export function AssureFooter() {
                   Employers & brokers
                 </Link>
               </li>
-              <li>
-                <Link href="/assurevantage/blog">Guides & resources</Link>
-              </li>
+              <SiteMarketing feature="blog">
+                <li>
+                  <Link href="/assurevantage/blog">Guides & resources</Link>
+                </li>
+              </SiteMarketing>
               <li>
                 <a href="mailto:info@assurevantage.com">
                   info@assurevantage.com
@@ -102,5 +131,19 @@ export function AssureFooter() {
         </div>
       </div>
     </footer>
+  );
+}
+
+function FooterPromotion({
+  feature,
+  children,
+}: {
+  feature?: SiteMarketingFeature;
+  children: React.ReactNode;
+}) {
+  return feature ? (
+    <SiteMarketing feature={feature}>{children}</SiteMarketing>
+  ) : (
+    <>{children}</>
   );
 }

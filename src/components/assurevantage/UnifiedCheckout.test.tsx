@@ -35,7 +35,10 @@ vi.mock("@clerk/nextjs", () => ({
     <>{children}</>
   ),
 }));
-vi.mock("convex/react", () => ({ useMutation: () => state.save }));
+vi.mock("convex/react", () => ({
+  useMutation: () => state.save,
+  useConvexAuth: () => ({ isAuthenticated: state.signedIn }),
+}));
 vi.mock("@/lib/health-plans", () => ({
   useCart: () => ({
     cart: {
@@ -45,8 +48,10 @@ vi.mock("@/lib/health-plans", () => ({
       referralCode: "100001",
       referralCodeSource: "url",
     },
-    monthlyOnly: state.items.some((i) =>
-      i.product.slug.startsWith("essentials"),
+    monthlyOnly: state.items.some(
+      (i) =>
+        i.product.slug.startsWith("essentials") ||
+        i.product.slug.startsWith("bfl-"),
     ),
     subtotalCents: state.subtotal,
     setCadence: vi.fn(),
@@ -54,6 +59,32 @@ vi.mock("@/lib/health-plans", () => ({
     removeItem: vi.fn(),
     setReferralCode: vi.fn(),
   }),
+}));
+vi.mock("@/components/checkout/CheckoutIntake", () => ({
+  CheckoutIntake: ({
+    onComplete,
+  }: {
+    onComplete: (profile: unknown) => void;
+  }) => (
+    <button
+      onClick={() =>
+        onComplete({
+          firstName: "Sample",
+          lastName: "Member",
+          dateOfBirth: "1990-01-15",
+          address: {
+            line1: "123 Main St",
+            city: "Columbus",
+            state: "OH",
+            postalCode: "43215",
+            country: "US",
+          },
+        })
+      }
+    >
+      Confirm intake
+    </button>
+  ),
 }));
 vi.mock("@/app/newideal/checkout/page.client", () => ({
   InlineAuth: () => <p>Inline account wizard</p>,
@@ -119,13 +150,13 @@ beforeEach(() => {
     item("ess_id", "essentials-employee", "telehealth"),
     item("oral_id", "oral-individual", "dental"),
   ];
-  state.save.mockReset().mockResolvedValue({ success: true });
-  state.fetch
+  state.save
     .mockReset()
-    .mockResolvedValue({
-      ok: false,
-      json: async () => ({ error: "Payment unavailable for this test" }),
-    });
+    .mockResolvedValue({ success: true, agreementId: "saved-agreement" });
+  state.fetch.mockReset().mockResolvedValue({
+    ok: false,
+    json: async () => ({ error: "Payment unavailable for this test" }),
+  });
   vi.stubGlobal("fetch", state.fetch);
 });
 afterEach(() => {
@@ -133,6 +164,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 async function signAll() {
+  fireEvent.click(screen.getByRole("button", { name: "Confirm intake" }));
   for (const button of screen.getAllByRole("button", {
     name: "Review & sign agreement",
   })) {
@@ -260,3 +292,17 @@ test("switching the customer or changing order pricing invalidates prior signatu
     ).disabled,
   ).toBe(true);
 });
+
+test.each(["essentials-employee", "bfl-individual"])(
+  "hides annual billing when %s is selected",
+  (slug) => {
+    state.items = [item("program_id", slug, "newideal")];
+    render(<UnifiedCheckout />);
+    expect(
+      screen.queryByRole("button", { name: "Annual", exact: true }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Monthly", exact: true }),
+    ).toBeTruthy();
+  },
+);

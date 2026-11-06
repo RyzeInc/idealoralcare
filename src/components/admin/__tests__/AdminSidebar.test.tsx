@@ -58,6 +58,16 @@ const links = () => within(nav()).getAllByRole("link");
 const labels = () => links().map((link) => link.textContent);
 
 beforeEach(() => {
+  // Node 25 can expose a storage placeholder without Web Storage methods.
+  const values = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+    removeItem: (key: string) => values.delete(key),
+    clear: () => values.clear(),
+  };
+  vi.stubGlobal("localStorage", storage);
+  Object.defineProperty(window, "localStorage", { value: storage, configurable: true });
   mockPathname = "/admin";
   mockAuth = { isLoaded: true };
   mockProfile = { role: "editor", name: "Dana Ruiz", email: "dana@example.com" };

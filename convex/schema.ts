@@ -2281,6 +2281,7 @@ export default defineSchema({
 
   // MEMBERSHIP AGREEMENTS (Digital member agreements with signatures)
   membershipAgreements: defineTable({
+    productId: v.optional(v.id("catalogProducts")),
     // MEMBER IDENTITY
     userId: v.string(), // Clerk user ID
     memberId: v.string(), // Careington member ID

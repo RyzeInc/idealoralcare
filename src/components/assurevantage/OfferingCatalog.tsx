@@ -1,4 +1,6 @@
 "use client";
+import { SiteMarketing } from "@/components/health/SiteMarketing";
+import type { SiteMarketingFeature } from "@/convex/lib/siteMarketing";
 import { HeartPulse, Brain, Smile, Check, ArrowRight } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useQuery } from "convex/react";
@@ -20,7 +22,13 @@ const GROUPS = [
     key: "essentials",
     icon: HeartPulse,
     name: "Essentials",
-    description: "Four everyday benefits in one monthly membership.",
+    description: "Everyday healthcare services in one monthly membership.",
+    features: [
+      "telehealth",
+      "labServices",
+      "rxSavings",
+      "essentialsWellbeing",
+    ] as const,
     items: [
       "Lyric virtual medical care",
       "Eligible QuestSelect lab services",
@@ -35,6 +43,12 @@ const GROUPS = [
     icon: Brain,
     name: "Balance for Life",
     description: "Mental wellbeing support on its own.",
+    features: [
+      "bflCounseling",
+      "bflLiveSupport",
+      "bflAiCompanion",
+      null,
+    ] as const,
     items: [
       "Short-term counseling under program terms",
       "Live support and wellbeing resources",
@@ -49,6 +63,7 @@ const GROUPS = [
     icon: Smile,
     name: "Oral Care",
     description: "Oral health benefits, purchased separately.",
+    features: ["oralScan", "teledentistry", "dentalDiscount"] as const,
     items: [
       "AI oral screening",
       "Virtual dental consultations",
@@ -178,11 +193,16 @@ export default function OfferingCatalog({ focus }: { focus?: "oral" }) {
                       </h2>
                       <p>{group.description}</p>
                       <ul className={styles.list}>
-                        {group.items.map((item) => (
-                          <li key={item}>
-                            <Check size={16} />
-                            {item}
-                          </li>
+                        {group.items.map((item, index) => (
+                          <CatalogPromotion
+                            key={item}
+                            feature={group.features[index]}
+                          >
+                            <li>
+                              <Check size={16} />
+                              {item}
+                            </li>
+                          </CatalogPromotion>
                         ))}
                       </ul>
                       <Link
@@ -287,5 +307,19 @@ export default function OfferingCatalog({ focus }: { focus?: "oral" }) {
         </div>
       </section>
     </main>
+  );
+}
+
+function CatalogPromotion({
+  feature,
+  children,
+}: {
+  feature?: SiteMarketingFeature | null;
+  children: React.ReactNode;
+}) {
+  return feature ? (
+    <SiteMarketing feature={feature}>{children}</SiteMarketing>
+  ) : (
+    <>{children}</>
   );
 }

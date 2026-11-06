@@ -1,3 +1,8 @@
+import {
+  SERVICE_MARKETING_FEATURES,
+  type SiteMarketingFeature,
+} from "@/convex/lib/siteMarketing";
+import { OfferingSummary } from "./OfferingSummary";
 import { SiteMarketing } from "@/components/health/SiteMarketing";
 import Image from "next/image";
 import { MembershipPhoto } from "./MembershipPhoto";
@@ -96,14 +101,7 @@ export function BenefitCards({
       {keys.map((key) => {
         const service = SERVICES[key],
           Icon = ICONS[key];
-        const feature =
-          key === "oral-health-scan"
-            ? "oralScan"
-            : key === "teledentistry"
-              ? "teledentistry"
-              : key === "discount"
-                ? "dentalDiscount"
-                : null;
+        const feature = SERVICE_MARKETING_FEATURES[key];
         const card = (
           <article className={styles.benefitCard}>
             <span className={styles.icon}>
@@ -111,23 +109,27 @@ export function BenefitCards({
             </span>
             <h3>{service.label}</h3>
             <p>
-              {compact
-                ? {
-                    "virtual-care":
-                      "Medical advice through virtual urgent, primary and dermatology care.",
-                    labs: "Eligible lab services, with clear ordering and access instructions.",
-                    pharmacy:
-                      "Check eligible medications and understand your prescription savings.",
-                    "balance-for-life":
-                      "Live support, counseling and everyday mental wellbeing resources.",
-                    "oral-health-scan":
-                      "A guided smartphone screening to discuss with your dentist.",
-                    teledentistry:
-                      "Remote dental guidance when you need a next step.",
-                    discount:
-                      "Participating dental providers and negotiated member rates.",
-                  }[key]
-                : service.intro}
+              {key === "balance-for-life" ? (
+                <OfferingSummary program="bfl" />
+              ) : compact ? (
+                {
+                  "virtual-care":
+                    "Medical advice through virtual urgent, primary and dermatology care.",
+                  labs: "Eligible lab services, with clear ordering and access instructions.",
+                  pharmacy:
+                    "Check eligible medications and understand your prescription savings.",
+                  "balance-for-life":
+                    "Live support, counseling and everyday mental wellbeing resources.",
+                  "oral-health-scan":
+                    "A guided smartphone screening to discuss with your dentist.",
+                  teledentistry:
+                    "Remote dental guidance when you need a next step.",
+                  discount:
+                    "Participating dental providers and negotiated member rates.",
+                }[key]
+              ) : (
+                service.intro
+              )}
             </p>
             <Link className={styles.textLink} href={`/assurevantage/${key}`}>
               Explore{" "}
@@ -246,12 +248,14 @@ export function AssureHome() {
               "teledentistry",
             ]}
           />
-          <p style={{ marginTop: 24 }}>
-            Planning an in-person dental visit?{" "}
-            <Link href="/assurevantage/discount">
-              Explore the dental discount network →
-            </Link>
-          </p>
+          <SiteMarketing feature="dentalDiscount">
+            <p style={{ marginTop: 24 }}>
+              Planning an in-person dental visit?{" "}
+              <Link href="/assurevantage/discount">
+                Explore the dental discount network →
+              </Link>
+            </p>
+          </SiteMarketing>
         </div>
       </section>
       <section className={`${styles.section} ${styles.tinted}`}>
@@ -261,9 +265,9 @@ export function AssureHome() {
               <p className={styles.eyebrow}>Choose what fits</p>
               <h2>One brand. Options for your life.</h2>
               <p>
-                Essentials brings four everyday benefits together. Balance for
-                Life is also available on its own. Add Oral Care separately for
-                dental benefits.
+                Essentials brings everyday healthcare services together. Balance
+                for Life is also available on its own. Add Oral Care separately
+                for dental benefits.
               </p>
             </div>
           </div>
@@ -305,7 +309,15 @@ export function AssureHome() {
                   <item.icon size={24} />
                 </span>
                 <h3>{item.title}</h3>
-                <p>{item.copy}</p>
+                <p>
+                  <OfferingSummary
+                    program={
+                      item.path === "balance-for-life"
+                        ? "bfl"
+                        : (item.path as "essentials" | "oralcare")
+                    }
+                  />
+                </p>
                 <p className={styles.fine}>{item.note}</p>
                 <Link
                   href={`/assurevantage/${item.path}`}
@@ -323,49 +335,53 @@ export function AssureHome() {
           </div>
         </div>
       </section>
-      <section className={styles.section}>
-        <div className={`${styles.container} ${styles.gridTwo}`}>
-          <div>
-            <p className={styles.eyebrow}>
-              From joining to using your benefits
-            </p>
-            <h2>A clear next step, every step.</h2>
-            <p>
-              You should know what you’re choosing and where to go when you need
-              help.
-            </p>
-            <Link
-              href="/assurevantage/how-it-works"
-              className={styles.textLink}
-            >
-              How membership works <ArrowRight size={16} />
-            </Link>
+      <SiteMarketing feature="howItWorks">
+        <section className={styles.section}>
+          <div className={`${styles.container} ${styles.gridTwo}`}>
+            <div>
+              <p className={styles.eyebrow}>
+                From joining to using your benefits
+              </p>
+              <h2>A clear next step, every step.</h2>
+              <p>
+                You should know what you’re choosing and where to go when you
+                need help.
+              </p>
+              <Link
+                href="/assurevantage/how-it-works"
+                className={styles.textLink}
+              >
+                How membership works <ArrowRight size={16} />
+              </Link>
+            </div>
+            <ol className={styles.steps}>
+              <li>Explore benefits and compare the membership options.</li>
+              <li>
+                Choose your household tier and review the price, agreements and
+                billing period.
+              </li>
+              <li>
+                Check your effective date and use your welcome packet to access
+                each provider.
+              </li>
+            </ol>
           </div>
-          <ol className={styles.steps}>
-            <li>Explore benefits and compare the membership options.</li>
-            <li>
-              Choose your household tier and review the price, agreements and
-              billing period.
-            </li>
-            <li>
-              Check your effective date and use your welcome packet to access
-              each provider.
-            </li>
-          </ol>
-        </div>
-      </section>
-      <section className={`${styles.section} ${styles.tinted}`}>
-        <div className={`${styles.container} ${styles.narrow}`}>
-          <p className={styles.eyebrow}>Before you choose</p>
-          <h2>Good questions. Clear answers.</h2>
-          <FAQ items={ASSURE_FAQS.slice(0, 4)} />
-          <div className={styles.actions}>
-            <Link href="/assurevantage/faq" className={styles.textLink}>
-              More questions & answers <ArrowRight size={16} />
-            </Link>
+        </section>
+      </SiteMarketing>
+      <SiteMarketing feature="faq">
+        <section className={`${styles.section} ${styles.tinted}`}>
+          <div className={`${styles.container} ${styles.narrow}`}>
+            <p className={styles.eyebrow}>Before you choose</p>
+            <h2>Good questions. Clear answers.</h2>
+            <FAQ items={ASSURE_FAQS.slice(0, 4)} />
+            <div className={styles.actions}>
+              <Link href="/assurevantage/faq" className={styles.textLink}>
+                More questions & answers <ArrowRight size={16} />
+              </Link>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </SiteMarketing>
       <SectionCTA />
     </main>
   );
@@ -379,7 +395,13 @@ export function ServicePage({ serviceKey }: { serviceKey: ServiceKey }) {
           <div>
             <p className={styles.eyebrow}>{s.eyebrow}</p>
             <h1>{s.title}</h1>
-            <p className={styles.lead}>{s.intro}</p>
+            <p className={styles.lead}>
+              {serviceKey === "balance-for-life" ? (
+                <OfferingSummary program="bfl" />
+              ) : (
+                s.intro
+              )}
+            </p>
             <div className={styles.actions}>
               <Link
                 href="/assurevantage/program-plans"
@@ -413,11 +435,13 @@ export function ServicePage({ serviceKey }: { serviceKey: ServiceKey }) {
             <p className={styles.eyebrow}>What you can use</p>
             <h2>Know your benefit.</h2>
             <ul className={styles.list}>
-              {s.items.map((item) => (
-                <li key={item}>
-                  <Check size={18} />
-                  {item}
-                </li>
+              {s.items.map((item, index) => (
+                <ServiceItem key={item} service={serviceKey} index={index}>
+                  <li>
+                    <Check size={18} />
+                    {item}
+                  </li>
+                </ServiceItem>
               ))}
             </ul>
           </div>
@@ -442,18 +466,20 @@ export function ServicePage({ serviceKey }: { serviceKey: ServiceKey }) {
           </div>
         </div>
       </section>
-      <section className={styles.section}>
-        <div className={`${styles.container} ${styles.narrow}`}>
-          <h2>Questions about {s.label.toLowerCase()}?</h2>
-          <FAQ items={s.faq} />
-          <p style={{ marginTop: 24 }}>
-            Need a hand?{" "}
-            <Link href="/assurevantage/help">
-              Find the right support contact.
-            </Link>
-          </p>
-        </div>
-      </section>
+      <SiteMarketing feature="faq">
+        <section className={styles.section}>
+          <div className={`${styles.container} ${styles.narrow}`}>
+            <h2>Questions about {s.label.toLowerCase()}?</h2>
+            <FAQ items={s.faq} />
+            <p style={{ marginTop: 24 }}>
+              Need a hand?{" "}
+              <Link href="/assurevantage/help">
+                Find the right support contact.
+              </Link>
+            </p>
+          </div>
+        </section>
+      </SiteMarketing>
       <SectionCTA />
     </main>
   );
@@ -481,9 +507,7 @@ export function ProgramPage({
                 : "Look after your smile. Understand your options."}
             </h1>
             <p className={styles.lead}>
-              {essentials
-                ? "Virtual medical care, eligible lab services, prescription savings and mental wellbeing support in one monthly membership."
-                : "AI oral screening, remote dental consultations and participating dental discounts. A membership for taking a more active role in your oral health."}
+              <OfferingSummary program={program} />
             </p>
             <div className={styles.actions}>
               <Link
@@ -517,17 +541,20 @@ export function ProgramPage({
           </div>
         </div>
       </section>
-      <section className={styles.section}>
-        <div className={styles.container}>
-          <p className={styles.eyebrow}>Included in this membership</p>
-          <h2>
-            {essentials
-              ? "Four benefits. Clear ways to use them."
-              : "Three ways to care for your oral health."}
-          </h2>
-          <BenefitCards keys={keys} />
-        </div>
-      </section>
+      <SiteMarketing anyOf={keys.map((key) => SERVICE_MARKETING_FEATURES[key])}>
+        {" "}
+        <section className={styles.section}>
+          <div className={styles.container}>
+            <p className={styles.eyebrow}>Included in this membership</p>
+            <h2>
+              {essentials
+                ? "Explore your everyday care services."
+                : "Explore your oral health services."}
+            </h2>
+            <BenefitCards keys={keys} />
+          </div>
+        </section>
+      </SiteMarketing>
       <section className={`${styles.section} ${styles.tinted}`}>
         <div className={`${styles.container} ${styles.gridTwo}`}>
           <div>
@@ -564,29 +591,53 @@ export function ProgramPage({
           </div>
         </div>
       </section>
-      <section className={styles.section}>
-        <div className={`${styles.container} ${styles.narrow}`}>
-          <h2>Your questions, answered.</h2>
-          <FAQ
-            items={
-              essentials
-                ? [
-                    ASSURE_FAQS[1],
-                    ASSURE_FAQS[3],
-                    ASSURE_FAQS[4],
-                    ASSURE_FAQS[5],
-                  ]
-                : [
-                    ASSURE_FAQS[1],
-                    ASSURE_FAQS[2],
-                    ASSURE_FAQS[3],
-                    SERVICES.discount.faq[0],
-                  ]
-            }
-          />
-        </div>
-      </section>
+      <SiteMarketing feature="faq">
+        <section className={styles.section}>
+          <div className={`${styles.container} ${styles.narrow}`}>
+            <h2>Your questions, answered.</h2>
+            <FAQ
+              items={
+                essentials
+                  ? [
+                      ASSURE_FAQS[1],
+                      ASSURE_FAQS[3],
+                      ASSURE_FAQS[4],
+                      ASSURE_FAQS[5],
+                    ]
+                  : [
+                      ASSURE_FAQS[1],
+                      ASSURE_FAQS[2],
+                      ASSURE_FAQS[3],
+                      SERVICES.discount.faq[0],
+                    ]
+              }
+            />
+          </div>
+        </section>
+      </SiteMarketing>
       <SectionCTA />
     </main>
+  );
+}
+
+function ServiceItem({
+  service,
+  index,
+  children,
+}: {
+  service: ServiceKey;
+  index: number;
+  children: React.ReactNode;
+}) {
+  const features: SiteMarketingFeature[] = [
+    "bflCounseling",
+    "bflLiveSupport",
+    "bflAiCompanion",
+    "bflCoaching",
+  ];
+  return service === "balance-for-life" ? (
+    <SiteMarketing feature={features[index]}>{children}</SiteMarketing>
+  ) : (
+    <>{children}</>
   );
 }

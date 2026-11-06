@@ -52,13 +52,20 @@ const mockConvexQuery = vi.hoisted(() => vi.fn().mockResolvedValue(null));
 
 vi.mock("convex/browser", () => ({
   ConvexHttpClient: vi.fn(function MockConvexHttpClient() {
-    return { query: mockConvexQuery };
+    return { query: mockConvexQuery, setAuth: vi.fn() };
   }),
 }));
 
 vi.mock("@/convex/_generated/api", () => ({
   api: {
-    enrollment: { sessions: { getDTCHierarchy: "enrollment.sessions.getDTCHierarchy" } },
+    legal: {
+      membershipAgreements: {
+        validateCheckoutAgreements: "validateCheckoutAgreements",
+      },
+    },
+    enrollment: {
+      sessions: { getDTCHierarchy: "enrollment.sessions.getDTCHierarchy" },
+    },
     catalog: {
       queries: {
         getById: "catalog.queries.getById",
@@ -87,6 +94,19 @@ const VALID_BODY = {
   planId: "prod_test123",
   cadence: "monthly",
   paymentMethod: "card",
+  agreementIds: ["agreement-primary"],
+  memberProfile: {
+    firstName: "Sam",
+    lastName: "Jones",
+    dateOfBirth: "1990-01-15",
+    address: {
+      line1: "123 Main St",
+      city: "Columbus",
+      state: "OH",
+      postalCode: "43215",
+      country: "US",
+    },
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -95,16 +115,36 @@ const VALID_BODY = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockConvexQuery.mockResolvedValue({
-    name: "Oral Care — Employee",
-    slug: "oralcare-employee",
-    pricing: { monthlyCardCents: 1499, monthlyACHCents: 1299, annualCardCents: 14999, annualACHCents: 12999 },
-    stripeProducts: { monthlyCardId: "prod_card", monthlyACHId: "prod_ach", annualCardId: "prod_annual_card", annualACHId: "prod_annual_ach" },
-  });
-  mockGetPrice.mockImplementation(async (_stripe, productId, amount, cadence) => `price_${productId}_${amount}_${cadence}`);
+  mockConvexQuery.mockImplementation(async (query) =>
+    query === "validateCheckoutAgreements"
+      ? { valid: true }
+      : {
+          name: "Oral Care — Employee",
+          slug: "oralcare-employee",
+          pricing: {
+            monthlyCardCents: 1499,
+            monthlyACHCents: 1299,
+            annualCardCents: 14999,
+            annualACHCents: 12999,
+          },
+          stripeProducts: {
+            monthlyCardId: "prod_card",
+            monthlyACHId: "prod_ach",
+            annualCardId: "prod_annual_card",
+            annualACHId: "prod_annual_ach",
+          },
+        },
+  );
+  mockGetPrice.mockImplementation(
+    async (_stripe, productId, amount, cadence) =>
+      `price_${productId}_${amount}_${cadence}`,
+  );
 
   // Default: authenticated user
-  vi.mocked(auth).mockResolvedValue({ userId: "user_test123" } as any);
+  vi.mocked(auth).mockResolvedValue({
+    userId: "user_test123",
+    getToken: async () => "signed-jwt",
+  } as any);
   vi.mocked(currentUser).mockResolvedValue({
     emailAddresses: [{ emailAddress: "user@test.com" }],
   } as any);
@@ -128,7 +168,9 @@ afterEach(() => {
 describe("POST /api/stripe/checkout", () => {
   test("refuses a branded sale before charging when member provisioning is not configured", async () => {
     mockConvexQuery.mockResolvedValueOnce(null);
-    const res = await POST(makeRequest({ ...VALID_BODY, siteSlug: "assurevantage" }));
+    const res = await POST(
+      makeRequest({ ...VALID_BODY, siteSlug: "assurevantage" }),
+    );
     expect(res.status).toBe(400);
     expect((await res.json()).error).toMatch(/Enrollment is not available/);
     expect(mockSessionCreate).not.toHaveBeenCalled();
@@ -136,10 +178,18 @@ describe("POST /api/stripe/checkout", () => {
   });
 
   test("keeps the ready site's slug in checkout metadata for fulfillment", async () => {
-    mockConvexQuery.mockResolvedValueOnce({ siteId: "site-assure", accountId: "dtc", groupId: "dtc-group" });
-    const res = await POST(makeRequest({ ...VALID_BODY, siteSlug: "assurevantage" }));
+    mockConvexQuery.mockResolvedValueOnce({
+      siteId: "site-assure",
+      accountId: "dtc",
+      groupId: "dtc-group",
+    });
+    const res = await POST(
+      makeRequest({ ...VALID_BODY, siteSlug: "assurevantage" }),
+    );
     expect(res.status).toBe(200);
-    expect(mockSessionCreate.mock.calls[0][0].metadata.siteSlug).toBe("assurevantage");
+    expect(mockSessionCreate.mock.calls[0][0].metadata.siteSlug).toBe(
+      "assurevantage",
+    );
   });
   // -------------------------------------------------------------------------
   // Authentication
@@ -172,7 +222,9 @@ describe("POST /api/stripe/checkout", () => {
 
   describe("input validation", () => {
     test("returns 400 when planId is missing", async () => {
-      const res = await POST(makeRequest({ cadence: "monthly", paymentMethod: "card" }));
+      const res = await POST(
+        makeRequest({ cadence: "monthly", paymentMethod: "card" }),
+      );
       expect(res.status).toBe(400);
 
       const body = await res.json();
@@ -180,13 +232,19 @@ describe("POST /api/stripe/checkout", () => {
     });
 
     test("returns 400 when cadence is missing", async () => {
-      const res = await POST(makeRequest({ planId: "prod_test", paymentMethod: "card" }));
+      const res = await POST(
+        makeRequest({ planId: "prod_test", paymentMethod: "card" }),
+      );
       expect(res.status).toBe(400);
     });
 
     test("returns 400 for an invalid cadence value", async () => {
       const res = await POST(
-        makeRequest({ planId: "prod_test", cadence: "weekly", paymentMethod: "card" })
+        makeRequest({
+          planId: "prod_test",
+          cadence: "weekly",
+          paymentMethod: "card",
+        }),
       );
       expect(res.status).toBe(400);
 
@@ -196,7 +254,11 @@ describe("POST /api/stripe/checkout", () => {
 
     test("returns 400 for an invalid paymentMethod value", async () => {
       const res = await POST(
-        makeRequest({ planId: "prod_test", cadence: "monthly", paymentMethod: "crypto" })
+        makeRequest({
+          planId: "prod_test",
+          cadence: "monthly",
+          paymentMethod: "crypto",
+        }),
       );
       expect(res.status).toBe(400);
     });
@@ -227,7 +289,7 @@ describe("POST /api/stripe/checkout", () => {
               relationship: "child",
             },
           ],
-        })
+        }),
       );
 
       expect(res.status).toBe(200);
@@ -240,10 +302,20 @@ describe("POST /api/stripe/checkout", () => {
         makeRequest({
           ...VALID_BODY,
           dependents: [
-            { firstName: "A", lastName: "B", email: "a@test.com", relationship: "child" },
-            { firstName: "C", lastName: "D", email: "c@test.com", relationship: "spouse" },
+            {
+              firstName: "A",
+              lastName: "B",
+              email: "a@test.com",
+              relationship: "child",
+            },
+            {
+              firstName: "C",
+              lastName: "D",
+              email: "c@test.com",
+              relationship: "spouse",
+            },
           ],
-        })
+        }),
       );
 
       const callArg = mockSessionCreate.mock.calls[0][0];
@@ -256,9 +328,14 @@ describe("POST /api/stripe/checkout", () => {
         makeRequest({
           ...VALID_BODY,
           dependents: [
-            { firstName: "Kid", lastName: "Doe", email: "kid@test.com", relationship: "child" },
+            {
+              firstName: "Kid",
+              lastName: "Doe",
+              email: "kid@test.com",
+              relationship: "child",
+            },
           ],
-        })
+        }),
       );
 
       const callArg = mockSessionCreate.mock.calls[0][0];
@@ -282,29 +359,58 @@ describe("POST /api/stripe/checkout", () => {
       const [cadence, paymentMethod] = key.split("_") as [string, string];
 
       test(`primary unit_amount is ${expectedPrimary} for ${cadence}/${paymentMethod}`, async () => {
-        await POST(makeRequest({ planId: "prod_test", cadence, paymentMethod }));
+        await POST(
+          makeRequest({
+            ...VALID_BODY,
+            planId: "prod_test",
+            cadence,
+            paymentMethod,
+          }),
+        );
 
         const callArg = mockSessionCreate.mock.calls[0][0];
-        const expectedProduct = cadence === "monthly"
-          ? (paymentMethod === "ach" ? "prod_ach" : "prod_card")
-          : (paymentMethod === "ach" ? "prod_annual_ach" : "prod_annual_card");
-        expect(callArg.line_items[0].price).toBe(`price_${expectedProduct}_${expectedPrimary}_${cadence}`);
+        const expectedProduct =
+          cadence === "monthly"
+            ? paymentMethod === "ach"
+              ? "prod_ach"
+              : "prod_card"
+            : paymentMethod === "ach"
+              ? "prod_annual_ach"
+              : "prod_annual_card";
+        expect(callArg.line_items[0].price).toBe(
+          `price_${expectedProduct}_${expectedPrimary}_${cadence}`,
+        );
       });
 
       test(`dependents do not alter ${cadence}/${paymentMethod} price`, async () => {
         await POST(
           makeRequest({
+            ...VALID_BODY,
             planId: "prod_test",
             cadence,
             paymentMethod,
-            dependents: [{ firstName: "K", lastName: "D", email: "k@d.com", relationship: "child" }],
-          })
+            dependents: [
+              {
+                firstName: "K",
+                lastName: "D",
+                email: "k@d.com",
+                relationship: "child",
+              },
+            ],
+          }),
         );
 
         const callArg = mockSessionCreate.mock.calls[0][0];
         expect(callArg.line_items).toHaveLength(1);
-        expect(mockGetPrice).toHaveBeenCalledWith(expect.anything(), expect.any(String), expectedPrimary, cadence);
-        expect(callArg.line_items[0].price).toContain(`_${expectedPrimary}_${cadence}`);
+        expect(mockGetPrice).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.any(String),
+          expectedPrimary,
+          cadence,
+        );
+        expect(callArg.line_items[0].price).toContain(
+          `_${expectedPrimary}_${cadence}`,
+        );
       });
     }
   });
@@ -326,10 +432,20 @@ describe("POST /api/stripe/checkout", () => {
         makeRequest({
           ...VALID_BODY,
           dependents: [
-            { firstName: "A", lastName: "B", email: "a@t.com", relationship: "child" },
-            { firstName: "C", lastName: "D", email: "c@t.com", relationship: "spouse" },
+            {
+              firstName: "A",
+              lastName: "B",
+              email: "a@t.com",
+              relationship: "child",
+            },
+            {
+              firstName: "C",
+              lastName: "D",
+              email: "c@t.com",
+              relationship: "spouse",
+            },
           ],
-        })
+        }),
       );
 
       const callArg = mockSessionCreate.mock.calls[0][0];
@@ -338,7 +454,12 @@ describe("POST /api/stripe/checkout", () => {
 
     test("metadata.dependents is encoded JSON of the dependent list", async () => {
       const dependents = [
-        { firstName: "Kid", lastName: "Doe", email: "kid@t.com", relationship: "child" },
+        {
+          firstName: "Kid",
+          lastName: "Doe",
+          email: "kid@t.com",
+          relationship: "child",
+        },
       ];
 
       await POST(makeRequest({ ...VALID_BODY, dependents }));
@@ -401,7 +522,7 @@ describe("POST /api/stripe/checkout", () => {
         expect.objectContaining({
           email: "user@test.com",
           metadata: { clerkUserId: "user_test123" },
-        })
+        }),
       );
     });
   });
@@ -422,22 +543,34 @@ describe("POST /api/stripe/checkout", () => {
 
   describe("multi-plan cart", () => {
     test("charges every configured plan", async () => {
-      const res = await POST(makeRequest({ ...VALID_BODY, additionalPlanIds: ["oralcare_extra"] }));
+      const res = await POST(
+        makeRequest({
+          ...VALID_BODY,
+          additionalPlanIds: ["oralcare_extra"],
+          agreementIds: ["agreement-primary", "agreement-extra"],
+        }),
+      );
       expect(res.status).toBe(200);
       expect(mockSessionCreate.mock.calls[0][0].line_items).toHaveLength(2);
     });
 
     test("blocks checkout when an additional plan has no Stripe product", async () => {
-      mockConvexQuery.mockResolvedValueOnce({
-        name: "Essentials Plan", slug: "essentials-employee",
-        pricing: { monthlyCardCents: 5895 },
-        stripeProducts: { monthlyCardId: "prod_essentials" },
-      }).mockResolvedValueOnce({
-        name: "Oral Care", slug: "oralcare-employee",
-        pricing: { monthlyCardCents: 1499 },
-        stripeProducts: {},
-      });
-      const res = await POST(makeRequest({ ...VALID_BODY, additionalPlanIds: ["oralcare_extra"] }));
+      mockConvexQuery
+        .mockResolvedValueOnce({
+          name: "Essentials Plan",
+          slug: "essentials-employee",
+          pricing: { monthlyCardCents: 5895 },
+          stripeProducts: { monthlyCardId: "prod_essentials" },
+        })
+        .mockResolvedValueOnce({
+          name: "Oral Care",
+          slug: "oralcare-employee",
+          pricing: { monthlyCardCents: 1499 },
+          stripeProducts: {},
+        });
+      const res = await POST(
+        makeRequest({ ...VALID_BODY, additionalPlanIds: ["oralcare_extra"] }),
+      );
       expect(res.status).toBe(400);
       expect(mockSessionCreate).not.toHaveBeenCalled();
     });
@@ -452,29 +585,139 @@ describe("POST /api/stripe/checkout", () => {
 });
 
 describe("membership checkout restrictions", () => {
-  test.each(["essentials-employee", "bfl-individual"])("rejects annual billing for %s", async slug => {
-    mockConvexQuery.mockResolvedValueOnce({ slug, name: slug, pricing: { annualCardCents: 12000 }, stripeProducts: { annualCardId: "prod_annual" } });
-    const response = await POST(makeRequest({ ...VALID_BODY, cadence: "annual" }));
-    expect(response.status).toBe(400);
-    expect((await response.json()).error).toContain("monthly");
-    expect(mockSessionCreate).not.toHaveBeenCalled();
-  });
+  test.each(["essentials-employee", "bfl-individual"])(
+    "rejects annual billing for %s",
+    async (slug) => {
+      mockConvexQuery.mockResolvedValueOnce({
+        slug,
+        name: slug,
+        pricing: { annualCardCents: 12000 },
+        stripeProducts: { annualCardId: "prod_annual" },
+      });
+      const response = await POST(
+        makeRequest({ ...VALID_BODY, cadence: "annual" }),
+      );
+      expect(response.status).toBe(400);
+      expect((await response.json()).error).toContain("monthly");
+      expect(mockSessionCreate).not.toHaveBeenCalled();
+    },
+  );
 
   test("rejects annual membership when it is an additional cart item", async () => {
-    mockConvexQuery.mockResolvedValueOnce({ name: "Oral", slug: "oral-individual", pricing: { annualCardCents: 14999 }, stripeProducts: { annualCardId: "prod_oral" } })
-      .mockResolvedValueOnce({ name: "Essentials", slug: "essentials-employee", pricing: {}, stripeProducts: {} });
-    const response = await POST(makeRequest({ ...VALID_BODY, cadence: "annual", additionalPlanIds: ["essentials"] }));
+    mockConvexQuery
+      .mockResolvedValueOnce({
+        name: "Oral",
+        slug: "oral-individual",
+        pricing: { annualCardCents: 14999 },
+        stripeProducts: { annualCardId: "prod_oral" },
+      })
+      .mockResolvedValueOnce({
+        name: "Essentials",
+        slug: "essentials-employee",
+        pricing: {},
+        stripeProducts: {},
+      });
+    const response = await POST(
+      makeRequest({
+        ...VALID_BODY,
+        cadence: "annual",
+        additionalPlanIds: ["essentials"],
+      }),
+    );
     expect(response.status).toBe(400);
     expect((await response.json()).error).toContain("monthly");
     expect(mockSessionCreate).not.toHaveBeenCalled();
   });
 
   test("rejects Essentials and standalone Balance for Life together", async () => {
-    mockConvexQuery.mockResolvedValueOnce({ name: "Essentials", slug: "essentials-employee", pricing: { monthlyCardCents: 5895 }, stripeProducts: { monthlyCardId: "prod_essentials" } })
-      .mockResolvedValueOnce({ name: "Balance for Life", slug: "bfl-individual", pricing: { monthlyCardCents: 1995 }, stripeProducts: { monthlyCardId: "prod_bfl" } });
-    const response = await POST(makeRequest({ ...VALID_BODY, additionalPlanIds: ["bfl"] }));
+    mockConvexQuery
+      .mockResolvedValueOnce({
+        name: "Essentials",
+        slug: "essentials-employee",
+        pricing: { monthlyCardCents: 5895 },
+        stripeProducts: { monthlyCardId: "prod_essentials" },
+      })
+      .mockResolvedValueOnce({
+        name: "Balance for Life",
+        slug: "bfl-individual",
+        pricing: { monthlyCardCents: 1995 },
+        stripeProducts: { monthlyCardId: "prod_bfl" },
+      });
+    const response = await POST(
+      makeRequest({ ...VALID_BODY, additionalPlanIds: ["bfl"] }),
+    );
     expect(response.status).toBe(400);
     expect((await response.json()).error).toContain("already included");
     expect(mockSessionCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe("confirmed AssureVantage checkout", () => {
+  function readySite() {
+    mockConvexQuery.mockResolvedValueOnce({
+      siteId: "site",
+      accountId: "account",
+      groupId: "group",
+    });
+  }
+  test("requires confirmed intake before any Stripe customer or payment session", async () => {
+    readySite();
+    const result = await POST(
+      makeRequest({
+        ...VALID_BODY,
+        siteSlug: "assurevantage",
+        memberProfile: null,
+      }),
+    );
+    expect(result.status).toBe(400);
+    expect(mockCustomerCreate).not.toHaveBeenCalled();
+    expect(mockSessionCreate).not.toHaveBeenCalled();
+  });
+  test("requires saved documents matching the current account and cart", async () => {
+    mockConvexQuery.mockReset();
+    mockConvexQuery
+      .mockResolvedValueOnce({
+        siteId: "site",
+        accountId: "account",
+        groupId: "group",
+      })
+      .mockResolvedValueOnce({
+        _id: "prod_test123",
+        name: "Oral",
+        slug: "oral-individual",
+        pricing: { monthlyCardCents: 1499 },
+        stripeProducts: { monthlyCardId: "prod_card" },
+      })
+      .mockResolvedValueOnce({ valid: false });
+    const result = await POST(
+      makeRequest({ ...VALID_BODY, siteSlug: "assurevantage" }),
+    );
+    expect(result.status).toBe(400);
+    expect((await result.json()).error).toContain("signed agreements");
+    expect(mockSessionCreate).not.toHaveBeenCalled();
+  });
+  test("uses canonical secure-host return URLs and preserves intake names", async () => {
+    readySite();
+    const result = await POST(
+      makeRequest({
+        ...VALID_BODY,
+        siteSlug: "assurevantage",
+        successUrl: "https://evil.test/receipt",
+        cancelUrl: "https://evil.test/cart",
+      }),
+    );
+    expect(result.status).toBe(200);
+    const session = mockSessionCreate.mock.calls[0][0];
+    expect(session.success_url).toBe(
+      "http://localhost/assurevantage/program-success?session_id={CHECKOUT_SESSION_ID}",
+    );
+    expect(session.cancel_url).toBe(
+      "http://localhost/assurevantage/program-checkout",
+    );
+    expect(session.metadata).toMatchObject({
+      memberFirstName: "Sam",
+      memberLastName: "Jones",
+      memberDOB: "1990-01-15",
+    });
   });
 });

@@ -212,12 +212,12 @@ export async function POST(req: NextRequest) {
 
           // Normalize gender: checkout stores "M"/"F"; schema expects "male"/"female"
           const rawGender = metadata.memberGender || "";
-          const normalizedGender: "male" | "female" | undefined =
+          const normalizedGender: "male" | "female" | "non_binary" | "prefer_not_to_say" | "other" | undefined =
             rawGender === "M" || rawGender === "male"
               ? "male"
               : rawGender === "F" || rawGender === "female"
                 ? "female"
-                : undefined;
+                : rawGender === "non_binary" || rawGender === "prefer_not_to_say" || rawGender === "other" ? rawGender : undefined;
 
           // Normalize DOB: checkout stores "MM/DD/YYYY"; schema expects "YYYY-MM-DD"
           let normalizedDOB: string | undefined;
@@ -241,8 +241,8 @@ export async function POST(req: NextRequest) {
               accountId: accountId as any,
               groupId: groupId as any,
               firstName:
-                session.customer_details?.name?.split(" ")[0] || "Member",
-              lastName: session.customer_details?.name?.split(" ")?.[1] || "",
+                metadata.memberFirstName || sessionPersonalInfo?.firstName || session.customer_details?.name?.split(" ")[0] || "Member",
+              lastName: metadata.memberLastName || sessionPersonalInfo?.lastName || session.customer_details?.name?.split(" ").slice(1).join(" ") || "",
               email: session.customer_email || "",
               customerId: clerkUserId, // Link to the Clerk user who completed checkout
               memberType: "active",

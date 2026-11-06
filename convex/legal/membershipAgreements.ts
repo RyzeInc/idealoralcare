@@ -10,6 +10,7 @@ import { v } from "convex/values";
 
 export const createMembershipAgreement = mutation({
   args: {
+    productId: v.optional(v.id("catalogProducts")),
     userId: v.string(),
     memberId: v.string(),
     memberName: v.string(),
@@ -36,6 +37,7 @@ export const createMembershipAgreement = mutation({
 
     // Create membership agreement record
     const agreementId = await ctx.db.insert("membershipAgreements", {
+      ...(args.productId ? { productId: args.productId } : {}),
       userId: args.userId,
       memberId: args.memberId,
       memberName: args.memberName,
@@ -231,5 +233,26 @@ export const validateMembershipAgreement = internalQuery({
     }
 
     return { valid: true, agreement };
+  },
+});
+
+/** Verify signed documents belong to this account and cover the current cart. */
+export const validateCheckoutAgreements = query({
+  args: {
+    agreementIds: v.array(v.id("membershipAgreements")),
+    plans: v.array(v.object({ productId: v.id("catalogProducts"), periodicCharge: v.string() })),
+    term: v.string(), paymentMode: v.string(), memberAddress: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity || args.agreementIds.length !== args.plans.length || new Set(args.agreementIds).size !== args.agreementIds.length) return { valid: false };
+    const agreements = await Promise.all(args.agreementIds.map(id => ctx.db.get(id)));
+    const valid = args.plans.every(plan => agreements.some(agreement => agreement &&
+      agreement.userId === identity.subject && agreement.productId === plan.productId &&
+      agreement.periodicCharge === plan.periodicCharge && agreement.term === args.term &&
+      (args.paymentMode === "Bank Draft" ? ["Bank Draft", "Bank Transfer (ACH)"] : ["Credit Card", "Credit/Debit Card"]).includes(agreement.paymentMode) && agreement.memberAddress === args.memberAddress &&
+      agreement.membershipTermsAgreed && agreement.termsAndConditionsAgreed &&
+      agreement.memberSignature.length > 0 && agreement.signatureTimestamp > 0 && agreement.status === "active"));
+    return { valid };
   },
 });

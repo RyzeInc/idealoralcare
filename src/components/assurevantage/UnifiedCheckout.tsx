@@ -1,7 +1,10 @@
 "use client";
 import { useRef, useState, type ReactNode } from "react";
 import { useUser, SignOutButton } from "@clerk/nextjs";
-import { useMutation } from "convex/react";
+import { CheckoutIntake } from "@/components/checkout/CheckoutIntake";
+import { checkoutAddress, type CheckoutProfile } from "@/lib/checkout-profile";
+import type { Id } from "@/convex/_generated/dataModel";
+import { useMutation, useConvexAuth } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ArrowLeft, Check, Lock, X } from "lucide-react";
 import { useCart } from "@/lib/health-plans";
@@ -46,26 +49,6 @@ function Section({
     </section>
   );
 }
-function profileFromBrowser() {
-  try {
-    return JSON.parse(
-      sessionStorage.getItem("careington_profile") || "null",
-    ) as {
-      dateOfBirth?: string;
-      gender?: string;
-      phone?: string;
-      address?: {
-        line1?: string;
-        line2?: string;
-        city?: string;
-        state?: string;
-        postalCode?: string;
-      };
-    } | null;
-  } catch {
-    return null;
-  }
-}
 function membershipLabel(item: CartItem) {
   if (item.product.category === "dental")
     return `AssureVantage Oral Care — ${item.product.slug.includes("family") ? "Family" : "Individual"}`;
@@ -77,7 +60,6 @@ export function UnifiedCheckout() {
   const {
     cart,
     monthlyOnly,
-    subtotalCents,
     setCadence,
     setPaymentMethod,
     removeItem,
@@ -86,6 +68,13 @@ export function UnifiedCheckout() {
   const saveAgreement = useMutation(
     api.legal.membershipAgreements.createMembershipAgreement,
   );
+  const { isAuthenticated } = useConvexAuth();
+  const [intake, setIntake] = useState<{
+    userId: string;
+    profile: CheckoutProfile;
+  } | null>(null);
+  const profile = intake && intake.userId === user?.id ? intake.profile : null;
+  const canSign = Boolean(isSignedIn && isAuthenticated && profile);
   const [signatures, setSignatures] = useState<Record<string, string>>({});
   const [openProduct, setOpenProduct] = useState<string | null>(null);
   const [termsOpen, setTermsOpen] = useState(false);
@@ -95,9 +84,11 @@ export function UnifiedCheckout() {
   const submitting = useRef(false);
   const charge = (item: CartItem) =>
     getPrice(item.product, cart.cadence, cart.paymentMethod);
+  const subtotalCents = cart.items.reduce((sum, item) => sum + charge(item), 0);
   const key = (item: CartItem) =>
     JSON.stringify([
       user?.id,
+      profile,
       item.productId,
       cart.cadence,
       cart.paymentMethod,
@@ -110,7 +101,7 @@ export function UnifiedCheckout() {
     cart.items.map((item) => item.product.slug),
   );
   const canPay =
-    !!isSignedIn &&
+    canSign &&
     signedAll &&
     termsAccepted &&
     !busy &&
@@ -119,25 +110,21 @@ export function UnifiedCheckout() {
   const signing = cart.items.find((item) => item.productId === openProduct);
   const period = cart.cadence === "annual" ? "year" : "month";
   async function pay() {
-    if (!canPay || !user || submitting.current) return;
+    if (!canPay || !user || !profile || submitting.current) return;
     submitting.current = true;
     setBusy(true);
     setError("");
     try {
-      const profile = profileFromBrowser();
-      const address = Object.values(profile?.address || {})
-        .filter(Boolean)
-        .join(", ");
+      const address = checkoutAddress(profile);
+      const agreementIds: string[] = [];
       // Persist every signed agreement before creating a payment session. A failed save blocks payment.
       try {
         for (const item of cart.items) {
-          await saveAgreement({
+          const saved = await saveAgreement({
+            productId: item.productId as Id<"catalogProducts">,
             userId: user.id,
             memberId: user.id,
-            memberName:
-              user.fullName ||
-              user.primaryEmailAddress?.emailAddress ||
-              "Member",
+            memberName: `${profile.firstName} ${profile.lastName}`,
             memberAddress: address,
             email: user.primaryEmailAddress?.emailAddress || "",
             planName: membershipLabel(item),
@@ -160,6 +147,7 @@ export function UnifiedCheckout() {
             memberSignature: signatures[key(item)],
             signatureTimestamp: Date.now(),
           });
+          agreementIds.push(saved.agreementId);
         }
       } catch {
         throw new Error(
@@ -181,7 +169,8 @@ export function UnifiedCheckout() {
           paymentMethod: cart.paymentMethod,
           siteSlug: "assurevantage",
           referralCode: cart.referralCode || undefined,
-          memberProfile: profile || undefined,
+          memberProfile: profile,
+          agreementIds,
           successUrl: `${window.location.origin}/assurevantage/program-success?session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: `${window.location.origin}/assurevantage/program-checkout`,
         }),
@@ -244,16 +233,18 @@ export function UnifiedCheckout() {
             </ul>
             <h3>Billing Cycle</h3>
             <div className={styles.billing}>
-              {(["monthly", "annual"] as const).map((cadence) => (
-                <button
-                  key={cadence}
-                  aria-pressed={cart.cadence === cadence}
-                  disabled={busy || (monthlyOnly && cadence === "annual")}
-                  onClick={() => setCadence(cadence)}
-                >
-                  {cadence === "monthly" ? "Monthly" : "Annual"}
-                </button>
-              ))}
+              {(["monthly", "annual"] as const)
+                .filter((cadence) => !monthlyOnly || cadence === "monthly")
+                .map((cadence) => (
+                  <button
+                    key={cadence}
+                    aria-pressed={cart.cadence === cadence}
+                    disabled={busy || (monthlyOnly && cadence === "annual")}
+                    onClick={() => setCadence(cadence)}
+                  >
+                    {cadence === "monthly" ? "Monthly" : "Annual"}
+                  </button>
+                ))}
             </div>
             {monthlyOnly && (
               <p className={styles.fine}>
@@ -320,6 +311,19 @@ export function UnifiedCheckout() {
                 <InlineAuth />
               </div>
             )}
+            {isSignedIn && user && (
+              <CheckoutIntake
+                key={user.id}
+                userId={user.id}
+                email={user.primaryEmailAddress?.emailAddress || ""}
+                firstName={user.firstName}
+                lastName={user.lastName}
+                onReset={() => setIntake(null)}
+                onComplete={(confirmed) =>
+                  setIntake({ userId: user.id, profile: confirmed })
+                }
+              />
+            )}
           </Section>
           <Section number={4} title="Agent / Rep Selection">
             <AgentRepCodeSelector
@@ -341,7 +345,7 @@ export function UnifiedCheckout() {
                   <span>{membershipLabel(item)} membership agreement</span>
                   <button
                     className={styles.secondary}
-                    disabled={!isSignedIn || busy}
+                    disabled={!canSign || busy}
                     onClick={() => setOpenProduct(item.productId)}
                   >
                     {signatures[key(item)]
@@ -351,10 +355,11 @@ export function UnifiedCheckout() {
                 </div>
               ))}
             </div>
-            {!isSignedIn && (
+            {!canSign && (
               <p className={styles.fine}>
-                Complete Account in Step 3 to sign in your own name. You can
-                review your order and pricing before creating an account.
+                Complete Account and confirm member details in Step 3 to sign in
+                your own name. You can review your order and pricing before
+                creating an account.
               </p>
             )}
             <button
@@ -405,6 +410,11 @@ export function UnifiedCheckout() {
               {isSignedIn ? "✓ Account ready" : "Complete Account in Step 3"}
             </li>
             <li>
+              {profile
+                ? "✓ Member details confirmed"
+                : "Confirm member details and eligibility intake in Step 3"}
+            </li>
+            <li>
               {signedAll
                 ? "✓ Agreements signed"
                 : "Review and sign all agreements in Step 5"}
@@ -427,7 +437,8 @@ export function UnifiedCheckout() {
           </p>
         </aside>
       </div>
-      {signing &&
+      {canSign &&
+        signing &&
         (isMembershipProgramSlug(signing.product.slug) ? (
           <EssentialsMembershipModal
             key={key(signing)}
@@ -439,8 +450,11 @@ export function UnifiedCheckout() {
               setOpenProduct(null);
             }}
             memberData={{
-              memberName:
-                user?.fullName || user?.primaryEmailAddress?.emailAddress || "",
+              memberName: profile
+                ? `${profile.firstName} ${profile.lastName}`
+                : user?.fullName ||
+                  user?.primaryEmailAddress?.emailAddress ||
+                  "",
               email: user?.primaryEmailAddress?.emailAddress || "",
               planName: membershipLabel(signing),
               periodicChargeCents: charge(signing),
@@ -458,9 +472,12 @@ export function UnifiedCheckout() {
             }}
             memberData={{
               memberId: "Assigned after enrollment",
-              memberName:
-                user?.fullName || user?.primaryEmailAddress?.emailAddress || "",
-              memberAddress: "",
+              memberName: profile
+                ? `${profile.firstName} ${profile.lastName}`
+                : user?.fullName ||
+                  user?.primaryEmailAddress?.emailAddress ||
+                  "",
+              memberAddress: profile ? checkoutAddress(profile) : "",
               email: user?.primaryEmailAddress?.emailAddress || "",
               planName: membershipLabel(signing),
               groupCode: PROVIDER_GROUP_CODE,

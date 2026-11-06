@@ -27,9 +27,9 @@ export function PlatformNav() {
       .forEach((node) => node.removeAttribute("open"));
   }, [pathname]);
   const benefits = [
-    { path: "virtual-care", label: "Virtual care" },
-    { path: "labs", label: "Lab services" },
-    { path: "pharmacy", label: "Prescription savings" },
+    { path: "virtual-care", label: "Virtual care", feature: "telehealth" as const },
+    { path: "labs", label: "Lab services", feature: "labServices" as const },
+    { path: "pharmacy", label: "Prescription savings", feature: "rxSavings" as const },
     { path: "balance-for-life", label: "Mental wellbeing" },
     { path: "oralcare", label: "Oral Care" },
     {

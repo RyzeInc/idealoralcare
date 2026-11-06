@@ -10,11 +10,14 @@
  * 4. Confirm and complete purchase
  */
 
+import { useCheckoutEnrollment } from "@/components/checkout/useCheckoutEnrollment";
+import { CheckoutIntake } from "@/components/checkout/CheckoutIntake";
+import { checkoutAddress } from "@/lib/checkout-profile";
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useUser, useSignIn, useSignUp } from "@clerk/nextjs";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { PROVIDER_GROUP_CODE } from '@/lib/constants';
 import { 
@@ -47,7 +50,6 @@ import { CadenceModal } from "@/components/health/catalog";
 import { MembershipAgreementModal, TermsAndConditionsModal } from "@/components/legal";
 import "@/app/health/health.css";
 import { useBrandName, rebrand } from "@/lib/branding";
-import { SatelliteAuthRedirect } from "@/components/auth/SatelliteAuthRedirect";
 
 /* ─── Inline auth (sign-in / sign-up) used in checkout Step 3 ─────────────── */
 function GoogleIcon() {
@@ -682,7 +684,7 @@ function InlineAuth() {
   );
 }
 
-function CheckoutContent() {
+export function CheckoutContent() {
   const { user, isLoaded, isSignedIn } = useUser();
   // This component is also rendered under /[siteSlug]/checkout (a re-export
   // of this page). useParams() reflects the matched route regardless of
@@ -693,7 +695,6 @@ function CheckoutContent() {
   const {
     cart,
     itemCount,
-    subtotalCents,
     setPaymentMethod,
     setCadence,
     removeItem,
@@ -703,6 +704,7 @@ function CheckoutContent() {
     syncProductPricing,
   } = useCart();
   const brandName = useBrandName();
+  const subtotalCents = cart.items.reduce((sum, item) => sum + getPrice(item.product, cart.cadence, cart.paymentMethod), 0);
 
   // Live catalog — used to auto-select a plan when the shopper arrives
   // straight from an "Enroll Now" button (e.g. /health/checkout?plan=individual)
@@ -742,14 +744,14 @@ function CheckoutContent() {
     if (chosen) addItem(chosen);
   }, [cartLoaded, intentResolved, enrollIntent, itemCount, products, addItem]);
   
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const enrollment = useCheckoutEnrollment(cart, user?.id, user?.primaryEmailAddress?.emailAddress);
+  const agreedToTerms = enrollment.hasSignature("oral");
   const [agreedToNotInsurance, setAgreedToNotInsurance] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   
   // Legal modal state
   const [membershipModalOpen, setMembershipModalOpen] = useState(false);
   const [termsModalOpen, setTermsModalOpen] = useState(false);
-  const createMembershipAgreement = useMutation(api.legal.membershipAgreements.createMembershipAgreement);
   
   const periodLabel = cart.cadence === "monthly" ? "Monthly" : "Annual";
   const periodShort = cart.cadence === "monthly" ? "/mo" : "/yr";
@@ -765,14 +767,14 @@ function CheckoutContent() {
   
   // Calculate total (always use card pricing — no ACH discount)
   const cardTotal = cart.items.reduce((sum, item) => {
-    return sum + getPrice(item.product, cart.cadence, "card");
+    return sum + getPrice(item.product, cart.cadence, cart.paymentMethod);
   }, 0);
   const achSavings = 0;
   const totalDueToday = cardTotal;
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   
   const handleCheckout = async () => {
-    if (!isSignedIn || !agreedToTerms || !agreedToNotInsurance) return;
+    if (!isSignedIn || !enrollment.canSign || !agreedToTerms || !agreedToNotInsurance) return;
     if (itemCount === 0) return;
 
     const primaryItem = cart.items[0];
@@ -782,17 +784,7 @@ function CheckoutContent() {
       setCheckoutLoading(true);
       setCheckoutError(null);
 
-      // Forward the profile collected during the signup wizard (DOB, gender,
-      // phone, address) so the webhook can persist it onto the member record.
-      // Without this, those census fields are silently dropped after payment.
-      let memberProfile: unknown = undefined;
-      try {
-        const stored = sessionStorage.getItem("careington_profile");
-        if (stored) memberProfile = JSON.parse(stored);
-      } catch {
-        // Ignore unavailable or malformed sessionStorage — checkout still proceeds.
-      }
-
+      const agreementIds = await enrollment.prepareCheckout();
       const response = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -803,7 +795,9 @@ function CheckoutContent() {
           paymentMethod: cart.paymentMethod,
           referralCode: cart.referralCode || undefined,
           siteSlug,
-          ...(memberProfile ? { memberProfile } : {}),
+          memberProfile: enrollment.profile,
+          agreementIds,
+          checkoutVersion: "confirmed-v1",
         }),
       });
 
@@ -1276,6 +1270,8 @@ function CheckoutContent() {
                 ) : (
                   <InlineAuth />
                 )}
+                {isSignedIn && user && <CheckoutIntake key={user.id} userId={user.id} email={user.primaryEmailAddress?.emailAddress || ""} firstName={user.firstName} lastName={user.lastName} onComplete={enrollment.confirmProfile} onReset={enrollment.resetProfile} />}
+
               </div>
               
               {/* Referral Code / Agent Selector */}
@@ -1309,7 +1305,7 @@ function CheckoutContent() {
                 <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
                   {/* Checkbox 1 → opens MembershipAgreementModal */}
                   <div
-                    onClick={() => { if (!agreedToTerms) setMembershipModalOpen(true); }}
+                    onClick={() => { if (enrollment.canSign && !agreedToTerms) setMembershipModalOpen(true); }}
                     style={{
                       display: "flex",
                       gap: "0.75rem",
@@ -1505,6 +1501,7 @@ function CheckoutContent() {
                     <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.6rem" }}>
                       {[
                         { done: isSignedIn, label: "Create your account or sign in (Step 3)" },
+                        { done: enrollment.canSign, label: "Confirm member details and eligibility intake (Step 3)" },
                         { done: agreedToTerms, label: "Review & sign the membership agreement (Step 4)" },
                         { done: agreedToNotInsurance, label: "Confirm you understand this is not insurance (Step 4)" },
                       ].map((s, i) => (
@@ -1540,7 +1537,7 @@ function CheckoutContent() {
                 {/* Checkout Button — redirects to Stripe Checkout */}
                 <button
                   onClick={handleCheckout}
-                  disabled={!isSignedIn || !agreedToTerms || !agreedToNotInsurance || checkoutLoading}
+                  disabled={!isSignedIn || !enrollment.canSign || !agreedToTerms || !agreedToNotInsurance || checkoutLoading}
                   className="button button--primary"
                   style={{
                     width: "100%",
@@ -1609,38 +1606,13 @@ function CheckoutContent() {
         isOpen={membershipModalOpen}
         onClose={() => setMembershipModalOpen(false)}
         onAccept={(signature: string) => {
-          setAgreedToTerms(true);
+          enrollment.recordSignature("oral", signature);
           setMembershipModalOpen(false);
-          if (user?.id) {
-            const planName = cart.items?.[0]?.product?.name || `${brandName} Savings Plan`;
-            createMembershipAgreement({
-              userId: user.id,
-              memberId: user.id, // placeholder — linked to the real member ID by the Stripe webhook once enrollment completes
-              memberName: user?.fullName || user?.emailAddresses?.[0]?.emailAddress || "Member",
-              memberAddress: "Address on file",
-              email: user?.emailAddresses?.[0]?.emailAddress || "",
-              planName,
-              groupCode: PROVIDER_GROUP_CODE,
-              term: periodLabel,
-              classification: planName.toLowerCase().includes("family") ? "Member and Family" : "Member Only",
-              paymentMode: cart.paymentMethod === "ach" ? "Bank Draft" : "Credit Card",
-              periodicCharge: `$${(subtotalCents / 100).toFixed(2)}`,
-              processingFee: "$0.00",
-              membershipTermsAgreed: true,
-              termsAndConditionsAgreed: true,
-              memberSignature: signature,
-              signatureTimestamp: Date.now(),
-            }).catch((err) => {
-              // Non-fatal — the signed agreement not persisting shouldn't block checkout,
-              // but we log it so it's visible in monitoring.
-              console.error("[checkout] Failed to persist membership agreement:", err);
-            });
-          }
         }}
         memberData={{
           memberId: user?.id || "TBD",
           memberName: user?.fullName || user?.emailAddresses?.[0]?.emailAddress || "Member",
-          memberAddress: "Address on file",
+          memberAddress: enrollment.profile ? checkoutAddress(enrollment.profile) : "",
           email: user?.emailAddresses?.[0]?.emailAddress || "",
           planName: cart.items?.[0]?.product?.name || `${brandName} Savings Plan`,
           groupCode: PROVIDER_GROUP_CODE,
@@ -1684,7 +1656,7 @@ function CheckoutContent() {
 export default function CheckoutPage() {
   return (
     <Suspense fallback={null}>
-      <SatelliteAuthRedirect mode="checkout"><CheckoutContent /></SatelliteAuthRedirect>
+      <CheckoutContent />
     </Suspense>
   );
 }

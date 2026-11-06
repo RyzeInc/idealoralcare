@@ -458,6 +458,7 @@ export function InlineAuth() {
     sessionStorage.setItem(
       "careington_profile",
       JSON.stringify({
+        firstName, lastName, email,
         dateOfBirth,
         gender,
         ...(phoneNumber.replace(/\D/g, "").length === 10 && {
