@@ -18,6 +18,8 @@ export default async function SiteSlugDashboardLayout({
     redirect(`/${siteSlug}/sign-in`);
   }
 
+  if (siteSlug === "assurevantage") return <>{children}</>;
+
   try {
     const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
     if (!convexUrl) {
@@ -25,13 +27,18 @@ export default async function SiteSlugDashboardLayout({
     }
     const convex = new ConvexHttpClient(convexUrl);
 
-    const isAdmin = await convex.query(api.admin.adminUsers.isAdmin, { clerkUserId: userId });
+    const isAdmin = await convex.query(api.admin.adminUsers.isAdmin, {
+      clerkUserId: userId,
+    });
     if (isAdmin) return <>{children}</>;
 
-    const bundle = await convex.query(api.subscriptions.queries.getCustomerBundlePublic, {
-      customerId: userId,
-      serviceSecret: convexServiceSecret(),
-    });
+    const bundle = await convex.query(
+      api.subscriptions.queries.getCustomerBundlePublic,
+      {
+        customerId: userId,
+        serviceSecret: convexServiceSecret(),
+      },
+    );
 
     if (!bundle) {
       redirect(`/${siteSlug}/plans`);
@@ -41,7 +48,10 @@ export default async function SiteSlugDashboardLayout({
     const now = Date.now();
     let hasAccess = false;
 
-    if (bundle.status === "active" || bundle.status === "cancel_at_period_end") {
+    if (
+      bundle.status === "active" ||
+      bundle.status === "cancel_at_period_end"
+    ) {
       hasAccess = true;
     } else if (bundle.status === "past_due" && bundle.pastDueAt) {
       hasAccess = now - bundle.pastDueAt < GRACE_PERIOD_MS;

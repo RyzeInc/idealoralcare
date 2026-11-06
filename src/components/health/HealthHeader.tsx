@@ -2,7 +2,7 @@
 
 /**
  * SHARED HEALTH HEADER
- * 
+ *
  * Unified navigation for all /health/* pages
  * Matches the existing glassmorphism design from health.css
  * Includes: Services dropdown, For Organizations, About Us, Resource Center, Explore Plans
@@ -10,7 +10,6 @@
  */
 
 import Link from "next/link";
-import { usesAssurePlatformNavigation } from "@/lib/program-brand";
 import { usePathname } from "next/navigation";
 import { ShoppingCart, Menu, X } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -33,8 +32,10 @@ interface HealthHeaderProps {
 
 export default function HealthHeader(props: HealthHeaderProps) {
   const pathname = usePathname();
-  if (usesAssurePlatformNavigation(pathname)) return null;
-  if (pathname === "/health" || pathname.startsWith("/health/")) return <LegacyHealthHeader {...props} />;
+  if (pathname === "/assurevantage" || pathname.startsWith("/assurevantage/"))
+    return null;
+  if (pathname === "/health" || pathname.startsWith("/health/"))
+    return <LegacyHealthHeader {...props} />;
   return <ConfigurableHealthHeader {...props} />;
 }
 
@@ -51,13 +52,29 @@ function ConfigurableHealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
   // load is worse than one that briefly outlives a switch-off.
   const theme = useSiteThemeOptional();
   const globalShopEnabled = useQuery(api.shop.queries.isEnabled) !== false;
-  const shopEnabled = globalShopEnabled && (pathname.startsWith("/health/") || pathname === "/health" || theme?.site?.shopEnabled === true);
+  const shopEnabled =
+    globalShopEnabled &&
+    (pathname.startsWith("/health/") ||
+      pathname === "/health" ||
+      theme?.site?.shopEnabled === true);
   const services = [
-    { feature: "oralScan", path: "oral-health-scan", label: "Oral Health Scan" },
+    {
+      feature: "oralScan",
+      path: "oral-health-scan",
+      label: "Oral Health Scan",
+    },
     { feature: "teledentistry", path: "teledentistry", label: "Teledentistry" },
-    { feature: "dentalDiscount", path: "discount", label: "Dental Discount Network" },
+    {
+      feature: "dentalDiscount",
+      path: "discount",
+      label: "Dental Discount Network",
+    },
   ] as const;
-  const visibleServices = theme?.isLoading ? [] : services.filter(service => isSiteMarketingEnabled(theme?.site?.marketing, service.feature));
+  const visibleServices = theme?.isLoading
+    ? []
+    : services.filter((service) =>
+        isSiteMarketingEnabled(theme?.site?.marketing, service.feature),
+      );
 
   // Lock background scroll while the mobile menu is open so the page
   // doesn't slide around behind the menu — a common source of confusion.
@@ -65,17 +82,20 @@ function ConfigurableHealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
     if (mobileMenuOpen) {
       const original = document.body.style.overflow;
       document.body.style.overflow = "hidden";
-      return () => { document.body.style.overflow = original; };
+      return () => {
+        document.body.style.overflow = original;
+      };
     }
   }, [mobileMenuOpen]);
 
   // Compute the base path segment so all links work for any brand route
-  const basePath = `/${pathname.split('/')[1]}`;
+  const basePath = `/${pathname.split("/")[1]}`;
 
   // Determine if Explore Plans should be highlighted
-  const isPlansActive = pathname.startsWith(`${basePath}/plans`) ||
-                        pathname === `${basePath}/compare` ||
-                        pathname === `${basePath}/checkout`;
+  const isPlansActive =
+    pathname.startsWith(`${basePath}/plans`) ||
+    pathname === `${basePath}/compare` ||
+    pathname === `${basePath}/checkout`;
 
   const toggleDropdown = (name: string) => {
     setOpenDropdown(openDropdown === name ? null : name);
@@ -88,205 +108,266 @@ function ConfigurableHealthHeader({ cartItemCount = 0 }: HealthHeaderProps) {
 
   return (
     <>
-    {/* Backdrop — sits behind the dropdown; tap anywhere outside to close.
+      {/* Backdrop — sits behind the dropdown; tap anywhere outside to close.
         Rendered as a sibling of <header> because the header's backdrop-filter
         would otherwise trap a position:fixed child inside the header box. */}
-    {mobileMenuOpen && (
-      <div className={styles.mobileBackdrop} onClick={closeMenu} aria-hidden="true" />
-    )}
-    <header className="site-header">
-      <div className={styles.headerContainer}>
-        <IdealHealthWordmark />
-        
-        {/* Desktop Navigation */}
-        <nav className={styles.desktopNav}>
-          <ul className="nav-list">
-            {/* Services Dropdown */}
-            {visibleServices.length > 0 && <li className="nav-item nav-item--dropdown">
-              <a href="#" className="nav-link nav-link--dropdown">Services</a>
-              <div className="dropdown-menu">
-                <p className="dropdown-description">Explore our oral health services.</p>
-                <ul className="dropdown-list">
-                  {visibleServices.map(service => <li key={service.feature}><Link href={`${basePath}/${service.path}`}>{service.label}</Link></li>)}
-                </ul>
-              </div>
-            </li>}
+      {mobileMenuOpen && (
+        <div
+          className={styles.mobileBackdrop}
+          onClick={closeMenu}
+          aria-hidden="true"
+        />
+      )}
+      <header className="site-header">
+        <div className={styles.headerContainer}>
+          <IdealHealthWordmark />
 
-            {/* Shop — deliberately its own item, not under Services. Services
-                are plan benefits; the shop is outbound affiliate retail and
-                must never read as something a plan includes. */}
-            {shopEnabled && (
-              <li className="nav-item">
-                <Link href={`${basePath}/shop`} className="nav-link">Shop</Link>
-              </li>
-            )}
-
-            {/* Explore Plans - Primary CTA */}
-            <li className="nav-item">
-              <Link
-                href={`${basePath}/plans`}
-                className={`button button--primary ${isPlansActive ? 'button--active' : ''}`}
-                style={{ 
-                  padding: '10px 22px', 
-                  fontSize: '0.9375rem',
-                  marginLeft: '12px',
-                  fontWeight: '600',
-                  background: '#14b8a6',
-                  color: 'white',
-                  borderRadius: '10px',
-                  textDecoration: 'none',
-                  transition: 'all 0.2s',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; e.currentTarget.style.transform = 'translateY(0)'; }}
-              >
-                Explore Plans
-              </Link>
-            </li>
-            
-            {/* Cart Icon (only show if items in cart, and only on client after mount) */}
-            {isMounted && cartItemCount > 0 && (
-              <li className="nav-item">
-                <Link
-                  href={`${basePath}/checkout`}
-                  className="nav-link"
-                  style={{
-                    position: 'relative',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    marginLeft: '8px'
-                  }}
-                >
-                  <ShoppingCart size={20} />
-                  <span 
-                    style={{
-                      position: 'absolute',
-                      top: '2px',
-                      right: '8px',
-                      background: 'var(--accent-teal)',
-                      color: 'white',
-                      fontSize: '0.6875rem',
-                      fontWeight: '600',
-                      width: '18px',
-                      height: '18px',
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                  >
-                    {cartItemCount}
-                  </span>
-                </Link>
-              </li>
-            )}
-            
-            {/* Member Portal - Always visible on all pages */}
-            <li className="nav-item" style={{ marginLeft: '8px' }}>
-              <MemberPortalButton />
-            </li>
-          </ul>
-        </nav>
-
-        {/* Mobile Menu Button — labeled so it clearly reads as a tappable menu */}
-        <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className={styles.mobileMenuButton}
-          aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
-          aria-expanded={mobileMenuOpen}
-        >
-          {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
-          <span className={styles.mobileMenuButtonLabel}>{mobileMenuOpen ? "Close" : "Menu"}</span>
-        </button>
-
-        {/* Mobile Navigation Menu */}
-        {mobileMenuOpen && (
-          <div className={`${styles.mobileMenu} ${mobileMenuOpen ? styles.open : ''}`}>
-          <div className={styles.mobileMenuContent}>
-              {/* Primary action — Enroll Now goes straight to checkout */}
-              <div className={styles.mobileMenuSection}>
-                <Link
-                  href={`${basePath}/checkout?plan=individual`}
-                  onClick={closeMenu}
-                  className="button button--accent"
-                  style={{
-                    display: "block",
-                    textAlign: "center",
-                    width: "100%",
-                    padding: "0.9rem 1rem",
-                    fontSize: "1.0625rem",
-                    fontWeight: 700,
-                    textDecoration: "none",
-                  }}
-                >
-                  Enroll Now
-                </Link>
-              </div>
-
-              {/* Services Mobile Dropdown */}
-              {visibleServices.length > 0 && <div className={styles.mobileMenuSection}>
-                <button
-                  onClick={() => toggleDropdown('services')}
-                  className={styles.mobileMenuToggle}
-                >
-                  Services
-                  <span style={{ fontSize: "0.75rem" }}>{openDropdown === 'services' ? '−' : '+'}</span>
-                </button>
-                <div className={`${styles.mobileMenuDropdown} ${openDropdown === 'services' ? styles.open : ''}`}>
-                  <div>
-                    {visibleServices.map(service => <Link key={service.feature} href={`${basePath}/${service.path}`} onClick={closeMenu} className={styles.mobileMenuLink}>{service.label}</Link>)}
+          {/* Desktop Navigation */}
+          <nav className={styles.desktopNav}>
+            <ul className="nav-list">
+              {/* Services Dropdown */}
+              {visibleServices.length > 0 && (
+                <li className="nav-item nav-item--dropdown">
+                  <a href="#" className="nav-link nav-link--dropdown">
+                    Services
+                  </a>
+                  <div className="dropdown-menu">
+                    <p className="dropdown-description">
+                      Explore our oral health services.
+                    </p>
+                    <ul className="dropdown-list">
+                      {visibleServices.map((service) => (
+                        <li key={service.feature}>
+                          <Link href={`${basePath}/${service.path}`}>
+                            {service.label}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                </div>
-              </div>}
-
-              {/* Shop — outside the Services group on purpose (see desktop nav) */}
-              {shopEnabled && (
-                <Link href={`${basePath}/shop`} onClick={closeMenu} className={styles.mobileMenuLink}>
-                  Shop
-                </Link>
+                </li>
               )}
 
-              {/* For Organizations Mobile */}
+              {/* Shop — deliberately its own item, not under Services. Services
+                are plan benefits; the shop is outbound affiliate retail and
+                must never read as something a plan includes. */}
+              {shopEnabled && (
+                <li className="nav-item">
+                  <Link href={`${basePath}/shop`} className="nav-link">
+                    Shop
+                  </Link>
+                </li>
+              )}
 
-              {/* About Us Mobile */}
-
-              {/* Resource Center */}
-
-              {/* Explore Plans CTA */}
-              <div className={styles.mobileMenuSection} style={{ borderTop: "1px solid #e2e8f0", paddingTop: "1rem" }}>
+              {/* Explore Plans - Primary CTA */}
+              <li className="nav-item">
                 <Link
                   href={`${basePath}/plans`}
-                  onClick={closeMenu}
-                  className="button button--primary"
+                  className={`button button--primary ${isPlansActive ? "button--active" : ""}`}
                   style={{
-                    display: "block",
-                    textAlign: "center",
-                    width: "100%",
-                    padding: "0.75rem 1rem",
-                    textDecoration: "none"
+                    padding: "10px 22px",
+                    fontSize: "0.9375rem",
+                    marginLeft: "12px",
+                    fontWeight: "600",
+                    background: "#14b8a6",
+                    color: "white",
+                    borderRadius: "10px",
+                    textDecoration: "none",
+                    transition: "all 0.2s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "#0d9488";
+                    e.currentTarget.style.transform = "translateY(-1px)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "#14b8a6";
+                    e.currentTarget.style.transform = "translateY(0)";
                   }}
                 >
                   Explore Plans
                 </Link>
-              </div>
+              </li>
 
-              {/* Member Portal (Mobile) - Always visible */}
-              <div className={styles.mobileMenuSection} style={{ borderTop: "1px solid #e2e8f0", paddingTop: "1rem" }}>
-                <Link
-                  href={isSignedIn ? `${basePath}/dashboard` : `${basePath}/sign-in`}
-                  onClick={closeMenu}
-                  className={styles.mobileMenuToggle}
-                  style={{ color: "#14b8a6", fontWeight: "600", textDecoration: "none" }}
+              {/* Cart Icon (only show if items in cart, and only on client after mount) */}
+              {isMounted && cartItemCount > 0 && (
+                <li className="nav-item">
+                  <Link
+                    href={`${basePath}/checkout`}
+                    className="nav-link"
+                    style={{
+                      position: "relative",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      marginLeft: "8px",
+                    }}
+                  >
+                    <ShoppingCart size={20} />
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: "2px",
+                        right: "8px",
+                        background: "var(--accent-teal)",
+                        color: "white",
+                        fontSize: "0.6875rem",
+                        fontWeight: "600",
+                        width: "18px",
+                        height: "18px",
+                        borderRadius: "50%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      {cartItemCount}
+                    </span>
+                  </Link>
+                </li>
+              )}
+
+              {/* Member Portal - Always visible on all pages */}
+              <li className="nav-item" style={{ marginLeft: "8px" }}>
+                <MemberPortalButton />
+              </li>
+            </ul>
+          </nav>
+
+          {/* Mobile Menu Button — labeled so it clearly reads as a tappable menu */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className={styles.mobileMenuButton}
+            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileMenuOpen}
+          >
+            {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+            <span className={styles.mobileMenuButtonLabel}>
+              {mobileMenuOpen ? "Close" : "Menu"}
+            </span>
+          </button>
+
+          {/* Mobile Navigation Menu */}
+          {mobileMenuOpen && (
+            <div
+              className={`${styles.mobileMenu} ${mobileMenuOpen ? styles.open : ""}`}
+            >
+              <div className={styles.mobileMenuContent}>
+                {/* Primary action — Enroll Now goes straight to checkout */}
+                <div className={styles.mobileMenuSection}>
+                  <Link
+                    href={`${basePath}/checkout?plan=individual`}
+                    onClick={closeMenu}
+                    className="button button--accent"
+                    style={{
+                      display: "block",
+                      textAlign: "center",
+                      width: "100%",
+                      padding: "0.9rem 1rem",
+                      fontSize: "1.0625rem",
+                      fontWeight: 700,
+                      textDecoration: "none",
+                    }}
+                  >
+                    Enroll Now
+                  </Link>
+                </div>
+
+                {/* Services Mobile Dropdown */}
+                {visibleServices.length > 0 && (
+                  <div className={styles.mobileMenuSection}>
+                    <button
+                      onClick={() => toggleDropdown("services")}
+                      className={styles.mobileMenuToggle}
+                    >
+                      Services
+                      <span style={{ fontSize: "0.75rem" }}>
+                        {openDropdown === "services" ? "−" : "+"}
+                      </span>
+                    </button>
+                    <div
+                      className={`${styles.mobileMenuDropdown} ${openDropdown === "services" ? styles.open : ""}`}
+                    >
+                      <div>
+                        {visibleServices.map((service) => (
+                          <Link
+                            key={service.feature}
+                            href={`${basePath}/${service.path}`}
+                            onClick={closeMenu}
+                            className={styles.mobileMenuLink}
+                          >
+                            {service.label}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Shop — outside the Services group on purpose (see desktop nav) */}
+                {shopEnabled && (
+                  <Link
+                    href={`${basePath}/shop`}
+                    onClick={closeMenu}
+                    className={styles.mobileMenuLink}
+                  >
+                    Shop
+                  </Link>
+                )}
+
+                {/* For Organizations Mobile */}
+
+                {/* About Us Mobile */}
+
+                {/* Resource Center */}
+
+                {/* Explore Plans CTA */}
+                <div
+                  className={styles.mobileMenuSection}
+                  style={{ borderTop: "1px solid #e2e8f0", paddingTop: "1rem" }}
                 >
-                  {isSignedIn ? "My Dashboard" : "Member Portal"}
-                </Link>
+                  <Link
+                    href={`${basePath}/plans`}
+                    onClick={closeMenu}
+                    className="button button--primary"
+                    style={{
+                      display: "block",
+                      textAlign: "center",
+                      width: "100%",
+                      padding: "0.75rem 1rem",
+                      textDecoration: "none",
+                    }}
+                  >
+                    Explore Plans
+                  </Link>
+                </div>
+
+                {/* Member Portal (Mobile) - Always visible */}
+                <div
+                  className={styles.mobileMenuSection}
+                  style={{ borderTop: "1px solid #e2e8f0", paddingTop: "1rem" }}
+                >
+                  <Link
+                    href={
+                      isSignedIn
+                        ? `${basePath}/dashboard`
+                        : `${basePath}/sign-in`
+                    }
+                    onClick={closeMenu}
+                    className={styles.mobileMenuToggle}
+                    style={{
+                      color: "#14b8a6",
+                      fontWeight: "600",
+                      textDecoration: "none",
+                    }}
+                  >
+                    {isSignedIn ? "My Dashboard" : "Member Portal"}
+                  </Link>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-      </div>
-    </header>
+          )}
+        </div>
+      </header>
     </>
   );
 }

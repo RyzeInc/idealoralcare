@@ -1,7 +1,7 @@
 import { memberLogoDataUri } from "@/lib/member-logo";
-import { memberDocumentPrefix } from "@/convex/lib/memberBrand";
+import { memberPlanName, memberDocumentPrefix } from "@/convex/lib/memberBrand";
 import { NextRequest, NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+import { currentUser, auth } from "@clerk/nextjs/server";
 import { convexServiceSecret } from "@/lib/convex-service";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
@@ -25,7 +25,10 @@ import {
   type EssentialsPacketData,
 } from "@/lib/essentials-packet-pdf";
 import { isBflSlug, isMembershipProgramSlug } from "@/convex/lib/productSlugs";
-import { essentialsAppendPaths, bflAppQrData } from "@/lib/essentials-packet-assets";
+import {
+  essentialsAppendPaths,
+  bflAppQrData,
+} from "@/lib/essentials-packet-assets";
 import { mergePdfs } from "@/lib/pdf-merge";
 import { PROVIDER_GROUP_CODE } from "@/lib/constants";
 
@@ -53,7 +56,10 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const type = searchParams.get("type") ?? "card";
   if (!["packet", "agreement", "card"].includes(type)) {
-    return NextResponse.json({ error: "Invalid type. Use packet, agreement, or card." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid type. Use packet, agreement, or card." },
+      { status: 400 },
+    );
   }
 
   // Fetch member profile from Convex
@@ -63,14 +69,51 @@ export async function GET(req: NextRequest) {
   try {
     memberProfile = await convex.query(
       api.subscriptions.queries.getMemberCardDataPublic as any,
-      { serviceSecret: convexServiceSecret(), customerId: user.id }
+      { serviceSecret: convexServiceSecret(), customerId: user.id },
     );
     bundleData = await convex.query(
       api.subscriptions.queries.getCustomerBundlePublic,
-      { serviceSecret: convexServiceSecret(), customerId: user.id }
+      { serviceSecret: convexServiceSecret(), customerId: user.id },
     );
   } catch {
     // Fall back to Clerk profile data
+  }
+
+  const requestedProductId = searchParams.get("productId");
+  if (requestedProductId) {
+    const { getToken } = await auth();
+    const token = await getToken({ template: "convex" });
+    if (!token)
+      return NextResponse.json(
+        { error: "Secure session unavailable. Please sign in again." },
+        { status: 503 },
+      );
+    convex.setAuth(token);
+    const owned = await convex.query(
+      api.subscriptions.queries.getMyEntitlements,
+      {},
+    );
+    const entitlement = owned.find(
+      (entry) => String(entry.productId) === requestedProductId,
+    );
+    if (!entitlement?.product)
+      return NextResponse.json(
+        { error: "Membership document not found." },
+        { status: 404 },
+      );
+    if (!memberProfile)
+      return NextResponse.json(
+        {
+          error:
+            "Your member materials are still being prepared. Please contact membership support.",
+        },
+        { status: 409 },
+      );
+    memberProfile = {
+      ...memberProfile,
+      productSlug: entitlement.product.slug,
+      planName: memberPlanName(entitlement.product.name, memberProfile.brand),
+    };
   }
 
   // Load logo once — each program uses its own mark.
@@ -90,15 +133,27 @@ export async function GET(req: NextRequest) {
       essentialsGroupNumber: memberProfile?.essentialsGroupNumber ?? "—",
       bflMemberCode: memberProfile?.bflMemberCode,
       brand: memberProfile?.brand,
-      ...bflAppQrData({ bflMemberCode: memberProfile?.bflMemberCode, brand: memberProfile?.brand }),
-      planName: memberProfile?.planName ?? (isBfl ? "Balance for Life" : "Essentials Plan"),
+      ...bflAppQrData({
+        bflMemberCode: memberProfile?.bflMemberCode,
+        brand: memberProfile?.brand,
+      }),
+      planName:
+        memberProfile?.planName ??
+        (isBfl ? "Balance for Life" : "Essentials Plan"),
       program: isBfl ? "bfl" : "essentials",
       coverageType: essentialsCoverageLabel(memberProfile?.productSlug),
       effectiveDate:
         memberProfile?.effectiveDate ??
-        new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
-      term: bundleData?.pricingSnapshot?.totalCents > 100000 ? "Annual" : "Monthly",
-      logoDataUri: memberProfile?.brand ? memberLogoDataUri(memberProfile.brand) : logoDataUri("ideal-health-logo.png"),
+        new Date().toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        }),
+      term:
+        bundleData?.pricingSnapshot?.totalCents > 100000 ? "Annual" : "Monthly",
+      logoDataUri: memberProfile?.brand
+        ? memberLogoDataUri(memberProfile.brand)
+        : logoDataUri("ideal-health-logo.png"),
       bflLogoDataUri: logoDataUri("newideal/balance-for-life-logo.png"),
     };
 
@@ -108,7 +163,11 @@ export async function GET(req: NextRequest) {
       card: EssentialsMemberCardPdf,
     } as const;
 
-    const filePrefix = essentialsData.brand?.name ? `${memberDocumentPrefix(essentialsData.brand)}_${isBfl ? "Balance_for_Life" : "Essentials"}` : isBfl ? "Ideal_Health_Balance_for_Life" : "Ideal_Health_Essentials";
+    const filePrefix = essentialsData.brand?.name
+      ? `${memberDocumentPrefix(essentialsData.brand)}_${isBfl ? "Balance_for_Life" : "Essentials"}`
+      : isBfl
+        ? "Ideal_Health_Balance_for_Life"
+        : "Ideal_Health_Essentials";
     const essentialsFilenames = {
       packet: `${filePrefix}_Welcome_Packet.pdf`,
       agreement: `${filePrefix}_Membership_Agreement.pdf`,
@@ -127,7 +186,8 @@ export async function GET(req: NextRequest) {
         chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
       }
       let buffer: Buffer = Buffer.concat(chunks);
-      if (key === "packet") buffer = await mergePdfs(buffer, essentialsAppendPaths(essentialsData));
+      if (key === "packet")
+        buffer = await mergePdfs(buffer, essentialsAppendPaths(essentialsData));
 
       return new NextResponse(buffer as unknown as BodyInit, {
         status: 200,
@@ -138,8 +198,14 @@ export async function GET(req: NextRequest) {
         },
       });
     } catch (err) {
-      console.error(`[documents] Essentials PDF generation failed (type=${type}):`, err);
-      return NextResponse.json({ error: "PDF generation failed" }, { status: 500 });
+      console.error(
+        `[documents] Essentials PDF generation failed (type=${type}):`,
+        err,
+      );
+      return NextResponse.json(
+        { error: "PDF generation failed" },
+        { status: 500 },
+      );
     }
   }
 
@@ -153,7 +219,11 @@ export async function GET(req: NextRequest) {
     planName: memberProfile?.planName ?? "Ideal Oral Savings Plan",
     effectiveDate:
       memberProfile?.effectiveDate ??
-      new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
+      new Date().toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      }),
     term: bundleData?.pricingSnapshot?.totalCents > 2000 ? "Annual" : "Monthly",
     memberServicesPhone: "(844) 679-9367",
     memberWebsite: "www.getidealoh.com",
@@ -163,7 +233,10 @@ export async function GET(req: NextRequest) {
 
   data.logoDataUri = memberLogoDataUri(data.brand);
 
-  const docComponents: Record<string, React.ComponentType<{ data: FulfillmentPacketData }>> = {
+  const docComponents: Record<
+    string,
+    React.ComponentType<{ data: FulfillmentPacketData }>
+  > = {
     packet: FulfillmentPacketPdf,
     agreement: MembershipAgreementPdf,
     card: MemberCardPdf,
@@ -177,7 +250,9 @@ export async function GET(req: NextRequest) {
 
   try {
     const DocComponent = docComponents[type];
-    const document = createElement(DocComponent, { data }) as unknown as ReactElement<DocumentProps>;
+    const document = createElement(DocComponent, {
+      data,
+    }) as unknown as ReactElement<DocumentProps>;
     const pdfInstance = pdf(document);
     const stream = await pdfInstance.toBuffer();
 
@@ -197,6 +272,9 @@ export async function GET(req: NextRequest) {
     });
   } catch (err) {
     console.error(`[documents] PDF generation failed (type=${type}):`, err);
-    return NextResponse.json({ error: "PDF generation failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: "PDF generation failed" },
+      { status: 500 },
+    );
   }
 }

@@ -10,9 +10,19 @@
  * For now, these validate Stripe event context via bundleId lookup.
  */
 
-import { mutation, query, internalQuery, internalMutation } from "../_generated/server";
-import { ownServiceSecret, requireServiceSecret, serviceSecretArg } from "../lib/serviceAuth";
+import {
+  mutation,
+  query,
+  internalQuery,
+  internalMutation,
+} from "../_generated/server";
+import {
+  ownServiceSecret,
+  requireServiceSecret,
+  serviceSecretArg,
+} from "../lib/serviceAuth";
 import { v } from "convex/values";
+import { resolveMemberBrand } from "../lib/memberBrand";
 import { internal, api } from "../_generated/api";
 
 /**
@@ -30,7 +40,7 @@ export const getBundleByStripeSubscription = query({
     const bundle = await ctx.db
       .query("subscriptionBundles")
       .filter((q) =>
-        q.eq(q.field("stripeSubscriptionId"), args.stripeSubscriptionId)
+        q.eq(q.field("stripeSubscriptionId"), args.stripeSubscriptionId),
       )
       .first();
 
@@ -91,7 +101,10 @@ export const revokeEntitlementsByBundle = mutation({
 
     let revokedCount = 0;
     for (const entitlement of entitlements) {
-      if (entitlement.status === "active" || entitlement.status === "cancel_at_period_end") {
+      if (
+        entitlement.status === "active" ||
+        entitlement.status === "cancel_at_period_end"
+      ) {
         await ctx.db.patch(entitlement._id, {
           status: "revoked",
           revokedAt: Date.now(),
@@ -132,9 +145,8 @@ export const suspendBundleFromWebhook = mutation({
     // Update bundle status to past_due
     // Set pastDueAt only on first transition to past_due (for 3-day grace period logic)
     const now = Date.now();
-    const pastDueAt =
-      bundle.status === "past_due" ? bundle.pastDueAt : now;
-    
+    const pastDueAt = bundle.status === "past_due" ? bundle.pastDueAt : now;
+
     await ctx.db.patch(args.bundleId, {
       status: "past_due",
       updatedAt: now,
@@ -182,7 +194,10 @@ export const reactivateBundleFromWebhook = mutation({
 
     // Only reactivate if currently past_due
     if (bundle.status !== "past_due") {
-      return { reactivated: false, reason: `Bundle status is ${bundle.status}, not past_due` };
+      return {
+        reactivated: false,
+        reason: `Bundle status is ${bundle.status}, not past_due`,
+      };
     }
 
     // Update bundle status back to active and clear pastDueAt
@@ -240,7 +255,8 @@ export const webhookCreateDependentProfiles = internalMutation({
       throw new Error("Invalid dependentsJson: must be valid JSON");
     }
 
-    if (!Array.isArray(dependents) || dependents.length === 0) return { created: 0 };
+    if (!Array.isArray(dependents) || dependents.length === 0)
+      return { created: 0 };
 
     const results: Array<{ dependentId: string; inviteToken: string }> = [];
 
@@ -256,9 +272,12 @@ export const webhookCreateDependentProfiles = internalMutation({
           email: dep.email,
           dateOfBirth: dep.dateOfBirth,
           relationship: dep.relationship ?? "other",
-        }
+        },
       );
-      results.push({ dependentId: result.dependentId.toString(), inviteToken: result.inviteToken });
+      results.push({
+        dependentId: result.dependentId.toString(),
+        inviteToken: result.inviteToken,
+      });
     }
 
     return { created: results.length, results };
@@ -453,7 +472,9 @@ export const clearPendingDowngrade = mutation({
  */
 export const getMemberForCancellation = query({
   args: {
-    serviceSecret: serviceSecretArg, customerId: v.string() },
+    serviceSecret: serviceSecretArg,
+    customerId: v.string(),
+  },
   handler: async (ctx, args) => {
     requireServiceSecret(args.serviceSecret);
     const profile = await ctx.db
@@ -467,7 +488,10 @@ export const getMemberForCancellation = query({
     const memberFacingId: string =
       (profile as any).careingtonUniqueId ??
       profile.memberId.replace(/[^0-9]/g, "").slice(0, 12);
+    const group = await ctx.db.get(profile.groupId);
+    const memberSite = await ctx.db.get(group?.siteId ?? profile.siteId);
     return {
+      brand: resolveMemberBrand(memberSite),
       memberId: memberFacingId,
       firstName: profile.firstName,
       lastName: profile.lastName,
@@ -496,7 +520,11 @@ export const getMemberForCancellation = query({
 export const listReconcilableBundles = internalQuery({
   args: {},
   handler: async (ctx) => {
-    const liveStatuses = ["active", "past_due", "cancel_at_period_end"] as const;
+    const liveStatuses = [
+      "active",
+      "past_due",
+      "cancel_at_period_end",
+    ] as const;
     const bundles = [];
     for (const status of liveStatuses) {
       const rows = await ctx.db
@@ -533,11 +561,16 @@ export const applyReconciliationOutcome = internalMutation({
 
     const now = Date.now();
     const previousStatus = bundle.status;
-    const stripeIsDead = ["canceled", "unpaid", "incomplete_expired"].includes(args.stripeStatus);
+    const stripeIsDead = ["canceled", "unpaid", "incomplete_expired"].includes(
+      args.stripeStatus,
+    );
     const stripeIsPastDue = args.stripeStatus === "past_due";
     const stripeIsLive = ["active", "trialing"].includes(args.stripeStatus);
 
-    const logCorrection = async (action: string, extra?: Record<string, unknown>) => {
+    const logCorrection = async (
+      action: string,
+      extra?: Record<string, unknown>,
+    ) => {
       await ctx.runMutation(api.subscriptions.mutations.webhookLogEvent, {
         serviceSecret: ownServiceSecret(),
         eventType: "stripe_reconcile.corrected",
@@ -545,7 +578,12 @@ export const applyReconciliationOutcome = internalMutation({
         customerId: bundle.customerId,
         bundleId: bundle._id,
         stripeObjectId: bundle.stripeSubscriptionId,
-        payload: { action, previousStatus, stripeStatus: args.stripeStatus, ...extra },
+        payload: {
+          action,
+          previousStatus,
+          stripeStatus: args.stripeStatus,
+          ...extra,
+        },
         success: true,
         idempotencyKey: `reconcile_${bundle._id}_${now}`,
       });
@@ -569,7 +607,11 @@ export const applyReconciliationOutcome = internalMutation({
 
       let revokedCount = 0;
       for (const entitlement of entitlements) {
-        if (["active", "cancel_at_period_end", "suspended"].includes(entitlement.status)) {
+        if (
+          ["active", "cancel_at_period_end", "suspended"].includes(
+            entitlement.status,
+          )
+        ) {
           await ctx.db.patch(entitlement._id, {
             status: "revoked",
             revokedAt: now,

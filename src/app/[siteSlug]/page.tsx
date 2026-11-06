@@ -1,140 +1,26 @@
-"use client";
-
-import { usePathname } from "next/navigation";
-import HeroSlideshow from "@/components/health/HeroSlideshow";
-import { SiteMarketing } from "@/components/health/SiteMarketing";
-import HealthHeader from "@/components/health/HealthHeader";
-import { useSiteTheme } from "@/components/providers/SiteThemeProvider";
-import { TrustAnchors, ProblemBand } from "@/components/health/sections";
-import SitePromoLinks from "@/components/health/SitePromoLinks";
-import { Zap, Clock, Smile, Heart, Shield } from "lucide-react";
-
-export default function SiteLandingPage() {
-  const { site } = useSiteTheme();
-  const pathname = usePathname();
-  const basePath = `/${pathname.split("/")[1]}`;
-
-  const headline =
-    site?.branding?.heroHeadline ||
-    "Oral Health Savings Plan That Works Around Your Life";
-  const subtext =
-    site?.branding?.heroSubtext ||
-    "AI Oral Scanning, 24/7 teledentistry, and a nationwide dental discount network — no waiting periods.";
-  const brandName = site?.name || "Our Oral Health Plan";
-
-  return (
-    <div className="health-landing">
-      <HealthHeader />
-
-      {/* Hero + Slideshow */}
-      <section className="hero-home section">
-        <div className="container">
-          <div className="row">
-            <div className="col-12">
-              <SiteMarketing feature="heroSlideshow"><HeroSlideshow /></SiteMarketing>
-            </div>
-          </div>
-          <div className="row">
-            <div className="col-12">
-              <div className="hero-home__heading">
-                <div className="hero-home__subtitle">{brandName}</div>
-                <h1>{headline}</h1>
-                <p className="hero-home__descr">{subtext}</p>
-                <a className="button button--primary" href={`${basePath}/plans`}>
-                  See Plans
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <SitePromoLinks placement="landing" />
-
-      <SiteMarketing feature="problemBand"><ProblemBand /></SiteMarketing>
-
-      {/* Three services */}
-      <SiteMarketing feature="serviceCards"><section className="related-posts section">
-        <div className="container">
-          <h2 style={{ textAlign: "center", marginBottom: "1rem" }}>
-            Explore Oral Health Services
-          </h2>
-          <p style={{ textAlign: "center", color: "#475569", fontSize: "1.125rem", marginBottom: "3rem", maxWidth: "560px", margin: "0 auto 3rem" }}>
-            Explore the services available through our oral health plans.
-          </p>
-          <div className="related-posts__grid">
-            <SiteMarketing feature="oralScan"><a href={`${basePath}/oral-health-scan`} className="related-posts__card">
-              <img src="/health-assets/toothlensscan_1086x1024.png" alt="AI Oral Scanning" />
-              <h4>AI Oral Scanning</h4>
-              <div className="link-arrow">AI-Powered Detection</div>
-            </a></SiteMarketing>
-            <SiteMarketing feature="teledentistry"><a href={`${basePath}/teledentistry`} className="related-posts__card">
-              <img src="/health-assets/teledentistr_1024x1024.png" alt="Teledentistry Consultations" />
-              <h4>Teledentistry Consultations</h4>
-              <div className="link-arrow">Expert Guidance 24/7</div>
-            </a></SiteMarketing>
-            <SiteMarketing feature="dentalDiscount"><a href={`${basePath}/discount`} className="related-posts__card">
-              <img src="/health-assets/dentist-network-discount_1536x1024.png" alt="Dental Discount Network" />
-              <h4>Dental Discount Network</h4>
-              <div className="link-arrow">Nationwide Access</div>
-            </a></SiteMarketing>
-          </div>
-        </div>
-      </section></SiteMarketing>
-
-      {/* What's Included */}
-      <SiteMarketing feature="benefitHighlights"><section className="our-use-case section bg--blue" id="whats-included">
-        <div className="container">
-          <div className="heading-block">
-            <h2>What&apos;s Included in Your Oral Health Savings Plan</h2>
-          </div>
-          <div className="our-use-case__content">
-            <div className="our-use-case__image">
-              <img src="/health-assets/image-2-1.png" alt="Dentist providing teledentistry consultation" />
-            </div>
-            <div className="benefit-tiles" style={{ flex: 1 }}>
-              {[
-                { feature: "oralScan" as const, icon: Zap, color: "#2ECC71", title: "AI Oral Scanning", desc: "Analyze photos of your teeth using AI to detect potential issues early." },
-                { feature: "teledentistry" as const, icon: Clock, color: "#3498DB", title: "24/7 Teledentistry", desc: "Connect with licensed dentists anytime for consultations and guidance." },
-                { feature: "dentalDiscount" as const, icon: Smile, color: "#F39C12", title: "Dental Network Discounts", desc: "Access thousands of dentists nationwide with negotiated discount rates." },
-                { feature: "benefitHighlights" as const, icon: Heart, color: "#64748b", title: "Preventive Focus", desc: "Emphasis on preventive care and early detection to reduce costly treatments." },
-                { feature: "teledentistry" as const, icon: Shield, color: "#64748b", title: "Emergency Support", desc: "Immediate access to emergency dental support when urgent concerns arise." },
-              ].map((item) => (
-                <SiteMarketing key={item.title} feature={item.feature}><div className="benefit-tile">
-                  <div className="benefit-tile__icon"><item.icon size={28} color={item.color} /></div>
-                  <h4 className="benefit-tile__title">{item.title}</h4>
-                  <p className="benefit-tile__description">{item.desc}</p>
-                </div></SiteMarketing>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section></SiteMarketing>
-
-      <SiteMarketing feature="trustAnchors"><TrustAnchors /></SiteMarketing>
-
-      {/* CTA */}
-      <SiteMarketing feature="teamCta"><section className="for-organization section bg--white">
-        <div className="container">
-          <div className="for-organization__row">
-            <div className="for-organization__col">
-              <h2>Oral Health Savings Plan for Your Team</h2>
-              <p>
-                Give your team real oral health value — AI scanning, 24/7 dentist access,
-                and nationwide provider discounts that help employees stay on top of their health.
-              </p>
-              <div className="for-organization__btn_w">
-                <a className="button button--primary" href={`${basePath}/enroll`}>
-                  Get Started
-                </a>
-              </div>
-            </div>
-            <div className="for-organization__img">
-              <img src="/health-assets/virtual-first_896x992-2.jpg" alt="Team members discussing benefits" />
-            </div>
-          </div>
-        </div>
-      </section></SiteMarketing>
-    </div>
+import { AssureHome } from "@/components/assurevantage/MarketingPages";
+import LegacyPage from "@/components/health/LegacySiteLanding";
+import { ASSURE_URL } from "@/lib/assure-content";
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ siteSlug: string }>;
+}) {
+  return (await params).siteSlug === "assurevantage"
+    ? {
+        alternates: { canonical: ASSURE_URL },
+        title: "AssureVantage | Everyday care & wellbeing",
+      }
+    : {};
+}
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ siteSlug: string }>;
+}) {
+  return (await params).siteSlug === "assurevantage" ? (
+    <AssureHome />
+  ) : (
+    <LegacyPage />
   );
 }

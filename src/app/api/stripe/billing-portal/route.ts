@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { domainSite } from "@/lib/site-domains";
 import { auth } from "@clerk/nextjs/server";
 import { convexServiceSecret } from "@/lib/convex-service";
 import { ConvexHttpClient } from "convex/browser";
@@ -25,32 +26,39 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || "");
+    const convex = new ConvexHttpClient(
+      process.env.NEXT_PUBLIC_CONVEX_URL || "",
+    );
 
     // Fetch the user's active bundle (with Stripe IDs) to get Stripe customer ID
     // @ts-ignore - avoid deep type instantiation issue
-    const bundleResult = await convex.query(api.subscriptions.queries.getCustomerBundleWithStripeIds, { serviceSecret: convexServiceSecret(),
-      customerId: userId,
-    });
+    const bundleResult = await convex.query(
+      api.subscriptions.queries.getCustomerBundleWithStripeIds,
+      { serviceSecret: convexServiceSecret(), customerId: userId },
+    );
     const bundle = bundleResult as any;
 
     if (!bundle) {
       return NextResponse.json(
         { error: "No active subscription found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (!bundle.stripeCustomerId) {
       return NextResponse.json(
         { error: "No Stripe customer found for this account" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Determine return URL from request origin
-    const origin = req.headers.get("origin") || process.env.NEXT_PUBLIC_APP_URL || "";
-    const returnUrl = `${origin}/health/manage-plans`;
+    const origin =
+      req.headers.get("origin") || process.env.NEXT_PUBLIC_APP_URL || "";
+    const site = domainSite(new URL(req.url).hostname);
+    const returnUrl = site
+      ? `${site.origin}/assurevantage/manage-plans`
+      : `${origin}/health/manage-plans`;
 
     // Create Stripe billing portal session
     const portalSession = await stripe.billingPortal.sessions.create({
@@ -62,8 +70,13 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("[billing-portal] Error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to create billing portal session" },
-      { status: 500 }
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to create billing portal session",
+      },
+      { status: 500 },
     );
   }
 }

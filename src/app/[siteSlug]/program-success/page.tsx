@@ -1,7 +1,17 @@
-import Page from "@/app/newideal/success/page";
 import { notFound } from "next/navigation";
-export const metadata = { alternates: { canonical: "https://www.assurevantage.com/assurevantage/program-success" }, title: "Welcome | AssureVantage" };
-export default async function MainProgramPage({ params, searchParams }: { params: Promise<{ siteSlug: string }>; searchParams: Promise<{ program?: string }> }) {
+import { EnrollmentConfirmation } from "@/components/assurevantage/EnrollmentConfirmation";
+import { assureMetadata } from "@/lib/assure-metadata";
+export const metadata = assureMetadata("program-success", {
+  title: "Enrollment confirmation",
+  description: "Review your enrollment and find your next membership steps.",
+});
+export default async function Page({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ siteSlug: string }>;
+  searchParams: Promise<{ session_id?: string }>;
+}) {
   if ((await params).siteSlug !== "assurevantage") notFound();
-  return <Page params={params} searchParams={searchParams} />;
+  return <EnrollmentConfirmation sessionId={(await searchParams).session_id} />;
 }

@@ -34,7 +34,10 @@ type Step = "email" | "verify";
 function ForgotPasswordContent() {
   const basePath = useMemberBasePath();
   const params = useSearchParams();
-  const redirectTo = safeAuthReturn(params.get("redirect_url"), `${basePath}/dashboard`);
+  const redirectTo = safeAuthReturn(
+    params.get("redirect_url"),
+    `${basePath}/dashboard`,
+  );
   const router = useRouter();
   const { signIn, setActive, isLoaded } = useSignIn();
 
@@ -56,7 +59,9 @@ function ForgotPasswordContent() {
     setIsLoading(true);
     try {
       if (!signIn) {
-        setError("Authentication service not ready. Please refresh and try again.");
+        setError(
+          "Authentication service not ready. Please refresh and try again.",
+        );
         return;
       }
       await signIn.create({
@@ -90,7 +95,9 @@ function ForgotPasswordContent() {
     setIsLoading(true);
     try {
       if (!signIn || !setActive) {
-        setError("Authentication service not ready. Please refresh and try again.");
+        setError(
+          "Authentication service not ready. Please refresh and try again.",
+        );
         return;
       }
       const result = await signIn.attemptFirstFactor({
@@ -186,26 +193,52 @@ function ForgotPasswordContent() {
                 gap: "1rem",
               }}
             >
-              <AlertCircle size={20} color="#991b1b" style={{ marginTop: "2px", flexShrink: 0 }} />
-              <p style={{ color: "#7f1d1d", margin: 0, fontSize: "0.95rem" }}>{error}</p>
+              <AlertCircle
+                size={20}
+                color="#991b1b"
+                style={{ marginTop: "2px", flexShrink: 0 }}
+              />
+              <p style={{ color: "#7f1d1d", margin: 0, fontSize: "0.95rem" }}>
+                {error}
+              </p>
             </div>
           )}
 
           <div className="glass-card" style={{ padding: "2rem" }}>
             {/* ── STEP 1: EMAIL ── */}
             {step === "email" && (
-              <form onSubmit={handleRequestCode} style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+              <form
+                onSubmit={handleRequestCode}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "1.5rem",
+                }}
+              >
                 <div>
                   <label
                     htmlFor="email"
-                    style={{ display: "block", fontWeight: 600, color: "#0f172a", marginBottom: "0.5rem", fontSize: "0.95rem" }}
+                    style={{
+                      display: "block",
+                      fontWeight: 600,
+                      color: "#0f172a",
+                      marginBottom: "0.5rem",
+                      fontSize: "0.95rem",
+                    }}
                   >
                     Email Address
                   </label>
                   <div style={{ position: "relative" }}>
                     <Mail
                       size={18}
-                      style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b", pointerEvents: "none" }}
+                      style={{
+                        position: "absolute",
+                        left: "12px",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        color: "#64748b",
+                        pointerEvents: "none",
+                      }}
                     />
                     <input
                       id="email"
@@ -225,8 +258,14 @@ function ForgotPasswordContent() {
                         transition: "all 0.2s",
                         backgroundColor: "#f8fafc",
                       }}
-                      onFocus={(e) => { e.currentTarget.style.borderColor = "#0066CC"; e.currentTarget.style.backgroundColor = "#fff"; }}
-                      onBlur={(e) => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.backgroundColor = "#f8fafc"; }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = "#0066CC";
+                        e.currentTarget.style.backgroundColor = "#fff";
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = "#e2e8f0";
+                        e.currentTarget.style.backgroundColor = "#f8fafc";
+                      }}
                     />
                   </div>
                 </div>
@@ -251,9 +290,17 @@ function ForgotPasswordContent() {
                   }}
                 >
                   {isLoading ? (
-                    <><Loader size={18} style={{ animation: "spin 1s linear infinite" }} /> Sending Code...</>
+                    <>
+                      <Loader
+                        size={18}
+                        style={{ animation: "spin 1s linear infinite" }}
+                      />{" "}
+                      Sending Code...
+                    </>
                   ) : (
-                    <><KeyRound size={18} /> Send Reset Code</>
+                    <>
+                      <KeyRound size={18} /> Send Reset Code
+                    </>
                   )}
                 </button>
               </form>
@@ -261,7 +308,14 @@ function ForgotPasswordContent() {
 
             {/* ── STEP 2: CODE + NEW PASSWORD ── */}
             {step === "verify" && (
-              <form onSubmit={handleReset} style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+              <form
+                onSubmit={handleReset}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "1.5rem",
+                }}
+              >
                 {/* Success hint */}
                 <div
                   style={{
@@ -274,8 +328,14 @@ function ForgotPasswordContent() {
                     gap: "0.75rem",
                   }}
                 >
-                  <CheckCircle2 size={18} color="#16a34a" style={{ flexShrink: 0 }} />
-                  <p style={{ color: "#166534", margin: 0, fontSize: "0.9rem" }}>
+                  <CheckCircle2
+                    size={18}
+                    color="#16a34a"
+                    style={{ flexShrink: 0 }}
+                  />
+                  <p
+                    style={{ color: "#166534", margin: 0, fontSize: "0.9rem" }}
+                  >
                     Code sent! Check your inbox and enter it below.
                   </p>
                 </div>
@@ -284,7 +344,13 @@ function ForgotPasswordContent() {
                 <div>
                   <label
                     htmlFor="code"
-                    style={{ display: "block", fontWeight: 600, color: "#0f172a", marginBottom: "0.5rem", fontSize: "0.95rem" }}
+                    style={{
+                      display: "block",
+                      fontWeight: 600,
+                      color: "#0f172a",
+                      marginBottom: "0.5rem",
+                      fontSize: "0.95rem",
+                    }}
                   >
                     Reset Code
                   </label>
@@ -292,7 +358,9 @@ function ForgotPasswordContent() {
                     id="code"
                     type="text"
                     value={code}
-                    onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    onChange={(e) =>
+                      setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                    }
                     placeholder="123456"
                     maxLength={6}
                     disabled={isLoading}
@@ -309,8 +377,14 @@ function ForgotPasswordContent() {
                       transition: "all 0.2s",
                       backgroundColor: "#f8fafc",
                     }}
-                    onFocus={(e) => { e.currentTarget.style.borderColor = "#0066CC"; e.currentTarget.style.backgroundColor = "#fff"; }}
-                    onBlur={(e) => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.backgroundColor = "#f8fafc"; }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = "#0066CC";
+                      e.currentTarget.style.backgroundColor = "#fff";
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = "#e2e8f0";
+                      e.currentTarget.style.backgroundColor = "#f8fafc";
+                    }}
                   />
                 </div>
 
@@ -318,14 +392,27 @@ function ForgotPasswordContent() {
                 <div>
                   <label
                     htmlFor="newPassword"
-                    style={{ display: "block", fontWeight: 600, color: "#0f172a", marginBottom: "0.5rem", fontSize: "0.95rem" }}
+                    style={{
+                      display: "block",
+                      fontWeight: 600,
+                      color: "#0f172a",
+                      marginBottom: "0.5rem",
+                      fontSize: "0.95rem",
+                    }}
                   >
                     New Password
                   </label>
                   <div style={{ position: "relative" }}>
                     <Lock
                       size={18}
-                      style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b", pointerEvents: "none" }}
+                      style={{
+                        position: "absolute",
+                        left: "12px",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        color: "#64748b",
+                        pointerEvents: "none",
+                      }}
                     />
                     <input
                       id="newPassword"
@@ -345,13 +432,33 @@ function ForgotPasswordContent() {
                         transition: "all 0.2s",
                         backgroundColor: "#f8fafc",
                       }}
-                      onFocus={(e) => { e.currentTarget.style.borderColor = "#0066CC"; e.currentTarget.style.backgroundColor = "#fff"; }}
-                      onBlur={(e) => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.backgroundColor = "#f8fafc"; }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = "#0066CC";
+                        e.currentTarget.style.backgroundColor = "#fff";
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = "#e2e8f0";
+                        e.currentTarget.style.backgroundColor = "#f8fafc";
+                      }}
                     />
                     <button
                       type="button"
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
                       onClick={() => setShowPassword(!showPassword)}
-                      style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#64748b", padding: "4px", display: "flex" }}
+                      style={{
+                        position: "absolute",
+                        right: "12px",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        color: "#64748b",
+                        padding: "4px",
+                        display: "flex",
+                      }}
                     >
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
@@ -362,14 +469,27 @@ function ForgotPasswordContent() {
                 <div>
                   <label
                     htmlFor="confirmPassword"
-                    style={{ display: "block", fontWeight: 600, color: "#0f172a", marginBottom: "0.5rem", fontSize: "0.95rem" }}
+                    style={{
+                      display: "block",
+                      fontWeight: 600,
+                      color: "#0f172a",
+                      marginBottom: "0.5rem",
+                      fontSize: "0.95rem",
+                    }}
                   >
                     Confirm Password
                   </label>
                   <div style={{ position: "relative" }}>
                     <Lock
                       size={18}
-                      style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b", pointerEvents: "none" }}
+                      style={{
+                        position: "absolute",
+                        left: "12px",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        color: "#64748b",
+                        pointerEvents: "none",
+                      }}
                     />
                     <input
                       id="confirmPassword"
@@ -389,18 +509,29 @@ function ForgotPasswordContent() {
                         transition: "all 0.2s",
                         backgroundColor: "#f8fafc",
                       }}
-                      onFocus={(e) => { e.currentTarget.style.borderColor = "#0066CC"; e.currentTarget.style.backgroundColor = "#fff"; }}
-                      onBlur={(e) => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.backgroundColor = "#f8fafc"; }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = "#0066CC";
+                        e.currentTarget.style.backgroundColor = "#fff";
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = "#e2e8f0";
+                        e.currentTarget.style.backgroundColor = "#f8fafc";
+                      }}
                     />
                   </div>
                 </div>
 
                 <button
                   type="submit"
-                  disabled={isLoading || !code || !newPassword || !confirmPassword}
+                  disabled={
+                    isLoading || !code || !newPassword || !confirmPassword
+                  }
                   style={{
                     padding: "0.875rem 1.5rem",
-                    background: isLoading || !code || !newPassword || !confirmPassword ? "#cbd5e1" : "#0066CC",
+                    background:
+                      isLoading || !code || !newPassword || !confirmPassword
+                        ? "#cbd5e1"
+                        : "#0066CC",
                     color: "#fff",
                     border: "none",
                     borderRadius: "12px",
@@ -415,7 +546,13 @@ function ForgotPasswordContent() {
                   }}
                 >
                   {isLoading ? (
-                    <><Loader size={18} style={{ animation: "spin 1s linear infinite" }} /> Resetting Password...</>
+                    <>
+                      <Loader
+                        size={18}
+                        style={{ animation: "spin 1s linear infinite" }}
+                      />{" "}
+                      Resetting Password...
+                    </>
                   ) : (
                     "Reset Password & Sign In"
                   )}
@@ -423,8 +560,19 @@ function ForgotPasswordContent() {
 
                 <button
                   type="button"
-                  onClick={() => { setStep("email"); setError(""); setCode(""); }}
-                  style={{ background: "none", border: "none", color: "#64748b", fontSize: "0.875rem", cursor: "pointer", textDecoration: "underline" }}
+                  onClick={() => {
+                    setStep("email");
+                    setError("");
+                    setCode("");
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#64748b",
+                    fontSize: "0.875rem",
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                  }}
                 >
                   Use a different email
                 </button>
@@ -436,7 +584,12 @@ function ForgotPasswordContent() {
           <div style={{ textAlign: "center", marginTop: "2rem" }}>
             <Link
               href={`${basePath}/sign-in?redirect_url=${encodeURIComponent(redirectTo)}`}
-              style={{ color: "#0066CC", textDecoration: "none", fontWeight: 500, fontSize: "0.9rem" }}
+              style={{
+                color: "#0066CC",
+                textDecoration: "none",
+                fontWeight: 500,
+                fontSize: "0.9rem",
+              }}
             >
               ← Back to Sign In
             </Link>
@@ -455,5 +608,11 @@ function ForgotPasswordContent() {
 }
 
 export default function ForgotPasswordPage() {
-  return <Suspense fallback={null}><SatelliteAuthRedirect mode="sign-in"><ForgotPasswordContent /></SatelliteAuthRedirect></Suspense>;
+  return (
+    <Suspense fallback={null}>
+      <SatelliteAuthRedirect mode="reset">
+        <ForgotPasswordContent />
+      </SatelliteAuthRedirect>
+    </Suspense>
+  );
 }

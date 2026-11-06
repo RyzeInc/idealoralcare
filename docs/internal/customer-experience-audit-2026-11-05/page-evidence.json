@@ -1,0 +1,3070 @@
+{
+  "date": "2026-11-05",
+  "sourceCommit": "264c2a2",
+  "method": "Anonymous production browser audit; desktop 1440x1000 and mobile 390x844. Timing samples are lab observations, not field Core Web Vitals. Automated findings need manual triage. Repeated redirects can audit the same sign-in page multiple times.",
+  "checks": [
+    {
+      "viewport": "desktop",
+      "path": "/access",
+      "url": "https://www.assurevantage.com/access",
+      "status": 200,
+      "title": "Ideal Health | Modern Health Plans Made Simple",
+      "canonical": "https://getidealoh.com/",
+      "description": "Ideal Health - Comprehensive oral health plan with AI Oral Scanning, 24/7 teledentistry, and Dental Discount Network dental network access.",
+      "ogTitle": "Ideal Health | Modern Health Plans Made Simple",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "My access"
+        }
+      ],
+      "headers": 0,
+      "footers": 0,
+      "navs": [],
+      "pageHeight": 1000,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 354.80000001192093,
+        "domContentLoaded": 442.19999998807907,
+        "fcp": 476,
+        "lcp": 476,
+        "cls": 0
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": []
+    },
+    {
+      "viewport": "desktop",
+      "path": "/assurevantage/balance-for-life",
+      "url": "https://www.assurevantage.com/assurevantage/balance-for-life",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage/balance-for-life",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Behavioral health care right when you\u00a0need\u00a0it"
+        },
+        {
+          "level": "H2",
+          "text": "Support that meets you where you are, then goes further"
+        },
+        {
+          "level": "H3",
+          "text": "Check in with Zenn, any hour"
+        },
+        {
+          "level": "H3",
+          "text": "Get matched with a licensed counselor"
+        },
+        {
+          "level": "H3",
+          "text": "Keep going between sessions"
+        },
+        {
+          "level": "H2",
+          "text": "An AI companion that knows when to bring in a person"
+        },
+        {
+          "level": "H2",
+          "text": "A counselor who speaks your language"
+        },
+        {
+          "level": "H2",
+          "text": "More than counseling"
+        },
+        {
+          "level": "H3",
+          "text": "Coaching"
+        },
+        {
+          "level": "H3",
+          "text": "Aware Mindfulness"
+        },
+        {
+          "level": "H3",
+          "text": "Phone, video, text or chat"
+        },
+        {
+          "level": "H3",
+          "text": "Preferred provider network"
+        },
+        {
+          "level": "H2",
+          "text": "Enroll with AssureVantage, then just open the app"
+        },
+        {
+          "level": "H2",
+          "text": "Real support, right when you\u00a0need\u00a0it"
+        }
+      ],
+      "headers": 0,
+      "footers": 1,
+      "navs": [
+        {
+          "label": "AssureVantage offerings",
+          "text": "AssureVantage\nAll offerings\nEssentials\nBalance for Life\nOral Care\nExplore services\nMember Portal\nCart (0) \u00b7 $0.00/mo"
+        }
+      ],
+      "pageHeight": 4054,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 454.0999999642372,
+        "domContentLoaded": 727.5999999642372,
+        "fcp": 780,
+        "lcp": 780,
+        "cls": 0.0009616087962962965
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 2,
+          "examples": [
+            {
+              "target": [
+                "footer > .container:nth-child(1) > div:nth-child(1) > p"
+              ],
+              "html": "<p style=\"font-size:0.875rem;line-height:1.6;margin:0\">Affordable healthcare access \u2014 telehealth, pharmacy savings, labs, mental wellness, and dental discounts.</p>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.35 (foreground color: #475569, background color: #0f172a, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "footer > .container:nth-child(1) > div:nth-child(3) > p"
+              ],
+              "html": "<p style=\"font-size:0.8125rem;line-height:1.6;margin:0\"><strong style=\"color:white\">This is not insurance.</strong> <!-- -->Programs provide access to discounted healthcare services and a network of providers.</p>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.35 (foreground color: #475569, background color: #0f172a, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "path": "/assurevantage/blog",
+      "url": "https://www.assurevantage.com/assurevantage/blog",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Oral Health Blog"
+        },
+        {
+          "level": "H2",
+          "text": "Dental Discount Plans vs. Dental Insurance: What's the Difference?"
+        },
+        {
+          "level": "H2",
+          "text": "5 Affordable Alternatives to Traditional Dental Insurance in 2026"
+        },
+        {
+          "level": "H2",
+          "text": "What To Do When You Can't Afford Dental Insurance"
+        },
+        {
+          "level": "H2",
+          "text": "How to Get Dental Care Without Insurance: A Complete Guide"
+        },
+        {
+          "level": "H2",
+          "text": "What Is Teledentistry and How Does It Work?"
+        },
+        {
+          "level": "H2",
+          "text": "AI Oral Health Scanning: The Future of Dental Checkups"
+        },
+        {
+          "level": "H2",
+          "text": "Why More Families Are Choosing Dental Discount Plans Over Insurance"
+        },
+        {
+          "level": "H2",
+          "text": "How Dental Discount Networks Work: Everything You Need to Know"
+        },
+        {
+          "level": "H2",
+          "text": "How Preventive Dental Care Saves You Thousands of Dollars"
+        },
+        {
+          "level": "H2",
+          "text": "No Waiting Period Dental Plans: Get Coverage That Starts Immediately"
+        }
+      ],
+      "headers": 0,
+      "footers": 1,
+      "navs": [
+        {
+          "label": "AssureVantage offerings",
+          "text": "AssureVantage\nAll offerings\nEssentials\nBalance for Life\nOral Care\nExplore services\nMember Portal\nCart (0) \u00b7 $0.00/mo"
+        }
+      ],
+      "pageHeight": 3362,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 457.19999998807907,
+        "domContentLoaded": 608.8000000119209,
+        "fcp": 664,
+        "lcp": 664,
+        "cls": 0.013491979166666668
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 3,
+          "examples": [
+            {
+              "target": [
+                ".mx-auto.max-w-6xl.px-4:nth-child(3) > p:nth-child(1)"
+              ],
+              "html": "<p style=\"font-size:0.6875rem;color:#94a3b8;line-height:1.7;max-width:860px;margin-bottom:1.25rem\">",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "p:nth-child(1) > span"
+              ],
+              "html": "<span style=\"font-size:0.8125rem;color:#94a3b8;font-weight:700\">THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance.</span>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 9.8pt (13px), font weight: bold). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "path": "/assurevantage/claim-invite",
+      "url": "https://www.assurevantage.com/assurevantage/claim-invite",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [],
+      "headers": 0,
+      "footers": 1,
+      "navs": [],
+      "pageHeight": 1558,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 718.4000000357628,
+        "domContentLoaded": 843.2000000476837,
+        "fcp": 864,
+        "lcp": 864,
+        "cls": 0
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 3,
+          "examples": [
+            {
+              "target": [
+                ".container.mx-auto.max-w-6xl:nth-child(3) > p:nth-child(1)"
+              ],
+              "html": "<p style=\"font-size:0.6875rem;color:#94a3b8;line-height:1.7;max-width:860px;margin-bottom:1.25rem\">",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "span"
+              ],
+              "html": "<span style=\"font-size:0.8125rem;color:#94a3b8;font-weight:700\">THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance.</span>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 9.8pt (13px), font weight: bold). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "path": "/assurevantage/compare",
+      "url": "https://www.assurevantage.com/assurevantage/plans",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Affordable Oral Health Savings"
+        },
+        {
+          "level": "H2",
+          "text": "AssureVantage Plan"
+        },
+        {
+          "level": "H3",
+          "text": "What's Included"
+        },
+        {
+          "level": "H3",
+          "text": "Why AssureVantage?"
+        },
+        {
+          "level": "H3",
+          "text": "Secure Payments"
+        },
+        {
+          "level": "H3",
+          "text": "Access Within 24 Hours"
+        },
+        {
+          "level": "H3",
+          "text": "Flexible Billing"
+        },
+        {
+          "level": "H3",
+          "text": "24/7 Support"
+        }
+      ],
+      "headers": 0,
+      "footers": 1,
+      "navs": [
+        {
+          "label": "AssureVantage offerings",
+          "text": "AssureVantage\nAll offerings\nEssentials\nBalance for Life\nOral Care\nExplore services\nMember Portal\nCart (0) \u00b7 $0.00/mo"
+        }
+      ],
+      "pageHeight": 2282,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 376.0999999642372,
+        "domContentLoaded": 478.5,
+        "fcp": 528,
+        "lcp": 528,
+        "cls": 0.1884881929976852
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 4,
+          "examples": [
+            {
+              "target": [
+                "div:nth-child(2) > div:nth-child(3)"
+              ],
+              "html": "<div style=\"font-size: 0.75rem; color: var(--accent-teal); margin-top: 4px; font-weight: 600;\">1 Month Free</div>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.48 (foreground color: #14b8a6, background color: #ffffff, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                ".mx-auto.max-w-6xl.px-4:nth-child(3) > p:nth-child(1)"
+              ],
+              "html": "<p style=\"font-size:0.6875rem;color:#94a3b8;line-height:1.7;max-width:860px;margin-bottom:1.25rem\">",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "path": "/assurevantage/dashboard",
+      "url": "https://www.getidealoh.com/assurevantage/sign-in",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H2",
+          "text": "Join thousands of members saving on dental care"
+        },
+        {
+          "level": "H2",
+          "text": "Sign In"
+        }
+      ],
+      "headers": 1,
+      "footers": 1,
+      "navs": [
+        {
+          "label": null,
+          "text": "Services\nExplore Plans\nMember Portal"
+        }
+      ],
+      "pageHeight": 1558,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 437.80000001192093,
+        "domContentLoaded": 647.1999999880791,
+        "fcp": 704,
+        "lcp": 704,
+        "cls": 0.003950179247444058
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "autocomplete-valid",
+          "impact": "serious",
+          "count": 1,
+          "examples": [
+            {
+              "target": [
+                "#identifier"
+              ],
+              "html": "<input id=\"identifier\" type=\"text\" placeholder=\"email@example.com or...\" autocomplete=\"email username\" style=\"width:100%;border:1p...\" value=\"\">",
+              "summary": "Fix all of the following:\n  the autocomplete attribute is incorrectly formatted"
+            }
+          ]
+        },
+        {
+          "id": "button-name",
+          "impact": "critical",
+          "count": 1,
+          "examples": [
+            {
+              "target": [
+                "div:nth-child(2) > button[type=\"button\"]"
+              ],
+              "html": "<button type=\"button\" style=\"position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#64748b;padding:4px;display:flex\">",
+              "summary": "Fix any of the following:\n  Element does not have inner text that is visible to screen readers\n  aria-label attribute does not exist or is empty\n  aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty\n  Element has no title attribute\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  Element's default semantics were not overridden with role=\"none\" or role=\"presentation\""
+            }
+          ]
+        },
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 3,
+          "examples": [
+            {
+              "target": [
+                ".mx-auto.max-w-6xl.px-4:nth-child(3) > p:nth-child(1)"
+              ],
+              "html": "<p style=\"font-size:0.6875rem;color:#94a3b8;line-height:1.7;max-width:860px;margin-bottom:1.25rem\">",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "p:nth-child(1) > span"
+              ],
+              "html": "<span style=\"font-size:0.8125rem;color:#94a3b8;font-weight:700\">THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance.</span>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 9.8pt (13px), font weight: bold). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "path": "/assurevantage/dental",
+      "url": "https://www.assurevantage.com/assurevantage/dental",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Oral Care - Oral Health Plan Built on Innovation."
+        },
+        {
+          "level": "H2",
+          "text": "What's Included in Your Oral Health Savings Plan"
+        },
+        {
+          "level": "H2",
+          "text": "Oral Health Plan Features"
+        },
+        {
+          "level": "H2",
+          "text": "Why Ideal Oral Health Works Better"
+        },
+        {
+          "level": "H2",
+          "text": "How to Get Started"
+        },
+        {
+          "level": "H2",
+          "text": "Oral Health Savings Plan for Your Team"
+        },
+        {
+          "level": "H2",
+          "text": "Oral Health Plan Questions?"
+        }
+      ],
+      "headers": 0,
+      "footers": 1,
+      "navs": [
+        {
+          "label": "AssureVantage offerings",
+          "text": "AssureVantage\nAll offerings\nEssentials\nBalance for Life\nOral Care\nExplore services\nMember Portal\nCart (0) \u00b7 $0.00/mo"
+        }
+      ],
+      "pageHeight": 8748,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 453.19999998807907,
+        "domContentLoaded": 554.7999999523163,
+        "fcp": 696,
+        "lcp": 1020,
+        "cls": 0.3220105324074074
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 6,
+          "examples": [
+            {
+              "target": [
+                ".related-posts__card:nth-child(1) > .link-arrow"
+              ],
+              "html": "<div class=\"link-arrow\">AI-Powered Detection</div>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.48 (foreground color: #14b8a6, background color: #ffffff, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                ".related-posts__card:nth-child(2) > .link-arrow"
+              ],
+              "html": "<div class=\"link-arrow\">Expert Guidance 24/7</div>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.48 (foreground color: #14b8a6, background color: #ffffff, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "path": "/assurevantage/discount",
+      "url": "https://www.assurevantage.com/assurevantage/discount",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Save up to 20%-50% on Dental Procedures"
+        },
+        {
+          "level": "H2",
+          "text": "Sample Dental Savings"
+        },
+        {
+          "level": "H2",
+          "text": "Dental Discount Plan Features"
+        },
+        {
+          "level": "H2",
+          "text": "One of the Largest Dental Networks in the Nation"
+        }
+      ],
+      "headers": 0,
+      "footers": 1,
+      "navs": [
+        {
+          "label": "AssureVantage offerings",
+          "text": "AssureVantage\nAll offerings\nEssentials\nBalance for Life\nOral Care\nExplore services\nMember Portal\nCart (0) \u00b7 $0.00/mo"
+        }
+      ],
+      "pageHeight": 3966,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 336.5999999642372,
+        "domContentLoaded": 486.0999999642372,
+        "fcp": 544,
+        "lcp": 616,
+        "cls": 0.002234463071469907
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 31,
+          "examples": [
+            {
+              "target": [
+                "div:nth-child(2) > span:nth-child(3)"
+              ],
+              "html": "<span style=\"font-size:1.0625rem;font-weight:700;color:#F39C12\">$<!-- -->33</span>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.19 (foreground color: #f39c12, background color: #ffffff, font size: 12.8pt (17px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "div:nth-child(2) > span:nth-child(4)"
+              ],
+              "html": "<span style=\"font-weight:600;color:#10b981;font-size:0.9375rem\">$<!-- -->43</span>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.53 (foreground color: #10b981, background color: #ffffff, font size: 11.3pt (15px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "path": "/assurevantage/essentials",
+      "url": "https://www.assurevantage.com/assurevantage/essentials",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage/essentials",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Essentials Plan"
+        },
+        {
+          "level": "H2",
+          "text": "What's included"
+        },
+        {
+          "level": "H3",
+          "text": "Lyric Telehealth"
+        },
+        {
+          "level": "H3",
+          "text": "QuestSelect Labs"
+        },
+        {
+          "level": "H3",
+          "text": "RxValet Pharmacy"
+        },
+        {
+          "level": "H3",
+          "text": "Balance for Life"
+        },
+        {
+          "level": "H2",
+          "text": "Ready to get started?"
+        }
+      ],
+      "headers": 0,
+      "footers": 1,
+      "navs": [
+        {
+          "label": "AssureVantage offerings",
+          "text": "AssureVantage\nAll offerings\nEssentials\nBalance for Life\nOral Care\nExplore services\nMember Portal\nCart (0) \u00b7 $0.00/mo"
+        }
+      ],
+      "pageHeight": 2528,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 424.69999998807907,
+        "domContentLoaded": 711.1000000238419,
+        "fcp": 756,
+        "lcp": 1376,
+        "cls": 0.0009616087962962965
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 3,
+          "examples": [
+            {
+              "target": [
+                ".container > a[href$=\"program-plans\"]"
+              ],
+              "html": "<a style=\"display:inline-flex;align-items:center;gap:8px;background:#f97316;color:white;padding:16px 34px;border-radius:12px;font-weight:700;font-size:1.0625rem;text-decoration:none;box-shadow:0 4px 18px rgba(249,115,22,0.42)\" href=\"/assurevantage/program-plans\">",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.8 (foreground color: #ffffff, background color: #f97316, font size: 12.8pt (17px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "footer > .container:nth-child(1) > div:nth-child(1) > p"
+              ],
+              "html": "<p style=\"font-size:0.875rem;line-height:1.6;margin:0\">Affordable healthcare access \u2014 telehealth, pharmacy savings, labs, mental wellness, and dental discounts.</p>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.35 (foreground color: #475569, background color: #0f172a, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "path": "/assurevantage/faq",
+      "url": "https://www.assurevantage.com/assurevantage/faq",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Frequently Asked Questions"
+        },
+        {
+          "level": "H2",
+          "text": "General Dental Questions"
+        },
+        {
+          "level": "H2",
+          "text": "About AssureVantage"
+        },
+        {
+          "level": "H2",
+          "text": "Plans & Pricing"
+        },
+        {
+          "level": "H2",
+          "text": "Dental Discount Network"
+        },
+        {
+          "level": "H2",
+          "text": "Teledentistry"
+        },
+        {
+          "level": "H2",
+          "text": "AI Oral Health Scanning"
+        },
+        {
+          "level": "H2",
+          "text": "Getting Started"
+        },
+        {
+          "level": "H3",
+          "text": "Ready to get started?"
+        }
+      ],
+      "headers": 0,
+      "footers": 1,
+      "navs": [
+        {
+          "label": "AssureVantage offerings",
+          "text": "AssureVantage\nAll offerings\nEssentials\nBalance for Life\nOral Care\nExplore services\nMember Portal\nCart (0) \u00b7 $0.00/mo"
+        }
+      ],
+      "pageHeight": 3919,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 389.4000000357628,
+        "domContentLoaded": 532,
+        "fcp": 548,
+        "lcp": 548,
+        "cls": 0.0041565294656635806
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 3,
+          "examples": [
+            {
+              "target": [
+                ".mx-auto.max-w-6xl.px-4:nth-child(3) > p:nth-child(1)"
+              ],
+              "html": "<p style=\"font-size:0.6875rem;color:#94a3b8;line-height:1.7;max-width:860px;margin-bottom:1.25rem\">",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "span"
+              ],
+              "html": "<span style=\"font-size:0.8125rem;color:#94a3b8;font-weight:700\">THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance.</span>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 9.8pt (13px), font weight: bold). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "path": "/assurevantage/forgot-password",
+      "url": "https://www.getidealoh.com/assurevantage/sign-in",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H2",
+          "text": "Join thousands of members saving on dental care"
+        },
+        {
+          "level": "H2",
+          "text": "Sign In"
+        }
+      ],
+      "headers": 1,
+      "footers": 1,
+      "navs": [
+        {
+          "label": null,
+          "text": "Services\nExplore Plans\nMember Portal"
+        }
+      ],
+      "pageHeight": 1558,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 35.89999997615814,
+        "domContentLoaded": 162.80000001192093,
+        "fcp": 208,
+        "lcp": 208,
+        "cls": 0.003950179247444058
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "autocomplete-valid",
+          "impact": "serious",
+          "count": 1,
+          "examples": [
+            {
+              "target": [
+                "#identifier"
+              ],
+              "html": "<input id=\"identifier\" type=\"text\" placeholder=\"email@example.com or...\" autocomplete=\"email username\" style=\"width:100%;border:1p...\" value=\"\">",
+              "summary": "Fix all of the following:\n  the autocomplete attribute is incorrectly formatted"
+            }
+          ]
+        },
+        {
+          "id": "button-name",
+          "impact": "critical",
+          "count": 1,
+          "examples": [
+            {
+              "target": [
+                "div:nth-child(2) > button[type=\"button\"]"
+              ],
+              "html": "<button type=\"button\" style=\"position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#64748b;padding:4px;display:flex\">",
+              "summary": "Fix any of the following:\n  Element does not have inner text that is visible to screen readers\n  aria-label attribute does not exist or is empty\n  aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty\n  Element has no title attribute\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  Element's default semantics were not overridden with role=\"none\" or role=\"presentation\""
+            }
+          ]
+        },
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 3,
+          "examples": [
+            {
+              "target": [
+                ".mx-auto.max-w-6xl.px-4:nth-child(3) > p:nth-child(1)"
+              ],
+              "html": "<p style=\"font-size:0.6875rem;color:#94a3b8;line-height:1.7;max-width:860px;margin-bottom:1.25rem\">",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "p:nth-child(1) > span"
+              ],
+              "html": "<span style=\"font-size:0.8125rem;color:#94a3b8;font-weight:700\">THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance.</span>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 9.8pt (13px), font weight: bold). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "path": "/assurevantage/how-it-works",
+      "url": "https://www.assurevantage.com/assurevantage/how-it-works",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "How AssureVantage Works"
+        },
+        {
+          "level": "H3",
+          "text": "Add to Cart"
+        },
+        {
+          "level": "H3",
+          "text": "Checkout & Pay"
+        },
+        {
+          "level": "H3",
+          "text": "Activation Within 24 Hours"
+        },
+        {
+          "level": "H3",
+          "text": "Manage Anytime"
+        },
+        {
+          "level": "H2",
+          "text": "What These Plans Are (and Aren't)"
+        },
+        {
+          "level": "H3",
+          "text": "What You Get"
+        },
+        {
+          "level": "H3",
+          "text": "Important to Know"
+        },
+        {
+          "level": "H2",
+          "text": "Why Choose AssureVantage"
+        },
+        {
+          "level": "H2",
+          "text": "Frequently Asked Questions"
+        },
+        {
+          "level": "H2",
+          "text": "Ready to Get Started?"
+        }
+      ],
+      "headers": 0,
+      "footers": 1,
+      "navs": [
+        {
+          "label": "AssureVantage offerings",
+          "text": "AssureVantage\nAll offerings\nEssentials\nBalance for Life\nOral Care\nExplore services\nMember Portal\nCart (0) \u00b7 $0.00/mo"
+        }
+      ],
+      "pageHeight": 4786,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 380.4000000357628,
+        "domContentLoaded": 482.7000000476837,
+        "fcp": 528,
+        "lcp": 528,
+        "cls": 0.010081384066358026
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 4,
+          "examples": [
+            {
+              "target": [
+                "div:nth-child(4) > div:nth-child(2) > div"
+              ],
+              "html": "<div style=\"font-size:0.75rem;font-weight:600;color:var(--accent-teal);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px\">Step <!-- -->4</div>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.48 (foreground color: #14b8a6, background color: #ffffff, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                ".mx-auto.max-w-6xl.px-4:nth-child(3) > p:nth-child(1)"
+              ],
+              "html": "<p style=\"font-size:0.6875rem;color:#94a3b8;line-height:1.7;max-width:860px;margin-bottom:1.25rem\">",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "path": "/assurevantage/manage-plans",
+      "url": "https://www.assurevantage.com/assurevantage/manage-plans",
+      "status": 200,
+      "title": "",
+      "canonical": null,
+      "description": null,
+      "ogTitle": null,
+      "headings": [
+        {
+          "level": "H2",
+          "text": "Application error: a client-side exception has occurred while loading www.assurevantage.com (see the browser console for more information)."
+        }
+      ],
+      "headers": 0,
+      "footers": 0,
+      "navs": [],
+      "pageHeight": 1000,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 424.7999999523163,
+        "domContentLoaded": 589.2999999523163,
+        "fcp": 632,
+        "lcp": 980,
+        "cls": 0.0022383160174334494
+      },
+      "robots": null,
+      "errors": [
+        "[CONVEX Q(subscriptions/queries:getMyBundle)] [Request ID: db65b0cdee2a8a8c] Server Error\n  Called by client"
+      ],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "document-title",
+          "impact": "serious",
+          "count": 1,
+          "examples": [
+            {
+              "target": [
+                "#__next_error__"
+              ],
+              "html": "<html id=\"__next_error__\">",
+              "summary": "Fix any of the following:\n  Document does not have a non-empty <title> element"
+            }
+          ]
+        },
+        {
+          "id": "html-has-lang",
+          "impact": "serious",
+          "count": 1,
+          "examples": [
+            {
+              "target": [
+                "#__next_error__"
+              ],
+              "html": "<html id=\"__next_error__\">",
+              "summary": "Fix any of the following:\n  The <html> element does not have a lang attribute"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "path": "/assurevantage/oral-health-scan",
+      "url": "https://www.assurevantage.com/assurevantage/oral-health-scan",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Growing Evidence Connects a Healthy Mouth With a Healthy Body"
+        },
+        {
+          "level": "H2",
+          "text": "Your Mouth Tells Your Health Story"
+        },
+        {
+          "level": "H3",
+          "text": "High Blood Pressure"
+        },
+        {
+          "level": "H3",
+          "text": "Dementia"
+        },
+        {
+          "level": "H3",
+          "text": "Diabetes"
+        },
+        {
+          "level": "H3",
+          "text": "Respiratory Health"
+        },
+        {
+          "level": "H3",
+          "text": "Adverse Birth Outcomes"
+        },
+        {
+          "level": "H3",
+          "text": "Obesity"
+        },
+        {
+          "level": "H2",
+          "text": "How Your AI Oral Health Scan Works"
+        },
+        {
+          "level": "H2",
+          "text": "Why Preventative Scanning Matters"
+        },
+        {
+          "level": "H2",
+          "text": "Ready to Connect Your Mouth to Your Health?"
+        }
+      ],
+      "headers": 0,
+      "footers": 1,
+      "navs": [
+        {
+          "label": "AssureVantage offerings",
+          "text": "AssureVantage\nAll offerings\nEssentials\nBalance for Life\nOral Care\nExplore services\nMember Portal\nCart (0) \u00b7 $0.00/mo"
+        }
+      ],
+      "pageHeight": 4594,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 431.2999999523163,
+        "domContentLoaded": 577.7999999523163,
+        "fcp": 652,
+        "lcp": 692,
+        "cls": 0.0018702459490740743
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 11,
+          "examples": [
+            {
+              "target": [
+                "section:nth-child(2) > .container > .heading-block > p:nth-child(1)"
+              ],
+              "html": "<p style=\"font-size:0.875rem;font-weight:700;color:#27AE60;letter-spacing:0.08em;margin-bottom:0.5rem\">THE MOUTH-BODY CONNECTION</p>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.72 (foreground color: #27ae60, background color: #f8f9fa, font size: 10.5pt (14px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                ".health-condition-card:nth-child(2) > h3"
+              ],
+              "html": "<h3 style=\"font-size:1.25rem;color:#27AE60;margin-bottom:1rem;font-weight:700\">High Blood Pressure</h3>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.87 (foreground color: #27ae60, background color: #ffffff, font size: 15.0pt (20px), font weight: bold). Expected contrast ratio of 3:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "path": "/assurevantage/oralcare",
+      "url": "https://www.assurevantage.com/assurevantage/oralcare",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage/oralcare",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Oral Care"
+        },
+        {
+          "level": "H2",
+          "text": "What\u2019s included"
+        },
+        {
+          "level": "H3",
+          "text": "AI Oral Scanning"
+        },
+        {
+          "level": "H3",
+          "text": "24/7 Teledentistry"
+        },
+        {
+          "level": "H3",
+          "text": "Dental Discount Network"
+        },
+        {
+          "level": "H3",
+          "text": "Emergency Support"
+        },
+        {
+          "level": "H2",
+          "text": "Why members choose Oral Care"
+        },
+        {
+          "level": "H3",
+          "text": "No waiting periods"
+        },
+        {
+          "level": "H3",
+          "text": "No annual caps"
+        },
+        {
+          "level": "H3",
+          "text": "No claim forms"
+        },
+        {
+          "level": "H3",
+          "text": "100,000+ providers"
+        },
+        {
+          "level": "H2",
+          "text": "From routine cleanings to root canals \u2014 everyone gets a healthier smile."
+        },
+        {
+          "level": "H2",
+          "text": "Take care of every smile"
+        }
+      ],
+      "headers": 0,
+      "footers": 1,
+      "navs": [
+        {
+          "label": "AssureVantage offerings",
+          "text": "AssureVantage\nAll offerings\nEssentials\nBalance for Life\nOral Care\nExplore services\nMember Portal\nCart (0) \u00b7 $0.00/mo"
+        }
+      ],
+      "pageHeight": 2652,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 371.7000000476837,
+        "domContentLoaded": 525.9000000357628,
+        "fcp": 588,
+        "lcp": 1332,
+        "cls": 0.0009616087962962965
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 3,
+          "examples": [
+            {
+              "target": [
+                ".container > a[href$=\"program-plans\"]"
+              ],
+              "html": "<a style=\"display:inline-flex;align-items:center;gap:8px;background:#f97316;color:white;padding:16px 34px;border-radius:12px;font-weight:700;font-size:1.0625rem;text-decoration:none;box-shadow:0 4px 18px rgba(249,115,22,0.42)\" href=\"/assurevantage/program-plans\">",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.8 (foreground color: #ffffff, background color: #f97316, font size: 12.8pt (17px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "footer > .container:nth-child(1) > div:nth-child(1) > p"
+              ],
+              "html": "<p style=\"font-size:0.875rem;line-height:1.6;margin:0\">Affordable healthcare access \u2014 telehealth, pharmacy savings, labs, mental wellness, and dental discounts.</p>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.35 (foreground color: #475569, background color: #0f172a, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "path": "/assurevantage/plans",
+      "url": "https://www.assurevantage.com/assurevantage/plans",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage/plans",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Affordable Oral Health Savings"
+        },
+        {
+          "level": "H2",
+          "text": "AssureVantage Plan"
+        },
+        {
+          "level": "H3",
+          "text": "What's Included"
+        },
+        {
+          "level": "H3",
+          "text": "Why AssureVantage?"
+        },
+        {
+          "level": "H3",
+          "text": "Secure Payments"
+        },
+        {
+          "level": "H3",
+          "text": "Access Within 24 Hours"
+        },
+        {
+          "level": "H3",
+          "text": "Flexible Billing"
+        },
+        {
+          "level": "H3",
+          "text": "24/7 Support"
+        }
+      ],
+      "headers": 0,
+      "footers": 1,
+      "navs": [
+        {
+          "label": "AssureVantage offerings",
+          "text": "AssureVantage\nAll offerings\nEssentials\nBalance for Life\nOral Care\nExplore services\nMember Portal\nCart (0) \u00b7 $0.00/mo"
+        }
+      ],
+      "pageHeight": 2282,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 380.4000000357628,
+        "domContentLoaded": 634.3000000119209,
+        "fcp": 768,
+        "lcp": 952,
+        "cls": 0.0009625462962962964
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 4,
+          "examples": [
+            {
+              "target": [
+                "div:nth-child(2) > div:nth-child(3)"
+              ],
+              "html": "<div style=\"font-size: 0.75rem; color: var(--accent-teal); margin-top: 4px; font-weight: 600;\">1 Month Free</div>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.48 (foreground color: #14b8a6, background color: #ffffff, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                ".mx-auto.max-w-6xl.px-4:nth-child(3) > p:nth-child(1)"
+              ],
+              "html": "<p style=\"font-size:0.6875rem;color:#94a3b8;line-height:1.7;max-width:860px;margin-bottom:1.25rem\">",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "path": "/assurevantage/privacy",
+      "url": "https://www.assurevantage.com/assurevantage/privacy",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Privacy Policy"
+        },
+        {
+          "level": "H2",
+          "text": "Introduction"
+        },
+        {
+          "level": "H2",
+          "text": "Information We Collect"
+        },
+        {
+          "level": "H2",
+          "text": "How We Use Your Information"
+        },
+        {
+          "level": "H2",
+          "text": "Information Sharing"
+        },
+        {
+          "level": "H2",
+          "text": "Data Security"
+        },
+        {
+          "level": "H2",
+          "text": "Your Rights and Choices"
+        },
+        {
+          "level": "H2",
+          "text": "Contact Us"
+        }
+      ],
+      "headers": 0,
+      "footers": 1,
+      "navs": [
+        {
+          "label": "AssureVantage offerings",
+          "text": "AssureVantage\nAll offerings\nEssentials\nBalance for Life\nOral Care\nExplore services\nMember Portal\nCart (0) \u00b7 $0.00/mo"
+        }
+      ],
+      "pageHeight": 2538,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 395.89999997615814,
+        "domContentLoaded": 535.8000000119209,
+        "fcp": 556,
+        "lcp": 556,
+        "cls": 0.007766840277777779
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 3,
+          "examples": [
+            {
+              "target": [
+                ".max-w-6xl.sm\\:px-6.lg\\:px-8:nth-child(3) > p:nth-child(1)"
+              ],
+              "html": "<p style=\"font-size:0.6875rem;color:#94a3b8;line-height:1.7;max-width:860px;margin-bottom:1.25rem\">",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "span"
+              ],
+              "html": "<span style=\"font-size:0.8125rem;color:#94a3b8;font-weight:700\">THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance.</span>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 9.8pt (13px), font weight: bold). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "path": "/assurevantage/program-checkout",
+      "url": "https://www.getidealoh.com/assurevantage/sign-in",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H2",
+          "text": "Join thousands of members saving on dental care"
+        },
+        {
+          "level": "H2",
+          "text": "Sign In"
+        }
+      ],
+      "headers": 1,
+      "footers": 1,
+      "navs": [
+        {
+          "label": null,
+          "text": "Services\nExplore Plans\nMember Portal"
+        }
+      ],
+      "pageHeight": 1558,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 43.89999997615814,
+        "domContentLoaded": 151.30000001192093,
+        "fcp": 208,
+        "lcp": 208,
+        "cls": 0.003950179247444058
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "autocomplete-valid",
+          "impact": "serious",
+          "count": 1,
+          "examples": [
+            {
+              "target": [
+                "#identifier"
+              ],
+              "html": "<input id=\"identifier\" type=\"text\" placeholder=\"email@example.com or...\" autocomplete=\"email username\" style=\"width:100%;border:1p...\" value=\"\">",
+              "summary": "Fix all of the following:\n  the autocomplete attribute is incorrectly formatted"
+            }
+          ]
+        },
+        {
+          "id": "button-name",
+          "impact": "critical",
+          "count": 1,
+          "examples": [
+            {
+              "target": [
+                "div:nth-child(2) > button[type=\"button\"]"
+              ],
+              "html": "<button type=\"button\" style=\"position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#64748b;padding:4px;display:flex\">",
+              "summary": "Fix any of the following:\n  Element does not have inner text that is visible to screen readers\n  aria-label attribute does not exist or is empty\n  aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty\n  Element has no title attribute\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  Element's default semantics were not overridden with role=\"none\" or role=\"presentation\""
+            }
+          ]
+        },
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 3,
+          "examples": [
+            {
+              "target": [
+                ".mx-auto.max-w-6xl.px-4:nth-child(3) > p:nth-child(1)"
+              ],
+              "html": "<p style=\"font-size:0.6875rem;color:#94a3b8;line-height:1.7;max-width:860px;margin-bottom:1.25rem\">",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "p:nth-child(1) > span"
+              ],
+              "html": "<span style=\"font-size:0.8125rem;color:#94a3b8;font-weight:700\">THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance.</span>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 9.8pt (13px), font weight: bold). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "path": "/assurevantage/program-plans",
+      "url": "https://www.assurevantage.com/assurevantage/program-plans",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage/program-plans",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Three offerings. One shared checkout."
+        },
+        {
+          "level": "H2",
+          "text": "Essentials"
+        },
+        {
+          "level": "H2",
+          "text": "Balance for Life"
+        },
+        {
+          "level": "H2",
+          "text": "Oral Care"
+        }
+      ],
+      "headers": 0,
+      "footers": 1,
+      "navs": [
+        {
+          "label": "AssureVantage offerings",
+          "text": "AssureVantage\nAll offerings\nEssentials\nBalance for Life\nOral Care\nExplore services\nMember Portal\nCart (0) \u00b7 $0.00/mo"
+        }
+      ],
+      "pageHeight": 1517,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 380.69999998807907,
+        "domContentLoaded": 667.8999999761581,
+        "fcp": 716,
+        "lcp": 716,
+        "cls": 0.11088061228057484
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 2,
+          "examples": [
+            {
+              "target": [
+                "div:nth-child(1) > p"
+              ],
+              "html": "<p style=\"font-size:0.875rem;line-height:1.6;margin:0\">Affordable healthcare access \u2014 telehealth, pharmacy savings, labs, mental wellness, and dental discounts.</p>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.35 (foreground color: #475569, background color: #0f172a, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "div:nth-child(3) > p"
+              ],
+              "html": "<p style=\"font-size:0.8125rem;line-height:1.6;margin:0\"><strong style=\"color:white\">This is not insurance.</strong> <!-- -->Programs provide access to discounted healthcare services and a network of providers.</p>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.35 (foreground color: #475569, background color: #0f172a, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "path": "/assurevantage/shop",
+      "url": "https://www.assurevantage.com/assurevantage/shop",
+      "status": 404,
+      "title": "404: This page could not be found.",
+      "canonical": "https://www.assurevantage.com/assurevantage",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "404"
+        },
+        {
+          "level": "H2",
+          "text": "This page could not be found."
+        }
+      ],
+      "headers": 0,
+      "footers": 0,
+      "navs": [],
+      "pageHeight": 1000,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 398.39999997615814,
+        "domContentLoaded": 557.1000000238419,
+        "fcp": 644,
+        "lcp": 644,
+        "cls": 0
+      },
+      "robots": "noindex",
+      "errors": [],
+      "failures": [
+        {
+          "url": "https://www.assurevantage.com/assurevantage/shop",
+          "status": 404
+        }
+      ],
+      "accessibility": []
+    },
+    {
+      "viewport": "desktop",
+      "path": "/assurevantage/sign-in",
+      "url": "https://www.getidealoh.com/assurevantage/sign-in",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H2",
+          "text": "Join thousands of members saving on dental care"
+        },
+        {
+          "level": "H2",
+          "text": "Sign In"
+        }
+      ],
+      "headers": 1,
+      "footers": 1,
+      "navs": [
+        {
+          "label": null,
+          "text": "Services\nExplore Plans\nMember Portal"
+        }
+      ],
+      "pageHeight": 1558,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 180.5999999642372,
+        "domContentLoaded": 582.8999999761581,
+        "fcp": 564,
+        "lcp": 564,
+        "cls": 0.13719525134428048
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "autocomplete-valid",
+          "impact": "serious",
+          "count": 1,
+          "examples": [
+            {
+              "target": [
+                "#identifier"
+              ],
+              "html": "<input id=\"identifier\" type=\"text\" placeholder=\"email@example.com or...\" autocomplete=\"email username\" style=\"width:100%;border:1p...\" value=\"\">",
+              "summary": "Fix all of the following:\n  the autocomplete attribute is incorrectly formatted"
+            }
+          ]
+        },
+        {
+          "id": "button-name",
+          "impact": "critical",
+          "count": 1,
+          "examples": [
+            {
+              "target": [
+                "div:nth-child(2) > button[type=\"button\"]"
+              ],
+              "html": "<button type=\"button\" style=\"position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#64748b;padding:4px;display:flex\">",
+              "summary": "Fix any of the following:\n  Element does not have inner text that is visible to screen readers\n  aria-label attribute does not exist or is empty\n  aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty\n  Element has no title attribute\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  Element's default semantics were not overridden with role=\"none\" or role=\"presentation\""
+            }
+          ]
+        },
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 3,
+          "examples": [
+            {
+              "target": [
+                ".mx-auto.max-w-6xl.px-4:nth-child(3) > p:nth-child(1)"
+              ],
+              "html": "<p style=\"font-size:0.6875rem;color:#94a3b8;line-height:1.7;max-width:860px;margin-bottom:1.25rem\">",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "p:nth-child(1) > span"
+              ],
+              "html": "<span style=\"font-size:0.8125rem;color:#94a3b8;font-weight:700\">THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance.</span>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 9.8pt (13px), font weight: bold). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "path": "/assurevantage/sign-up",
+      "url": "https://www.getidealoh.com/assurevantage/sign-up",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H2",
+          "text": "New to AssureVantage?"
+        },
+        {
+          "level": "H3",
+          "text": "Create Portal Access"
+        }
+      ],
+      "headers": 1,
+      "footers": 1,
+      "navs": [
+        {
+          "label": null,
+          "text": "Services\nExplore Plans\nMember Portal"
+        }
+      ],
+      "pageHeight": 2422,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 33.80000001192093,
+        "domContentLoaded": 132.39999997615814,
+        "fcp": 164,
+        "lcp": 164,
+        "cls": 0.004877673008294754
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "autocomplete-valid",
+          "impact": "serious",
+          "count": 2,
+          "examples": [
+            {
+              "target": [
+                "#portal-firstName"
+              ],
+              "html": "<input id=\"portal-firstName\" type=\"text\" placeholder=\"Jane\" autocomplete=\"firstName\" style=\"width:100%;border:1px solid #e2e8f0;border-radius:12px;font-family:inherit;font-size:1rem;transition:all 0.2s;background-color:#f8fafc;padding:0.75rem 0.875rem\" value=\"\">",
+              "summary": "Fix all of the following:\n  the autocomplete attribute is incorrectly formatted"
+            },
+            {
+              "target": [
+                "#portal-lastName"
+              ],
+              "html": "<input id=\"portal-lastName\" type=\"text\" placeholder=\"Smith\" autocomplete=\"lastName\" style=\"width:100%;border:1px solid #e2e8f0;border-radius:12px;font-family:inherit;font-size:1rem;transition:all 0.2s;background-color:#f8fafc;padding:0.75rem 0.875rem\" value=\"\">",
+              "summary": "Fix all of the following:\n  the autocomplete attribute is incorrectly formatted"
+            }
+          ]
+        },
+        {
+          "id": "button-name",
+          "impact": "critical",
+          "count": 1,
+          "examples": [
+            {
+              "target": [
+                "div:nth-child(3) > div > button[type=\"button\"]"
+              ],
+              "html": "<button type=\"button\" style=\"position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#64748b;padding:4px;display:flex\">",
+              "summary": "Fix any of the following:\n  Element does not have inner text that is visible to screen readers\n  aria-label attribute does not exist or is empty\n  aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty\n  Element has no title attribute\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  Element's default semantics were not overridden with role=\"none\" or role=\"presentation\""
+            }
+          ]
+        },
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 4,
+          "examples": [
+            {
+              "target": [
+                ".container > div > .glass-card > div > span"
+              ],
+              "html": "<span style=\"color:#94a3b8;font-size:0.8125rem\">or create with email</span>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                ".mx-auto.max-w-6xl.px-4:nth-child(3) > p:nth-child(1)"
+              ],
+              "html": "<p style=\"font-size:0.6875rem;color:#94a3b8;line-height:1.7;max-width:860px;margin-bottom:1.25rem\">",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "path": "/assurevantage/teledentistry",
+      "url": "https://www.assurevantage.com/assurevantage/teledentistry",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "DialCare dentists are available 24/7/365"
+        },
+        {
+          "level": "H3",
+          "text": "What We Can Help With"
+        },
+        {
+          "level": "H2",
+          "text": "When to Use Teledentistry"
+        },
+        {
+          "level": "H2",
+          "text": "Live Video Consultations"
+        },
+        {
+          "level": "H2",
+          "text": "Virtual Care on Your Schedule"
+        },
+        {
+          "level": "H2",
+          "text": "Get in Touch"
+        }
+      ],
+      "headers": 0,
+      "footers": 1,
+      "navs": [
+        {
+          "label": "AssureVantage offerings",
+          "text": "AssureVantage\nAll offerings\nEssentials\nBalance for Life\nOral Care\nExplore services\nMember Portal\nCart (0) \u00b7 $0.00/mo"
+        }
+      ],
+      "pageHeight": 4784,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 410.5,
+        "domContentLoaded": 513.8000000119209,
+        "fcp": 568,
+        "lcp": 816,
+        "cls": 0.06836426323784722
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 17,
+          "examples": [
+            {
+              "target": [
+                ".container > div:nth-child(1) > p:nth-child(1)"
+              ],
+              "html": "<p style=\"text-transform:uppercase;letter-spacing:0.1em;font-size:0.75rem;font-weight:700;color:#2980B9;margin-bottom:0.5rem\">OUR SERVICES</p>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 3.95 (foreground color: #2980b9, background color: #eff6ff, font size: 9.0pt (12px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "div:nth-child(1) > h4"
+              ],
+              "html": "<h4 style=\"margin:0.75rem 0 0.5rem;color:#2980B9;font-size:1rem\">Oral Pain</h4>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.3 (foreground color: #2980b9, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "path": "/assurevantage/terms",
+      "url": "https://www.assurevantage.com/assurevantage/terms",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Terms of Use"
+        },
+        {
+          "level": "H2",
+          "text": "Important Disclaimer"
+        },
+        {
+          "level": "H2",
+          "text": "Program Overview"
+        },
+        {
+          "level": "H2",
+          "text": "Membership Terms"
+        },
+        {
+          "level": "H2",
+          "text": "Your Responsibilities"
+        },
+        {
+          "level": "H2",
+          "text": "Limitation of Liability"
+        },
+        {
+          "level": "H2",
+          "text": "Fees and Payment"
+        },
+        {
+          "level": "H2",
+          "text": "Changes to Terms"
+        },
+        {
+          "level": "H2",
+          "text": "Contact Information"
+        }
+      ],
+      "headers": 0,
+      "footers": 1,
+      "navs": [
+        {
+          "label": "AssureVantage offerings",
+          "text": "AssureVantage\nAll offerings\nEssentials\nBalance for Life\nOral Care\nExplore services\nMember Portal\nCart (0) \u00b7 $0.00/mo"
+        }
+      ],
+      "pageHeight": 2967,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 386.2999999523163,
+        "domContentLoaded": 513.5999999642372,
+        "fcp": 556,
+        "lcp": 556,
+        "cls": 0.0029341396604938273
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 3,
+          "examples": [
+            {
+              "target": [
+                ".max-w-6xl.sm\\:px-6.lg\\:px-8:nth-child(3) > p:nth-child(1)"
+              ],
+              "html": "<p style=\"font-size:0.6875rem;color:#94a3b8;line-height:1.7;max-width:860px;margin-bottom:1.25rem\">",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "span"
+              ],
+              "html": "<span style=\"font-size:0.8125rem;color:#94a3b8;font-weight:700\">THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance.</span>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 9.8pt (13px), font weight: bold). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "path": "/employer",
+      "url": "https://www.getidealoh.com/assurevantage/sign-in",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H2",
+          "text": "Join thousands of members saving on dental care"
+        },
+        {
+          "level": "H2",
+          "text": "Sign In"
+        }
+      ],
+      "headers": 1,
+      "footers": 1,
+      "navs": [
+        {
+          "label": null,
+          "text": "Services\nExplore Plans\nMember Portal"
+        }
+      ],
+      "pageHeight": 1558,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 547.6000000238419,
+        "domContentLoaded": 686.2000000476837,
+        "fcp": 760,
+        "lcp": 760,
+        "cls": 0.003950179247444058
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "autocomplete-valid",
+          "impact": "serious",
+          "count": 1,
+          "examples": [
+            {
+              "target": [
+                "#identifier"
+              ],
+              "html": "<input id=\"identifier\" type=\"text\" placeholder=\"email@example.com or...\" autocomplete=\"email username\" style=\"width:100%;border:1p...\" value=\"\">",
+              "summary": "Fix all of the following:\n  the autocomplete attribute is incorrectly formatted"
+            }
+          ]
+        },
+        {
+          "id": "button-name",
+          "impact": "critical",
+          "count": 1,
+          "examples": [
+            {
+              "target": [
+                "div:nth-child(2) > button[type=\"button\"]"
+              ],
+              "html": "<button type=\"button\" style=\"position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#64748b;padding:4px;display:flex\">",
+              "summary": "Fix any of the following:\n  Element does not have inner text that is visible to screen readers\n  aria-label attribute does not exist or is empty\n  aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty\n  Element has no title attribute\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  Element's default semantics were not overridden with role=\"none\" or role=\"presentation\""
+            }
+          ]
+        },
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 3,
+          "examples": [
+            {
+              "target": [
+                ".mx-auto.max-w-6xl.px-4:nth-child(3) > p:nth-child(1)"
+              ],
+              "html": "<p style=\"font-size:0.6875rem;color:#94a3b8;line-height:1.7;max-width:860px;margin-bottom:1.25rem\">",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "p:nth-child(1) > span"
+              ],
+              "html": "<span style=\"font-size:0.8125rem;color:#94a3b8;font-weight:700\">THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance.</span>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 9.8pt (13px), font weight: bold). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "path": "/",
+      "url": "https://www.assurevantage.com/",
+      "status": 200,
+      "title": "AssureVantage \u2014 Choose Your Plan",
+      "canonical": "https://www.assurevantage.com/",
+      "description": "Explore AssureVantage's Oral Savings Plans from $14.99/mo, Balance for Life mental wellbeing support for $19.95/mo, or the Essentials membership from $58.95/mo. Membership programs, not insurance.",
+      "ogTitle": "AssureVantage \u2014 Choose Your Plan",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Everyday care, real savingsbuilt for real people"
+        }
+      ],
+      "headers": 1,
+      "footers": 0,
+      "navs": [],
+      "pageHeight": 1206,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 1216.5,
+        "domContentLoaded": 1588,
+        "fcp": 1620,
+        "lcp": 1620,
+        "cls": 0
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 1,
+          "examples": [
+            {
+              "target": [
+                "a[href$=\"plans\"] > div > div:nth-child(2) > div > div:nth-child(2)"
+              ],
+              "html": "<div style=\"background:#0d9488;color:#fff;border-radius:8px;padding:0.5rem 1rem;font-weight:600;font-size:0.875rem\">Explore \u2192</div>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 3.74 (foreground color: #ffffff, background color: #0d9488, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "path": "/register/rep",
+      "url": "https://www.assurevantage.com/register/rep",
+      "status": 200,
+      "title": "Broker / Agency / Rep Registration | Ideal Oral Health",
+      "canonical": "https://getidealoh.com/",
+      "description": "Submit broker, agency, and front-line rep onboarding details to Ideal Oral Health.",
+      "ogTitle": "Ideal Health | Modern Health Plans Made Simple",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Partner Registration"
+        },
+        {
+          "level": "H2",
+          "text": "Submission Type"
+        },
+        {
+          "level": "H2",
+          "text": "Broker / Agency Details"
+        }
+      ],
+      "headers": 0,
+      "footers": 0,
+      "navs": [],
+      "pageHeight": 1905,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 370.39999997615814,
+        "domContentLoaded": 499.5999999642372,
+        "fcp": 556,
+        "lcp": 556,
+        "cls": 0
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": []
+    },
+    {
+      "viewport": "desktop",
+      "path": "/register",
+      "url": "https://www.assurevantage.com/register",
+      "status": 200,
+      "title": "Partner Kit \u2014 Agreement & Acknowledgment | Ideal Oral Health",
+      "canonical": "https://getidealoh.com/",
+      "description": "Complete and sign the Ideal Oral Health Partner Agreement and W-9, or download and upload your completed forms.",
+      "ogTitle": "Ideal Health | Modern Health Plans Made Simple",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Partner agreement currently unavailable"
+        }
+      ],
+      "headers": 0,
+      "footers": 0,
+      "navs": [],
+      "pageHeight": 1000,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "badImages": [],
+      "timings": {
+        "ttfb": 359.69999998807907,
+        "domContentLoaded": 435,
+        "fcp": 468,
+        "lcp": 468,
+        "cls": 0
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": []
+    },
+    {
+      "viewport": "mobile",
+      "path": "/assurevantage/balance-for-life",
+      "url": "https://www.assurevantage.com/assurevantage/balance-for-life",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage/balance-for-life",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Behavioral health care right when you\u00a0need\u00a0it"
+        },
+        {
+          "level": "H2",
+          "text": "Support that meets you where you are, then goes further"
+        },
+        {
+          "level": "H3",
+          "text": "Check in with Zenn, any hour"
+        },
+        {
+          "level": "H3",
+          "text": "Get matched with a licensed counselor"
+        },
+        {
+          "level": "H3",
+          "text": "Keep going between sessions"
+        },
+        {
+          "level": "H2",
+          "text": "An AI companion that knows when to bring in a person"
+        },
+        {
+          "level": "H2",
+          "text": "A counselor who speaks your language"
+        },
+        {
+          "level": "H2",
+          "text": "More than counseling"
+        },
+        {
+          "level": "H3",
+          "text": "Coaching"
+        },
+        {
+          "level": "H3",
+          "text": "Aware Mindfulness"
+        },
+        {
+          "level": "H3",
+          "text": "Phone, video, text or chat"
+        },
+        {
+          "level": "H3",
+          "text": "Preferred provider network"
+        },
+        {
+          "level": "H2",
+          "text": "Enroll with AssureVantage, then just open the app"
+        },
+        {
+          "level": "H2",
+          "text": "Real support, right when you\u00a0need\u00a0it"
+        }
+      ],
+      "headers": 0,
+      "footers": 1,
+      "navs": [
+        {
+          "label": "AssureVantage offerings",
+          "text": "AssureVantage\nAll offerings\nEssentials\nBalance for Life\nOral Care\nExplore services\nMember Portal\nCart (0) \u00b7 $0.00/mo"
+        }
+      ],
+      "pageHeight": 6406,
+      "viewportWidth": 405,
+      "bodyWidth": 405,
+      "badImages": [],
+      "timings": {
+        "ttfb": 352.5999999642372,
+        "domContentLoaded": 832.8999999761581,
+        "fcp": 832,
+        "lcp": 832,
+        "cls": 0
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 1,
+          "examples": [
+            {
+              "target": [
+                "footer > .container:nth-child(1) > div:nth-child(1) > p"
+              ],
+              "html": "<p style=\"font-size:0.875rem;line-height:1.6;margin:0\">Affordable healthcare access \u2014 telehealth, pharmacy savings, labs, mental wellness, and dental discounts.</p>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.35 (foreground color: #475569, background color: #0f172a, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "path": "/assurevantage/discount",
+      "url": "https://www.assurevantage.com/assurevantage/discount",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Save up to 20%-50% on Dental Procedures"
+        },
+        {
+          "level": "H2",
+          "text": "Sample Dental Savings"
+        },
+        {
+          "level": "H2",
+          "text": "Dental Discount Plan Features"
+        },
+        {
+          "level": "H2",
+          "text": "One of the Largest Dental Networks in the Nation"
+        }
+      ],
+      "headers": 0,
+      "footers": 1,
+      "navs": [
+        {
+          "label": "AssureVantage offerings",
+          "text": "AssureVantage\nAll offerings\nEssentials\nBalance for Life\nOral Care\nExplore services\nMember Portal\nCart (0) \u00b7 $0.00/mo"
+        }
+      ],
+      "pageHeight": 6092,
+      "viewportWidth": 390,
+      "bodyWidth": 390,
+      "badImages": [],
+      "timings": {
+        "ttfb": 381.89999997615814,
+        "domContentLoaded": 604.3999999761581,
+        "fcp": 636,
+        "lcp": 816,
+        "cls": 0
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 32,
+          "examples": [
+            {
+              "target": [
+                "#savings > .container > div:nth-child(1) > p:nth-child(1)"
+              ],
+              "html": "<p style=\"text-transform:uppercase;letter-spacing:0.1em;font-size:0.75rem;font-weight:700;color:var(--accent-orange, #F39C12);margin-bottom:0.5rem\">Real Numbers</p>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.19 (foreground color: #f39c12, background color: #ffffff, font size: 9.0pt (12px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "div:nth-child(2) > span:nth-child(3)"
+              ],
+              "html": "<span style=\"font-size:1.0625rem;font-weight:700;color:#F39C12\">$<!-- -->33</span>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.19 (foreground color: #f39c12, background color: #ffffff, font size: 12.8pt (17px), font weight: bold). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "path": "/assurevantage/essentials",
+      "url": "https://www.assurevantage.com/assurevantage/essentials",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage/essentials",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Essentials Plan"
+        },
+        {
+          "level": "H2",
+          "text": "What's included"
+        },
+        {
+          "level": "H3",
+          "text": "Lyric Telehealth"
+        },
+        {
+          "level": "H3",
+          "text": "QuestSelect Labs"
+        },
+        {
+          "level": "H3",
+          "text": "RxValet Pharmacy"
+        },
+        {
+          "level": "H3",
+          "text": "Balance for Life"
+        },
+        {
+          "level": "H2",
+          "text": "Ready to get started?"
+        }
+      ],
+      "headers": 0,
+      "footers": 1,
+      "navs": [
+        {
+          "label": "AssureVantage offerings",
+          "text": "AssureVantage\nAll offerings\nEssentials\nBalance for Life\nOral Care\nExplore services\nMember Portal\nCart (0) \u00b7 $0.00/mo"
+        }
+      ],
+      "pageHeight": 4734,
+      "viewportWidth": 405,
+      "bodyWidth": 405,
+      "badImages": [],
+      "timings": {
+        "ttfb": 407.9000000357628,
+        "domContentLoaded": 830.6000000238419,
+        "fcp": 884,
+        "lcp": 1204,
+        "cls": 0
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 2,
+          "examples": [
+            {
+              "target": [
+                ".container > a[href$=\"program-plans\"]"
+              ],
+              "html": "<a style=\"display:inline-flex;align-items:center;gap:8px;background:#f97316;color:white;padding:16px 34px;border-radius:12px;font-weight:700;font-size:1.0625rem;text-decoration:none;box-shadow:0 4px 18px rgba(249,115,22,0.42)\" href=\"/assurevantage/program-plans\">",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.8 (foreground color: #ffffff, background color: #f97316, font size: 12.8pt (17px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "footer > .container:nth-child(1) > div:nth-child(1) > p"
+              ],
+              "html": "<p style=\"font-size:0.875rem;line-height:1.6;margin:0\">Affordable healthcare access \u2014 telehealth, pharmacy savings, labs, mental wellness, and dental discounts.</p>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.35 (foreground color: #475569, background color: #0f172a, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "path": "/assurevantage/faq",
+      "url": "https://www.assurevantage.com/assurevantage/faq",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Frequently Asked Questions"
+        },
+        {
+          "level": "H2",
+          "text": "General Dental Questions"
+        },
+        {
+          "level": "H2",
+          "text": "About AssureVantage"
+        },
+        {
+          "level": "H2",
+          "text": "Plans & Pricing"
+        },
+        {
+          "level": "H2",
+          "text": "Dental Discount Network"
+        },
+        {
+          "level": "H2",
+          "text": "Teledentistry"
+        },
+        {
+          "level": "H2",
+          "text": "AI Oral Health Scanning"
+        },
+        {
+          "level": "H2",
+          "text": "Getting Started"
+        },
+        {
+          "level": "H3",
+          "text": "Ready to get started?"
+        }
+      ],
+      "headers": 0,
+      "footers": 1,
+      "navs": [
+        {
+          "label": "AssureVantage offerings",
+          "text": "AssureVantage\nAll offerings\nEssentials\nBalance for Life\nOral Care\nExplore services\nMember Portal\nCart (0) \u00b7 $0.00/mo"
+        }
+      ],
+      "pageHeight": 5004,
+      "viewportWidth": 390,
+      "bodyWidth": 390,
+      "badImages": [],
+      "timings": {
+        "ttfb": 636.5999999642372,
+        "domContentLoaded": 767.5999999642372,
+        "fcp": 804,
+        "lcp": 804,
+        "cls": 0
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 3,
+          "examples": [
+            {
+              "target": [
+                ".mx-auto.max-w-6xl.px-4:nth-child(3) > p:nth-child(1)"
+              ],
+              "html": "<p style=\"font-size:0.6875rem;color:#94a3b8;line-height:1.7;max-width:860px;margin-bottom:1.25rem\">",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "span"
+              ],
+              "html": "<span style=\"font-size:0.8125rem;color:#94a3b8;font-weight:700\">THIS PLAN IS NOT INSURANCE and is not intended to replace health insurance.</span>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 9.8pt (13px), font weight: bold). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "path": "/assurevantage/oralcare",
+      "url": "https://www.assurevantage.com/assurevantage/oralcare",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage/oralcare",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Oral Care"
+        },
+        {
+          "level": "H2",
+          "text": "What\u2019s included"
+        },
+        {
+          "level": "H3",
+          "text": "AI Oral Scanning"
+        },
+        {
+          "level": "H3",
+          "text": "24/7 Teledentistry"
+        },
+        {
+          "level": "H3",
+          "text": "Dental Discount Network"
+        },
+        {
+          "level": "H3",
+          "text": "Emergency Support"
+        },
+        {
+          "level": "H2",
+          "text": "Why members choose Oral Care"
+        },
+        {
+          "level": "H3",
+          "text": "No waiting periods"
+        },
+        {
+          "level": "H3",
+          "text": "No annual caps"
+        },
+        {
+          "level": "H3",
+          "text": "No claim forms"
+        },
+        {
+          "level": "H3",
+          "text": "100,000+ providers"
+        },
+        {
+          "level": "H2",
+          "text": "From routine cleanings to root canals \u2014 everyone gets a healthier smile."
+        },
+        {
+          "level": "H2",
+          "text": "Take care of every smile"
+        }
+      ],
+      "headers": 0,
+      "footers": 1,
+      "navs": [
+        {
+          "label": "AssureVantage offerings",
+          "text": "AssureVantage\nAll offerings\nEssentials\nBalance for Life\nOral Care\nExplore services\nMember Portal\nCart (0) \u00b7 $0.00/mo"
+        }
+      ],
+      "pageHeight": 5103,
+      "viewportWidth": 405,
+      "bodyWidth": 405,
+      "badImages": [],
+      "timings": {
+        "ttfb": 460.60000002384186,
+        "domContentLoaded": 561.8000000119209,
+        "fcp": 592,
+        "lcp": 1232,
+        "cls": 0
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 2,
+          "examples": [
+            {
+              "target": [
+                ".container > a[href$=\"program-plans\"]"
+              ],
+              "html": "<a style=\"display:inline-flex;align-items:center;gap:8px;background:#f97316;color:white;padding:16px 34px;border-radius:12px;font-weight:700;font-size:1.0625rem;text-decoration:none;box-shadow:0 4px 18px rgba(249,115,22,0.42)\" href=\"/assurevantage/program-plans\">",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.8 (foreground color: #ffffff, background color: #f97316, font size: 12.8pt (17px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "footer > .container:nth-child(1) > div:nth-child(1) > p"
+              ],
+              "html": "<p style=\"font-size:0.875rem;line-height:1.6;margin:0\">Affordable healthcare access \u2014 telehealth, pharmacy savings, labs, mental wellness, and dental discounts.</p>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.35 (foreground color: #475569, background color: #0f172a, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "path": "/assurevantage/plans",
+      "url": "https://www.assurevantage.com/assurevantage/plans",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage/plans",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Affordable Oral Health Savings"
+        },
+        {
+          "level": "H2",
+          "text": "AssureVantage Plan"
+        },
+        {
+          "level": "H3",
+          "text": "What's Included"
+        },
+        {
+          "level": "H3",
+          "text": "Why AssureVantage?"
+        },
+        {
+          "level": "H3",
+          "text": "Secure Payments"
+        },
+        {
+          "level": "H3",
+          "text": "Access Within 24 Hours"
+        },
+        {
+          "level": "H3",
+          "text": "Flexible Billing"
+        },
+        {
+          "level": "H3",
+          "text": "24/7 Support"
+        }
+      ],
+      "headers": 0,
+      "footers": 1,
+      "navs": [
+        {
+          "label": "AssureVantage offerings",
+          "text": "AssureVantage\nAll offerings\nEssentials\nBalance for Life\nOral Care\nExplore services\nMember Portal\nCart (0) \u00b7 $0.00/mo"
+        }
+      ],
+      "pageHeight": 3696,
+      "viewportWidth": 390,
+      "bodyWidth": 390,
+      "badImages": [],
+      "timings": {
+        "ttfb": 385.80000001192093,
+        "domContentLoaded": 519.6999999880791,
+        "fcp": 576,
+        "lcp": 840,
+        "cls": 0
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 4,
+          "examples": [
+            {
+              "target": [
+                "div:nth-child(2) > div:nth-child(3)"
+              ],
+              "html": "<div style=\"font-size: 0.75rem; color: var(--accent-teal); margin-top: 4px; font-weight: 600;\">1 Month Free</div>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.48 (foreground color: #14b8a6, background color: #ffffff, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                ".mx-auto.max-w-6xl.px-4:nth-child(3) > p:nth-child(1)"
+              ],
+              "html": "<p style=\"font-size:0.6875rem;color:#94a3b8;line-height:1.7;max-width:860px;margin-bottom:1.25rem\">",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "path": "/assurevantage/program-plans",
+      "url": "https://www.assurevantage.com/assurevantage/program-plans",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage/program-plans",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Three offerings. One shared checkout."
+        },
+        {
+          "level": "H2",
+          "text": "Essentials"
+        },
+        {
+          "level": "H2",
+          "text": "Balance for Life"
+        },
+        {
+          "level": "H2",
+          "text": "Oral Care"
+        }
+      ],
+      "headers": 0,
+      "footers": 1,
+      "navs": [
+        {
+          "label": "AssureVantage offerings",
+          "text": "AssureVantage\nAll offerings\nEssentials\nBalance for Life\nOral Care\nExplore services\nMember Portal\nCart (0) \u00b7 $0.00/mo"
+        }
+      ],
+      "pageHeight": 2919,
+      "viewportWidth": 405,
+      "bodyWidth": 405,
+      "badImages": [],
+      "timings": {
+        "ttfb": 392.60000002384186,
+        "domContentLoaded": 504.4000000357628,
+        "fcp": 532,
+        "lcp": 768,
+        "cls": 0
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 1,
+          "examples": [
+            {
+              "target": [
+                "div:nth-child(1) > p"
+              ],
+              "html": "<p style=\"font-size:0.875rem;line-height:1.6;margin:0\">Affordable healthcare access \u2014 telehealth, pharmacy savings, labs, mental wellness, and dental discounts.</p>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.35 (foreground color: #475569, background color: #0f172a, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "path": "/assurevantage/sign-in",
+      "url": "https://www.getidealoh.com/assurevantage/sign-in",
+      "status": 200,
+      "title": "AssureVantage",
+      "canonical": "https://www.assurevantage.com/assurevantage",
+      "description": "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access.",
+      "ogTitle": "AssureVantage",
+      "headings": [
+        {
+          "level": "H2",
+          "text": "Join thousands of members saving on dental care"
+        },
+        {
+          "level": "H2",
+          "text": "Sign In"
+        }
+      ],
+      "headers": 1,
+      "footers": 1,
+      "navs": [
+        {
+          "label": null,
+          "text": "ServicesExplore our oral health services.Oral Health ScanTeledentistryDental Discount NetworkExplore PlansMember Portal"
+        }
+      ],
+      "pageHeight": 2724,
+      "viewportWidth": 390,
+      "bodyWidth": 390,
+      "badImages": [],
+      "timings": {
+        "ttfb": 254.70000004768372,
+        "domContentLoaded": 548.7000000476837,
+        "fcp": 664,
+        "lcp": 1052,
+        "cls": 0
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "autocomplete-valid",
+          "impact": "serious",
+          "count": 1,
+          "examples": [
+            {
+              "target": [
+                "#identifier"
+              ],
+              "html": "<input id=\"identifier\" type=\"text\" placeholder=\"email@example.com or...\" autocomplete=\"email username\" style=\"width:100%;border:1p...\" value=\"\">",
+              "summary": "Fix all of the following:\n  the autocomplete attribute is incorrectly formatted"
+            }
+          ]
+        },
+        {
+          "id": "button-name",
+          "impact": "critical",
+          "count": 1,
+          "examples": [
+            {
+              "target": [
+                "div:nth-child(2) > button[type=\"button\"]"
+              ],
+              "html": "<button type=\"button\" style=\"position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#64748b;padding:4px;display:flex\">",
+              "summary": "Fix any of the following:\n  Element does not have inner text that is visible to screen readers\n  aria-label attribute does not exist or is empty\n  aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty\n  Element has no title attribute\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  Element's default semantics were not overridden with role=\"none\" or role=\"presentation\""
+            }
+          ]
+        },
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 5,
+          "examples": [
+            {
+              "target": [
+                ".health-header_mobileMenuButtonLabel__jJsfQ"
+              ],
+              "html": "<span class=\"health-header_mobileMenuButtonLabel__jJsfQ\">Menu</span>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.48 (foreground color: #ffffff, background color: #14b8a6, font size: 11.3pt (15px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "div > a[href$=\"plans\"]"
+              ],
+              "html": "<a style=\"display:inline-flex;align-items:center;gap:8px;color:#14b8a6;text-decoration:none;font-weight:600;font-size:0.95rem\" href=\"/assurevantage/plans\">View all plans \u2192</a>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.48 (foreground color: #14b8a6, background color: #ffffff, font size: 11.4pt (15.2px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "path": "/",
+      "url": "https://www.assurevantage.com/",
+      "status": 200,
+      "title": "AssureVantage \u2014 Choose Your Plan",
+      "canonical": "https://www.assurevantage.com/",
+      "description": "Explore AssureVantage's Oral Savings Plans from $14.99/mo, Balance for Life mental wellbeing support for $19.95/mo, or the Essentials membership from $58.95/mo. Membership programs, not insurance.",
+      "ogTitle": "AssureVantage \u2014 Choose Your Plan",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Everyday care, real savingsbuilt for real people"
+        }
+      ],
+      "headers": 1,
+      "footers": 0,
+      "navs": [],
+      "pageHeight": 2368,
+      "viewportWidth": 390,
+      "bodyWidth": 390,
+      "badImages": [],
+      "timings": {
+        "ttfb": 1220.199999988079,
+        "domContentLoaded": 1576.699999988079,
+        "fcp": 1584,
+        "lcp": 1880,
+        "cls": 0
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "count": 1,
+          "examples": [
+            {
+              "target": [
+                "a[href$=\"plans\"] > div > div:nth-child(2) > div > div:nth-child(2)"
+              ],
+              "html": "<div style=\"background: rgb(13, 148, 136); color: rgb(255, 255, 255); border-radius: 8px; padding: 0.5rem 1rem; font-weight: 600; font-size: 0.875rem;\">Explore \u2192</div>",
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 3.74 (foreground color: #ffffff, background color: #0d9488, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "path": "/register/rep",
+      "url": "https://www.assurevantage.com/register/rep",
+      "status": 200,
+      "title": "Broker / Agency / Rep Registration | Ideal Oral Health",
+      "canonical": "https://getidealoh.com/",
+      "description": "Submit broker, agency, and front-line rep onboarding details to Ideal Oral Health.",
+      "ogTitle": "Ideal Health | Modern Health Plans Made Simple",
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Partner Registration"
+        },
+        {
+          "level": "H2",
+          "text": "Submission Type"
+        },
+        {
+          "level": "H2",
+          "text": "Broker / Agency Details"
+        }
+      ],
+      "headers": 0,
+      "footers": 0,
+      "navs": [],
+      "pageHeight": 2532,
+      "viewportWidth": 390,
+      "bodyWidth": 390,
+      "badImages": [],
+      "timings": {
+        "ttfb": 431.39999997615814,
+        "domContentLoaded": 573.8000000119209,
+        "fcp": 632,
+        "lcp": 632,
+        "cls": 0
+      },
+      "robots": null,
+      "errors": [],
+      "failures": [],
+      "accessibility": []
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+User-Agent: *
+Allow: /
+Disallow: /access
+Disallow: /employer
+Disallow: /admin
+Disallow: /partner
+Disallow: /api
+Disallow: /debug
+Disallow: /bootstrap
+Disallow: /unsubscribe
+Disallow: /health/dashboard
+Disallow: /health/manage-plans
+Disallow: /health/checkout
+Disallow: /health/sign-in
+Disallow: /health/sign-up
+Disallow: /health/forgot-password
+Disallow: /health/sso-callback
+Disallow: /health/claim-invite
+Disallow: /health/admin-redirect
+Disallow: /health/plans/
+
+Sitemap: https://getidealoh.com/sitemap.xml

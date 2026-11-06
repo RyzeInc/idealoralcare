@@ -140,11 +140,24 @@ export interface EssentialsPacketData {
 
 const isBflPacket = (data: EssentialsPacketData) => data.program === "bfl";
 
-const brandName = (data: EssentialsPacketData) => data.brand?.name ?? "Ideal Health";
-const programName = (data: EssentialsPacketData) => `${brandName(data)} Essentials`;
-const memberWebsite = (data: EssentialsPacketData) => data.brand?.portalUrl ? new URL(data.brand.portalUrl).host : ESSENTIALS_SUPPORT.website;
+const brandName = (data: EssentialsPacketData) =>
+  data.brand?.name ?? "Ideal Health";
+const programName = (data: EssentialsPacketData) =>
+  data.brand && isBflPacket(data)
+    ? `${brandName(data)} · Balance for Life`
+    : `${brandName(data)} Essentials`;
+const memberWebsite = (data: EssentialsPacketData) =>
+  data.brand?.portalUrl
+    ? new URL(data.brand.portalUrl).host
+    : ESSENTIALS_SUPPORT.website;
 
-function Footer({ label, data }: { label: string; data: EssentialsPacketData }) {
+function Footer({
+  label,
+  data,
+}: {
+  label: string;
+  data: EssentialsPacketData;
+}) {
   return (
     <Text fixed style={s.footer}>
       {programName(data)} | {label}
@@ -153,11 +166,22 @@ function Footer({ label, data }: { label: string; data: EssentialsPacketData }) 
 }
 
 /** Label/value pair used by the vendor contact strips. */
-function ContactStrip({ items }: { items: { label: string; value: string }[] }) {
+function ContactStrip({
+  items,
+}: {
+  items: { label: string; value: string }[];
+}) {
   return (
     <View style={{ flexDirection: "row", marginBottom: 8 }}>
       {items.map((item) => (
-        <View key={item.label} style={{ ...s.metaBox, width: `${100 / items.length}%`, marginRight: 4 }}>
+        <View
+          key={item.label}
+          style={{
+            ...s.metaBox,
+            width: `${100 / items.length}%`,
+            marginRight: 4,
+          }}
+        >
           <Text style={s.metaLabel}>{item.label}</Text>
           <Text style={s.metaValue}>{item.value}</Text>
         </View>
@@ -170,10 +194,22 @@ function ContactStrip({ items }: { items: { label: string; value: string }[] }) 
 function WelcomePage({ data }: { data: EssentialsPacketData }) {
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
+      <PageHeader
+        logoDataUri={data.logoDataUri}
+        fallbackLabel={brandName(data)}
+      />
 
-      <Text style={{ ...s.h1, textAlign: "center" }}>Member Welcome Packet</Text>
-      <Text style={{ fontSize: 10, color: GRAY, textAlign: "center", marginBottom: 12 }}>
+      <Text style={{ ...s.h1, textAlign: "center" }}>
+        Member Welcome Packet
+      </Text>
+      <Text
+        style={{
+          fontSize: 10,
+          color: GRAY,
+          textAlign: "center",
+          marginBottom: 12,
+        }}
+      >
         {programName(data)} — Virtual Care · Pharmacy · Labs · Behavioral Health
       </Text>
 
@@ -187,25 +223,32 @@ function WelcomePage({ data }: { data: EssentialsPacketData }) {
 
       <View style={s.noticeBox}>
         <Text style={{ fontSize: 10 }}>
-          <Text style={{ fontFamily: "Helvetica-Bold", color: ORANGE }}>Important: </Text>
+          <Text style={{ fontFamily: "Helvetica-Bold", color: ORANGE }}>
+            Important:{" "}
+          </Text>
           <Text>
-            This is a membership program and is NOT insurance. It does not satisfy the Affordable
-            Care Act minimum essential coverage requirement and does not cover basic medical needs.
+            This is a membership program and is NOT insurance. It does not
+            satisfy the Affordable Care Act minimum essential coverage
+            requirement and does not cover basic medical needs.
           </Text>
         </Text>
       </View>
 
       <Text style={{ ...s.h3, marginTop: 2 }}>Welcome Letter</Text>
 
-      {[data.essentialsMemberNumber, data.memberName, data.memberAddress ?? "[STREET ADDRESS]"].map(
-        (line, i) => (
-          <Text key={i} style={{ fontSize: 10, marginBottom: 0 }}>
-            {line}
-          </Text>
-        ),
-      )}
+      {[
+        data.essentialsMemberNumber,
+        data.memberName,
+        data.memberAddress ?? "[STREET ADDRESS]",
+      ].map((line, i) => (
+        <Text key={i} style={{ fontSize: 10, marginBottom: 0 }}>
+          {line}
+        </Text>
+      ))}
 
-      <Text style={{ fontSize: 10, marginTop: 8, marginBottom: 6 }}>Dear {data.memberFirstName},</Text>
+      <Text style={{ fontSize: 10, marginTop: 8, marginBottom: 6 }}>
+        Dear {data.memberFirstName},
+      </Text>
 
       {[
         `Welcome to ${brandName(data)}. We are committed to providing high-quality, non-insurance benefit plans tailored to your needs, with the goal of offering peace of mind through affordable and effective health benefit solutions.`,
@@ -217,7 +260,14 @@ function WelcomePage({ data }: { data: EssentialsPacketData }) {
         </Text>
       ))}
 
-      <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: GREEN, marginBottom: 3 }}>
+      <Text
+        style={{
+          fontSize: 10,
+          fontFamily: "Helvetica-Bold",
+          color: GREEN,
+          marginBottom: 3,
+        }}
+      >
         Included in this packet:
       </Text>
       {[
@@ -231,7 +281,14 @@ function WelcomePage({ data }: { data: EssentialsPacketData }) {
       <Text style={{ ...s.h4, marginTop: 4, marginBottom: 4, color: GREEN }}>
         How to Access Your Benefits
       </Text>
-      <View style={{ backgroundColor: LIGHT_GREEN, padding: 8, marginBottom: 4, borderRadius: 4 }}>
+      <View
+        style={{
+          backgroundColor: LIGHT_GREEN,
+          padding: 8,
+          marginBottom: 4,
+          borderRadius: 4,
+        }}
+      >
         {[
           {
             n: 1,
@@ -252,12 +309,29 @@ function WelcomePage({ data }: { data: EssentialsPacketData }) {
 
       {/* Kept on page 1: with full spacing the last row broke onto a page of its
           own, which pushed every later page number back by one. */}
-      <Text style={{ ...s.h4, marginTop: 2, marginBottom: 4 }}>Member Summary</Text>
+      <Text style={{ ...s.h4, marginTop: 2, marginBottom: 4 }}>
+        Member Summary
+      </Text>
       {[
-        ["Member Name", data.memberName, "Member Number", data.essentialsMemberNumber],
-        ["Group Number", data.essentialsGroupNumber, "Coverage", data.coverageType ?? "Employee"],
+        [
+          "Member Name",
+          data.memberName,
+          "Member Number",
+          data.essentialsMemberNumber,
+        ],
+        [
+          "Group Number",
+          data.essentialsGroupNumber,
+          "Coverage",
+          data.coverageType ?? "Employee",
+        ],
         ["Plan", data.planName, "Effective Date", data.effectiveDate],
-        ["Term", data.term ?? "Monthly", "Member Services", ESSENTIALS_SUPPORT.phone],
+        [
+          "Term",
+          data.term ?? "Monthly",
+          "Member Services",
+          ESSENTIALS_SUPPORT.phone,
+        ],
       ].map((row, i) => (
         <View key={i} style={{ flexDirection: "row", marginBottom: 2 }}>
           <View style={s.summaryLabelCell}>
@@ -282,17 +356,41 @@ function WelcomePage({ data }: { data: EssentialsPacketData }) {
 
 // ─── Standalone Balance for Life: welcome page ───────────────────────────────
 function BflWelcomePage({ data }: { data: EssentialsPacketData }) {
-  const balanceForLife = { ...ESSENTIALS_VENDOR_CODES.balanceForLife, memberCode: resolveBflMemberCode(data) };
+  const balanceForLife = {
+    ...ESSENTIALS_VENDOR_CODES.balanceForLife,
+    memberCode: resolveBflMemberCode(data),
+  };
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
+      <PageHeader
+        logoDataUri={data.logoDataUri}
+        fallbackLabel={brandName(data)}
+      />
 
-      <Text style={{ ...s.h1, textAlign: "center" }}>Member Welcome Packet</Text>
+      <Text style={{ ...s.h1, textAlign: "center" }}>
+        Member Welcome Packet
+      </Text>
       {data.bflLogoDataUri ? (
-        <Image src={data.bflLogoDataUri} style={{ width: 150, alignSelf: "center", marginTop: 2, marginBottom: 6 }} />
+        <Image
+          src={data.bflLogoDataUri}
+          style={{
+            width: 150,
+            alignSelf: "center",
+            marginTop: 2,
+            marginBottom: 6,
+          }}
+        />
       ) : null}
-      <Text style={{ fontSize: 10, color: GRAY, textAlign: "center", marginBottom: 12 }}>
-        Behavioral health care, right when you need it — through {brandName(data)}
+      <Text
+        style={{
+          fontSize: 10,
+          color: GRAY,
+          textAlign: "center",
+          marginBottom: 12,
+        }}
+      >
+        Behavioral health care, right when you need it — through{" "}
+        {brandName(data)}
       </Text>
 
       <ContactStrip
@@ -305,23 +403,30 @@ function BflWelcomePage({ data }: { data: EssentialsPacketData }) {
 
       <View style={s.noticeBox}>
         <Text style={{ fontSize: 10 }}>
-          <Text style={{ fontFamily: "Helvetica-Bold", color: ORANGE }}>Important: </Text>
+          <Text style={{ fontFamily: "Helvetica-Bold", color: ORANGE }}>
+            Important:{" "}
+          </Text>
           <Text>
-            This is a membership program and is NOT insurance. It does not satisfy the Affordable
-            Care Act minimum essential coverage requirement and does not cover basic medical needs.
+            This is a membership program and is NOT insurance. It does not
+            satisfy the Affordable Care Act minimum essential coverage
+            requirement and does not cover basic medical needs.
           </Text>
         </Text>
       </View>
 
       <Text style={{ ...s.h3, marginTop: 6 }}>Welcome Letter</Text>
-      {[data.essentialsMemberNumber, data.memberName, data.memberAddress ?? "[STREET ADDRESS]"].map(
-        (line, i) => (
-          <Text key={i} style={{ fontSize: 10, marginBottom: 0 }}>
-            {line}
-          </Text>
-        ),
-      )}
-      <Text style={{ fontSize: 10, marginTop: 8, marginBottom: 6 }}>Dear {data.memberFirstName},</Text>
+      {[
+        data.essentialsMemberNumber,
+        data.memberName,
+        data.memberAddress ?? "[STREET ADDRESS]",
+      ].map((line, i) => (
+        <Text key={i} style={{ fontSize: 10, marginBottom: 0 }}>
+          {line}
+        </Text>
+      ))}
+      <Text style={{ fontSize: 10, marginTop: 8, marginBottom: 6 }}>
+        Dear {data.memberFirstName},
+      </Text>
       {[
         `Welcome to Balance for Life through ${brandName(data)}. Balance for Life is a confidential, 24/7 member support program for emotional, mental and overall wellbeing — counseling, live support, coaching and an app that keeps all of it in your pocket.`,
         `There is nothing to file and no one to refer you. Download the app or call whenever you need support, and give your member code when asked. This packet explains what is included and how to reach it. Please keep it for your records.`,
@@ -332,23 +437,58 @@ function BflWelcomePage({ data }: { data: EssentialsPacketData }) {
         </Text>
       ))}
 
-      <Text style={{ ...s.h4, marginTop: 10, marginBottom: 4, color: GREEN }}>How to Get Support</Text>
-      <View style={{ backgroundColor: LIGHT_GREEN, padding: 8, marginBottom: 8, borderRadius: 4 }}>
+      <Text style={{ ...s.h4, marginTop: 10, marginBottom: 4, color: GREEN }}>
+        How to Get Support
+      </Text>
+      <View
+        style={{
+          backgroundColor: LIGHT_GREEN,
+          padding: 8,
+          marginBottom: 8,
+          borderRadius: 4,
+        }}
+      >
         {[
-          { n: 1, text: `Download the ${balanceForLife.app}. It offers phone, video, text, chat and scheduling, plus Zenn, the 24/7 AI wellbeing companion.` },
-          { n: 2, text: `Or call ${balanceForLife.phone} (TTD/TTY same number), any time, day or night.` },
-          { n: 3, text: `Give Member Code ${balanceForLife.memberCode} (Group ${balanceForLife.groupNumber}) when asked to identify your program.` },
+          {
+            n: 1,
+            text: `Download the ${balanceForLife.app}. It offers phone, video, text, chat and scheduling, plus Zenn, the 24/7 AI wellbeing companion.`,
+          },
+          {
+            n: 2,
+            text: `Or call ${balanceForLife.phone} (TTD/TTY same number), any time, day or night.`,
+          },
+          {
+            n: 3,
+            text: `Give Member Code ${balanceForLife.memberCode} (Group ${balanceForLife.groupNumber}) when asked to identify your program.`,
+          },
         ].map((item) => (
           <Numbered key={item.n} n={item.n} text={item.text} />
         ))}
       </View>
 
-      <Text style={{ ...s.h4, marginTop: 10, marginBottom: 6 }}>Member Summary</Text>
+      <Text style={{ ...s.h4, marginTop: 10, marginBottom: 6 }}>
+        Member Summary
+      </Text>
       {[
-        ["Member Name", data.memberName, "Member Number", data.essentialsMemberNumber],
+        [
+          "Member Name",
+          data.memberName,
+          "Member Number",
+          data.essentialsMemberNumber,
+        ],
         ["Plan", data.planName, "Effective Date", data.effectiveDate],
-        ["Member Code", balanceForLife.memberCode, "BFL Group", balanceForLife.groupNumber],
-        ["Term", data.term ?? "Monthly", "Member Services", ESSENTIALS_SUPPORT.phone],
+        [
+          "Member Code",
+          balanceForLife.memberCode,
+          "BFL Group",
+          balanceForLife.groupNumber,
+        ],
+        [
+          "Term",
+          data.term ?? "Monthly",
+          "Member Services",
+          ESSENTIALS_SUPPORT.phone,
+        ],
       ].map((row, i) => (
         <View key={i} style={{ flexDirection: "row", marginBottom: 2 }}>
           <View style={s.summaryLabelCell}>
@@ -398,20 +538,27 @@ const benefitRoutes = (data: EssentialsPacketData) => [
 function HowToUseBenefitsPage({ data }: { data: EssentialsPacketData }) {
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
+      <PageHeader
+        logoDataUri={data.logoDataUri}
+        fallbackLabel={brandName(data)}
+      />
 
       <Text style={s.h2}>How to Use Your Essential Benefits</Text>
       <Text style={s.body}>
-        Below is which service provider to contact depending on what you need. Each benefit has its
-        own procedure and its own contact — there is no single number that routes all of them.
+        Below is which service provider to contact depending on what you need.
+        Each benefit has its own procedure and its own contact — there is no
+        single number that routes all of them.
       </Text>
 
       <View style={s.noticeBox}>
         <Text style={{ fontSize: 9.5 }}>
-          <Text style={{ fontFamily: "Helvetica-Bold", color: ORANGE }}>Have this ready: </Text>
+          <Text style={{ fontFamily: "Helvetica-Bold", color: ORANGE }}>
+            Have this ready:{" "}
+          </Text>
           <Text>
             Your Member Number {data.essentialsMemberNumber} and Group Number{" "}
-            {data.essentialsGroupNumber}. Lyric and QuestSelect identify you by the Member Number.
+            {data.essentialsGroupNumber}. Lyric and QuestSelect identify you by
+            the Member Number.
           </Text>
         </Text>
       </View>
@@ -419,15 +566,36 @@ function HowToUseBenefitsPage({ data }: { data: EssentialsPacketData }) {
       {benefitRoutes(data).map((route) => (
         <View
           key={route.need}
-          style={{ backgroundColor: LIGHT_BLUE, padding: 10, marginBottom: 8, borderRadius: 4 }}
+          style={{
+            backgroundColor: LIGHT_BLUE,
+            padding: 10,
+            marginBottom: 8,
+            borderRadius: 4,
+          }}
         >
-          <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: BLUE, marginBottom: 2 }}>
+          <Text
+            style={{
+              fontSize: 10,
+              fontFamily: "Helvetica-Bold",
+              color: BLUE,
+              marginBottom: 2,
+            }}
+          >
             {route.need}
           </Text>
-          <Text style={{ fontSize: 9.5, fontFamily: "Helvetica-Bold", color: GREEN, marginBottom: 3 }}>
+          <Text
+            style={{
+              fontSize: 9.5,
+              fontFamily: "Helvetica-Bold",
+              color: GREEN,
+              marginBottom: 3,
+            }}
+          >
             {route.provider}
           </Text>
-          <Text style={{ fontSize: 9.5, lineHeight: 1.45 }}>{route.detail}</Text>
+          <Text style={{ fontSize: 9.5, lineHeight: 1.45 }}>
+            {route.detail}
+          </Text>
         </View>
       ))}
 
@@ -450,12 +618,16 @@ function VirtualCarePage({ data }: { data: EssentialsPacketData }) {
   const { lyric } = ESSENTIALS_VENDOR_CODES;
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
+      <PageHeader
+        logoDataUri={data.logoDataUri}
+        fallbackLabel={brandName(data)}
+      />
 
       <Text style={s.h2}>Virtual Care — Lyric Health</Text>
       <Text style={s.body}>
-        Convenient, affordable access to licensed physicians from your phone, tablet or computer.
-        No waiting rooms. Roughly 70% of low-acuity illnesses can be treated virtually.
+        Convenient, affordable access to licensed physicians from your phone,
+        tablet or computer. No waiting rooms. Roughly 70% of low-acuity
+        illnesses can be treated virtually.
       </Text>
 
       <ContactStrip
@@ -467,14 +639,25 @@ function VirtualCarePage({ data }: { data: EssentialsPacketData }) {
       />
 
       {/* Virtual Urgent Care */}
-      <Text style={{ ...s.h3, marginTop: 4 }}>Virtual Urgent Care — 24/7/365</Text>
+      <Text style={{ ...s.h3, marginTop: 4 }}>
+        Virtual Urgent Care — 24/7/365
+      </Text>
       <Text style={s.bodySmall}>
         Get seen now for non-emergency conditions, any time of day or night.
       </Text>
       {[
-        { n: 1, text: `Call | Tap | Click — call ${lyric.phone}, use the app, or visit ${lyric.url} to schedule a consultation with a state-licensed physician.` },
-        { n: 2, text: "Triage — you speak to a Care Coordinator who triages and updates your Electronic Health Record (EHR)." },
-        { n: 3, text: "Consult — the physician recommends a treatment plan; any prescription is sent electronically to your pharmacy." },
+        {
+          n: 1,
+          text: `Call | Tap | Click — call ${lyric.phone}, use the app, or visit ${lyric.url} to schedule a consultation with a state-licensed physician.`,
+        },
+        {
+          n: 2,
+          text: "Triage — you speak to a Care Coordinator who triages and updates your Electronic Health Record (EHR).",
+        },
+        {
+          n: 3,
+          text: "Consult — the physician recommends a treatment plan; any prescription is sent electronically to your pharmacy.",
+        },
       ].map((step) => (
         <Numbered key={step.n} n={step.n} text={step.text} />
       ))}
@@ -482,25 +665,40 @@ function VirtualCarePage({ data }: { data: EssentialsPacketData }) {
         Common conditions treated
       </Text>
       <Text style={{ fontSize: 9, lineHeight: 1.45, marginBottom: 8 }}>
-        Cold &amp; flu symptoms · Sinus problems · Ear infection · Allergies · Urinary tract
-        infection · Nausea · Pink eye · Stomach viruses · Infections · Rashes · Sore throat · Acne ·
-        Recommendations · Second opinions and more
+        Cold &amp; flu symptoms · Sinus problems · Ear infection · Allergies ·
+        Urinary tract infection · Nausea · Pink eye · Stomach viruses ·
+        Infections · Rashes · Sore throat · Acne · Recommendations · Second
+        opinions and more
       </Text>
 
       {/* Virtual Primary Care */}
-      <Text style={{ ...s.h3, marginTop: 4 }}>Virtual Primary Care — Scheduled</Text>
+      <Text style={{ ...s.h3, marginTop: 4 }}>
+        Virtual Primary Care — Scheduled
+      </Text>
       <Text style={s.bodySmall}>
-        Establish a dedicated Virtual Primary Care Physician to manage your ongoing health,
-        medications and preventative care over time — without visiting a doctor&apos;s office.
+        Establish a dedicated Virtual Primary Care Physician to manage your
+        ongoing health, medications and preventative care over time — without
+        visiting a doctor&apos;s office.
       </Text>
       {[
-        { n: 1, text: `Call | Tap | Click — schedule via ${lyric.url} or the ${lyric.app}.` },
-        { n: 2, text: "Schedule — choose your preferred provider, date and time, update your EHR, and receive confirmation reminders before your appointment." },
-        { n: 3, text: "Consult — the physician contacts you at your scheduled time by phone or video." },
+        {
+          n: 1,
+          text: `Call | Tap | Click — schedule via ${lyric.url} or the ${lyric.app}.`,
+        },
+        {
+          n: 2,
+          text: "Schedule — choose your preferred provider, date and time, update your EHR, and receive confirmation reminders before your appointment.",
+        },
+        {
+          n: 3,
+          text: "Consult — the physician contacts you at your scheduled time by phone or video.",
+        },
       ].map((step) => (
         <Numbered key={step.n} n={step.n} text={step.text} />
       ))}
-      <Text style={{ ...s.h4, marginTop: 6, marginBottom: 2, color: GREEN }}>Services provided</Text>
+      <Text style={{ ...s.h4, marginTop: 6, marginBottom: 2, color: GREEN }}>
+        Services provided
+      </Text>
       {[
         "Establishment of a Virtual Primary Care Physician",
         "Management of health conditions over time",
@@ -523,21 +721,36 @@ function DermatologyPage({ data }: { data: EssentialsPacketData }) {
   const { lyric } = ESSENTIALS_VENDOR_CODES;
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
+      <PageHeader
+        logoDataUri={data.logoDataUri}
+        fallbackLabel={brandName(data)}
+      />
 
       <Text style={s.h2}>Virtual Dermatology — 72-Hour Response</Text>
       <Text style={s.body}>
-        Board-certified dermatologists treat and diagnose hundreds of common skin, nail and hair
-        conditions, and help manage chronic skin conditions. No more waiting weeks for an
-        appointment — you receive a treatment plan, and a prescription if needed, within 72 hours of
-        intake.
+        Board-certified dermatologists treat and diagnose hundreds of common
+        skin, nail and hair conditions, and help manage chronic skin conditions.
+        No more waiting weeks for an appointment — you receive a treatment plan,
+        and a prescription if needed, within 72 hours of intake.
       </Text>
 
       {[
-        { n: 1, text: `Log in to request a consult — use the ${lyric.app} or visit ${lyric.url} to log into your member portal. Available 24/7/365.` },
-        { n: 2, text: "Upload three images — describe the condition and upload at least three clear photos." },
-        { n: 3, text: "Dermatologist review — the dermatologist reviews your consultation details, health records and images within 72 hours and provides a treatment plan." },
-        { n: 4, text: "Prescription — sent electronically to your local pharmacy when necessary." },
+        {
+          n: 1,
+          text: `Log in to request a consult — use the ${lyric.app} or visit ${lyric.url} to log into your member portal. Available 24/7/365.`,
+        },
+        {
+          n: 2,
+          text: "Upload three images — describe the condition and upload at least three clear photos.",
+        },
+        {
+          n: 3,
+          text: "Dermatologist review — the dermatologist reviews your consultation details, health records and images within 72 hours and provides a treatment plan.",
+        },
+        {
+          n: 4,
+          text: "Prescription — sent electronically to your local pharmacy when necessary.",
+        },
       ].map((step) => (
         <Numbered key={step.n} n={step.n} text={step.text} />
       ))}
@@ -546,8 +759,9 @@ function DermatologyPage({ data }: { data: EssentialsPacketData }) {
         Common skin conditions
       </Text>
       <Text style={{ fontSize: 9, lineHeight: 1.45, marginBottom: 8 }}>
-        Athlete&apos;s foot · Cold sores · Eczema · Ringworm · Poison ivy · Shingles · Acne ·
-        Psoriasis · Rosacea · Rash · Skin infections and much more
+        Athlete&apos;s foot · Cold sores · Eczema · Ringworm · Poison ivy ·
+        Shingles · Acne · Psoriasis · Rosacea · Rash · Skin infections and much
+        more
       </Text>
 
       <Text style={{ ...s.h3, marginTop: 4 }}>When to Use Virtual Care</Text>
@@ -563,12 +777,28 @@ function DermatologyPage({ data }: { data: EssentialsPacketData }) {
       <Text style={{ ...s.h3, marginTop: 10 }}>Three Ways to Access Care</Text>
       <View style={{ flexDirection: "row", marginTop: 4, marginBottom: 8 }}>
         {[
-          { title: "Lyric Health App", body: "Download from the App Store or Google Play and log into your member portal." },
-          { title: "Member Portal", body: `Log in and schedule at any time from any device at ${lyric.url}.` },
-          { title: "Call Direct", body: `Speak with a Care Coordinator right away — no app needed. ${lyric.phone}.` },
+          {
+            title: "Lyric Health App",
+            body: "Download from the App Store or Google Play and log into your member portal.",
+          },
+          {
+            title: "Member Portal",
+            body: `Log in and schedule at any time from any device at ${lyric.url}.`,
+          },
+          {
+            title: "Call Direct",
+            body: `Speak with a Care Coordinator right away — no app needed. ${lyric.phone}.`,
+          },
         ].map((item) => (
           <View key={item.title} style={s.contactCell}>
-            <Text style={{ fontSize: 9, fontFamily: "Helvetica-Bold", color: BLUE, marginBottom: 2 }}>
+            <Text
+              style={{
+                fontSize: 9,
+                fontFamily: "Helvetica-Bold",
+                color: BLUE,
+                marginBottom: 2,
+              }}
+            >
               {item.title}
             </Text>
             <Text style={{ fontSize: 8.5, lineHeight: 1.35 }}>{item.body}</Text>
@@ -578,17 +808,21 @@ function DermatologyPage({ data }: { data: EssentialsPacketData }) {
 
       <View style={s.disclosureBox}>
         <Text style={{ fontSize: 8, lineHeight: 1.4, color: GRAY }}>
-          <Text style={{ fontFamily: "Helvetica-Bold", color: DARK }}>Important notes: </Text>
-          Licensed healthcare providers provide clinical services through medical practices
-          affiliated with Lyric and other network providers. Additional or different telehealth
-          requirements may apply in certain states; see {lyric.url} for full terms and conditions.
-          Dermatology: AR, AZ, IA, ID and IN require scheduled video consultations. Those who are
-          pregnant, trying to become pregnant, or nursing are not eligible for online dermatology
-          visits. Lyric Health does not guarantee that a prescription will be written and does not
-          prescribe DEA controlled substances, lifestyle drugs, or certain other drugs which may be
-          harmful because of their potential for abuse. Lyric Health physicians reserve the right to
-          deny care for potential misuse of services. Lyric Health operates subject to state
-          regulations.
+          <Text style={{ fontFamily: "Helvetica-Bold", color: DARK }}>
+            Important notes:{" "}
+          </Text>
+          Licensed healthcare providers provide clinical services through
+          medical practices affiliated with Lyric and other network providers.
+          Additional or different telehealth requirements may apply in certain
+          states; see {lyric.url} for full terms and conditions. Dermatology:
+          AR, AZ, IA, ID and IN require scheduled video consultations. Those who
+          are pregnant, trying to become pregnant, or nursing are not eligible
+          for online dermatology visits. Lyric Health does not guarantee that a
+          prescription will be written and does not prescribe DEA controlled
+          substances, lifestyle drugs, or certain other drugs which may be
+          harmful because of their potential for abuse. Lyric Health physicians
+          reserve the right to deny care for potential misuse of services. Lyric
+          Health operates subject to state regulations.
         </Text>
       </View>
 
@@ -602,13 +836,17 @@ function PharmacyPage({ data }: { data: EssentialsPacketData }) {
   const { rxValet } = ESSENTIALS_VENDOR_CODES;
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
+      <PageHeader
+        logoDataUri={data.logoDataUri}
+        fallbackLabel={brandName(data)}
+      />
 
       <Text style={s.h2}>Pharmacy — RxValet</Text>
       <Text style={s.body}>
-        RxValet gives you several options to obtain your medications — local pharmacy pricing, mail
-        order, and access to Prescription Assistance Programs that can significantly reduce your
-        cost. The application process is simple and quick.
+        RxValet gives you several options to obtain your medications — local
+        pharmacy pricing, mail order, and access to Prescription Assistance
+        Programs that can significantly reduce your cost. The application
+        process is simple and quick.
       </Text>
 
       <ContactStrip
@@ -623,16 +861,43 @@ function PharmacyPage({ data }: { data: EssentialsPacketData }) {
       {[
         { n: 1, text: `Go to ${rxValet.url}.` },
         { n: 2, text: "Choose Login / Register, then click ‘Register Now.’" },
-        { n: 3, text: `Enter your Member Number (${data.essentialsMemberNumber}) and the Rx Group number ${rxValet.rxGroup}.` },
-        { n: 4, text: "Review your card and check that your information is correct. ALWAYS present this card at the pharmacy first." },
-        { n: 5, text: `Bookmark ${rxValet.url} so you receive important emails from RxValet.` },
-        { n: 6, text: `If you need to contact RxValet, call ${rxValet.phone}.` },
+        {
+          n: 3,
+          text: `Enter your Member Number (${data.essentialsMemberNumber}) and the Rx Group number ${rxValet.rxGroup}.`,
+        },
+        {
+          n: 4,
+          text: "Review your card and check that your information is correct. ALWAYS present this card at the pharmacy first.",
+        },
+        {
+          n: 5,
+          text: `Bookmark ${rxValet.url} so you receive important emails from RxValet.`,
+        },
+        {
+          n: 6,
+          text: `If you need to contact RxValet, call ${rxValet.phone}.`,
+        },
       ].map((step) => (
         <Numbered key={step.n} n={step.n} text={step.text} />
       ))}
 
-      <View style={{ backgroundColor: LIGHT_GREEN, padding: 10, marginTop: 10, marginBottom: 8, borderRadius: 4 }}>
-        <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: GREEN, marginBottom: 3 }}>
+      <View
+        style={{
+          backgroundColor: LIGHT_GREEN,
+          padding: 10,
+          marginTop: 10,
+          marginBottom: 8,
+          borderRadius: 4,
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 10,
+            fontFamily: "Helvetica-Bold",
+            color: GREEN,
+            marginBottom: 3,
+          }}
+        >
           Fee Schedule
         </Text>
         <Bullet text="1,000+ acute and chronic generic medications for $0" />
@@ -641,16 +906,41 @@ function PharmacyPage({ data }: { data: EssentialsPacketData }) {
 
       <Text style={{ ...s.h3, marginTop: 4 }}>Programs Included</Text>
       {[
-        ["Prescription Assistance Programs", "Income-based. Not all medications qualify, but when one does it is clearly displayed. A short online form determines eligibility."],
-        ["International Pharmacy", "Lowest pricing for brand-name medications, often 70% off retail, sourced from Tier 1 countries such as Canada and Australia."],
-        ["340b Drug Pricing Program", "A state and local avenue to obtain medications at a 25%–50% discount."],
-        ["Home Delivery", "The mail-order pharmacy obtains the prescription from your doctor or pharmacy and completes the order, typically with no shipping or handling fees."],
-        ["Insulin Program", "A flat-rate path for insulin and diabetes-related medications — all insulin, regardless of brand, starting under $95 a month."],
-        ["Diabetic Supply Management", "Volume pricing through the mail-order pharmacy on the supplies that make monitoring costly."],
-        ["Prior Authorizations", "RxValet handles prior authorizations and assists with ordering through its integrated programs."],
+        [
+          "Prescription Assistance Programs",
+          "Income-based. Not all medications qualify, but when one does it is clearly displayed. A short online form determines eligibility.",
+        ],
+        [
+          "International Pharmacy",
+          "Lowest pricing for brand-name medications, often 70% off retail, sourced from Tier 1 countries such as Canada and Australia.",
+        ],
+        [
+          "340b Drug Pricing Program",
+          "A state and local avenue to obtain medications at a 25%–50% discount.",
+        ],
+        [
+          "Home Delivery",
+          "The mail-order pharmacy obtains the prescription from your doctor or pharmacy and completes the order, typically with no shipping or handling fees.",
+        ],
+        [
+          "Insulin Program",
+          "A flat-rate path for insulin and diabetes-related medications — all insulin, regardless of brand, starting under $95 a month.",
+        ],
+        [
+          "Diabetic Supply Management",
+          "Volume pricing through the mail-order pharmacy on the supplies that make monitoring costly.",
+        ],
+        [
+          "Prior Authorizations",
+          "RxValet handles prior authorizations and assists with ordering through its integrated programs.",
+        ],
       ].map(([title, body]) => (
         <View key={title} style={{ marginBottom: 5 }}>
-          <Text style={{ fontSize: 9.5, fontFamily: "Helvetica-Bold", color: BLUE }}>{title}</Text>
+          <Text
+            style={{ fontSize: 9.5, fontFamily: "Helvetica-Bold", color: BLUE }}
+          >
+            {title}
+          </Text>
           <Text style={{ fontSize: 9, lineHeight: 1.4 }}>{body}</Text>
         </View>
       ))}
@@ -665,13 +955,17 @@ function LabsPage({ data }: { data: EssentialsPacketData }) {
   const { questSelect } = ESSENTIALS_VENDOR_CODES;
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
+      <PageHeader
+        logoDataUri={data.logoDataUri}
+        fallbackLabel={brandName(data)}
+      />
 
       <Text style={s.h2}>Laboratory Testing — QuestSelect</Text>
       <Text style={s.body}>
-        The Quest Diagnostics Advanced Lab Program, QuestSelect, lets you obtain outpatient
-        laboratory testing at no cost to you. When you use QuestSelect you have a $0 copay for over
-        1,200 different blood, urine, cytology, pathology and culture tests.
+        The Quest Diagnostics Advanced Lab Program, QuestSelect, lets you obtain
+        outpatient laboratory testing at no cost to you. When you use
+        QuestSelect you have a $0 copay for over 1,200 different blood, urine,
+        cytology, pathology and culture tests.
       </Text>
 
       <ContactStrip
@@ -684,26 +978,42 @@ function LabsPage({ data }: { data: EssentialsPacketData }) {
 
       <Text style={{ ...s.h3, marginTop: 4 }}>How to Use It</Text>
       {[
-        { n: 1, text: "When your doctor orders lab testing, tell the receptionist at your doctor's office — and at the Quest Diagnostics lab — that you are a QuestSelect member." },
-        { n: 2, text: `Give them your Member Number (${data.essentialsMemberNumber}). This is how Quest Diagnostics knows not to bill you for the care.` },
-        { n: 3, text: `If your doctor has given you a written lab order, call the Lab Line at ${questSelect.labLine} to schedule your visit.` },
-        { n: 4, text: `If your doctor's office draws your blood in the office and does not use Quest, ask them to call the Quest Diagnostics Lab Line at ${questSelect.labLine} to pick up your test sample.` },
+        {
+          n: 1,
+          text: "When your doctor orders lab testing, tell the receptionist at your doctor's office — and at the Quest Diagnostics lab — that you are a QuestSelect member.",
+        },
+        {
+          n: 2,
+          text: `Give them your Member Number (${data.essentialsMemberNumber}). This is how Quest Diagnostics knows not to bill you for the care.`,
+        },
+        {
+          n: 3,
+          text: `If your doctor has given you a written lab order, call the Lab Line at ${questSelect.labLine} to schedule your visit.`,
+        },
+        {
+          n: 4,
+          text: `If your doctor's office draws your blood in the office and does not use Quest, ask them to call the Quest Diagnostics Lab Line at ${questSelect.labLine} to pick up your test sample.`,
+        },
       ].map((step) => (
         <Numbered key={step.n} n={step.n} text={step.text} />
       ))}
 
       <View style={s.noticeBox}>
         <Text style={{ fontSize: 9.5 }}>
-          <Text style={{ fontFamily: "Helvetica-Bold", color: ORANGE }}>Note: </Text>
+          <Text style={{ fontFamily: "Helvetica-Bold", color: ORANGE }}>
+            Note:{" "}
+          </Text>
           <Text>
-            This is a subscription program and is NOT insurance. It provides outpatient laboratory
-            testing at no out-of-pocket cost when you present your QuestSelect membership and ask to
-            use QuestSelect.
+            This is a subscription program and is NOT insurance. It provides
+            outpatient laboratory testing at no out-of-pocket cost when you
+            present your QuestSelect membership and ask to use QuestSelect.
           </Text>
         </Text>
       </View>
 
-      <Text style={{ ...s.h3, marginTop: 4 }}>What QuestSelect Does Not Cover</Text>
+      <Text style={{ ...s.h3, marginTop: 4 }}>
+        What QuestSelect Does Not Cover
+      </Text>
       {[
         "Testing ordered during hospitalization",
         "Lab work needed on an emergency or STAT basis",
@@ -721,20 +1031,31 @@ function LabsPage({ data }: { data: EssentialsPacketData }) {
 
 // ─── Page 7: Behavioral health lead-in (BFL letter is appended after) ────────
 function BehavioralHealthPage({ data }: { data: EssentialsPacketData }) {
-  const balanceForLife = { ...ESSENTIALS_VENDOR_CODES.balanceForLife, memberCode: resolveBflMemberCode(data) };
+  const balanceForLife = {
+    ...ESSENTIALS_VENDOR_CODES.balanceForLife,
+    memberCode: resolveBflMemberCode(data),
+  };
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
+      <PageHeader
+        logoDataUri={data.logoDataUri}
+        fallbackLabel={brandName(data)}
+      />
 
-      <Text style={s.h2}>Behavioral Health &amp; Wellbeing — Balance for Life</Text>
+      <Text style={s.h2}>
+        Behavioral Health &amp; Wellbeing — Balance for Life
+      </Text>
       {data.bflLogoDataUri ? (
-        <Image src={data.bflLogoDataUri} style={{ width: 120, marginBottom: 8 }} />
+        <Image
+          src={data.bflLogoDataUri}
+          style={{ width: 120, marginBottom: 8 }}
+        />
       ) : null}
       <Text style={s.body}>
-        Balance for Life is your Member Support Program: a confidential, 24/7 service covering
-        emotional, mental and overall wellbeing. It is staffed by professionals with expertise in
-        wellbeing, family matters, relationships, debt management, employment issues and consumer
-        rights.
+        Balance for Life is your Member Support Program: a confidential, 24/7
+        service covering emotional, mental and overall wellbeing. It is staffed
+        by professionals with expertise in wellbeing, family matters,
+        relationships, debt management, employment issues and consumer rights.
       </Text>
 
       <ContactStrip
@@ -747,38 +1068,76 @@ function BehavioralHealthPage({ data }: { data: EssentialsPacketData }) {
 
       <Text style={{ ...s.h3, marginTop: 4 }}>What Is Included</Text>
       {[
-        ["Short-Term Counseling", "Up to 10 no-cost sessions per individual, per incident — telephonically, in person, or by video."],
-        ["Live Answer 24/7", "Immediate, unlimited support with a counselor whenever you need it most."],
-        ["Chat with Zenn", "Built into the Balance for Life app: an AI wellness companion, 24/7/365 in 70 languages, for safe, non-judgmental support across anxiety, depression, chronic pain, eating disorders, loneliness, relationships, resilience, substance abuse, trauma and PTSD."],
-        ["Aware Mindfulness", "A six-week mindfulness journey to build self-awareness and emotional balance."],
-        ["Life, Work-Life & Wellness Coaching", "Virtual support for personal and professional growth, practical research on everyday challenges, and self-directed wellness programs."],
-        ["Preferred Provider Network", "Inpatient and outpatient care including residential treatment with withdrawal management. Available at additional self-pay cost or through your own insurance."],
+        [
+          "Short-Term Counseling",
+          "Up to 10 no-cost sessions per individual, per incident — telephonically, in person, or by video.",
+        ],
+        [
+          "Live Answer 24/7",
+          "Immediate, unlimited support with a counselor whenever you need it most.",
+        ],
+        [
+          "Chat with Zenn",
+          "Built into the Balance for Life app: an AI wellness companion, 24/7/365 in 70 languages, for safe, non-judgmental support across anxiety, depression, chronic pain, eating disorders, loneliness, relationships, resilience, substance abuse, trauma and PTSD.",
+        ],
+        [
+          "Aware Mindfulness",
+          "A six-week mindfulness journey to build self-awareness and emotional balance.",
+        ],
+        [
+          "Life, Work-Life & Wellness Coaching",
+          "Virtual support for personal and professional growth, practical research on everyday challenges, and self-directed wellness programs.",
+        ],
+        [
+          "Preferred Provider Network",
+          "Inpatient and outpatient care including residential treatment with withdrawal management. Available at additional self-pay cost or through your own insurance.",
+        ],
       ].map(([title, body]) => (
         <View key={title} style={{ marginBottom: 5 }}>
-          <Text style={{ fontSize: 9.5, fontFamily: "Helvetica-Bold", color: BLUE }}>{title}</Text>
+          <Text
+            style={{ fontSize: 9.5, fontFamily: "Helvetica-Bold", color: BLUE }}
+          >
+            {title}
+          </Text>
           <Text style={{ fontSize: 9, lineHeight: 1.4 }}>{body}</Text>
         </View>
       ))}
 
-      <View style={{ backgroundColor: LIGHT_BLUE, padding: 10, marginTop: 6, borderRadius: 4 }}>
-        <Text style={{ fontSize: 9.5, fontFamily: "Helvetica-Bold", color: BLUE, marginBottom: 3 }}>
+      <View
+        style={{
+          backgroundColor: LIGHT_BLUE,
+          padding: 10,
+          marginTop: 6,
+          borderRadius: 4,
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 9.5,
+            fontFamily: "Helvetica-Bold",
+            color: BLUE,
+            marginBottom: 3,
+          }}
+        >
           How to get started
         </Text>
         <Text style={{ fontSize: 9, lineHeight: 1.45 }}>
           Call {balanceForLife.phone}, email {balanceForLife.email}, or visit{" "}
-          {balanceForLife.url}. Give Group Number {balanceForLife.groupNumber} or Member Code{" "}
-          {balanceForLife.memberCode} when asked to identify your program. Download the{" "}
-          {balanceForLife.app} to reach a counselor by phone, video, text or chat, and to use
-          Zenn. The welcome letter on the following pages has the download codes.
+          {balanceForLife.url}. Give Group Number {balanceForLife.groupNumber}{" "}
+          or Member Code {balanceForLife.memberCode} when asked to identify your
+          program. Download the {balanceForLife.app} to reach a counselor by
+          phone, video, text or chat, and to use Zenn. The welcome letter on the
+          following pages has the download codes.
         </Text>
       </View>
 
       <View style={{ ...s.disclosureBox, marginTop: 8 }}>
         <Text style={{ fontSize: 8, lineHeight: 1.4, color: GRAY }}>
-          Balance for Life is not an Affordable Care Act compliant plan. It is not medical coverage
-          and does not cover basic medical needs. Preferred Provider Network services are at
-          additional self-pay cost or through the participant&apos;s insurance — participants should
-          check with their insurer regarding coverage.
+          Balance for Life is not an Affordable Care Act compliant plan. It is
+          not medical coverage and does not cover basic medical needs. Preferred
+          Provider Network services are at additional self-pay cost or through
+          the participant&apos;s insurance — participants should check with
+          their insurer regarding coverage.
         </Text>
       </View>
 
@@ -792,9 +1151,13 @@ function MemberCardTitlePage({ data }: { data: EssentialsPacketData }) {
   return (
     <Page size="LETTER" style={cardStyles.titlePage}>
       <View style={cardStyles.titleContainer}>
-        {data.logoDataUri ? <Image style={cardStyles.titleLogo} src={data.logoDataUri} /> : null}
+        {data.logoDataUri ? (
+          <Image style={cardStyles.titleLogo} src={data.logoDataUri} />
+        ) : null}
         <Text style={cardStyles.titleMain}>Your Member ID Card</Text>
-        <Text style={cardStyles.titleSub}>{isBflPacket(data) ? "Balance for Life" : programName(data)}</Text>
+        <Text style={cardStyles.titleSub}>
+          {isBflPacket(data) ? "Balance for Life" : programName(data)}
+        </Text>
 
         <View style={cardStyles.titleField}>
           <Text style={cardStyles.titleLabel}>MEMBER</Text>
@@ -802,7 +1165,9 @@ function MemberCardTitlePage({ data }: { data: EssentialsPacketData }) {
         </View>
         <View style={cardStyles.titleField}>
           <Text style={cardStyles.titleLabel}>MEMBER NUMBER</Text>
-          <Text style={cardStyles.titleValue}>{data.essentialsMemberNumber}</Text>
+          <Text style={cardStyles.titleValue}>
+            {data.essentialsMemberNumber}
+          </Text>
         </View>
       </View>
     </Page>
@@ -816,7 +1181,10 @@ function MemberCardFrontPage({ data }: { data: EssentialsPacketData }) {
     ...(isBflPacket(data)
       ? [
           { label: "BFL Member Code", value: resolveBflMemberCode(data) },
-          { label: "BFL Group", value: ESSENTIALS_VENDOR_CODES.balanceForLife.groupNumber },
+          {
+            label: "BFL Group",
+            value: ESSENTIALS_VENDOR_CODES.balanceForLife.groupNumber,
+          },
         ]
       : [
           { label: "Group Number", value: data.essentialsGroupNumber },
@@ -834,14 +1202,22 @@ function MemberCardFrontPage({ data }: { data: EssentialsPacketData }) {
 
           <View style={cardStyles.header}>
             <View style={cardStyles.headerLeft}>
-              {data.logoDataUri ? <Image style={cardStyles.logo} src={data.logoDataUri} /> : null}
+              {data.logoDataUri ? (
+                <Image style={cardStyles.logo} src={data.logoDataUri} />
+              ) : null}
               <View style={cardStyles.headerText}>
                 <Text style={cardStyles.brandName}>{brandName(data)}</Text>
-                <Text style={cardStyles.cardType}>{isBflPacket(data) ? "Balance for Life Member Card" : "Essentials Member Card"}</Text>
+                <Text style={cardStyles.cardType}>
+                  {isBflPacket(data)
+                    ? "Balance for Life Member Card"
+                    : "Essentials Member Card"}
+                </Text>
               </View>
             </View>
             <View style={cardStyles.headerRight}>
-              <Text style={cardStyles.headerRightLine}>{memberWebsite(data)}</Text>
+              <Text style={cardStyles.headerRightLine}>
+                {memberWebsite(data)}
+              </Text>
               <Text>{ESSENTIALS_SUPPORT.phone}</Text>
             </View>
           </View>
@@ -877,7 +1253,10 @@ function MemberCardFrontPage({ data }: { data: EssentialsPacketData }) {
 
 function MemberCardBackPage({ data }: { data: EssentialsPacketData }) {
   const { lyric, rxValet, questSelect } = ESSENTIALS_VENDOR_CODES;
-  const balanceForLife = { ...ESSENTIALS_VENDOR_CODES.balanceForLife, memberCode: resolveBflMemberCode(data) };
+  const balanceForLife = {
+    ...ESSENTIALS_VENDOR_CODES.balanceForLife,
+    memberCode: resolveBflMemberCode(data),
+  };
   return (
     <Page size="LETTER" style={cardStyles.cardPage}>
       <View style={cardStyles.bleedContainer}>
@@ -885,57 +1264,74 @@ function MemberCardBackPage({ data }: { data: EssentialsPacketData }) {
           <View style={cardStyles.topBar} />
 
           {isBflPacket(data) ? (
-          <View style={cardStyles.backContent}>
-            <View style={cardStyles.backSection}>
-              <Text style={cardStyles.backSectionTitle}>Behavioral Health — Balance for Life</Text>
-              <Text style={cardStyles.backText}>
-                {balanceForLife.phone} (TTD/TTY same) · {balanceForLife.email}
-              </Text>
-              <Text style={cardStyles.backText}>
-                Member Code {balanceForLife.memberCode} · Group {balanceForLife.groupNumber}
-              </Text>
+            <View style={cardStyles.backContent}>
+              <View style={cardStyles.backSection}>
+                <Text style={cardStyles.backSectionTitle}>
+                  Behavioral Health — Balance for Life
+                </Text>
+                <Text style={cardStyles.backText}>
+                  {balanceForLife.phone} (TTD/TTY same) · {balanceForLife.email}
+                </Text>
+                <Text style={cardStyles.backText}>
+                  Member Code {balanceForLife.memberCode} · Group{" "}
+                  {balanceForLife.groupNumber}
+                </Text>
+              </View>
+              <View style={cardStyles.backSection}>
+                <Text style={cardStyles.backSectionTitle}>
+                  Balance for Life App
+                </Text>
+                <Text style={cardStyles.backText}>
+                  App Store or Google Play — counseling by phone, video, text or
+                  chat, plus Zenn 24/7
+                </Text>
+              </View>
             </View>
-            <View style={cardStyles.backSection}>
-              <Text style={cardStyles.backSectionTitle}>Balance for Life App</Text>
-              <Text style={cardStyles.backText}>
-                App Store or Google Play — counseling by phone, video, text or chat, plus Zenn 24/7
-              </Text>
-            </View>
-          </View>
           ) : (
-          <View style={cardStyles.backContent}>
-            <View style={cardStyles.backSection}>
-              <Text style={cardStyles.backSectionTitle}>Virtual Care — Lyric</Text>
-              <Text style={cardStyles.backText}>
-                {lyric.phone} · {lyric.url} · Member No. {data.essentialsMemberNumber}
-              </Text>
-            </View>
+            <View style={cardStyles.backContent}>
+              <View style={cardStyles.backSection}>
+                <Text style={cardStyles.backSectionTitle}>
+                  Virtual Care — Lyric
+                </Text>
+                <Text style={cardStyles.backText}>
+                  {lyric.phone} · {lyric.url} · Member No.{" "}
+                  {data.essentialsMemberNumber}
+                </Text>
+              </View>
 
-            <View style={cardStyles.backSection}>
-              <Text style={cardStyles.backSectionTitle}>Pharmacy — RxValet</Text>
-              <Text style={cardStyles.backText}>
-                Rx Group {rxValet.rxGroup} · BIN {rxValet.rxBin} · PCN {rxValet.pcn}
-              </Text>
-              <Text style={cardStyles.backText}>
-                {rxValet.phone} · {rxValet.url}
-              </Text>
-            </View>
+              <View style={cardStyles.backSection}>
+                <Text style={cardStyles.backSectionTitle}>
+                  Pharmacy — RxValet
+                </Text>
+                <Text style={cardStyles.backText}>
+                  Rx Group {rxValet.rxGroup} · BIN {rxValet.rxBin} · PCN{" "}
+                  {rxValet.pcn}
+                </Text>
+                <Text style={cardStyles.backText}>
+                  {rxValet.phone} · {rxValet.url}
+                </Text>
+              </View>
 
-            <View style={cardStyles.backSection}>
-              <Text style={cardStyles.backSectionTitle}>Labs — QuestSelect</Text>
-              <Text style={cardStyles.backText}>
-                Lab Line {questSelect.labLine} · Member No. {data.essentialsMemberNumber}
-              </Text>
-            </View>
+              <View style={cardStyles.backSection}>
+                <Text style={cardStyles.backSectionTitle}>
+                  Labs — QuestSelect
+                </Text>
+                <Text style={cardStyles.backText}>
+                  Lab Line {questSelect.labLine} · Member No.{" "}
+                  {data.essentialsMemberNumber}
+                </Text>
+              </View>
 
-            <View style={cardStyles.backSection}>
-              <Text style={cardStyles.backSectionTitle}>Behavioral Health — Balance for Life</Text>
-              <Text style={cardStyles.backText}>
-                {balanceForLife.phone} · Group {balanceForLife.groupNumber} · Member Code{" "}
-                {balanceForLife.memberCode}
-              </Text>
+              <View style={cardStyles.backSection}>
+                <Text style={cardStyles.backSectionTitle}>
+                  Behavioral Health — Balance for Life
+                </Text>
+                <Text style={cardStyles.backText}>
+                  {balanceForLife.phone} · Group {balanceForLife.groupNumber} ·
+                  Member Code {balanceForLife.memberCode}
+                </Text>
+              </View>
             </View>
-          </View>
           )}
 
           <View style={cardStyles.footer}>
@@ -954,15 +1350,30 @@ function MemberCardBackPage({ data }: { data: EssentialsPacketData }) {
 function MembershipAgreementPage({ data }: { data: EssentialsPacketData }) {
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
+      <PageHeader
+        logoDataUri={data.logoDataUri}
+        fallbackLabel={brandName(data)}
+      />
 
       <Text style={{ ...s.h1, textAlign: "center" }}>Membership Agreement</Text>
-      <Text style={{ fontSize: 10, color: GRAY, textAlign: "center", marginBottom: 10 }}>
+      <Text
+        style={{
+          fontSize: 10,
+          color: GRAY,
+          textAlign: "center",
+          marginBottom: 10,
+        }}
+      >
         {programName(data)} — Terms and Conditions
       </Text>
 
       {[
-        ["Program", isBflPacket(data) ? `${programName(data)} — Balance for Life` : programName(data)],
+        [
+          "Program",
+          isBflPacket(data)
+            ? `${programName(data)} — Balance for Life`
+            : programName(data),
+        ],
         ["Member Name", data.memberName],
         ["Member Number", data.essentialsMemberNumber],
         ["Group Number", data.essentialsGroupNumber],
@@ -985,25 +1396,29 @@ function MembershipAgreementPage({ data }: { data: EssentialsPacketData }) {
 
       <Text style={{ ...s.h4, marginTop: 10 }}>Agreement</Text>
       <Text style={s.bodySmall}>
-        These terms and conditions (&quot;Terms&quot;) outline the agreement between you
-        (&quot;Member&quot;) and {programName(data)} (&quot;Provider&quot;) regarding the {programName(data)}
-        Monthly Membership Plan (&quot;Membership Plan&quot;). By enrolling in the
-        Membership Plan, you acknowledge that you have read, understood and agree to these Terms.
+        These terms and conditions (&quot;Terms&quot;) outline the agreement
+        between you (&quot;Member&quot;) and {programName(data)}{" "}
+        (&quot;Provider&quot;) regarding the {programName(data)}
+        Monthly Membership Plan (&quot;Membership Plan&quot;). By enrolling in
+        the Membership Plan, you acknowledge that you have read, understood and
+        agree to these Terms.
       </Text>
 
       <Text style={{ ...s.h4, marginTop: 6 }}>Plan Details</Text>
       <Text style={s.bodySmall}>
-        This Membership Plan is NOT insurance and does not satisfy ACA minimum essential coverage.
-        The Membership Plan does not cover any additional medical services or treatments beyond what
-        is explicitly stated in the plan documents.{" "}
+        This Membership Plan is NOT insurance and does not satisfy ACA minimum
+        essential coverage. The Membership Plan does not cover any additional
+        medical services or treatments beyond what is explicitly stated in the
+        plan documents.{" "}
         {isBflPacket(data)
           ? "Balance for Life services are provided by a third-party organization. Preferred Provider Network care is at additional self-pay cost or through your own insurance."
           : "Telehealth and discount programs are provided through third-party organizations and are not connected to the Essentials provider."}
       </Text>
       <Text style={s.bodySmall}>
-        Individuals ages 2 to 65 are eligible for {brandName(data)} membership. Dependents under the age
-        of two are not eligible. Dependent children are eligible until the last day of their 25th
-        year. Individuals are eligible until the last day of their 64th year.
+        Individuals ages 2 to 65 are eligible for {brandName(data)} membership.
+        Dependents under the age of two are not eligible. Dependent children are
+        eligible until the last day of their 25th year. Individuals are eligible
+        until the last day of their 64th year.
       </Text>
 
       <Text style={{ ...s.h4, marginTop: 6 }}>Payment and Billing</Text>
@@ -1025,9 +1440,14 @@ function MembershipAgreementPage({ data }: { data: EssentialsPacketData }) {
 function MembershipAgreementPage2({ data }: { data: EssentialsPacketData }) {
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.logoDataUri} fallbackLabel={brandName(data)} />
+      <PageHeader
+        logoDataUri={data.logoDataUri}
+        fallbackLabel={brandName(data)}
+      />
 
-      <Text style={{ ...s.h2, marginBottom: 8 }}>Membership Agreement (continued)</Text>
+      <Text style={{ ...s.h2, marginBottom: 8 }}>
+        Membership Agreement (continued)
+      </Text>
       <Text style={{ fontSize: 9, color: GRAY, marginBottom: 8 }}>
         {data.memberName} · Member Number {data.essentialsMemberNumber}
       </Text>
@@ -1042,7 +1462,9 @@ function MembershipAgreementPage2({ data }: { data: EssentialsPacketData }) {
         <Bullet key={item} text={item} small />
       ))}
 
-      <Text style={{ ...s.h4, marginTop: 6 }}>Termination or Modification by Provider</Text>
+      <Text style={{ ...s.h4, marginTop: 6 }}>
+        Termination or Modification by Provider
+      </Text>
       {[
         "Provider reserves the right to terminate or modify the Membership Plan with 30 days prior notice.",
         "Non-payment results in cancellation of the plan on the last day of the month.",
@@ -1056,11 +1478,13 @@ function MembershipAgreementPage2({ data }: { data: EssentialsPacketData }) {
           <Text style={{ fontFamily: "Helvetica-Bold", color: DARK }}>
             Limitation of liability and governing law.{" "}
           </Text>
-          Provider shall not be liable for any indirect, incidental, special, consequential or
-          punitive damages arising out of the Membership Plan or its termination. Provider&apos;s
-          liability is limited to the total amount paid by the Member during the three-month period
-          immediately preceding the claim. These Terms are governed by and construed in accordance
-          with the laws of the jurisdiction in which Provider operates.
+          Provider shall not be liable for any indirect, incidental, special,
+          consequential or punitive damages arising out of the Membership Plan
+          or its termination. Provider&apos;s liability is limited to the total
+          amount paid by the Member during the three-month period immediately
+          preceding the claim. These Terms are governed by and construed in
+          accordance with the laws of the jurisdiction in which Provider
+          operates.
         </Text>
       </View>
 
@@ -1074,20 +1498,45 @@ function BflAppDownloadsPage({ data }: { data: EssentialsPacketData }) {
   if (!data.bflAndroidQrDataUri || !data.bflIosQrDataUri) return null;
   return (
     <Page size="LETTER" style={s.page}>
-      <PageHeader logoDataUri={data.bflLogoDataUri} fallbackLabel="Balance for Life" />
+      <PageHeader
+        logoDataUri={data.bflLogoDataUri}
+        fallbackLabel="Balance for Life"
+      />
       <Text style={s.h2}>Download the Balance for Life App</Text>
-      <Text style={s.body}>Scan the code for your device. These app download codes were supplied in the Balance for Life welcome letter.</Text>
-      <View style={{ flexDirection: "row", justifyContent: "space-around", marginTop: 24, marginBottom: 24 }}>
-        {[{ label: "Android — Google Play", src: data.bflAndroidQrDataUri }, { label: "iPhone — App Store", src: data.bflIosQrDataUri }].map(qr => (
+      <Text style={s.body}>
+        Scan the code for your device. These app download codes were supplied in
+        the Balance for Life welcome letter.
+      </Text>
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-around",
+          marginTop: 24,
+          marginBottom: 24,
+        }}
+      >
+        {[
+          { label: "Android — Google Play", src: data.bflAndroidQrDataUri },
+          { label: "iPhone — App Store", src: data.bflIosQrDataUri },
+        ].map((qr) => (
           <View key={qr.label} style={{ alignItems: "center", width: 200 }}>
             <Text style={s.h4}>{qr.label}</Text>
-            <Image src={qr.src} style={{ width: 180, height: 160, objectFit: "contain" }} />
+            <Image
+              src={qr.src}
+              style={{ width: 180, height: 160, objectFit: "contain" }}
+            />
           </View>
         ))}
       </View>
       <Text style={s.h4}>Your Member Code: {resolveBflMemberCode(data)}</Text>
-      <Text style={s.body}>Use this assigned member code when asked to identify your program. Zenn is available inside the Balance for Life app.</Text>
-      <Text style={s.body}>For help, call {ESSENTIALS_VENDOR_CODES.balanceForLife.phone} or email {ESSENTIALS_VENDOR_CODES.balanceForLife.email}.</Text>
+      <Text style={s.body}>
+        Use this assigned member code when asked to identify your program. Zenn
+        is available inside the Balance for Life app.
+      </Text>
+      <Text style={s.body}>
+        For help, call {ESSENTIALS_VENDOR_CODES.balanceForLife.phone} or email{" "}
+        {ESSENTIALS_VENDOR_CODES.balanceForLife.email}.
+      </Text>
       <Footer data={data} label="Balance for Life App Access" />
     </Page>
   );
@@ -1096,7 +1545,11 @@ function BflAppDownloadsPage({ data }: { data: EssentialsPacketData }) {
 export function EssentialsPacketPdf({ data }: { data: EssentialsPacketData }) {
   if (isBflPacket(data)) {
     return (
-      <Document title="Balance for Life Member Welcome Packet" author={brandName(data)} subject="Member Welcome Packet">
+      <Document
+        title="Balance for Life Member Welcome Packet"
+        author={brandName(data)}
+        subject="Member Welcome Packet"
+      >
         <BflWelcomePage data={data} />
         <BehavioralHealthPage data={data} />
         <BflAppDownloadsPage data={data} />
@@ -1127,7 +1580,11 @@ export function EssentialsPacketPdf({ data }: { data: EssentialsPacketData }) {
   );
 }
 
-export function EssentialsMembershipAgreementPdf({ data }: { data: EssentialsPacketData }) {
+export function EssentialsMembershipAgreementPdf({
+  data,
+}: {
+  data: EssentialsPacketData;
+}) {
   return (
     <Document
       title={`${programName(data)} Membership Agreement - ${data.memberName}`}
@@ -1140,7 +1597,11 @@ export function EssentialsMembershipAgreementPdf({ data }: { data: EssentialsPac
   );
 }
 
-export function EssentialsMemberCardPdf({ data }: { data: EssentialsPacketData }) {
+export function EssentialsMemberCardPdf({
+  data,
+}: {
+  data: EssentialsPacketData;
+}) {
   return (
     <Document
       title={`${programName(data)} Member Card - ${data.memberName}`}

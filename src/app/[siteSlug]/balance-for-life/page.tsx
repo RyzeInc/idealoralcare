@@ -1,7 +1,21 @@
-import Page from "@/app/newideal/balance-for-life/page";
-import { notFound } from "next/navigation";
-export const metadata = { alternates: { canonical: "https://www.assurevantage.com/assurevantage/balance-for-life" }, title: "Balance for Life | AssureVantage" };
-export default async function MainProgramPage({ params }: { params: Promise<{ siteSlug: string }> }) {
-  if ((await params).siteSlug !== "assurevantage") notFound();
-  return <Page params={params} />;
+import { ServicePage } from "@/components/assurevantage/MarketingPages";
+import LegacyPage from "@/app/newideal/balance-for-life/page";
+import { assureMetadata } from "@/lib/assure-metadata";
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ siteSlug: string }>;
+}) {
+  return (await params).siteSlug === "assurevantage"
+    ? assureMetadata("balance-for-life")
+    : {};
+}
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ siteSlug: string }>;
+}) {
+  if ((await params).siteSlug === "assurevantage")
+    return <ServicePage serviceKey="balance-for-life" />;
+  return <LegacyPage />;
 }

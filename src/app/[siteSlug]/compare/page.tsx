@@ -1,13 +1,21 @@
-"use client";
-
-import { useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
-
-export default function SiteComparePage() {
-  const pathname = usePathname();
-  const router = useRouter();
-  useEffect(() => {
-    router.replace(`/${pathname.split("/")[1]}/plans`);
-  }, [pathname, router]);
-  return null;
+import { CompareMemberships } from "@/components/assurevantage/InformationPages";
+import LegacyPage from "@/components/health/LegacySiteCompare";
+import { assureMetadata } from "@/lib/assure-metadata";
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ siteSlug: string }>;
+}) {
+  return (await params).siteSlug === "assurevantage"
+    ? assureMetadata("compare")
+    : {};
+}
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ siteSlug: string }>;
+}) {
+  if ((await params).siteSlug === "assurevantage")
+    return <CompareMemberships />;
+  return <LegacyPage />;
 }

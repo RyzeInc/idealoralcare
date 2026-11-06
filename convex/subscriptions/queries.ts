@@ -18,6 +18,21 @@ import {
   resolveEssentialsMemberNumber,
 } from "../lib/essentialsCodes";
 
+async function memberCatalogProduct(
+  ctx: QueryCtx,
+  rawId: string,
+): Promise<Doc<"catalogProducts"> | null> {
+  const id = ctx.db.normalizeId("catalogProducts", rawId);
+  if (id) return ctx.db.get(id);
+  if (!rawId.startsWith("prod_")) return null;
+  const products = await ctx.db.query("catalogProducts").collect();
+  return (
+    products.find((product) =>
+      Object.values(product.stripeProducts ?? {}).includes(rawId),
+    ) ?? null
+  );
+}
+
 interface GetCustomerBundleArgs {
   customerId: string;
 }
@@ -51,7 +66,7 @@ interface GetCustomerDashboardArgs {
  */
 async function resolveEffectiveCustomerId(
   ctx: QueryCtx,
-  callerClerkId: string
+  callerClerkId: string,
 ): Promise<string> {
   const myProfile = await ctx.db
     .query("memberProfiles")
@@ -82,21 +97,38 @@ interface MemberRoleInfo {
  */
 async function getMemberRoleInfo(
   ctx: QueryCtx,
-  clerkUserId: string
+  clerkUserId: string,
 ): Promise<MemberRoleInfo> {
   const myProfile = await ctx.db
     .query("memberProfiles")
     .withIndex("by_customer", (q) => q.eq("customerId", clerkUserId))
     .first();
 
-  if (!myProfile) return { role: "unknown", myProfile: null, primaryCustomerId: null, primaryMemberName: null };
+  if (!myProfile)
+    return {
+      role: "unknown",
+      myProfile: null,
+      primaryCustomerId: null,
+      primaryMemberName: null,
+    };
 
   if ((myProfile as any).memberRole !== "dependent") {
-    return { role: "primary", myProfile, primaryCustomerId: null, primaryMemberName: null };
+    return {
+      role: "primary",
+      myProfile,
+      primaryCustomerId: null,
+      primaryMemberName: null,
+    };
   }
 
   const primaryMemberId = (myProfile as any).primaryMemberId;
-  if (!primaryMemberId) return { role: "primary", myProfile, primaryCustomerId: null, primaryMemberName: null };
+  if (!primaryMemberId)
+    return {
+      role: "primary",
+      myProfile,
+      primaryCustomerId: null,
+      primaryMemberName: null,
+    };
 
   const primaryProfile = (await ctx.db.get(primaryMemberId)) as any;
   return {
@@ -134,9 +166,7 @@ export const getMyBundle = query({
 
     const bundle = await ctx.db
       .query("subscriptionBundles")
-      .withIndex("by_customer", (q) =>
-        q.eq("customerId", identity.clerkUserId)
-      )
+      .withIndex("by_customer", (q) => q.eq("customerId", identity.clerkUserId))
       .filter((q) => q.neq(q.field("status"), "cancelled"))
       .first();
 
@@ -160,9 +190,7 @@ export const getCustomerBundlePublic = query({
     await requireServiceOrOwner(ctx, args.serviceSecret, args.customerId);
     const bundle = await ctx.db
       .query("subscriptionBundles")
-      .withIndex("by_customer", (q) =>
-        q.eq("customerId", args.customerId)
-      )
+      .withIndex("by_customer", (q) => q.eq("customerId", args.customerId))
       .filter((q) => q.neq(q.field("status"), "cancelled"))
       .first();
 
@@ -195,9 +223,7 @@ export const getCustomerBundleWithStripeIds = query({
     await requireServiceOrOwner(ctx, args.serviceSecret, args.customerId);
     const bundle = await ctx.db
       .query("subscriptionBundles")
-      .withIndex("by_customer", (q) =>
-        q.eq("customerId", args.customerId)
-      )
+      .withIndex("by_customer", (q) => q.eq("customerId", args.customerId))
       .filter((q) => q.neq(q.field("status"), "cancelled"))
       .first();
 
@@ -225,15 +251,19 @@ export const getEntitlementsByBundle = query({
   },
   handler: async (ctx: QueryCtx, args) => {
     const owner = await ctx.db.get(args.bundleId);
-    await requireServiceOrOwner(ctx, args.serviceSecret, owner?.customerId ?? "");
+    await requireServiceOrOwner(
+      ctx,
+      args.serviceSecret,
+      owner?.customerId ?? "",
+    );
     const entitlements = await ctx.db
       .query("entitlements")
       .withIndex("by_bundle", (q) => q.eq("bundleId", args.bundleId))
       .filter((q) =>
         q.or(
           q.eq(q.field("status"), "active"),
-          q.eq(q.field("status"), "cancel_at_period_end")
-        )
+          q.eq(q.field("status"), "cancel_at_period_end"),
+        ),
       )
       .collect();
 
@@ -241,7 +271,7 @@ export const getEntitlementsByBundle = query({
       entitlements.map(async (e) => {
         const product = await ctx.db.get(e.productId);
         return { ...e, product };
-      })
+      }),
     );
 
     return enriched;
@@ -261,20 +291,21 @@ export const getMyEntitlements = query({
     const identity = await requireAuth(ctx);
 
     // Dependents check the primary's entitlements
-    const effectiveCustomerId = await resolveEffectiveCustomerId(ctx, identity.clerkUserId);
+    const effectiveCustomerId = await resolveEffectiveCustomerId(
+      ctx,
+      identity.clerkUserId,
+    );
 
     let q = ctx.db
       .query("entitlements")
-      .withIndex("by_customer", (q) =>
-        q.eq("customerId", effectiveCustomerId)
-      );
+      .withIndex("by_customer", (q) => q.eq("customerId", effectiveCustomerId));
 
     if (!args.includeExpired) {
       q = q.filter((q) =>
         q.or(
           q.eq(q.field("status"), "active"),
-          q.eq(q.field("status"), "cancel_at_period_end")
-        )
+          q.eq(q.field("status"), "cancel_at_period_end"),
+        ),
       );
     }
 
@@ -283,9 +314,9 @@ export const getMyEntitlements = query({
     // Enrich with product data
     const enriched = await Promise.all(
       entitlements.map(async (e) => {
-        const product = await ctx.db.get((e as any).productId as any);
+        const product = await memberCatalogProduct(ctx, String(e.productId));
         return { ...e, product };
-      })
+      }),
     );
 
     return enriched;
@@ -305,19 +336,20 @@ export const myHasAccess = query({
     const identity = await requireAuth(ctx);
 
     // Resolve effective customer — dependents share primary's entitlements
-    const effectiveCustomerId = await resolveEffectiveCustomerId(ctx, identity.clerkUserId);
+    const effectiveCustomerId = await resolveEffectiveCustomerId(
+      ctx,
+      identity.clerkUserId,
+    );
 
     const entitlement = await ctx.db
       .query("entitlements")
-      .withIndex("by_customer", (q) =>
-        q.eq("customerId", effectiveCustomerId)
-      )
+      .withIndex("by_customer", (q) => q.eq("customerId", effectiveCustomerId))
       .filter((q) => q.eq(q.field("productId"), args.productId))
       .filter((q) =>
         q.or(
           q.eq(q.field("status"), "active"),
-          q.eq(q.field("status"), "cancel_at_period_end")
-        )
+          q.eq(q.field("status"), "cancel_at_period_end"),
+        ),
       )
       .first();
 
@@ -345,9 +377,7 @@ export const getMyDashboard = query({
 
     const bundle = await ctx.db
       .query("subscriptionBundles")
-      .withIndex("by_customer", (q) =>
-        q.eq("customerId", effectiveCustomerId)
-      )
+      .withIndex("by_customer", (q) => q.eq("customerId", effectiveCustomerId))
       .filter((q) => q.neq(q.field("status"), "cancelled"))
       .first();
 
@@ -367,14 +397,12 @@ export const getMyDashboard = query({
 
     const entitlements = await ctx.db
       .query("entitlements")
-      .withIndex("by_customer", (q) =>
-        q.eq("customerId", effectiveCustomerId)
-      )
+      .withIndex("by_customer", (q) => q.eq("customerId", effectiveCustomerId))
       .filter((q) =>
         q.or(
           q.eq(q.field("status"), "active"),
-          q.eq(q.field("status"), "cancel_at_period_end")
-        )
+          q.eq(q.field("status"), "cancel_at_period_end"),
+        ),
       )
       .collect();
 
@@ -384,7 +412,7 @@ export const getMyDashboard = query({
       const rawDeps = await ctx.db
         .query("memberProfiles")
         .withIndex("by_primary_member", (q) =>
-          q.eq("primaryMemberId", memberInfo.myProfile._id)
+          q.eq("primaryMemberId", memberInfo.myProfile._id),
         )
         .filter((q) => q.neq(q.field("status"), "terminated"))
         .collect();
@@ -428,9 +456,7 @@ export const getCustomerBundle = query({
     await requireAccess(ctx, "members.view");
     const bundle = await ctx.db
       .query("subscriptionBundles")
-      .withIndex("by_customer", (q) =>
-        q.eq("customerId", args.customerId)
-      )
+      .withIndex("by_customer", (q) => q.eq("customerId", args.customerId))
       .filter((q) => q.neq(q.field("status"), "cancelled"))
       .first();
 
@@ -451,16 +477,14 @@ export const getCustomerEntitlements = query({
     await requireAccess(ctx, "members.view");
     let q = ctx.db
       .query("entitlements")
-      .withIndex("by_customer", (q) =>
-        q.eq("customerId", args.customerId)
-      );
+      .withIndex("by_customer", (q) => q.eq("customerId", args.customerId));
 
     if (!args.includeExpired) {
       q = q.filter((q) =>
         q.or(
           q.eq(q.field("status"), "active"),
-          q.eq(q.field("status"), "cancel_at_period_end")
-        )
+          q.eq(q.field("status"), "cancel_at_period_end"),
+        ),
       );
     }
 
@@ -471,7 +495,7 @@ export const getCustomerEntitlements = query({
       entitlements.map(async (e) => {
         const product = await ctx.db.get((e as any).productId as any);
         return { ...e, product };
-      })
+      }),
     );
 
     return enriched;
@@ -487,7 +511,7 @@ export const getEntitlement = query({
   },
   handler: async (ctx: QueryCtx, args: GetEntitlementArgs) => {
     const identity = await requireAuth(ctx);
-    
+
     const entitlement = await ctx.db.get(args.entitlementId as any);
     if (!entitlement) return null;
 
@@ -496,11 +520,15 @@ export const getEntitlement = query({
       // Check if admin
       const admin = await ctx.db
         .query("adminUsers")
-        .withIndex("by_clerk_id", (q: any) => q.eq("clerkUserId", identity.clerkUserId))
+        .withIndex("by_clerk_id", (q: any) =>
+          q.eq("clerkUserId", identity.clerkUserId),
+        )
         .first();
-      
+
       if (!admin) {
-        throw new Error("Unauthorized: You can only access your own entitlements");
+        throw new Error(
+          "Unauthorized: You can only access your own entitlements",
+        );
       }
     }
 
@@ -522,15 +550,13 @@ export const hasAccess = query({
     await requireAccess(ctx, "members.view");
     const entitlement = await ctx.db
       .query("entitlements")
-      .withIndex("by_customer", (q) =>
-        q.eq("customerId", args.customerId)
-      )
+      .withIndex("by_customer", (q) => q.eq("customerId", args.customerId))
       .filter((q) => q.eq(q.field("productId"), args.productId))
       .filter((q) =>
         q.or(
           q.eq(q.field("status"), "active"),
-          q.eq(q.field("status"), "cancel_at_period_end")
-        )
+          q.eq(q.field("status"), "cancel_at_period_end"),
+        ),
       )
       .first();
 
@@ -581,9 +607,17 @@ export const getMemberCardDataPublic = query({
         : null) ??
       // Fallback: most-recently-updated active member profile
       allProfiles
-        .filter((p) => (p as any).memberType === "active" || (p as any).status === "active")
-        .sort((a, b) => ((b as any).updatedAt ?? 0) - ((a as any).updatedAt ?? 0))[0] ??
-      allProfiles.sort((a, b) => ((b as any).updatedAt ?? 0) - ((a as any).updatedAt ?? 0))[0] ??
+        .filter(
+          (p) =>
+            (p as any).memberType === "active" ||
+            (p as any).status === "active",
+        )
+        .sort(
+          (a, b) => ((b as any).updatedAt ?? 0) - ((a as any).updatedAt ?? 0),
+        )[0] ??
+      allProfiles.sort(
+        (a, b) => ((b as any).updatedAt ?? 0) - ((a as any).updatedAt ?? 0),
+      )[0] ??
       null;
 
     if (!profile) return null;
@@ -596,7 +630,9 @@ export const getMemberCardDataPublic = query({
       (profile as any).subscriberId ||
       (group as any)?.organizationCode ||
       profile.memberId;
-    const memberSite = await ctx.db.get((group as Doc<"groups"> | null)?.siteId ?? profile.siteId);
+    const memberSite = await ctx.db.get(
+      (group as Doc<"groups"> | null)?.siteId ?? profile.siteId,
+    );
     const brand = resolveMemberBrand(memberSite);
 
     // Try to get a plan name from active entitlements
@@ -608,41 +644,50 @@ export const getMemberCardDataPublic = query({
       .filter((q) =>
         q.or(
           q.eq(q.field("status"), "active"),
-          q.eq(q.field("status"), "cancel_at_period_end")
-        )
+          q.eq(q.field("status"), "cancel_at_period_end"),
+        ),
       )
       .first();
     if (entitlement) {
-      let product: any = await ctx.db.get((entitlement as any).productId as any);
-      // Historical fallback: entitlements created before the webhook fix may have
-      // a Stripe product ID (prod_xxx) stored instead of a Convex document ID.
-      if (!product) {
-        const rawId = String((entitlement as any).productId);
-        if (rawId.startsWith("prod_")) {
-          const allProducts = await ctx.db.query("catalogProducts").collect();
-          product = (allProducts.find((p: any) => {
-            const sp = p.stripeProducts;
-            return sp && (
-              sp.monthlyCardId === rawId ||
-              sp.monthlyACHId === rawId ||
-              sp.annualCardId === rawId ||
-              sp.annualACHId === rawId
-            );
-          }) ?? null);
-        }
-      }
+      const product = await memberCatalogProduct(
+        ctx,
+        String(entitlement.productId),
+      );
       if (product && (product as any).name) planName = (product as any).name;
       if (product && (product as any).slug) productSlug = (product as any).slug;
     }
 
-    if (brand && isMembershipProgramSlug(productSlug)) Object.assign(brand, { supportEmail: "info@getidealhealth.com", supportPhone: "844-433-2502" });
-    const effectiveTs = (bundle as any)?.currentPeriodStart ?? (profile as any).enrolledAt ?? profile._creationTime;
+    if (brand && isMembershipProgramSlug(productSlug))
+      Object.assign(brand, {
+        supportEmail: "info@getidealhealth.com",
+        supportPhone: "844-433-2502",
+      });
+    const effectiveTs =
+      (bundle as any)?.currentPeriodStart ??
+      (profile as any).enrolledAt ??
+      profile._creationTime;
     const _baseDate = new Date(effectiveTs);
-    const effectiveDate = new Date(_baseDate.getFullYear(), _baseDate.getMonth() + 1, 1).toLocaleDateString("en-US", {
+    const inferredDate = new Date(
+      _baseDate.getFullYear(),
+      _baseDate.getMonth() + 1,
+      1,
+    ).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
     });
+    const storedDate = profile.effectiveDate
+      ? new Date(profile.effectiveDate)
+      : null;
+    const effectiveDate =
+      storedDate && !Number.isNaN(storedDate.getTime())
+        ? storedDate.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            timeZone: "UTC",
+          })
+        : inferredDate;
 
     // The member-facing ID must exactly match the Unique ID we submit to
     // Careington and DialCare in the eligibility file. WE assign this ID —
@@ -672,9 +717,21 @@ export const getMemberCardDataPublic = query({
       essentialsGroupNumber: resolveEssentialsGroupNumber(group as any),
       bflMemberCode: resolveBflMemberCode(group as Doc<"groups"> | null),
       networks: {
-        careington: { name: "Dental Discount Network", memberUrl: brand?.portalUrl ?? "https://getidealoh.com/health/dashboard" },
-        dialCare: { name: "Teledentistry Program", memberUrl: "https://www.dialcare.com" },
-        toothlens: { name: "AI Oral Scanning", memberUrl: brand?.portalUrl ? `${brand.portalUrl}?tab=oral-scan` : "https://toothlens.com" },
+        careington: {
+          name: "Dental Discount Network",
+          memberUrl:
+            brand?.portalUrl ?? "https://getidealoh.com/health/dashboard",
+        },
+        dialCare: {
+          name: "Teledentistry Program",
+          memberUrl: "https://www.dialcare.com",
+        },
+        toothlens: {
+          name: "AI Oral Scanning",
+          memberUrl: brand?.portalUrl
+            ? `${brand.portalUrl}?tab=oral-scan`
+            : "https://toothlens.com",
+        },
       },
       supportPhone: brand?.supportPhone ?? "(844) 679-9367",
       supportEmail: brand?.supportEmail ?? "support@getidealoh.com",
@@ -716,7 +773,9 @@ async function resolvePacketData(ctx: QueryCtx, memberProfileId: any) {
   if (!profile) return null;
 
   const group: any = profile.groupId ? await ctx.db.get(profile.groupId) : null;
-  const memberSite = await ctx.db.get(group?.siteId ?? profile.siteId) as Doc<"sites"> | null;
+  const memberSite = (await ctx.db.get(
+    group?.siteId ?? profile.siteId,
+  )) as Doc<"sites"> | null;
   const brand = resolveMemberBrand(memberSite);
 
   // Bundle and entitlement are best-effort — absent for members who have not
@@ -743,8 +802,8 @@ async function resolvePacketData(ctx: QueryCtx, memberProfileId: any) {
       .filter((q) =>
         q.or(
           q.eq(q.field("status"), "active"),
-          q.eq(q.field("status"), "cancel_at_period_end")
-        )
+          q.eq(q.field("status"), "cancel_at_period_end"),
+        ),
       )
       .first();
     if (entitlement) {
@@ -754,7 +813,11 @@ async function resolvePacketData(ctx: QueryCtx, memberProfileId: any) {
     }
   }
 
-  if (brand && isMembershipProgramSlug(productSlug)) Object.assign(brand, { supportEmail: "info@getidealhealth.com", supportPhone: "844-433-2502" });
+  if (brand && isMembershipProgramSlug(productSlug))
+    Object.assign(brand, {
+      supportEmail: "info@getidealhealth.com",
+      supportPhone: "844-433-2502",
+    });
   const subscriberId =
     profile.subscriberId || group?.organizationCode || profile.memberId;
 
@@ -765,20 +828,31 @@ async function resolvePacketData(ctx: QueryCtx, memberProfileId: any) {
     const d = new Date(profile.effectiveDate);
     effectiveDate = Number.isNaN(d.getTime())
       ? String(profile.effectiveDate)
-      : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      : d.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
   } else {
-    const effectiveTs = bundle?.currentPeriodStart ?? profile.enrolledAt ?? profile._creationTime;
+    const effectiveTs =
+      bundle?.currentPeriodStart ?? profile.enrolledAt ?? profile._creationTime;
     const base = new Date(effectiveTs);
-    effectiveDate = new Date(base.getFullYear(), base.getMonth() + 1, 1).toLocaleDateString(
-      "en-US",
-      { month: "short", day: "numeric", year: "numeric" }
-    );
+    effectiveDate = new Date(
+      base.getFullYear(),
+      base.getMonth() + 1,
+      1,
+    ).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
   }
 
   // Must match toUniqueId() in admin/vendorFiles.ts — this is the ID we submit
   // to Careington and DialCare, and the one the member presents at a provider.
   const memberFacingId: string =
-    profile.careingtonUniqueId ?? profile.memberId.replace(/[^0-9]/g, "").slice(0, 12);
+    profile.careingtonUniqueId ??
+    profile.memberId.replace(/[^0-9]/g, "").slice(0, 12);
 
   return {
     memberName: `${profile.firstName} ${profile.lastName}`.trim(),
@@ -796,9 +870,21 @@ async function resolvePacketData(ctx: QueryCtx, memberProfileId: any) {
     essentialsGroupNumber: resolveEssentialsGroupNumber(group),
     bflMemberCode: resolveBflMemberCode(group),
     networks: {
-      careington: { name: "Dental Discount Network", memberUrl: brand?.portalUrl ?? "https://getidealoh.com/health/dashboard" },
-      dialCare: { name: "Teledentistry Program", memberUrl: "https://www.dialcare.com" },
-      toothlens: { name: "AI Oral Scanning", memberUrl: brand?.portalUrl ? `${brand.portalUrl}?tab=oral-scan` : "https://toothlens.com" },
+      careington: {
+        name: "Dental Discount Network",
+        memberUrl:
+          brand?.portalUrl ?? "https://getidealoh.com/health/dashboard",
+      },
+      dialCare: {
+        name: "Teledentistry Program",
+        memberUrl: "https://www.dialcare.com",
+      },
+      toothlens: {
+        name: "AI Oral Scanning",
+        memberUrl: brand?.portalUrl
+          ? `${brand.portalUrl}?tab=oral-scan`
+          : "https://toothlens.com",
+      },
     },
     supportPhone: brand?.supportPhone ?? "(844) 679-9367",
     supportEmail: brand?.supportEmail ?? "support@getidealoh.com",
@@ -813,9 +899,7 @@ export const getCustomerDashboard = query({
     await requireAccess(ctx, "members.view");
     const bundle = await ctx.db
       .query("subscriptionBundles")
-      .withIndex("by_customer", (q) =>
-        q.eq("customerId", args.customerId)
-      )
+      .withIndex("by_customer", (q) => q.eq("customerId", args.customerId))
       .filter((q) => q.neq(q.field("status"), "cancelled"))
       .first();
 
@@ -831,14 +915,12 @@ export const getCustomerDashboard = query({
 
     const entitlements = await ctx.db
       .query("entitlements")
-      .withIndex("by_customer", (q) =>
-        q.eq("customerId", args.customerId)
-      )
+      .withIndex("by_customer", (q) => q.eq("customerId", args.customerId))
       .filter((q) =>
         q.or(
           q.eq(q.field("status"), "active"),
-          q.eq(q.field("status"), "cancel_at_period_end")
-        )
+          q.eq(q.field("status"), "cancel_at_period_end"),
+        ),
       )
       .collect();
 

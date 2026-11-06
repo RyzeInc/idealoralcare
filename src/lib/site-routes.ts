@@ -947,6 +947,13 @@ export const API_GROUPS: ApiGroup[] = [
     ],
   },
   {
+    prefix: "/api/member/benefits",
+    title: "My membership benefits",
+    purpose: "Authenticated, private view of the current member's purchased programs and access details.",
+    auth: "member",
+    endpoints: ["GET /api/member/benefits"],
+  },
+  {
     prefix: "/api/documents",
     title: "Documents & PDFs",
     purpose: "Generates member cards, agreements, W-9s, and fulfillment paperwork.",

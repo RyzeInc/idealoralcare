@@ -1,6 +1,11 @@
+import { AssureShell } from "@/components/assurevantage/AssureShell";
 import { headers } from "next/headers";
-import IdealLanding, { metadata as idealMetadata } from "@/components/marketing/legacy-ideal/page";
-import AssureLanding, { metadata as assureMetadata } from "@/components/marketing/AssureLanding";
+import IdealLanding, {
+  metadata as idealMetadata,
+} from "@/components/marketing/legacy-ideal/page";
+import AssureLanding, {
+  metadata as assureMetadata,
+} from "@/components/marketing/AssureLanding";
 import { domainSite } from "@/lib/site-domains";
 
 async function isAssureDomain() {
@@ -12,5 +17,11 @@ export async function generateMetadata() {
 }
 
 export default async function RootPage() {
-  return (await isAssureDomain()) ? <AssureLanding /> : <IdealLanding />;
+  return (await isAssureDomain()) ? (
+    <AssureShell>
+      <AssureLanding />
+    </AssureShell>
+  ) : (
+    <IdealLanding />
+  );
 }

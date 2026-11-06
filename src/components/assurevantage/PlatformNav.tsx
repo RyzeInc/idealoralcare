@@ -1,48 +1,182 @@
 "use client";
-import Link from "next/link";
+import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
+import { Menu, X, ShoppingBag } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useSiteThemeOptional } from "@/components/providers/SiteThemeProvider";
-import { isSiteMarketingEnabled } from "@/convex/lib/siteMarketing";
-import MemberPortalButton from "@/components/auth/MemberPortalButton";
-import { usesAssurePlatformNavigation } from "@/lib/program-brand";
 import { usePathname } from "next/navigation";
 import { useCart } from "@/lib/health-plans";
 import { formatPrice } from "@/lib/health-plans/types";
-import styles from "./platform.module.css";
-
+import { assureProductName } from "@/lib/assure-content";
+import { useSiteThemeOptional } from "@/components/providers/SiteThemeProvider";
+import { isSiteMarketingEnabled } from "@/convex/lib/siteMarketing";
+import MemberPortalButton from "@/components/auth/MemberPortalButton";
+import { AssureLink as Link } from "./AssureLink";
+import styles from "./experience.module.css";
 export function PlatformNav() {
   const pathname = usePathname();
   const theme = useSiteThemeOptional();
   const globalShop = useQuery(api.shop.queries.isEnabled);
-  const links = [
-    { feature: "oralScan", path: "oral-health-scan", label: "Oral Health Scan" },
-    { feature: "teledentistry", path: "teledentistry", label: "Teledentistry" },
-    { feature: "dentalDiscount", path: "discount", label: "Dental Discount Network" },
-    { feature: "blog", path: "blog", label: "Blog" },
-    { feature: "faq", path: "faq", label: "FAQ" },
-    { feature: "howItWorks", path: "how-it-works", label: "How It Works" },
-  ] as const;
-  const visibleLinks = theme?.isLoading ? [] : links.filter(link => isSiteMarketingEnabled(theme?.site?.marketing, link.feature));
-  const showShop = globalShop !== false && theme?.site?.shopEnabled === true;
   const { cart, itemCount, subtotalCents, removeItem } = useCart();
-  if (!usesAssurePlatformNavigation(pathname)) return null;
-  return <div className={styles.platform}>
-    <nav aria-label="AssureVantage offerings" className={styles.nav}>
-      <Link href="/">AssureVantage</Link>
-      {[["program-plans", "All offerings"], ["essentials", "Essentials"], ["balance-for-life", "Balance for Life"], ["plans", "Oral Care"]].map(([path, label]) => <Link key={path} href={`/assurevantage/${path}`} aria-current={pathname === `/assurevantage/${path}` ? "page" : undefined}>{label}</Link>)}
-      {(visibleLinks.length > 0 || showShop) && <details className={styles.explore}>
-        <summary>Explore services</summary>
-        <div>{visibleLinks.map(link => <Link key={link.path} href={`/assurevantage/${link.path}`}>{link.label}</Link>)}
-          {showShop && <Link href="/assurevantage/shop">Shop</Link>}
+  const [openPath, setOpenPath] = useState<string | null>(null);
+  const open = openPath === pathname;
+  const header = useRef<HTMLElement>(null);
+  useEffect(() => {
+    header.current
+      ?.querySelectorAll("details[open]")
+      .forEach((node) => node.removeAttribute("open"));
+  }, [pathname]);
+  const benefits = [
+    { path: "virtual-care", label: "Virtual care" },
+    { path: "labs", label: "Lab services" },
+    { path: "pharmacy", label: "Prescription savings" },
+    { path: "balance-for-life", label: "Mental wellbeing" },
+    { path: "oralcare", label: "Oral Care" },
+    {
+      path: "oral-health-scan",
+      label: "Oral Health Scan",
+      feature: "oralScan" as const,
+    },
+    {
+      path: "teledentistry",
+      label: "Teledentistry",
+      feature: "teledentistry" as const,
+    },
+    {
+      path: "discount",
+      label: "Dental Discount Network",
+      feature: "dentalDiscount" as const,
+    },
+  ];
+  const visible = benefits.filter(
+    (link) =>
+      !link.feature ||
+      (!theme?.isLoading &&
+        isSiteMarketingEnabled(theme?.site?.marketing, link.feature)),
+  );
+  return (
+    <header
+      className={styles.header}
+      ref={header}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          setOpenPath(null);
+          header.current
+            ?.querySelectorAll("details[open]")
+            .forEach((node) => node.removeAttribute("open"));
+        }
+      }}
+    >
+      <div className={`${styles.container} ${styles.navRow}`}>
+        <Link className={styles.logo} href="/" aria-label="AssureVantage home">
+          <Image
+            src="/brands/assurevantage/logo.png"
+            alt="AssureVantage"
+            width={185}
+            height={62}
+            priority
+          />
+        </Link>
+        <nav
+          id="assure-navigation"
+          className={`${styles.navLinks} ${open ? styles.navOpen : ""}`}
+          aria-label="Main navigation"
+          onClick={(event) => {
+            if ((event.target as HTMLElement).closest("a")) setOpenPath(null);
+          }}
+        >
+          <details>
+            <summary>Explore services</summary>
+            <div className={styles.dropdown}>
+              {visible.map((link) => (
+                <Link
+                  href={`/assurevantage/${link.path}`}
+                  key={link.path}
+                  aria-current={
+                    pathname === `/assurevantage/${link.path}`
+                      ? "page"
+                      : undefined
+                  }
+                >
+                  {link.label}
+                </Link>
+              ))}
+              {globalShop !== false && theme?.site?.shopEnabled === true && (
+                <Link href="/assurevantage/shop">Shop</Link>
+              )}
+            </div>
+          </details>
+          <Link
+            href="/assurevantage/program-plans"
+            aria-current={
+              pathname.endsWith("/program-plans") ? "page" : undefined
+            }
+          >
+            Memberships & pricing
+          </Link>
+          <Link href="/assurevantage/how-it-works">How it works</Link>
+          <Link href="/assurevantage/help">Help</Link>
+          {open && (
+            <>
+              <Link href="/assurevantage/dashboard">Member portal</Link>
+              <Link href="/assurevantage/for-employers">
+                Employers & brokers
+              </Link>
+              {isSiteMarketingEnabled(theme?.site?.marketing, "blog") && (
+                <Link href="/assurevantage/blog">Guides & resources</Link>
+              )}
+            </>
+          )}
+        </nav>
+        <div className={styles.navActions}>
+          <MemberPortalButton />
+          <Link
+            href="/assurevantage/program-checkout"
+            className={styles.cart}
+            aria-label={`Cart (${itemCount}) · ${formatPrice(subtotalCents)} ${cart.cadence === "monthly" ? "per month" : "per year"}`}
+          >
+            <ShoppingBag size={17} aria-hidden="true" />
+            Cart ({itemCount})<span> · {formatPrice(subtotalCents)}</span>
+          </Link>
+          <button
+            className={styles.menuButton}
+            aria-expanded={open}
+            aria-controls="assure-navigation"
+            onClick={() => setOpenPath(open ? null : pathname)}
+          >
+            {open ? (
+              <X size={18} aria-hidden="true" />
+            ) : (
+              <Menu size={18} aria-hidden="true" />
+            )}
+            {open ? "Close" : "Menu"}
+          </button>
         </div>
-      </details>}
-      <MemberPortalButton />
-      <Link className={styles.cartLink} href="/assurevantage/program-checkout">Cart ({itemCount}) · {formatPrice(subtotalCents)}{cart.cadence === "monthly" ? "/mo" : "/yr"}</Link>
-    </nav>
-    {itemCount > 0 && <details className={styles.summary}><summary>Review your shared cart · {itemCount} {itemCount === 1 ? "membership" : "memberships"}</summary>
-      {cart.items.map(item => <div key={item.productId}>{item.product.name.replace(/Ideal Health/g, "AssureVantage")} <button aria-label={`Remove ${item.product.name}`} onClick={() => removeItem(item.productId)}>Remove</button></div>)}
-      <Link href="/assurevantage/program-checkout">Continue to checkout →</Link>
-    </details>}
-  </div>;
+      </div>
+      {itemCount > 0 && (
+        <div className={styles.container}>
+          <details className={styles.cartSummary}>
+            <summary>
+              Your selections · {formatPrice(subtotalCents)}
+              {cart.cadence === "monthly" ? "/month" : "/year"}
+            </summary>
+            {cart.items.map((item) => (
+              <div key={item.productId}>
+                {assureProductName(item.product.name)}
+                <button
+                  aria-label={`Remove ${assureProductName(item.product.name)}`}
+                  onClick={() => removeItem(item.productId)}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <Link href="/assurevantage/program-checkout">
+              Review your cart →
+            </Link>
+          </details>
+        </div>
+      )}
+    </header>
+  );
 }

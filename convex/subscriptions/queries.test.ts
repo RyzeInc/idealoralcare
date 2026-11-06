@@ -71,7 +71,7 @@ async function seedBase(t: ReturnType<typeof convexTest>) {
 async function seedPrimary(
   t: ReturnType<typeof convexTest>,
   base: Awaited<ReturnType<typeof seedBase>>,
-  clerkUserId: string
+  clerkUserId: string,
 ) {
   return t.run(async (ctx) => {
     return ctx.db.insert("memberProfiles", {
@@ -96,7 +96,7 @@ async function seedDependent(
   t: ReturnType<typeof convexTest>,
   base: Awaited<ReturnType<typeof seedBase>>,
   primaryId: string,
-  clerkUserId: string
+  clerkUserId: string,
 ) {
   return t.run(async (ctx) => {
     return ctx.db.insert("memberProfiles", {
@@ -152,10 +152,53 @@ describe("subscriptions/queries", () => {
 
       // Primary with no bundle in subscriptionBundles table → null
       const result = await t
-        .withIdentity({ tokenIdentifier: "https://test.clerk.dev|user_primary_q_nobundle" })
+        .withIdentity({
+          tokenIdentifier: "https://test.clerk.dev|user_primary_q_nobundle",
+        })
         .query(getMyBundle, {});
 
       expect(result).toBeNull();
     });
   });
+});
+
+test("member cards preserve the recorded effective date instead of inferring next month", async () => {
+  const t = convexTest(schema);
+  const base = await seedBase(t);
+  const profileId = await seedPrimary(t, base, "user_recorded_date");
+  await t.run(async (ctx) =>
+    ctx.db.patch(profileId, { effectiveDate: "2026-11-01" }),
+  );
+  const card = await t
+    .withIdentity({
+      subject: "user_recorded_date",
+      tokenIdentifier: "https://test.clerk.dev|user_recorded_date",
+    })
+    .query(api.subscriptions.queries.getMemberCardDataPublic, {
+      customerId: "user_recorded_date",
+    });
+  expect(card?.effectiveDate).toBe("Nov 1, 2026");
+  expect(card?.memberId).toBe("200000001");
+});
+
+test("cancellation correspondence follows the enrolled group brand", async () => {
+  const t = convexTest(schema);
+  const base = await seedBase(t);
+  await seedPrimary(t, base, "user_assure_cancel");
+  await t.run(async (ctx) =>
+    ctx.db.patch(base.siteId, {
+      slug: "assurevantage",
+      name: "AssureVantage",
+      memberBrandingEnabled: true,
+    }),
+  );
+  const member = await t.query(
+    api.subscriptions.webhookActions.getMemberForCancellation,
+    {
+      customerId: "user_assure_cancel",
+      serviceSecret: process.env.CONVEX_SERVICE_SECRET,
+    },
+  );
+  expect(member?.brand?.name).toBe("AssureVantage");
+  expect(member?.memberId).toBe("200000001");
 });

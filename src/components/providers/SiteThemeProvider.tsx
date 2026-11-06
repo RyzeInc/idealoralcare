@@ -2,15 +2,15 @@
 
 /**
  * SITE THEME PROVIDER
- * 
+ *
  * Manages dynamic white-label branding by resolving the current site
  * from Convex and injecting branding CSS custom properties.
- * 
+ *
  * Usage:
  * <SiteThemeProvider>
  *   <App />
  * </SiteThemeProvider>
- * 
+ *
  * In components:
  * const site = useSiteTheme();
  * console.log(site.name); // "Ideal Health"
@@ -24,9 +24,21 @@ import type { SiteMarketing } from "@/convex/lib/siteMarketing";
 
 // Path segments that are never site slugs
 const NON_SITE_SEGMENTS = new Set([
-  "health", "admin", "api", "_next", "static", "public",
-  "register", "partner", "newideal", "debug", "bootstrap", "unsubscribe",
-  "404", "500", "favicon.ico",
+  "health",
+  "admin",
+  "api",
+  "_next",
+  "static",
+  "public",
+  "register",
+  "partner",
+  "newideal",
+  "debug",
+  "bootstrap",
+  "unsubscribe",
+  "404",
+  "500",
+  "favicon.ico",
 ]);
 
 export type SitePromoPlacement = "landing" | "plans";
@@ -92,12 +104,15 @@ export interface SiteTheme {
 }
 
 interface SiteThemeContextValue {
+  siteSlug?: string;
   site: SiteTheme | null;
   isLoading: boolean;
   error?: string;
 }
 
-const SiteThemeContext = createContext<SiteThemeContextValue | undefined>(undefined);
+const SiteThemeContext = createContext<SiteThemeContextValue | undefined>(
+  undefined,
+);
 
 interface SiteThemeProviderProps {
   children: ReactNode;
@@ -110,12 +125,13 @@ export function SiteThemeProvider({
 }: SiteThemeProviderProps) {
   const pathname = usePathname();
   const segment = pathname?.split("/")[1];
-  const siteSlug = defaultSlug ?? (segment && !NON_SITE_SEGMENTS.has(segment) ? segment : "");
+  const siteSlug =
+    defaultSlug ?? (segment && !NON_SITE_SEGMENTS.has(segment) ? segment : "");
 
   // Only query when we have a slug
   const site = useQuery(
     api.hierarchy.resolveSiteBySlug,
-    siteSlug ? { slug: siteSlug } : "skip"
+    siteSlug ? { slug: siteSlug } : "skip",
   );
 
   const siteTheme = site as unknown as SiteTheme | null | undefined;
@@ -124,19 +140,40 @@ export function SiteThemeProvider({
   useEffect(() => {
     if (siteTheme) {
       const root = document.documentElement;
-      const propertyNames = ["--brand-primary", "--brand-secondary", "--brand-accent", "--brand-logo-url"];
-      const previousProperties = propertyNames.map(name => [name, root.style.getPropertyValue(name), root.style.getPropertyPriority(name)]);
+      const propertyNames = [
+        "--brand-primary",
+        "--brand-secondary",
+        "--brand-accent",
+        "--brand-logo-url",
+      ];
+      const previousProperties = propertyNames.map((name) => [
+        name,
+        root.style.getPropertyValue(name),
+        root.style.getPropertyPriority(name),
+      ]);
       const previousTitle = document.title;
       const icon = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
       const previousIcon = icon?.getAttribute("href");
       let customStyle: HTMLStyleElement | undefined;
 
-      root.style.setProperty("--brand-primary", siteTheme.branding?.primaryColor || "#1e3a5f");
-      root.style.setProperty("--brand-secondary", siteTheme.branding?.secondaryColor || "#14b8a6");
-      root.style.setProperty("--brand-accent", siteTheme.branding?.accentColor || "#0ea5e9");
+      root.style.setProperty(
+        "--brand-primary",
+        siteTheme.branding?.primaryColor || "#1e3a5f",
+      );
+      root.style.setProperty(
+        "--brand-secondary",
+        siteTheme.branding?.secondaryColor || "#14b8a6",
+      );
+      root.style.setProperty(
+        "--brand-accent",
+        siteTheme.branding?.accentColor || "#0ea5e9",
+      );
 
       if (siteTheme.branding?.logoUrl) {
-        root.style.setProperty("--brand-logo-url", `url('${siteTheme.branding.logoUrl}')`);
+        root.style.setProperty(
+          "--brand-logo-url",
+          `url('${siteTheme.branding.logoUrl}')`,
+        );
       }
 
       if (siteTheme.branding?.faviconUrl) {
@@ -150,7 +187,7 @@ export function SiteThemeProvider({
         document.head.appendChild(customStyle);
       }
 
-      if (siteTheme.name) {
+      if (siteTheme.name && siteTheme.slug !== "assurevantage") {
         document.title = siteTheme.name;
       }
 
@@ -160,9 +197,10 @@ export function SiteThemeProvider({
           else root.style.removeProperty(name);
         }
         customStyle?.remove();
-        if (icon && previousIcon != null) icon.setAttribute("href", previousIcon);
+        if (icon && previousIcon != null)
+          icon.setAttribute("href", previousIcon);
         else if (icon) icon.removeAttribute("href");
-        document.title = previousTitle;
+        if (siteTheme.slug !== "assurevantage") document.title = previousTitle;
       };
     }
   }, [siteTheme]);
@@ -170,6 +208,7 @@ export function SiteThemeProvider({
   return (
     <SiteThemeContext.Provider
       value={{
+        siteSlug,
         site: siteTheme || null,
         isLoading: Boolean(siteSlug) && siteTheme === undefined,
         error: siteTheme === null ? "Site not found" : undefined,
