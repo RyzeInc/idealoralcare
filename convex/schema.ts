@@ -1989,6 +1989,14 @@ export default defineSchema({
     // Agency sequence number (1 = first rep "01", 2 = second rep "02", …)
     // Full code = agencyCode + seqNo.padStart(2,"0"), e.g. agency 1000 + seq 1 = "100001"
     agencySeqNo: v.optional(v.number()),
+    // What the holder is, as chosen on Broker Links. Display only.
+    holderType: v.optional(v.union(
+      v.literal("broker"),
+      v.literal("rep"),
+      v.literal("organization"),
+      v.literal("partner"),
+      v.literal("other"),
+    )),
 
     // AUDIT
     createdAt: v.number(),

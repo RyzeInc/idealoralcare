@@ -516,6 +516,13 @@ export const SITE_ROUTES: SiteRoute[] = [
     auth: "staff",
   },
   {
+    path: "/admin/links",
+    title: "Broker links",
+    purpose: "Add or drop brokers, reps, partners and organizations and copy or export their AssureVantage links.",
+    area: "Admin console",
+    auth: "staff",
+  },
+  {
     path: "/admin/rep-codes",
     title: "Rep codes",
     purpose: "Attribution codes and the vanity URLs that resolve to them.",

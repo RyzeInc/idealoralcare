@@ -138,6 +138,7 @@ Internal staff only. Ordered below as the sidebar orders it.
 | --- | --- | --- | --- |
 | `/admin/members` | Every person in a plan, at any lifecycle stage. | Staff | — |
 | `/admin/brokers` | Program managers, FMOs, and agencies reselling the plans. | Staff | — |
+| `/admin/links` | Add or drop brokers, reps, partners and organizations and copy or export their AssureVantage links. | Staff | — |
 | `/admin/rep-codes` | Attribution codes and the vanity URLs that resolve to them. | Staff | — |
 | `/admin/partnerkit` | Inbound registrations from /register/partnerkit. | Staff | — |
 | `/admin/partner-applications` | Review broker, agency, and rep onboarding submissions from /register/rep. | Staff | — |
@@ -313,6 +314,14 @@ GET  /api/twilio/token
 POST /api/twilio/voice      (Twilio-signed)
 POST /api/twilio/status     (Twilio-signed)
 POST /api/twilio/recording  (Twilio-signed)
+```
+
+### My membership benefits — `/api/member/benefits`
+
+Authenticated, private view of the current member's purchased programs and access details. **Access:** Member.
+
+```
+GET /api/member/benefits
 ```
 
 ### Documents & PDFs — `/api/documents`

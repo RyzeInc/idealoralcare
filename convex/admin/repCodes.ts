@@ -30,7 +30,7 @@ export const getByAgent = query({
 // convex/ cannot import from src/, and both sides must refuse the same slugs:
 // this one blocks creation, that one blocks the vanity-URL redirect. Keep them
 // in step.
-const SLUG_RESERVED = new Set([
+export const SLUG_RESERVED = new Set([
   "admin","partner","employer","access","api","health","newideal","register","unsubscribe","bootstrap","debug",
   "login","signup","sign-in","sign-up","sign-out","sso-callback",
   "about","contact","privacy","terms","legal",

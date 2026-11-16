@@ -42,6 +42,7 @@ import type * as admin_members from "../admin/members.js";
 import type * as admin_navigation from "../admin/navigation.js";
 import type * as admin_notifications from "../admin/notifications.js";
 import type * as admin_repAttributionBackfill from "../admin/repAttributionBackfill.js";
+import type * as admin_partnerLinks from "../admin/partnerLinks.js";
 import type * as admin_repCodes from "../admin/repCodes.js";
 import type * as admin_revenueHealth from "../admin/revenueHealth.js";
 import type * as admin_seedNewIdeal from "../admin/seedNewIdeal.js";
@@ -237,6 +238,7 @@ declare const fullApi: ApiFromModules<{
   "admin/navigation": typeof admin_navigation;
   "admin/notifications": typeof admin_notifications;
   "admin/repAttributionBackfill": typeof admin_repAttributionBackfill;
+  "admin/partnerLinks": typeof admin_partnerLinks;
   "admin/repCodes": typeof admin_repCodes;
   "admin/revenueHealth": typeof admin_revenueHealth;
   "admin/seedNewIdeal": typeof admin_seedNewIdeal;

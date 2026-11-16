@@ -32,6 +32,7 @@ Deliberately narrow. Each grants the least a job needs; add a second pack or edi
 | Customer support | Staff | View members; customer service and member email. |
 | Eligibility operations | Staff | Process eligibility files and employer intake; view members, groups and vendor files. |
 | Partner operations | Staff | Manage partners, reps and rep codes; view groups. |
+| Broker links | Staff | Only **Broker Links** (`/admin/links`): add people and organizations, turn their links off or on, copy or export AssureVantage links. No rates, hierarchy, members or money. |
 | Finance | Staff | Billing, list-bill invoices, vendor statements; view commissions, members and groups. |
 | Content editor | Staff | Site content, resources library, shop. No member or financial data. |
 | Read-only reviewer | Staff | View-only across members, partners, operations, finance and the audit log. |

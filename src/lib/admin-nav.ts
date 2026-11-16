@@ -98,6 +98,7 @@ export const ADMIN_NAVIGATION: AdminNavSection[] = [
     items: [
       { label: "Members", href: "/admin/members", icon: "Users", tooltip: "All people in your plans (leads, eligible, active, etc.).", keywords: ["enrollees", "subscribers", "roster", "people"] },
       { label: "Brokers", href: "/admin/brokers", icon: "Network", tooltip: "Program Managers, FMOs, and agencies that resell your plans.", keywords: ["fmo", "agency", "distribution", "program manager"] },
+      { label: "Broker Links", href: "/admin/links", icon: "Link2", tooltip: "Add or drop brokers, reps and partners and copy their AssureVantage links.", keywords: ["links", "url", "referral", "assurevantage", "export", "add broker"] },
       { label: "Rep Codes", href: "/admin/rep-codes", icon: "Tag", tooltip: "Tracking codes that attribute enrollments to agents.", keywords: ["attribution", "vanity url", "referral", "ref"] },
       { label: "Partner Kit Leads", href: "/admin/partnerkit", icon: "BookUser", tooltip: "Agencies and companies that registered and requested the partner kit.", keywords: ["leads", "registrations", "inbound"] },
       { label: "Partner Applications", href: "/admin/partner-applications", icon: "UserPlus", tooltip: "Review broker, agency, and front-line rep onboarding submissions.", keywords: ["onboarding", "applications", "approve"] },
