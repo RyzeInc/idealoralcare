@@ -7,6 +7,7 @@ import { useAction, useMutation, useQuery } from 'convex/react';
 import type { FunctionReturnType } from 'convex/server';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
+import { partnerLink } from '@/lib/partner-links';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -616,7 +617,7 @@ function CodesTab({ data }: { data: Workspace }) {
   };
 
   const copyLink = async (code: { code: string; slug?: string }) => {
-    const url = code.slug ? `${window.location.origin}/${code.slug}` : `${window.location.origin}/health/plans?ref=${encodeURIComponent(code.code)}`;
+    const url = partnerLink(code.slug || code.code);
     try {
       await navigator.clipboard.writeText(url);
       toast.success('Referral link copied', url);

@@ -438,12 +438,12 @@ export function RepCodesAdmin() {
                     </div>
                     <div>
                       <p style={{ fontSize: 11, color: '#64748b', margin: 0 }}>URL (numeric)</p>
-                      <p style={{ fontFamily: 'monospace', fontSize: 13, color: '#0369a1', margin: 0 }}>getidealoh.com/{preview.previewCode}</p>
+                      <p style={{ fontFamily: 'monospace', fontSize: 13, color: '#0369a1', margin: 0 }}>assurevantage.com/{preview.previewCode}</p>
                     </div>
                     {preview.previewSlug && (
                       <div>
                         <p style={{ fontSize: 11, color: '#64748b', margin: 0 }}>URL (name)</p>
-                        <p style={{ fontFamily: 'monospace', fontSize: 13, color: '#0369a1', margin: 0 }}>getidealoh.com/{preview.previewSlug}</p>
+                        <p style={{ fontFamily: 'monospace', fontSize: 13, color: '#0369a1', margin: 0 }}>assurevantage.com/{preview.previewSlug}</p>
                       </div>
                     )}
                   </div>
@@ -503,7 +503,7 @@ export function RepCodesAdmin() {
                 style={{ fontFamily: 'monospace' }}
               />
               <p className={styles.hint}>
-                Vanity URL: getidealoh.com/&lt;slug&gt;. The rep code itself always works too (getidealoh.com/230001).
+                Vanity URL: assurevantage.com/&lt;slug&gt;. The rep code itself always works too (assurevantage.com/230001).
               </p>
             </div>
             )}
@@ -682,7 +682,7 @@ export function RepCodesAdmin() {
                               style={{ padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, width: 200, fontFamily: 'monospace' }}
                             />
                             <p style={{ fontSize: 11, color: '#94a3b8', margin: '2px 0 0' }}>
-                              getidealoh.com/{editFields.slug || code.code.toLowerCase()}
+                              assurevantage.com/{editFields.slug || code.code.toLowerCase()}
                             </p>
                           </div>
                           <div>
