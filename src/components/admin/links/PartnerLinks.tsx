@@ -22,6 +22,7 @@ const EMPTY_FORM = {
   landing: '' as LinkLanding | '',
 };
 
+const ROW_COLS = 'md:grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)_4.5rem_5rem_8.5rem]';
 const isOrg = (type: HolderType) => type === 'organization' || type === 'partner';
 const previewEnding = (value: string) => value.toLowerCase().replace(/[^a-z0-9-]/g, '');
 
@@ -162,58 +163,54 @@ export function PartnerLinks() {
             {rows.length === 0 ? 'No one has a link yet. Add your first broker or partner.' : 'Nothing matches. Clear the search or show turned-off links.'}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Name</th>
-                  <th className="px-4 py-3 font-medium">Link</th>
-                  <th className="px-4 py-3 text-right font-medium">Sign-ups</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {visible.map((row) => {
-                  const link = partnerLink(row.ending);
-                  return (
-                    <tr key={row.id} className={row.active ? '' : 'bg-slate-50/60 text-slate-500'}>
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-slate-900">{row.name}</div>
-                        <div className="text-xs text-slate-500">
-                          {[row.holderType ? HOLDER_LABEL[row.holderType] : null, row.detail, row.email].filter(Boolean).join(' · ')}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className={`break-all font-mono text-xs ${row.active ? 'text-slate-800' : 'line-through'}`}>{link}</span>
-                          {row.active && (
-                            <button
-                              type="button"
-                              aria-label={`Copy ${row.name}'s link`}
-                              className="rounded-md border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-50"
-                              onClick={() => copy(link, 'Link copied', row.id)}
-                            >
-                              {copiedId === row.id ? <Check size={14} className="text-teal-700" /> : <Copy size={14} />}
-                            </button>
-                          )}
-                        </div>
-                        <div className="mt-0.5 text-xs text-slate-400">Code {row.code}</div>
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums">{row.signups}</td>
-                      <td className="px-4 py-3">
-                        <StatusBadge status={row.active ? 'active' : 'inactive'} label={row.active ? 'Active' : 'Off'} tone={row.active ? 'success' : 'neutral'} />
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <button type="button" disabled={busyId === row.id} className={row.active ? dangerBtn : secondaryBtn} onClick={() => toggle(row)}>
-                          {row.active ? 'Turn off' : 'Turn back on'}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div>
+            <div className={`hidden border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-medium uppercase tracking-wide text-slate-500 md:grid ${ROW_COLS}`}>
+              <span>Name</span>
+              <span>Link</span>
+              <span className="text-right">Sign-ups</span>
+              <span>Status</span>
+              <span />
+            </div>
+            <ul className="divide-y divide-slate-100">
+              {visible.map((row) => {
+                const link = partnerLink(row.ending);
+                return (
+                  <li key={row.id} className={`flex flex-col gap-3 px-4 py-4 md:grid md:items-center md:gap-4 ${ROW_COLS} ${row.active ? '' : 'bg-slate-50/60 text-slate-500'}`}>
+                    <div className="min-w-0">
+                      <div className="break-words font-medium text-slate-900">{row.name}</div>
+                      <div className="break-words text-xs text-slate-500">
+                        {[row.holderType ? HOLDER_LABEL[row.holderType] : null, row.detail, row.email].filter(Boolean).join(' · ')}
+                      </div>
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-start gap-2">
+                        <span className={`min-w-0 flex-1 break-all font-mono text-xs ${row.active ? 'text-slate-800' : 'line-through'}`}>{link}</span>
+                        {row.active && (
+                          <button
+                            type="button"
+                            aria-label={`Copy ${row.name}'s link`}
+                            className="shrink-0 rounded-md border border-slate-200 p-2 text-slate-600 hover:bg-slate-50"
+                            onClick={() => copy(link, 'Link copied', row.id)}
+                          >
+                            {copiedId === row.id ? <Check size={14} className="text-teal-700" /> : <Copy size={14} />}
+                          </button>
+                        )}
+                      </div>
+                      <div className="mt-0.5 text-xs text-slate-400">Code {row.code}</div>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-3 md:contents">
+                      <span className="text-sm tabular-nums text-slate-600 md:text-right md:text-inherit">
+                        {row.signups}<span className="md:hidden"> sign-up{row.signups === 1 ? '' : 's'}</span>
+                      </span>
+                      <StatusBadge status={row.active ? 'active' : 'inactive'} label={row.active ? 'Active' : 'Off'} tone={row.active ? 'success' : 'neutral'} />
+                      <button type="button" disabled={busyId === row.id} className={`${row.active ? dangerBtn : secondaryBtn} md:justify-self-end`} onClick={() => toggle(row)}>
+                        {row.active ? 'Turn off' : 'Turn back on'}
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         )}
       </div>
