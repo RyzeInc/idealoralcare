@@ -58,6 +58,29 @@ export function isOnBook(member: { memberType?: string }): boolean {
 }
 
 /**
+ * Where a member stands, in the three buckets partner-facing counts use:
+ *   covered      — on the book (active, enrolling, eligible); see isOnBook
+ *   ended        — was covered and left (inactive, terminated)
+ *   not_enrolled — never covered (lead, declined)
+ */
+export type MemberStanding = "covered" | "ended" | "not_enrolled";
+
+export function memberStanding(member: { memberType?: string }): MemberStanding {
+  if (isOnBook(member)) return "covered";
+  if (member.memberType === "inactive" || member.memberType === "terminated") return "ended";
+  return "not_enrolled";
+}
+
+/**
+ * Counted once per membership: dependents ride on their primary, and demo
+ * accounts are not real business. Every partner/broker count filters on this
+ * so a family of four is one sign-up, matching insights and the partner portal.
+ */
+export function isCountedMember(member: { memberRole?: string; isDemo?: boolean }): boolean {
+  return member.memberRole !== "dependent" && member.isDemo !== true;
+}
+
+/**
  * True when this member is covered under an employer's list-bill arrangement.
  *
  * Keyed off the GROUP, never off `employeeType`. The eligibility pipeline

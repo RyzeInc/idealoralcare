@@ -10,6 +10,7 @@ import { autoGrantFreeAccess } from "./grantFreeAccess";
 import { recordAdminAction } from "./adminAudit";
 import { collectDescendantPartnerIds } from "../insights/scope";
 import { importLegacyForClerkUser } from "../lib/access/provision";
+import { BILLABLE_MEMBER_TYPES, isCountedMember, isOnBook } from "../lib/memberBilling";
 
 const partnerTypeValidator = v.union(
   v.literal("program_manager"),
@@ -60,7 +61,10 @@ export const getWorkspace = query({
       ctx.db.query("partnerLeaders").withIndex("by_partner", (q) => q.eq("partnerId", partnerId)).collect(),
       ctx.db.query("distributionPartners").withIndex("by_parent", (q) => q.eq("parentId", partnerId)).collect(),
       ctx.db.query("memberProfiles").withIndex("by_attributed_agency", (q) => q.eq("attributedAgencyId", partnerId)).order("desc").take(51),
-      ctx.db.query("memberProfiles").withIndex("by_attributed_agency_type", (q) => q.eq("attributedAgencyId", partnerId).eq("memberType", "active")).collect(),
+      Promise.all([...BILLABLE_MEMBER_TYPES].map((type) =>
+        ctx.db.query("memberProfiles").withIndex("by_attributed_agency_type", (q) =>
+          q.eq("attributedAgencyId", partnerId).eq("memberType", type as Doc<"memberProfiles">["memberType"])).collect(),
+      )).then((lists) => lists.flat().filter(isCountedMember)),
       ctx.db.query("adminAuditLog").withIndex("by_target", (q) => q.eq("targetType", "distributionPartner").eq("targetId", partnerId)).order("desc").take(50),
       ctx.db.query("repOnboardingSubmissions").withIndex("by_approved_partner", (q) => q.eq("approvedPartnerId", partnerId)).collect(),
       partner.parentId ? ctx.db.get(partner.parentId) : Promise.resolve(null),
@@ -142,12 +146,13 @@ export const getAllWithStats = query({
     const totalMembersByAgency = new Map<string, number>();
     const activeMembersByAgency = new Map<string, number>();
     for (const m of members) {
+      if (!isCountedMember(m)) continue;
       const agencyId =
         m.attributedAgencyId ??
         (m.attributedRepId ? agencyForRepKey.get(m.attributedRepId) : undefined);
       if (!agencyId) continue;
       bump(totalMembersByAgency, agencyId);
-      if (m.memberType === "active") bump(activeMembersByAgency, agencyId);
+      if (isOnBook(m)) bump(activeMembersByAgency, agencyId);
     }
 
     const completedByAgency = new Map<string, number>();
@@ -190,8 +195,8 @@ export const getAllWithStats = query({
         linkedLeaderCount: linkedByAgency.get(key) ?? 0,
         pendingInviteCount: pendingByAgency.get(key) ?? 0,
         repCodeCount: codeCountByAgency.get(key) ?? 0,
-        // Only meaningful for links clicked after rep-link tracking shipped;
-        // historical codes were never incremented.
+        // Link VISITS, not sign-ups: brokerTrackingCodes.usageCount counts
+        // human page loads through a rep link (insights/visits.ts).
         totalUsage: usageByAgency.get(key) ?? 0,
       };
     });

@@ -7,8 +7,12 @@
  * Codes or Hierarchy.
  *
  * These functions need only `links.manage` and return only names, contact
- * emails, link endings and sign-up counts — no commission rates, hierarchy,
- * account ids or member data.
+ * emails, link endings and member COUNTS — no commission rates, hierarchy,
+ * account ids or member records.
+ *
+ * Counts use the shared reading of member status (lib/memberBilling.ts):
+ * one per membership, dependents and demo accounts excluded; "active" means
+ * on the book. Link visits are reported separately and never as sign-ups.
  */
 
 import { mutation, query } from "../_generated/server";
@@ -18,6 +22,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { requireAccess } from "../lib/authGuards";
 import { recordAdminAction } from "./adminAudit";
 import { SLUG_RESERVED } from "./repCodes";
+import { isCountedMember, memberStanding } from "../lib/memberBilling";
 
 const holderTypeValidator = v.union(
   v.literal("broker"),
@@ -62,6 +67,24 @@ export const list = query({
     const codes = await ctx.db.query("brokerTrackingCodes").collect();
     const leaders = new Map((await ctx.db.query("partnerLeaders").collect()).map((l) => [String(l._id), l]));
     const partners = new Map((await ctx.db.query("distributionPartners").collect()).map((p) => [String(p._id), p]));
+
+    // Credit each member to one link: the code they signed up with, else the
+    // rep's link (their working one first) for members credited by group.
+    const byCode = new Map(codes.map((c) => [c.code, String(c._id)]));
+    const byRep = new Map<string, string>();
+    for (const c of [...codes].sort((a, b) => Number(a.status === "active") - Number(b.status === "active"))) byRep.set(c.brokerId, String(c._id));
+    const counts = new Map<string, { active: number; ended: number }>();
+    for (const m of await ctx.db.query("memberProfiles").collect()) {
+      if (!isCountedMember(m)) continue;
+      const codeId = (m.attributedCode && byCode.get(m.attributedCode)) || (m.attributedRepId && byRep.get(m.attributedRepId));
+      if (!codeId) continue;
+      const standing = memberStanding(m);
+      if (standing === "not_enrolled") continue;
+      const tally = counts.get(codeId) ?? { active: 0, ended: 0 };
+      tally[standing === "covered" ? "active" : "ended"]++;
+      counts.set(codeId, tally);
+    }
+
     return codes
       .map((code) => {
         const leader = leaders.get(code.brokerId);
@@ -79,7 +102,9 @@ export const list = query({
           ending: code.slug ?? code.code,
           landing: code.productHint === "essentials" || code.productHint === "oralcare" ? code.productHint : null,
           active: code.status === "active",
-          signups: code.usageCount,
+          activeMembers: counts.get(String(code._id))?.active ?? 0,
+          endedMembers: counts.get(String(code._id))?.ended ?? 0,
+          linkVisits: code.usageCount,
           lastUsedAt: code.lastUsedAt ?? null,
           createdAt: code.createdAt,
         };
@@ -125,6 +150,8 @@ export const add = mutation({
     phone: v.optional(v.string()),
     organizationId: v.optional(v.id("distributionPartners")),
     ending: v.optional(v.string()),
+    /** A code the holder asked for (e.g. "M1"). Otherwise one is numbered for them. */
+    code: v.optional(v.string()),
     landing: v.optional(landingValidator),
   },
   handler: async (ctx, args) => {
@@ -149,6 +176,20 @@ export const add = mutation({
             ? `${leader.name} (${email}) already has a link ending in "${live.slug ?? live.code}".`
             : `${leader.name} (${email}) has a link that is turned off. Turn it back on instead of adding a new one.`,
         );
+      }
+    }
+
+    let customCode: string | undefined;
+    if (args.code?.trim()) {
+      customCode = args.code.trim().toUpperCase();
+      if (!/^[A-Z0-9-]{2,20}$/.test(customCode)) throw new Error("A code uses 2 to 20 letters, numbers or dashes.");
+      const asEnding = customCode.toLowerCase();
+      const clash =
+        (await ctx.db.query("brokerTrackingCodes").withIndex("by_code", (q) => q.eq("code", customCode!)).first()) ??
+        (await ctx.db.query("brokerTrackingCodes").withIndex("by_slug", (q) => q.eq("slug", asEnding)).first());
+      if (clash) throw new Error(`The code "${customCode}" is already in use.`);
+      if (SLUG_RESERVED.has(asEnding) || (await ctx.db.query("sites").withIndex("by_slug", (q) => q.eq("slug", asEnding)).first())) {
+        throw new Error(`"${customCode}" is a page on the website and can't be a code.`);
       }
     }
 
@@ -184,13 +225,19 @@ export const add = mutation({
       isPrimary: !args.organizationId, portalAccess: false, createdAt: now, updatedAt: now,
     });
 
-    const agencyCode = await nextAgencyCode(ctx, partner);
-    const siblings = await ctx.db.query("brokerTrackingCodes").filter((q) => q.eq(q.field("agencyId"), String(partner!._id))).collect();
-    let seq = siblings.reduce((max, c) => Math.max(max, c.agencySeqNo ?? 0), 0) + 1;
-    let code = `${agencyCode}${String(seq).padStart(2, "0")}`;
-    while (await ctx.db.query("brokerTrackingCodes").withIndex("by_code", (q) => q.eq("code", code)).first()) {
-      seq++;
+    let code: string;
+    let seq: number | undefined;
+    if (customCode) {
+      code = customCode;
+    } else {
+      const agencyCode = await nextAgencyCode(ctx, partner);
+      const siblings = await ctx.db.query("brokerTrackingCodes").filter((q) => q.eq(q.field("agencyId"), String(partner!._id))).collect();
+      seq = siblings.reduce((max, c) => Math.max(max, c.agencySeqNo ?? 0), 0) + 1;
       code = `${agencyCode}${String(seq).padStart(2, "0")}`;
+      while (await ctx.db.query("brokerTrackingCodes").withIndex("by_code", (q) => q.eq("code", code)).first()) {
+        seq++;
+        code = `${agencyCode}${String(seq).padStart(2, "0")}`;
+      }
     }
 
     const id = await ctx.db.insert("brokerTrackingCodes", {

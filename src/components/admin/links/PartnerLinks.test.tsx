@@ -17,7 +17,7 @@ import { PartnerLinks } from './PartnerLinks';
 
 const row = (over: Record<string, unknown>) => ({
   id: 'c1', name: 'Allen Jackson', detail: 'Harbor Agency', email: 'allen@harbor.test', holderType: 'broker',
-  code: '100001', ending: 'allenjackson01', landing: null, active: true, signups: 3, lastUsedAt: null, createdAt: 0, ...over,
+  code: '100001', ending: 'allenjackson01', landing: null, active: true, activeMembers: 2, endedMembers: 1, linkVisits: 22, lastUsedAt: null, createdAt: 0, ...over,
 });
 
 afterEach(() => { cleanup(); mocks.mutate.mockReset(); });
@@ -46,7 +46,7 @@ describe('PartnerLinks', () => {
     await userEvent.click(screen.getByRole('button', { name: /Add and copy link/ }));
     expect(mocks.mutate).toHaveBeenCalledWith({
       holderType: 'organization', name: 'Lakeside Chamber', contactName: undefined, email: 'pat@lakeside.test',
-      phone: undefined, organizationId: undefined, ending: undefined, landing: undefined,
+      phone: undefined, organizationId: undefined, ending: undefined, code: undefined, landing: undefined,
     });
   });
 

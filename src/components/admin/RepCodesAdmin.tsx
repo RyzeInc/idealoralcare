@@ -298,7 +298,7 @@ export function RepCodesAdmin() {
           </span>
         </div>
         <div className={styles.statCard}>
-          <span className={styles.statLabel}>Total Uses</span>
+          <span className={styles.statLabel}>Link Visits</span>
           <span className={styles.statValue}>
             {allCodes.reduce((sum, c) => sum + c.usageCount, 0)}
           </span>
@@ -559,7 +559,7 @@ export function RepCodesAdmin() {
                 <th>URL Slug</th>
                 <th>Agent (Clerk ID)</th>
                 <th>Agency / FMO</th>
-                <th>Uses</th>
+                <th>Link visits</th>
                 <th>Commission</th>
                 <th>Status</th>
                 <th>Actions</th>

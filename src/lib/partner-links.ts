@@ -20,7 +20,12 @@ export interface LinkRow {
   code: string;
   ending: string;
   active: boolean;
-  signups: number;
+  /** Memberships on the book through this link (dependents and demo accounts excluded). */
+  activeMembers: number;
+  /** Memberships through this link that have since ended. */
+  endedMembers: number;
+  /** Visits to the link. Not sign-ups. */
+  linkVisits: number;
 }
 
 export const HOLDER_LABEL: Record<string, string> = {
@@ -39,11 +44,11 @@ const cell = (value: string | number) => {
 };
 
 export function linksCsv(rows: LinkRow[]): string {
-  const header = ["Name", "Organization / contact", "Email", "Type", "Status", "Code", "AssureVantage link", "Oral care link", "Essentials link", "Sign-ups"];
+  const header = ["Name", "Organization / contact", "Email", "Type", "Status", "Code", "AssureVantage link", "Oral care link", "Essentials link", "Active members", "Ended members", "Link visits"];
   const lines = rows.map((r) =>
     [
       r.name, r.detail ?? "", r.email ?? "", r.holderType ? HOLDER_LABEL[r.holderType] ?? r.holderType : "",
-      r.active ? "Active" : "Off", r.code, partnerLink(r.ending), partnerLink(r.ending, "oralcare"), partnerLink(r.ending, "essentials"), r.signups,
+      r.active ? "Active" : "Off", r.code, partnerLink(r.ending), partnerLink(r.ending, "oralcare"), partnerLink(r.ending, "essentials"), r.activeMembers, r.endedMembers, r.linkVisits,
     ].map(cell).join(","),
   );
   return [header.join(","), ...lines].join("\r\n");

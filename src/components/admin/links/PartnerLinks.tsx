@@ -19,10 +19,11 @@ const EMPTY_FORM = {
   phone: '',
   organizationId: '',
   ending: '',
+  code: '',
   landing: '' as LinkLanding | '',
 };
 
-const ROW_COLS = 'md:grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)_4.5rem_5rem_8.5rem]';
+const ROW_COLS = 'md:grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)_7rem_5rem_8.5rem]';
 const isOrg = (type: HolderType) => type === 'organization' || type === 'partner';
 const previewEnding = (value: string) => value.toLowerCase().replace(/[^a-z0-9-]/g, '');
 
@@ -92,6 +93,7 @@ export function PartnerLinks() {
         phone: form.phone || undefined,
         organizationId: !isOrg(form.holderType) && form.organizationId ? (form.organizationId as Id<'distributionPartners'>) : undefined,
         ending: form.ending || undefined,
+        code: form.code || undefined,
         landing: form.landing || undefined,
       });
       const link = partnerLink(result.ending);
@@ -124,7 +126,8 @@ export function PartnerLinks() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Broker Links</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Everyone who sells for us and their AssureVantage link. Sign-ups through a link are credited to its owner.
+            Everyone who sells for us and their AssureVantage link. Members who join through a link are credited to its owner.
+            Active members counts current memberships only, once per household.
           </p>
         </div>
         <button type="button" className={primaryBtn} onClick={() => setAdding(true)}>
@@ -164,10 +167,10 @@ export function PartnerLinks() {
           </div>
         ) : (
           <div>
-            <div className={`hidden border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-medium uppercase tracking-wide text-slate-500 md:grid ${ROW_COLS}`}>
+            <div className={`hidden gap-4 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-medium uppercase tracking-wide text-slate-500 md:grid ${ROW_COLS}`}>
               <span>Name</span>
               <span>Link</span>
-              <span className="text-right">Sign-ups</span>
+              <span className="text-right">Active members</span>
               <span>Status</span>
               <span />
             </div>
@@ -199,9 +202,14 @@ export function PartnerLinks() {
                       <div className="mt-0.5 text-xs text-slate-400">Code {row.code}</div>
                     </div>
                     <div className="flex flex-wrap items-center justify-between gap-3 md:contents">
-                      <span className="text-sm tabular-nums text-slate-600 md:text-right md:text-inherit">
-                        {row.signups}<span className="md:hidden"> sign-up{row.signups === 1 ? '' : 's'}</span>
-                      </span>
+                      <div className="text-sm md:text-right">
+                        <div className="tabular-nums text-slate-800">
+                          {row.activeMembers}<span className="md:hidden"> active member{row.activeMembers === 1 ? '' : 's'}</span>
+                        </div>
+                        <div className="text-xs text-slate-400">
+                          {row.endedMembers > 0 && `${row.endedMembers} ended · `}{row.linkVisits} visit{row.linkVisits === 1 ? '' : 's'}
+                        </div>
+                      </div>
                       <StatusBadge status={row.active ? 'active' : 'inactive'} label={row.active ? 'Active' : 'Off'} tone={row.active ? 'success' : 'neutral'} />
                       <button type="button" disabled={busyId === row.id} className={`${row.active ? dangerBtn : secondaryBtn} md:justify-self-end`} onClick={() => toggle(row)}>
                         {row.active ? 'Turn off' : 'Turn back on'}
@@ -264,6 +272,17 @@ export function PartnerLinks() {
             <p className="mt-1 break-all font-mono text-xs text-slate-500">
               {partnerLink(form.ending || previewEnding(form.name.replace(/[^a-zA-Z0-9]/g, '')) || 'theirname')}
             </p>
+          </div>
+          <div>
+            <label className={labelCls} htmlFor="link-code">Code (optional)</label>
+            <input
+              id="link-code"
+              className={`${inputCls} uppercase placeholder:normal-case`}
+              placeholder="Leave blank to number it for them"
+              value={form.code}
+              onChange={(e) => set('code', e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''))}
+            />
+            <p className="mt-1 text-xs text-slate-500">What customers can type at checkout if they don&apos;t use the link. Also works as a link: {partnerLink(form.code || 'CODE')}</p>
           </div>
           <div>
             <label className={labelCls} htmlFor="link-landing">Where the link opens</label>

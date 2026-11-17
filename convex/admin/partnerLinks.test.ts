@@ -18,7 +18,7 @@ async function setup() {
     });
     const leader = await ctx.db.insert("partnerLeaders", { partnerId: agency, name: "Allen Jackson", email: "allen@harbor.test", isPrimary: true, clerkUserId: "user_allen", createdAt: now, updatedAt: now });
     await ctx.db.insert("brokerTrackingCodes", { brokerId: leader, agencyId: agency, code: "100001", slug: "allenjackson01", agencySeqNo: 1, usageCount: 3, status: "active", createdAt: now, updatedAt: now });
-    return { agency, linkPack: packs.get("staff_link_manager")! };
+    return { agency, leader, linkPack: packs.get("staff_link_manager")! };
   });
   const owner = t.withIdentity(who("owner", "owner@ideal.test"));
   const invited = await owner.action(api.access.invites.invitePerson, {
@@ -34,7 +34,7 @@ describe("broker links", () => {
     const { mike } = await setup();
     const rows = await mike.query(api.admin.partnerLinks.list, {});
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ name: "Allen Jackson", ending: "allenjackson01", code: "100001", signups: 3, active: true });
+    expect(rows[0]).toMatchObject({ name: "Allen Jackson", ending: "allenjackson01", code: "100001", linkVisits: 3, activeMembers: 0, endedMembers: 0, active: true });
     // Nothing internal rides along: no rates, account ids or record ids of people.
     expect(JSON.stringify(rows)).not.toMatch(/user_allen|overrideRate|commission|brokerId|agencyId/);
 
@@ -99,5 +99,50 @@ describe("broker links", () => {
     const { t } = await setup();
     await expect(t.withIdentity(who("user_allen", "allen@harbor.test")).query(api.admin.partnerLinks.list, {})).rejects.toThrow(/Unauthorized/);
     await expect(t.query(api.admin.partnerLinks.list, {})).rejects.toThrow(/Unauthorized/);
+  });
+
+  test("active members count memberships on the book, not link visits", async () => {
+    const { t, mike, leader } = await setup();
+    await t.run(async (ctx) => {
+      const now = Date.now();
+      const siteId = await ctx.db.insert("sites", {
+        slug: "assurevantage", name: "AssureVantage", type: "primary", branding: {}, allowedPlanIds: [],
+        enrollmentDefaults: { requireGroupCode: false, requireEligibilityMatch: false, allowSelfEnrollment: true, requirePayment: true, autoActivate: true, collectAddress: false, collectPhone: false, collectEmployeeId: false },
+        status: "active", createdAt: now, updatedAt: now,
+      } as any);
+      const accountId = await ctx.db.insert("accounts", { siteId, slug: "individual", name: "Individual", accountType: "individual", billingModel: "direct", contacts: [], status: "active", createdAt: now, updatedAt: now } as any);
+      const groupId = await ctx.db.insert("groups", { siteId, accountId, slug: "default", name: "Individual", groupCode: "AV", status: "active", createdAt: now, updatedAt: now } as any);
+      let n = 0;
+      const member = (memberType: string, extra: Record<string, unknown> = {}) =>
+        ctx.db.insert("memberProfiles", {
+          memberId: `M${++n}`, barcode: `b${n}`, siteId, accountId, groupId, firstName: "M", lastName: String(n),
+          memberType, memberRole: "primary", status: "active", attributedRepId: String(leader), attributedCode: "100001",
+          createdAt: now, updatedAt: now, ...extra,
+        } as any);
+      const primary = await member("active");
+      await member("active", { memberRole: "dependent", primaryMemberId: primary }); // rides on the primary
+      await member("eligible");                                                      // employer file: covered
+      await member("active", { isDemo: true });                                      // not real business
+      await member("terminated");
+      await member("inactive");
+      await member("lead");                                                          // never covered
+      await member("declined");
+      await member("active", { attributedCode: undefined });                         // credited by group to the rep
+      await member("active", { attributedRepId: "someone_else", attributedCode: "OTHER" });
+    });
+    const [row] = await mike.query(api.admin.partnerLinks.list, {});
+    expect(row).toMatchObject({ activeMembers: 3, endedMembers: 2, linkVisits: 3 });
+  });
+
+  test("a requested code like M1 is kept and works as a link", async () => {
+    const { t, mike } = await setup();
+    const added = await mike.mutation(api.admin.partnerLinks.add, { holderType: "organization", name: "Match One Staffing", contactName: "Gregg Seidner", email: "gregg@matchone.test", code: "m1" });
+    expect(added).toMatchObject({ code: "M1", ending: "matchonestaffing" });
+    expect(await t.query(api.enrollment.agents.resolveRepLink, { segment: "M1" })).toMatchObject({ repCode: "M1" });
+    expect(await t.query(api.enrollment.agents.resolveRepLink, { segment: "matchonestaffing" })).toMatchObject({ repCode: "M1" });
+    await expect(mike.mutation(api.admin.partnerLinks.add, { holderType: "broker", name: "B", email: "b@x.test", code: "M1" })).rejects.toThrow(/already in use/);
+    await expect(mike.mutation(api.admin.partnerLinks.add, { holderType: "broker", name: "B", email: "b@x.test", code: "allenjackson01" })).rejects.toThrow(/already in use/);
+    await expect(mike.mutation(api.admin.partnerLinks.add, { holderType: "broker", name: "B", email: "b@x.test", code: "PLANS" })).rejects.toThrow(/page on the website/);
+    await expect(mike.mutation(api.admin.partnerLinks.add, { holderType: "broker", name: "B", email: "b@x.test", code: "X" })).rejects.toThrow(/2 to 20/);
   });
 });

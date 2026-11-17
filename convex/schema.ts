@@ -1969,7 +1969,7 @@ export default defineSchema({
     siteId: v.optional(v.id("sites")),
 
     // USAGE TRACKING
-    usageCount: v.number(), // Incremented each time code is used at enrollment
+    usageCount: v.number(), // Human visits through this code's link (insights/visits.ts) — NOT sign-ups
     lastUsedAt: v.optional(v.number()),
 
     // STATUS
