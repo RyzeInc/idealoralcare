@@ -22,7 +22,6 @@ import {
   TermsAndConditionsModal,
 } from "@/components/legal";
 import { assureProductName, START_DATE_NOTE } from "@/lib/assure-content";
-import { shoppingUrl } from "@/lib/checkout-transfer";
 import { PROVIDER_GROUP_CODE } from "@/lib/constants";
 import { AssureLink as Link } from "./AssureLink";
 import styles from "./experience.module.css";
@@ -196,7 +195,7 @@ export function UnifiedCheckout() {
     <main>
       <section className={styles.pageHero}>
         <div className={styles.container}>
-          <Link href={shoppingUrl(cart)} className={styles.textLink}>
+          <Link href="/assurevantage/program-plans" className={styles.textLink}>
             <ArrowLeft size={17} /> Back to memberships
           </Link>
           <p className={styles.eyebrow} style={{ marginTop: 24 }}>

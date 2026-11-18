@@ -5,7 +5,7 @@ test.each([
   "https://assurevantage.com/api/stripe/checkout",
   "https://www.getidealoh.com/api/stripe/checkout",
 ])(
-  "keeps secure AssureVantage checkout and receipt on the shared auth host from %s",
+  "returns AssureVantage checkout and receipt to assurevantage.com from %s",
   (request) => {
     const urls = checkoutReturnUrls(
       request,
@@ -13,10 +13,10 @@ test.each([
       "assurevantage",
     );
     expect(urls.success).toBe(
-      "https://www.getidealoh.com/assurevantage/program-success?session_id={CHECKOUT_SESSION_ID}",
+      "https://www.assurevantage.com/assurevantage/program-success?session_id={CHECKOUT_SESSION_ID}",
     );
     expect(urls.cancel).toBe(
-      "https://www.getidealoh.com/assurevantage/program-checkout",
+      "https://www.assurevantage.com/assurevantage/program-checkout",
     );
   },
 );

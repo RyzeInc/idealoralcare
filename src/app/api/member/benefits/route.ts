@@ -127,7 +127,13 @@ export async function GET() {
       },
       { headers: { "Cache-Control": "private, no-store" } },
     );
-  } catch {
+  } catch (err) {
+    // The member sees a generic message; the log carries the real cause
+    // (rejected token issuer, missing service secret, undeployed function).
+    console.error(
+      `[member-benefits] Failed to load membership for ${userId}:`,
+      err,
+    );
     return NextResponse.json(
       {
         error:

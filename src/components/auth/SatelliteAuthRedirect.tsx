@@ -1,14 +1,13 @@
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useSyncExternalStore,
-  type ReactNode,
-} from "react";
+import { useEffect, useSyncExternalStore, type ReactNode } from "react";
 import { useAuth, useClerk } from "@clerk/nextjs";
 import { usePathname, useSearchParams } from "next/navigation";
-import { domainSite, PRIMARY_AUTH_ORIGIN } from "@/lib/site-domains";
+import {
+  isLegacyHost,
+  LEGACY_ORIGIN,
+  PRIMARY_AUTH_ORIGIN,
+} from "@/lib/site-domains";
 import { safeReturnPath } from "@/lib/safe-redirect";
 import { isSatelliteAuthReturn, replaceAuthLocation } from "@/lib/auth-return";
 
@@ -16,7 +15,7 @@ const subscribe = () => () => {};
 const getHost = () => window.location.hostname;
 const getServerHost = () => "";
 
-/** Clerk credentials are entered on the primary domain; cart stays on the satellite. */
+/** Clerk credentials are entered on the primary domain (assurevantage.com); getidealoh.com visitors return afterwards. */
 export function SatelliteAuthRedirect({
   children,
   mode,
@@ -25,36 +24,26 @@ export function SatelliteAuthRedirect({
   mode: "sign-in" | "sign-up" | "checkout" | "reset";
 }) {
   const host = useSyncExternalStore(subscribe, getHost, getServerHost);
-  const site = useMemo(() => domainSite(host), [host]);
+  const satellite = isLegacyHost(host);
   const { isLoaded, isSignedIn } = useAuth();
   const clerk = useClerk();
   const clerkLoaded = clerk.loaded;
   const pathname = usePathname();
   const params = useSearchParams();
-  const redirectNeeded = Boolean(site) && (mode !== "checkout" || !isSignedIn);
+  const redirectNeeded = satellite && (mode !== "checkout" || !isSignedIn);
 
   useEffect(() => {
     // Server auth may be loaded before the browser's URL builders are ready.
-    if (!site || !isLoaded || !clerkLoaded || !redirectNeeded) return;
-    const returnPath =
+    if (!satellite || !isLoaded || !clerkLoaded || !redirectNeeded) return;
+    const raw = params.get("redirect_url");
+    // A return path must stay on this host; a URL parameter cannot select another site.
+    const path =
       mode === "checkout"
         ? `${pathname}${params.size ? `?${params.toString()}` : ""}`
-        : isSatelliteAuthReturn(params.get("redirect_url"))
-          ? new URL(params.get("redirect_url")!).pathname +
-            new URL(params.get("redirect_url")!).search
-          : safeReturnPath(
-              params.get("redirect_url"),
-              `/${site.slug}/dashboard`,
-            );
-    // A return path must stay within this brand; a URL parameter cannot select another site.
-    const path =
-      returnPath === `/${site.slug}` ||
-      returnPath.startsWith(`/${site.slug}/`) ||
-      returnPath === "/employer/upload" ||
-      returnPath === "/access"
-        ? returnPath
-        : `/${site.slug}/dashboard`;
-    const redirectUrl = new URL(path, site.origin).href;
+        : isSatelliteAuthReturn(raw) && new URL(raw!).origin === LEGACY_ORIGIN
+          ? new URL(raw!).pathname + new URL(raw!).search
+          : safeReturnPath(raw, "/health/dashboard");
+    const redirectUrl = new URL(path, LEGACY_ORIGIN).href;
     const options = {
       signInForceRedirectUrl: redirectUrl,
       signUpForceRedirectUrl: redirectUrl,
@@ -67,11 +56,11 @@ export function SatelliteAuthRedirect({
       const authUrl = new URL(target, PRIMARY_AUTH_ORIGIN);
       // Our custom forms read redirect_url; keep Clerk's sync parameters too.
       authUrl.searchParams.set("redirect_url", redirectUrl);
-      if (mode === "reset") authUrl.pathname = `/${site.slug}/forgot-password`;
+      if (mode === "reset") authUrl.pathname = "/assurevantage/forgot-password";
       replaceAuthLocation(authUrl.href);
     }
   }, [
-    site,
+    satellite,
     isLoaded,
     clerkLoaded,
     redirectNeeded,

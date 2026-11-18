@@ -127,8 +127,12 @@ test("oral-only membership never exposes Essentials or BFL access identifiers", 
   expect(data.profile.bflMemberCode).toBeNull();
 });
 test("a service outage returns a recoverable error with no private response body", async () => {
-  mocks.query.mockRejectedValue(new Error("internal secret"));
+  const failure = new Error("internal secret");
+  mocks.query.mockRejectedValue(failure);
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
   const response = await GET();
   expect(response.status).toBe(503);
   expect(await response.text()).not.toContain("internal secret");
+  expect(log).toHaveBeenCalledWith(expect.stringContaining("member-one"), failure);
+  log.mockRestore();
 });

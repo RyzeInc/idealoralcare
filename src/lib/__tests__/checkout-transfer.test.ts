@@ -1,11 +1,6 @@
 // @vitest-environment node
 import { expect, test } from "vitest";
-import {
-  secureCheckoutUrl,
-  readCheckoutTransfer,
-  transferProducts,
-  shoppingUrl,
-} from "../checkout-transfer";
+import { readCheckoutTransfer, transferProducts } from "../checkout-transfer";
 import type { CartState, CatalogProduct } from "../health-plans/types";
 const product = (id: string, slug = id, category = "dental") =>
   ({
@@ -29,28 +24,29 @@ const cart: CartState = {
   referralCode: "100001",
   referralCodeSource: "url",
 };
-test("checkout transfer targets the public branded checkout, carrying only shopping preferences", () => {
-  const url = new URL(secureCheckoutUrl(cart));
-  expect(url.origin).toBe("https://www.getidealoh.com");
-  expect(url.pathname).toBe("/assurevantage/program-checkout");
-  const raw = url.searchParams.get("cart")!;
-  expect(JSON.parse(raw)).toEqual({
+// The `cart` parameter previously issued links carried to the getidealoh.com checkout.
+const cartParam = (c: CartState) =>
+  JSON.stringify({
+    ids: c.items.map((i) => i.productId),
+    cadence: c.cadence,
+    paymentMethod: c.paymentMethod,
+    referralCode: c.referralCode || "",
+    referralSource: c.referralCodeSource === "url" ? "url" : "manual",
+  });
+test("previously issued checkout links restore only shopping preferences", () => {
+  const transfer = readCheckoutTransfer(cartParam(cart));
+  expect(transfer).toEqual({
     ids: ["oral_id"],
     cadence: "annual",
     paymentMethod: "ach",
     referralCode: "100001",
     referralSource: "url",
   });
-  expect(raw).not.toContain("pricing");
-  expect(readCheckoutTransfer(raw)?.paymentMethod).toBe("ach");
-  expect(new URL(shoppingUrl(cart)).origin).toBe(
-    "https://www.assurevantage.com",
-  );
 });
 test("selection is rebuilt from the current catalog, never from supplied prices", () => {
   const transfer = readCheckoutTransfer(
     JSON.stringify({
-      ...JSON.parse(new URL(secureCheckoutUrl(cart)).searchParams.get("cart")!),
+      ...JSON.parse(cartParam(cart)),
       pricing: { monthlyCardCents: 1 },
     }),
   )!;
@@ -70,9 +66,7 @@ test.each([
   expect(readCheckoutTransfer(raw)).toBeNull(),
 );
 test("unavailable and site-excluded products cannot be restored", () => {
-  const transfer = readCheckoutTransfer(
-    new URL(secureCheckoutUrl(cart)).searchParams.get("cart"),
-  )!;
+  const transfer = readCheckoutTransfer(cartParam(cart))!;
   expect(transferProducts(transfer, [])).toBeNull();
   expect(
     transferProducts(transfer, [{ ...oral, isVisible: false }]),
@@ -94,21 +88,21 @@ test("membership orders force monthly billing and reject Essentials plus standal
     transferProducts({ ...transfer, ids: ["ess_id", "bfl_id"] }, [ess, bfl]),
   ).toBeNull();
 });
-test("returning to shopping can propagate an emptied cart", () => {
+test("an emptied cart restores as empty", () => {
   const empty = { ...cart, items: [] };
-  const transfer = readCheckoutTransfer(
-    new URL(shoppingUrl(empty)).searchParams.get("cart"),
-  )!;
+  const transfer = readCheckoutTransfer(cartParam(empty))!;
   expect(transferProducts(transfer, [oral])?.products).toEqual([]);
 });
 
-test("public checkout and receipts stay on the secure account host while marketing stays on AssureVantage", async () => {
+test("AssureVantage checkout and receipts never stay on getidealoh.com", async () => {
   const { marketingRedirectOrigin } = await import("../site-domains");
   for (const path of [
     "/assurevantage/program-checkout",
     "/assurevantage/program-success",
   ])
-    expect(marketingRedirectOrigin("www.getidealoh.com", path)).toBeNull();
+    expect(marketingRedirectOrigin("www.getidealoh.com", path)).toBe(
+      "https://www.assurevantage.com",
+    );
   expect(
     marketingRedirectOrigin("www.getidealoh.com", "/assurevantage/essentials"),
   ).toBe("https://www.assurevantage.com");

@@ -4,8 +4,6 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useCart } from "@/lib/health-plans";
 import type { CatalogProduct } from "@/lib/health-plans/types";
-import { domainSite } from "@/lib/site-domains";
-import { secureCheckoutUrl, shoppingUrl } from "@/lib/checkout-transfer";
 import { AssureLink as Link } from "./AssureLink";
 import { UnifiedCheckout } from "./UnifiedCheckout";
 import styles from "./experience.module.css";
@@ -15,10 +13,6 @@ export default function SharedCheckout() {
   useEffect(() => {
     if (catalog) syncProductPricing(catalog as CatalogProduct[]);
   }, [catalog, syncProductPricing]);
-  useEffect(() => {
-    if (isLoaded && cart.items.length && domainSite(window.location.hostname))
-      window.location.replace(secureCheckoutUrl(cart));
-  }, [isLoaded, cart]);
   if (!isLoaded)
     return (
       <p role="status" className="p-8 text-center">
@@ -34,7 +28,7 @@ export default function SharedCheckout() {
             Choose your memberships, then review your order before creating an
             account or paying.
           </p>
-          <Link className={styles.button} href={shoppingUrl(cart)}>
+          <Link className={styles.button} href="/assurevantage/program-plans">
             Explore memberships
           </Link>
         </div>

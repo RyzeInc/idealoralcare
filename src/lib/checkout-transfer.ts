@@ -1,11 +1,15 @@
-import { PRIMARY_AUTH_ORIGIN, ASSURE_ORIGIN } from "./site-domains";
-import type { CartState, CatalogProduct } from "./health-plans/types";
+import type { CatalogProduct } from "./health-plans/types";
 import {
   hasConflictingPrograms,
   isMembershipProgramSlug,
 } from "@/convex/lib/productSlugs";
 
-/** Only public catalog IDs and shopping preferences cross domains, never account or payment details. */
+/**
+ * A `?cart=` selection from links issued while checkout ran on getidealoh.com.
+ * Checkout now stays on assurevantage.com, so nothing new is issued; links
+ * already sent are redirected there and restored. Only public catalog IDs and
+ * shopping preferences are carried, never account or payment details.
+ */
 export type CheckoutTransfer = {
   ids: string[];
   cadence: "monthly" | "annual";
@@ -13,20 +17,6 @@ export type CheckoutTransfer = {
   referralCode: string;
   referralSource: "url" | "manual";
 };
-export function secureCheckoutUrl(cart: CartState) {
-  const url = new URL("/assurevantage/program-checkout", PRIMARY_AUTH_ORIGIN);
-  url.searchParams.set(
-    "cart",
-    JSON.stringify({
-      ids: cart.items.map((i) => i.productId),
-      cadence: cart.cadence,
-      paymentMethod: cart.paymentMethod,
-      referralCode: cart.referralCode || "",
-      referralSource: cart.referralCodeSource === "url" ? "url" : "manual",
-    }),
-  );
-  return url.href;
-}
 export function readCheckoutTransfer(
   raw: string | null,
 ): CheckoutTransfer | null {
@@ -87,11 +77,4 @@ export function transferProducts(
       ? ("monthly" as const)
       : transfer.cadence,
   };
-}
-
-export function shoppingUrl(cart: CartState) {
-  const secure = new URL(secureCheckoutUrl(cart));
-  const shopping = new URL("/assurevantage/program-plans", ASSURE_ORIGIN);
-  shopping.search = secure.search;
-  return shopping.href;
 }

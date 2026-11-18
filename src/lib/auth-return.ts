@@ -1,30 +1,41 @@
 import { safeReturnPath } from "./safe-redirect";
-import { ASSURE_ORIGIN } from "./site-domains";
+import { ASSURE_ORIGIN, SATELLITE_ORIGINS } from "./site-domains";
 
+const AUTH_PAGE = /^\/[^/]+\/(sign-in|sign-up|sso-callback|forgot-password)(?:\/|$)/;
+
+function isAssureReturnPath(pathname: string) {
+  return (
+    pathname === "/assurevantage" ||
+    pathname.startsWith("/assurevantage/") ||
+    pathname === "/employer/upload" ||
+    pathname === "/access" ||
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/")
+  );
+}
+
+/**
+ * An absolute return to one of our two production hosts. Sign-in runs on the
+ * Clerk primary (assurevantage.com); legacy getidealoh.com visitors come from
+ * the satellite and must land back there. Auth pages are refused to avoid loops.
+ */
 export function isSatelliteAuthReturn(raw: string | null | undefined): boolean {
   if (!raw) return false;
   try {
     const url = new URL(raw);
+    if (url.username || url.password || AUTH_PAGE.test(url.pathname)) return false;
+    if (url.origin === ASSURE_ORIGIN) return isAssureReturnPath(url.pathname);
     return (
-      url.origin === ASSURE_ORIGIN &&
-      !url.username &&
-      !url.password &&
-      (url.pathname === "/assurevantage" ||
-        url.pathname.startsWith("/assurevantage/") ||
-        url.pathname === "/employer/upload" ||
-        url.pathname === "/access" ||
-        url.pathname === "/admin" ||
-        url.pathname.startsWith("/admin/")) &&
-      !/^\/assurevantage\/(sign-in|sign-up|sso-callback|forgot-password)(?:\/|$)/.test(
-        url.pathname,
-      )
+      SATELLITE_ORIGINS.includes(url.origin) &&
+      url.pathname !== "/assurevantage" &&
+      !url.pathname.startsWith("/assurevantage/")
     );
   } catch {
     return false;
   }
 }
 
-/** The one cross-origin exception is the configured satellite, its brand routes and its protected admin console. */
+/** The cross-origin exceptions are our own two production hosts. */
 export function safeAuthReturn(
   raw: string | null | undefined,
   fallback: string,
@@ -37,7 +48,10 @@ export function navigateAfterAuth(
   target: string,
   push: (path: string) => void,
 ) {
-  if (isSatelliteAuthReturn(target) && window.location.origin !== ASSURE_ORIGIN)
+  if (
+    isSatelliteAuthReturn(target) &&
+    new URL(target).origin !== window.location.origin
+  )
     window.location.assign(target);
   else push(target);
 }

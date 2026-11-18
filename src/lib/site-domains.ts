@@ -1,25 +1,41 @@
-export const PRIMARY_AUTH_ORIGIN = "https://www.getidealoh.com";
 export const ASSURE_ORIGIN = "https://www.assurevantage.com";
-export const SATELLITE_ORIGINS = [ASSURE_ORIGIN, "https://assurevantage.com"];
+export const LEGACY_ORIGIN = "https://www.getidealoh.com";
+/** Clerk's primary domain since November 18, 2026: credentials are entered here. */
+export const PRIMARY_AUTH_ORIGIN = ASSURE_ORIGIN;
+/** getidealoh.com is the Clerk satellite; its visitors sign in on the primary and return. */
+export const SATELLITE_ORIGINS = [LEGACY_ORIGIN, "https://getidealoh.com"];
 
-/** Clerk satellite transport only; AssureVantage is the primary business brand. */
+function normalizeHost(host: string | null | undefined) {
+  return host?.toLowerCase().replace(/\.$/, "");
+}
+
+/** The AssureVantage brand host. */
 export function domainSite(host: string | null | undefined) {
-  const hostname = host?.toLowerCase().replace(/\.$/, "");
+  const hostname = normalizeHost(host);
   if (hostname === "assurevantage.com" || hostname === "www.assurevantage.com") {
     return { slug: "assurevantage", origin: ASSURE_ORIGIN, hostname: "www.assurevantage.com", clerkDomain: "assurevantage.com" };
   }
   return null;
 }
 
+/** The legacy Ideal host, served as Clerk's satellite. */
+export function isLegacyHost(host: string | null | undefined) {
+  const hostname = normalizeHost(host);
+  return hostname === "getidealoh.com" || hostname === "www.getidealoh.com";
+}
+
 export function domainClerkOptions(host: string | null | undefined) {
+  if (isLegacyHost(host)) {
+    return {
+      isSatellite: true,
+      domain: "getidealoh.com",
+      signInUrl: `${PRIMARY_AUTH_ORIGIN}/assurevantage/sign-in`,
+      signUpUrl: `${PRIMARY_AUTH_ORIGIN}/assurevantage/sign-up`,
+    };
+  }
   const site = domainSite(host);
   if (!site) return {};
-  return {
-    isSatellite: true,
-    domain: site.clerkDomain,
-    signInUrl: `${PRIMARY_AUTH_ORIGIN}/${site.slug}/sign-in`,
-    signUpUrl: `${PRIMARY_AUTH_ORIGIN}/${site.slug}/sign-up`,
-  };
+  return { signInUrl: `/${site.slug}/sign-in`, signUpUrl: `/${site.slug}/sign-up` };
 }
 
 /** Keep visible path-based routes so existing links/cart/site params agree. */
@@ -33,12 +49,9 @@ export function domainEntryPath(host: string, pathname: string): string | null {
   return null;
 }
 
-/** New-brand pages belong on the new domain. Authentication and inline checkout use the existing secure primary host. */
+/** Every AssureVantage page, including sign-in and checkout, belongs on assurevantage.com. */
 export function marketingRedirectOrigin(host: string, pathname: string): string | null {
-  const hostname = host.toLowerCase().replace(/\.$/, "");
-  if (hostname !== "getidealoh.com" && hostname !== "www.getidealoh.com") return null;
+  if (!isLegacyHost(host)) return null;
   if (pathname !== "/assurevantage" && !pathname.startsWith("/assurevantage/")) return null;
-  const section = pathname.split("/")[2];
-  if (["sign-in", "sign-up", "forgot-password", "sso-callback", "program-checkout", "program-success", "checkout"].includes(section)) return null;
   return ASSURE_ORIGIN;
 }
