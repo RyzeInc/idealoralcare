@@ -388,6 +388,7 @@ const COLUMN_WEIGHT: Record<string, number> = {
   careingtonCents: 9,
   processingCents: 9,
   partnerVendorCents: 9,
+  brokerCents: 9,
   ryzeKeepCents: 9,
 };
 
@@ -403,7 +404,8 @@ const COLUMN_SHORT_LABEL: Record<string, string> = {
   toothlensCents: "Toothlens",
   careingtonCents: "Careington",
   processingCents: "Processing",
-  partnerVendorCents: "Ideal",
+  partnerVendorCents: "Override",
+  brokerCents: "Broker",
   ryzeKeepCents: "Ryze",
   dependentCount: "Deps",
   addressLine1: "Address",
@@ -421,6 +423,7 @@ const RIGHT_ALIGNED = new Set([
   "careingtonCents",
   "processingCents",
   "partnerVendorCents",
+  "brokerCents",
   "ryzeKeepCents",
   "dependentCount",
   "entitlementCount",
@@ -463,6 +466,7 @@ function memberCellText(
     case "careingtonCents": return money2(line.careingtonCents);
     case "processingCents": return money2(line.processingCents);
     case "partnerVendorCents": return money2(line.partnerVendorCents);
+    case "brokerCents": return money2(line.brokerCents);
     case "ryzeKeepCents": return money2(line.ryzeKeepCents);
     default: return String(line.extra?.[key] ?? "");
   }

@@ -24,13 +24,14 @@ import {
 } from "@/lib/constants";
 import { isBflSlug } from "@/convex/lib/productSlugs";
 import { resolveBflMemberCode } from "@/convex/lib/bflCodes";
+import { RECURO_VIRTUAL_CARE } from "@/convex/lib/virtualCareVendor";
 
 /**
  * IDEAL HEALTH ESSENTIALS — MEMBER FULFILLMENT PACKET
  *
  * Content is consolidated from the source material Benefits Horizon supplied
  * (Notes/GIH Notes/essentials_notes/): the 2025 Essentials Benefits Guide,
- * telehealth.pdf and the three Lyric "How To Use" sheets. Those documents
+ * telehealth.pdf and the three virtual-care "How To Use" sheets. Those documents
  * overlap heavily, so each section here carries the best version of a given
  * fact exactly once rather than repeating it per vendor brochure.
  *
@@ -43,12 +44,7 @@ import { resolveBflMemberCode } from "@/convex/lib/bflCodes";
 // Identical for every member. Kept in one block so a correction is a one-line
 // change rather than a hunt through page copy.
 export const ESSENTIALS_VENDOR_CODES = {
-  lyric: {
-    name: "Lyric Health",
-    phone: "1.866.223.8831",
-    url: "www.getlyric.com",
-    app: "Lyric Health App",
-  },
+  recuro: RECURO_VIRTUAL_CARE,
   rxValet: {
     name: "RxValet",
     phone: "(855) 798-2538",
@@ -118,7 +114,7 @@ export interface EssentialsPacketData {
   memberName: string;
   memberFirstName: string;
   memberEmail: string;
-  /** 9-digit number Lyric and QuestSelect look the member up by. */
+  /** 9-digit number Recuro and QuestSelect look the member up by. */
   essentialsMemberNumber: string;
   /** 6-digit group number used for vendor tracking. */
   essentialsGroupNumber: string;
@@ -272,7 +268,7 @@ function WelcomePage({ data }: { data: EssentialsPacketData }) {
       </Text>
       {[
         "How to use your benefits — which provider to contact for what",
-        "Virtual Care (Lyric), Pharmacy (RxValet), Labs (QuestSelect) and Behavioral Health (Balance for Life)",
+        "Virtual Care (Recuro), Pharmacy (RxValet), Labs (QuestSelect) and Behavioral Health (Balance for Life)",
         "Your Member ID card, front and back",
       ].map((item) => (
         <Bullet key={item} text={item} />
@@ -292,7 +288,7 @@ function WelcomePage({ data }: { data: EssentialsPacketData }) {
         {[
           {
             n: 1,
-            text: `Keep your Member Number (${data.essentialsMemberNumber}) handy. Lyric Telehealth and QuestSelect both identify you by this number.`,
+            text: `Keep your Member Number (${data.essentialsMemberNumber}) handy. Recuro Telehealth and QuestSelect both identify you by this number.`,
           },
           {
             n: 2,
@@ -515,8 +511,8 @@ function BflWelcomePage({ data }: { data: EssentialsPacketData }) {
 const benefitRoutes = (data: EssentialsPacketData) => [
   {
     need: "I FEEL SICK AND NEED TO TALK TO A DOCTOR",
-    provider: "Lyric Health — Virtual Care",
-    detail: `Call ${ESSENTIALS_VENDOR_CODES.lyric.phone}, use the ${ESSENTIALS_VENDOR_CODES.lyric.app}, or visit ${ESSENTIALS_VENDOR_CODES.lyric.url}. Available 24/7/365 for urgent care; primary care and dermatology are also included.`,
+    provider: "Recuro — Virtual Care",
+    detail: `Call ${ESSENTIALS_VENDOR_CODES.recuro.phone}, use the ${ESSENTIALS_VENDOR_CODES.recuro.app}, or visit ${ESSENTIALS_VENDOR_CODES.recuro.url}. Available 24/7/365 for urgent care; primary care and dermatology are also included.`,
   },
   {
     need: "I NEED A PRESCRIPTION",
@@ -557,7 +553,7 @@ function HowToUseBenefitsPage({ data }: { data: EssentialsPacketData }) {
           </Text>
           <Text>
             Your Member Number {data.essentialsMemberNumber} and Group Number{" "}
-            {data.essentialsGroupNumber}. Lyric and QuestSelect identify you by
+            {data.essentialsGroupNumber}. Recuro and QuestSelect identify you by
             the Member Number.
           </Text>
         </Text>
@@ -615,7 +611,7 @@ function HowToUseBenefitsPage({ data }: { data: EssentialsPacketData }) {
 
 // ─── Page 3: Virtual care — urgent + primary ─────────────────────────────────
 function VirtualCarePage({ data }: { data: EssentialsPacketData }) {
-  const { lyric } = ESSENTIALS_VENDOR_CODES;
+  const { recuro } = ESSENTIALS_VENDOR_CODES;
   return (
     <Page size="LETTER" style={s.page}>
       <PageHeader
@@ -623,7 +619,7 @@ function VirtualCarePage({ data }: { data: EssentialsPacketData }) {
         fallbackLabel={brandName(data)}
       />
 
-      <Text style={s.h2}>Virtual Care — Lyric Health</Text>
+      <Text style={s.h2}>Virtual Care — Recuro</Text>
       <Text style={s.body}>
         Convenient, affordable access to licensed physicians from your phone,
         tablet or computer. No waiting rooms. Roughly 70% of low-acuity
@@ -632,9 +628,9 @@ function VirtualCarePage({ data }: { data: EssentialsPacketData }) {
 
       <ContactStrip
         items={[
-          { label: "Call", value: lyric.phone },
-          { label: "Online", value: lyric.url },
-          { label: "App", value: lyric.app },
+          { label: "Call", value: recuro.phone },
+          { label: "Online", value: recuro.url },
+          { label: "App", value: recuro.app },
         ]}
       />
 
@@ -648,7 +644,7 @@ function VirtualCarePage({ data }: { data: EssentialsPacketData }) {
       {[
         {
           n: 1,
-          text: `Call | Tap | Click — call ${lyric.phone}, use the app, or visit ${lyric.url} to schedule a consultation with a state-licensed physician.`,
+          text: `Call | Tap | Click — call ${recuro.phone}, use the app, or visit ${recuro.url} to schedule a consultation with a state-licensed physician.`,
         },
         {
           n: 2,
@@ -683,7 +679,7 @@ function VirtualCarePage({ data }: { data: EssentialsPacketData }) {
       {[
         {
           n: 1,
-          text: `Call | Tap | Click — schedule via ${lyric.url} or the ${lyric.app}.`,
+          text: `Call | Tap | Click — schedule via ${recuro.url} or the ${recuro.app}.`,
         },
         {
           n: 2,
@@ -718,7 +714,7 @@ function VirtualCarePage({ data }: { data: EssentialsPacketData }) {
 
 // ─── Page 4: Dermatology + when to use + access ──────────────────────────────
 function DermatologyPage({ data }: { data: EssentialsPacketData }) {
-  const { lyric } = ESSENTIALS_VENDOR_CODES;
+  const { recuro } = ESSENTIALS_VENDOR_CODES;
   return (
     <Page size="LETTER" style={s.page}>
       <PageHeader
@@ -737,7 +733,7 @@ function DermatologyPage({ data }: { data: EssentialsPacketData }) {
       {[
         {
           n: 1,
-          text: `Log in to request a consult — use the ${lyric.app} or visit ${lyric.url} to log into your member portal. Available 24/7/365.`,
+          text: `Log in to request a consult — use the ${recuro.app} or visit ${recuro.url} to log into your member portal. Available 24/7/365.`,
         },
         {
           n: 2,
@@ -778,16 +774,16 @@ function DermatologyPage({ data }: { data: EssentialsPacketData }) {
       <View style={{ flexDirection: "row", marginTop: 4, marginBottom: 8 }}>
         {[
           {
-            title: "Lyric Health App",
+            title: "Recuro Health App",
             body: "Download from the App Store or Google Play and log into your member portal.",
           },
           {
             title: "Member Portal",
-            body: `Log in and schedule at any time from any device at ${lyric.url}.`,
+            body: `Log in and schedule at any time from any device at ${recuro.url}.`,
           },
           {
             title: "Call Direct",
-            body: `Speak with a Care Coordinator right away — no app needed. ${lyric.phone}.`,
+            body: `Speak with a Care Coordinator right away — no app needed. ${recuro.phone}.`,
           },
         ].map((item) => (
           <View key={item.title} style={s.contactCell}>
@@ -812,17 +808,17 @@ function DermatologyPage({ data }: { data: EssentialsPacketData }) {
             Important notes:{" "}
           </Text>
           Licensed healthcare providers provide clinical services through
-          medical practices affiliated with Lyric and other network providers.
+          medical practices affiliated with Recuro and other network providers.
           Additional or different telehealth requirements may apply in certain
-          states; see {lyric.url} for full terms and conditions. Dermatology:
+          states; see {recuro.url} for full terms and conditions. Dermatology:
           AR, AZ, IA, ID and IN require scheduled video consultations. Those who
           are pregnant, trying to become pregnant, or nursing are not eligible
-          for online dermatology visits. Lyric Health does not guarantee that a
+          for online dermatology visits. Recuro does not guarantee that a
           prescription will be written and does not prescribe DEA controlled
           substances, lifestyle drugs, or certain other drugs which may be
-          harmful because of their potential for abuse. Lyric Health physicians
-          reserve the right to deny care for potential misuse of services. Lyric
-          Health operates subject to state regulations.
+          harmful because of their potential for abuse. Recuro physicians
+          reserve the right to deny care for potential misuse of services.
+          Recuro operates subject to state regulations.
         </Text>
       </View>
 
@@ -1252,7 +1248,7 @@ function MemberCardFrontPage({ data }: { data: EssentialsPacketData }) {
 }
 
 function MemberCardBackPage({ data }: { data: EssentialsPacketData }) {
-  const { lyric, rxValet, questSelect } = ESSENTIALS_VENDOR_CODES;
+  const { recuro, rxValet, questSelect } = ESSENTIALS_VENDOR_CODES;
   const balanceForLife = {
     ...ESSENTIALS_VENDOR_CODES.balanceForLife,
     memberCode: resolveBflMemberCode(data),
@@ -1291,10 +1287,10 @@ function MemberCardBackPage({ data }: { data: EssentialsPacketData }) {
             <View style={cardStyles.backContent}>
               <View style={cardStyles.backSection}>
                 <Text style={cardStyles.backSectionTitle}>
-                  Virtual Care — Lyric
+                  Virtual Care — Recuro
                 </Text>
                 <Text style={cardStyles.backText}>
-                  {lyric.phone} · {lyric.url} · Member No.{" "}
+                  {recuro.phone} · {recuro.url} · Member No.{" "}
                   {data.essentialsMemberNumber}
                 </Text>
               </View>

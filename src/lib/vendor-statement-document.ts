@@ -27,6 +27,7 @@ export interface VendorStatementMemberLine {
   careingtonCents?: number;
   processingCents?: number;
   partnerVendorCents?: number;
+  brokerCents?: number;
   ryzeKeepCents?: number;
 }
 
@@ -246,6 +247,7 @@ function memberCell(
     case "careingtonCents": return (line.careingtonCents ?? 0) / 100;
     case "processingCents": return (line.processingCents ?? 0) / 100;
     case "partnerVendorCents": return (line.partnerVendorCents ?? 0) / 100;
+    case "brokerCents": return (line.brokerCents ?? 0) / 100;
     case "ryzeKeepCents": return (line.ryzeKeepCents ?? 0) / 100;
     // Everything else is a live member attribute the server hydrated.
     default: return line.extra?.[key] ?? "";
@@ -497,7 +499,7 @@ export interface VerificationDocument {
   siteName?: string | null;
   period: string;
   status: string;
-  amountField: string;
+  amountFields: string[];
   memberDetailAvailable: boolean;
   lines: Array<{
     memberId: string;
@@ -509,6 +511,7 @@ export interface VerificationDocument {
     careingtonCents: number;
     processingCents: number;
     partnerVendorCents: number;
+    brokerCents: number;
     ryzeKeepCents: number;
     statementCents: number;
     splitBalances: boolean;
@@ -523,6 +526,7 @@ export interface VerificationDocument {
     careingtonCents: number;
     processingCents: number;
     partnerVendorCents: number;
+    brokerCents: number;
     ryzeKeepCents: number;
   };
   statementSubtotalCents: number;
@@ -544,7 +548,8 @@ export function verificationDetailTable(doc: VerificationDocument): Table {
       "Toothlens",
       "Careington",
       "Processing",
-      "Ideal Oral Health",
+      "Program Override",
+      "Broker Commission",
       "Ryze Keep",
       "On This Statement",
       "Split Balances",
@@ -563,6 +568,7 @@ export function verificationDetailTable(doc: VerificationDocument): Table {
       line.careingtonCents / 100,
       line.processingCents / 100,
       line.partnerVendorCents / 100,
+      line.brokerCents / 100,
       line.ryzeKeepCents / 100,
       line.statementCents / 100,
       line.splitBalances ? "YES" : "NO — INVESTIGATE",
@@ -593,7 +599,8 @@ export function verificationTotalsTable(doc: VerificationDocument): Table {
       ["Toothlens", doc.totals.toothlensCents / 100],
       ["Careington", doc.totals.careingtonCents / 100],
       ["Processing", doc.totals.processingCents / 100],
-      ["Ideal Oral Health", doc.totals.partnerVendorCents / 100],
+      ["Program Override", doc.totals.partnerVendorCents / 100],
+      ["Broker Commission", doc.totals.brokerCents / 100],
       ["Ryze Keep", doc.totals.ryzeKeepCents / 100],
       ["— Statement subtotal", doc.statementSubtotalCents / 100],
       ["— Statement adjustments", doc.statementAdjustmentCents / 100],
@@ -612,7 +619,7 @@ export function verificationToCsv(doc: VerificationDocument): string {
       ...(doc.siteName ? ([["Covered Brand", doc.siteName]] as Row[]) : []),
       ["Coverage Month", doc.period],
       ["Status", doc.status.toUpperCase()],
-      ["Paid From Bucket", doc.amountField],
+      ["Paid From Buckets", doc.amountFields.join(" + ")],
       ["All Checks Passed", doc.allChecksPassed ? "YES" : "NO"],
     ],
   });

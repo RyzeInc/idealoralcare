@@ -7,7 +7,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, test, expect } from "vitest";
-import { convexTest } from "convex-test";
+import { convexTest, type TestConvex } from "convex-test";
 import schema from "../schema";
 import { api, internal } from "../_generated/api";
 import {
@@ -188,6 +188,7 @@ function expectInv01(splits: DispersalSplit, label = "splits") {
     splits.careingtonCents +
     splits.processingCents +
     splits.partnerVendorCents +
+    splits.brokerCents +
     splits.ryzeKeepCents;
   expect(sum, `INV-01 violated for ${label}`).toBe(splits.grossCents);
 }
@@ -796,5 +797,174 @@ describe("invoiceCalculator — closePreviousMonth", () => {
 
     const closed = await asAdmin(t).query(listClosed, {});
     expect(closed.length).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Control-sheet split + restating months closed under the earlier table
+// ---------------------------------------------------------------------------
+
+const previewReprice = api.admin.invoiceCalculator.previewRepricePeriod;
+const reprice = api.admin.invoiceCalculator.repriceClosedPeriod;
+
+/** The table in force before the control sheet: no broker bucket. */
+const LEGACY = {
+  individual: { toothlensCents: 100, careingtonCents: 200, processingCents: 100, partnerVendorCents: 600, ryzeKeepCents: 499 },
+  family: { toothlensCents: 100, careingtonCents: 200, processingCents: 200, partnerVendorCents: 1100, ryzeKeepCents: 899 },
+};
+
+/** Close last month with one individual and one family primary, then rewrite it as a legacy close. */
+async function seedLegacyClose(t: TestConvex<typeof schema>) {
+  await seedAdmin(t);
+  const w = await seedWorld(t);
+  const now = new Date();
+  const prev = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+  const year = prev.getUTCFullYear();
+  const month = prev.getUTCMonth() + 1;
+  const period = `${year}-${String(month).padStart(2, "0")}`;
+  const midPeriod = Date.UTC(year, month - 1, 15);
+  await seedMember(t, w, { customerId: "lg1", role: "primary", createdAt: midPeriod });
+  await seedBundle(t, { customerId: "lg1", totalCents: 1499, createdAt: midPeriod });
+  await seedMember(t, w, { customerId: "lg2", role: "primary", createdAt: midPeriod });
+  await seedBundle(t, { customerId: "lg2", totalCents: 2499, createdAt: midPeriod });
+  await asAdmin(t).mutation(closeManual, { year, month });
+
+  await t.run(async (ctx) => {
+    const row = await ctx.db
+      .query("invoicePeriods")
+      .withIndex("by_period", (q) => q.eq("period", period))
+      .first();
+    if (!row) throw new Error("close did not write a row");
+    const legacyLine = (tier: string) =>
+      tier === "individual" ? LEGACY.individual : tier === "family" ? LEGACY.family : null;
+    await ctx.db.patch(row._id, {
+      toothlensCents: 200,
+      careingtonCents: 400,
+      processingCents: 300,
+      partnerVendorCents: 1700,
+      brokerCents: undefined,
+      ryzeKeepCents: 1398,
+      memberLines: (row.memberLines ?? []).map((line) => {
+        const legacy = legacyLine(line.tier);
+        const { brokerCents: _broker, ...rest } = line;
+        return legacy ? { ...rest, ...legacy } : rest;
+      }),
+      pricing: {
+        individualGrossCents: 1499,
+        familyGrossCents: 2499,
+        individualSplits: LEGACY.individual,
+        familySplits: LEGACY.family,
+      },
+      payloadHash: "legacy-hash",
+    });
+  });
+  return { period };
+}
+
+describe("invoiceCalculator — control-sheet split", () => {
+  test("pins the control sheet: $1 / $2 / $5.99 / $6 single, $1 / $4 / $11.99 / $8 family", () => {
+    expect(DISPERSAL.individual).toEqual({
+      grossCents: 1499,
+      toothlensCents: 100,
+      careingtonCents: 0,
+      processingCents: 0,
+      partnerVendorCents: 200,
+      brokerCents: 599,
+      ryzeKeepCents: 600,
+    });
+    expect(DISPERSAL.family).toEqual({
+      grossCents: 2499,
+      toothlensCents: 100,
+      careingtonCents: 0,
+      processingCents: 0,
+      partnerVendorCents: 400,
+      brokerCents: 1199,
+      ryzeKeepCents: 800,
+    });
+  });
+
+  test("broker payable is $5.99 per individual primary", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    const w = await seedWorld(t);
+    for (const cid of ["b1", "b2"]) {
+      await seedMember(t, w, { customerId: cid, role: "primary" });
+      await seedBundle(t, { customerId: cid, totalCents: 1499 });
+    }
+    const r = await asAdmin(t).query(getVendor, { period: "live", vendor: "broker" });
+    expect(r.totalCents).toBe(599 * 2);
+  });
+});
+
+describe("invoiceCalculator — repriceClosedPeriod", () => {
+  test("restates the split from the frozen head counts and keeps gross", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedLegacyClose(t);
+
+    const preview = await asAdmin(t).query(previewReprice, { period });
+    expect(preview.rows).toHaveLength(1);
+    expect(preview.rows[0].alreadyCurrent).toBe(false);
+    expect(preview.rows[0].before.partnerVendorCents).toBe(1700);
+    expect(preview.rows[0].after.brokerCents).toBe(599 + 1199);
+
+    const result = await asAdmin(t).mutation(reprice, { period });
+    expect(result.updated).toBe(1);
+
+    const row = await t.run((ctx) =>
+      ctx.db.query("invoicePeriods").withIndex("by_period", (q) => q.eq("period", period)).first(),
+    );
+    expect(row!.grossCents).toBe(1499 + 2499);
+    expect(row!.toothlensCents).toBe(200);
+    expect(row!.careingtonCents).toBe(0);
+    expect(row!.processingCents).toBe(0);
+    expect(row!.partnerVendorCents).toBe(200 + 400);
+    expect(row!.brokerCents).toBe(599 + 1199);
+    expect(row!.ryzeKeepCents).toBe(600 + 800);
+    expectInv01(
+      {
+        grossCents: row!.grossCents,
+        toothlensCents: row!.toothlensCents,
+        careingtonCents: row!.careingtonCents,
+        processingCents: row!.processingCents,
+        partnerVendorCents: row!.partnerVendorCents,
+        brokerCents: row!.brokerCents ?? 0,
+        ryzeKeepCents: row!.ryzeKeepCents,
+      },
+      "repriced",
+    );
+
+    // The earlier figures are kept, and every member line moved with the totals.
+    expect(row!.repricedFrom?.partnerVendorCents).toBe(1700);
+    expect(row!.repricedFrom?.payloadHash).toBe("legacy-hash");
+    expect(row!.repricedFrom?.pricing.individualSplits.partnerVendorCents).toBe(600);
+    expect(row!.payloadHash).not.toBe("legacy-hash");
+    const lineBroker = (row!.memberLines ?? []).reduce((s, l) => s + (l.brokerCents ?? 0), 0);
+    expect(lineBroker).toBe(599 + 1199);
+  });
+
+  test("a second restatement is a no-op and keeps the original figures", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedLegacyClose(t);
+    await asAdmin(t).mutation(reprice, { period });
+    const second = await asAdmin(t).mutation(reprice, { period });
+    expect(second).toMatchObject({ updated: 0, unchanged: 1 });
+
+    const row = await t.run((ctx) =>
+      ctx.db.query("invoicePeriods").withIndex("by_period", (q) => q.eq("period", period)).first(),
+    );
+    expect(row!.repricedFrom?.partnerVendorCents).toBe(1700);
+  });
+
+  test("refuses a month whose head counts disagree with its gross", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedLegacyClose(t);
+    await t.run(async (ctx) => {
+      const row = await ctx.db
+        .query("invoicePeriods")
+        .withIndex("by_period", (q) => q.eq("period", period))
+        .first();
+      await ctx.db.patch(row!._id, { familyPrimaryCount: 2 });
+    });
+    await expect(asAdmin(t).mutation(reprice, { period })).rejects.toThrow(/Sync the month's totals/);
   });
 });

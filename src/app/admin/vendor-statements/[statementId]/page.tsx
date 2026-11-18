@@ -736,14 +736,15 @@ function VerificationPanel({
               ['Toothlens', audit.totals.toothlensCents, 'toothlensCents'],
               ['Careington', audit.totals.careingtonCents, 'careingtonCents'],
               ['Processing', audit.totals.processingCents, 'processingCents'],
-              ['Ideal Oral Health', audit.totals.partnerVendorCents, 'partnerVendorCents'],
+              ['Program Override', audit.totals.partnerVendorCents, 'partnerVendorCents'],
+              ['Broker Commission', audit.totals.brokerCents, 'brokerCents'],
               ['Ryze Keep', audit.totals.ryzeKeepCents, 'ryzeKeepCents'],
             ] as const
           ).map(([label, cents, field]) => (
             <div
               key={label}
               className={`rounded-md px-3 py-2 ${
-                field === audit.amountField
+                (audit.amountFields as readonly string[]).includes(field)
                   ? 'bg-blue-50 border border-blue-200'
                   : 'bg-white border border-slate-200'
               }`}
@@ -752,7 +753,7 @@ function VerificationPanel({
               <p className="font-semibold text-slate-900">
                 {formatCurrency(cents, { fromCents: true })}
               </p>
-              {field === audit.amountField && (
+              {(audit.amountFields as readonly string[]).includes(field) && (
                 <p className="text-[10px] text-blue-700 font-medium uppercase">
                   This statement
                 </p>
@@ -786,7 +787,8 @@ function VerificationPanel({
                       'Toothlens',
                       'Careington',
                       'Processing',
-                      'Ideal',
+                      'Override',
+                      'Broker',
                       'Ryze',
                       'On Statement',
                       'Rep / Broker',
@@ -825,6 +827,9 @@ function VerificationPanel({
                       </td>
                       <td className="px-3 py-1.5 text-right text-slate-600">
                         {formatCurrency(line.partnerVendorCents, { fromCents: true })}
+                      </td>
+                      <td className="px-3 py-1.5 text-right text-slate-600">
+                        {formatCurrency(line.brokerCents, { fromCents: true })}
                       </td>
                       <td className="px-3 py-1.5 text-right text-slate-600">
                         {formatCurrency(line.ryzeKeepCents, { fromCents: true })}
@@ -1489,6 +1494,7 @@ export default function VendorStatementDetailPage({
                         : column.key === 'careingtonCents' ? money(line.careingtonCents)
                         : column.key === 'processingCents' ? money(line.processingCents)
                         : column.key === 'partnerVendorCents' ? money(line.partnerVendorCents)
+                        : column.key === 'brokerCents' ? money(line.brokerCents)
                         : column.key === 'ryzeKeepCents' ? money(line.ryzeKeepCents)
                         : String(line.extra?.[column.key] ?? '');
                       const numeric =

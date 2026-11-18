@@ -1,6 +1,6 @@
 /**
  * STANDALONE BALANCE FOR LIFE — sold on its own, but never alongside
- * Essentials (which already includes it), and never sent to the Lyric /
+ * Essentials (which already includes it), and never sent to the Recuro /
  * RxValet / QuestSelect roster, since a BFL-only member has none of those.
  */
 

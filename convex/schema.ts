@@ -1410,9 +1410,9 @@ export default defineSchema({
     careingtonSeqNum: v.optional(v.string()),
     toothlensMemberId: v.optional(v.string()),
 
-    // ESSENTIALS VENDOR ID (Lyric / QuestSelect)
+    // ESSENTIALS VENDOR ID (Recuro / QuestSelect)
     // essentialsMemberNumber = the 9-digit numeric Member Number we assign and submit in
-    // the Essentials eligibility files. Lyric Telehealth and QuestSelect both look members
+    // the Essentials eligibility files. Recuro Telehealth and QuestSelect both look members
     // up by this value, so it must match what the member sees on their ID card and packet.
     // Derived from memberId when not explicitly set — see convex/lib/essentialsCodes.ts.
     essentialsMemberNumber: v.optional(v.string()),
@@ -2531,6 +2531,8 @@ export default defineSchema({
     careingtonCents: v.number(),
     processingCents: v.number(),
     partnerVendorCents: v.number(),
+    // Absent on periods closed before the control-sheet split; read as zero.
+    brokerCents: v.optional(v.number()),
     ryzeKeepCents: v.number(),
 
     // SOURCE PROVENANCE — ids of records included in the snapshot.
@@ -2552,6 +2554,7 @@ export default defineSchema({
       careingtonCents: v.number(),
       processingCents: v.number(),
       partnerVendorCents: v.number(),
+      brokerCents: v.optional(v.number()),
       ryzeKeepCents: v.number(),
       // Rep/broker attributed to this member at close time, so a statement
       // reprinted later still names whoever earned the sale. Optional: closes
@@ -2589,11 +2592,48 @@ export default defineSchema({
       careingtonCents: v.number(),
       processingCents: v.number(),
       partnerVendorCents: v.number(),
+      brokerCents: v.optional(v.number()),
       ryzeKeepCents: v.number(),
       payloadHash: v.string(),
       closedAt: v.number(),
       supersededAt: v.number(),
       supersededBy: v.string(),
+    })),
+
+    // Set when an owner restates this month under a newer dispersal table.
+    // Head counts and gross never change in a restatement — only how gross is
+    // divided. The split and pricing the month carried before are kept here
+    // (the first time only), so the earlier figures stay reproducible.
+    repricedFrom: v.optional(v.object({
+      toothlensCents: v.number(),
+      careingtonCents: v.number(),
+      processingCents: v.number(),
+      partnerVendorCents: v.number(),
+      brokerCents: v.optional(v.number()),
+      ryzeKeepCents: v.number(),
+      pricing: v.object({
+        individualGrossCents: v.number(),
+        familyGrossCents: v.number(),
+        individualSplits: v.object({
+          toothlensCents: v.number(),
+          careingtonCents: v.number(),
+          processingCents: v.number(),
+          partnerVendorCents: v.number(),
+          brokerCents: v.optional(v.number()),
+          ryzeKeepCents: v.number(),
+        }),
+        familySplits: v.object({
+          toothlensCents: v.number(),
+          careingtonCents: v.number(),
+          processingCents: v.number(),
+          partnerVendorCents: v.number(),
+          brokerCents: v.optional(v.number()),
+          ryzeKeepCents: v.number(),
+        }),
+      }),
+      payloadHash: v.string(),
+      repricedAt: v.number(),
+      repricedBy: v.string(),
     })),
 
     // PRICING TABLE used at close time (period-stamped per spec §10 #6).
@@ -2606,6 +2646,7 @@ export default defineSchema({
         careingtonCents: v.number(),
         processingCents: v.number(),
         partnerVendorCents: v.number(),
+        brokerCents: v.optional(v.number()),
         ryzeKeepCents: v.number(),
       }),
       familySplits: v.object({
@@ -2613,6 +2654,7 @@ export default defineSchema({
         careingtonCents: v.number(),
         processingCents: v.number(),
         partnerVendorCents: v.number(),
+        brokerCents: v.optional(v.number()),
         ryzeKeepCents: v.number(),
       }),
     }),
@@ -2651,6 +2693,7 @@ export default defineSchema({
       v.literal("careington"),
       v.literal("processing"),
       v.literal("partnerVendor"),
+      v.literal("broker"),
       v.literal("ryzeKeep"),
     ),
     deltaCents: v.number(),                // signed

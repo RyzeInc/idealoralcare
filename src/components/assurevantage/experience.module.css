@@ -638,11 +638,18 @@
   border: 1px solid var(--av-line);
   padding: 28px;
   border-radius: 20px;
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span 5;
+  gap: 16px;
+  min-width: 0;
+  background: white;
+}
+.planBody {
   display: flex;
   flex-direction: column;
   gap: 16px;
   min-width: 0;
-  background: white;
 }
 .planCard p {
   margin: 0;
@@ -651,10 +658,19 @@
   font-size: 0.875rem;
 }
 .planActions {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span 4;
   gap: 16px;
-  margin-top: auto;
+}
+.planActions .selectLabel {
+  grid-row: 2;
+}
+.planActions .price {
+  grid-row: 3;
+}
+.planActions .button {
+  grid-row: 4;
 }
 .serviceDetails {
   scroll-margin-top: 130px;
@@ -895,6 +911,12 @@
   .benefitCard,
   .planCard {
     padding: 24px;
+  }
+  .planCard,
+  .planActions {
+    display: flex;
+    flex-direction: column;
+    grid-row: auto;
   }
   .section {
     padding: 44px 0;

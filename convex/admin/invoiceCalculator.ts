@@ -46,6 +46,9 @@ import {
   getSplitForTier,
   PlanTier,
   PricingSnapshot,
+  scaleSplit,
+  splitsEqual,
+  storedSplit,
   ZERO_SPLIT,
 } from "../lib/dispersal";
 import { sha256OfCanonicalJson } from "../lib/hash";
@@ -101,6 +104,8 @@ interface FrozenMemberLine {
   careingtonCents: number;
   processingCents: number;
   partnerVendorCents: number;
+  /** Absent on lines closed before the broker bucket existed. */
+  brokerCents?: number;
   ryzeKeepCents: number;
   /**
    * Rep/broker credited with this member, frozen at close so a reprint names
@@ -588,14 +593,7 @@ export const getInvoiceBreakdownForPeriod = query({
       familyPrimaryCount: r.familyPrimaryCount,
       dependentCount: r.dependentCount,
       unbilledPrimaryCount: r.unbilledPrimaryCount,
-      totals: {
-        grossCents: r.grossCents,
-        toothlensCents: r.toothlensCents,
-        careingtonCents: r.careingtonCents,
-        processingCents: r.processingCents,
-        partnerVendorCents: r.partnerVendorCents,
-        ryzeKeepCents: r.ryzeKeepCents,
-      },
+      totals: storedSplit(r),
       memberProfileIds: r.memberProfileIds,
       bundleIds: r.bundleIds,
       memberLines: r.memberLines,
@@ -822,14 +820,7 @@ export const getGroupInvoice = query({
         familyPrimaryCount: snap.familyPrimaryCount,
         dependentCount: snap.dependentCount,
         unbilledPrimaryCount: snap.unbilledPrimaryCount,
-        totals: {
-          grossCents: snap.grossCents,
-          toothlensCents: snap.toothlensCents,
-          careingtonCents: snap.careingtonCents,
-          processingCents: snap.processingCents,
-          partnerVendorCents: snap.partnerVendorCents,
-          ryzeKeepCents: snap.ryzeKeepCents,
-        },
+        totals: storedSplit(snap),
       },
       members: lines,
     };
@@ -913,6 +904,7 @@ export const recordAdjustment = mutation({
       v.literal("careington"),
       v.literal("processing"),
       v.literal("partnerVendor"),
+      v.literal("broker"),
       v.literal("ryzeKeep"),
     ),
     deltaCents: v.number(),
@@ -985,6 +977,7 @@ export const getVendorPayables = query({
       v.literal("careington"),
       v.literal("processing"),
       v.literal("partnerVendor"),
+      v.literal("broker"),
       v.literal("ryzeKeep"),
     ),
   },
@@ -1028,14 +1021,7 @@ export const getVendorPayables = query({
         familyPrimaryCount: r.familyPrimaryCount,
         dependentCount: r.dependentCount,
         unbilledPrimaryCount: r.unbilledPrimaryCount,
-        totals: {
-          grossCents: r.grossCents,
-          toothlensCents: r.toothlensCents,
-          careingtonCents: r.careingtonCents,
-          processingCents: r.processingCents,
-          partnerVendorCents: r.partnerVendorCents,
-          ryzeKeepCents: r.ryzeKeepCents,
-        },
+        totals: storedSplit(r),
       }));
       return assembleBreakdown(period, "closed", groups);
     })();
@@ -1046,6 +1032,7 @@ export const getVendorPayables = query({
         careington: "careingtonCents",
         processing: "processingCents",
         partnerVendor: "partnerVendorCents",
+        broker: "brokerCents",
         ryzeKeep: "ryzeKeepCents",
       } as const
     )[vendor];
@@ -1144,6 +1131,7 @@ async function closePeriodInternal(
       careingtonCents: g.totals.careingtonCents,
       processingCents: g.totals.processingCents,
       partnerVendorCents: g.totals.partnerVendorCents,
+      brokerCents: g.totals.brokerCents,
       ryzeKeepCents: g.totals.ryzeKeepCents,
       pricing,
     };
@@ -1178,6 +1166,7 @@ async function closePeriodInternal(
       careingtonCents: g.totals.careingtonCents,
       processingCents: g.totals.processingCents,
       partnerVendorCents: g.totals.partnerVendorCents,
+      brokerCents: g.totals.brokerCents,
       ryzeKeepCents: g.totals.ryzeKeepCents,
       memberProfileIds: g.memberProfileIds ?? [],
       bundleIds: g.bundleIds ?? [],
@@ -1203,6 +1192,7 @@ async function closePeriodInternal(
       grossCents: breakdown.grand.totals.grossCents,
       ryzeKeepCents: breakdown.grand.totals.ryzeKeepCents,
       partnerVendorCents: breakdown.grand.totals.partnerVendorCents,
+      brokerCents: breakdown.grand.totals.brokerCents,
       sourceGitSha,
     },
   });
@@ -1271,13 +1261,7 @@ async function computeBackfill(
     const alreadyHasDetail = snapshot.memberLines !== undefined;
     const recomputedGrossCents = group?.totals.grossCents ?? 0;
     const reconciles =
-      group !== undefined &&
-      group.totals.grossCents === snapshot.grossCents &&
-      group.totals.toothlensCents === snapshot.toothlensCents &&
-      group.totals.careingtonCents === snapshot.careingtonCents &&
-      group.totals.processingCents === snapshot.processingCents &&
-      group.totals.partnerVendorCents === snapshot.partnerVendorCents &&
-      group.totals.ryzeKeepCents === snapshot.ryzeKeepCents;
+      group !== undefined && reconcilesWithClose(group, snapshot);
     return {
       periodId: snapshot._id,
       groupCode: snapshot.groupCode,
@@ -1348,13 +1332,7 @@ export async function fillMemberLines(
       unavailable++;
       continue;
     }
-    const reconciles =
-      group.totals.grossCents === snapshot.grossCents &&
-      group.totals.toothlensCents === snapshot.toothlensCents &&
-      group.totals.careingtonCents === snapshot.careingtonCents &&
-      group.totals.processingCents === snapshot.processingCents &&
-      group.totals.partnerVendorCents === snapshot.partnerVendorCents &&
-      group.totals.ryzeKeepCents === snapshot.ryzeKeepCents;
+    const reconciles = reconcilesWithClose(group, snapshot);
     await ctx.db.patch(snapshot._id, {
       memberLines: lines,
       memberLinesRebuilt: reconciles ? "exact" : "forced",
@@ -1417,16 +1395,12 @@ export const syncClosedTotalsToMemberLines = mutation({
         totals.careingtonCents += line.careingtonCents;
         totals.processingCents += line.processingCents;
         totals.partnerVendorCents += line.partnerVendorCents;
+        totals.brokerCents += line.brokerCents ?? 0;
         totals.ryzeKeepCents += line.ryzeKeepCents;
       }
 
       const same =
-        totals.grossCents === snapshot.grossCents &&
-        totals.toothlensCents === snapshot.toothlensCents &&
-        totals.careingtonCents === snapshot.careingtonCents &&
-        totals.processingCents === snapshot.processingCents &&
-        totals.partnerVendorCents === snapshot.partnerVendorCents &&
-        totals.ryzeKeepCents === snapshot.ryzeKeepCents &&
+        splitsEqual(totals, storedSplit(snapshot)) &&
         individualPrimaryCount === snapshot.individualPrimaryCount &&
         familyPrimaryCount === snapshot.familyPrimaryCount;
       if (same) {
@@ -1465,6 +1439,7 @@ export const syncClosedTotalsToMemberLines = mutation({
           careingtonCents: snapshot.careingtonCents,
           processingCents: snapshot.processingCents,
           partnerVendorCents: snapshot.partnerVendorCents,
+          brokerCents: snapshot.brokerCents,
           ryzeKeepCents: snapshot.ryzeKeepCents,
           payloadHash: snapshot.payloadHash,
           closedAt: snapshot.closedAt,
@@ -1487,6 +1462,208 @@ export const syncClosedTotalsToMemberLines = mutation({
       summary:
         `Synced ${period} totals to the member list: ${updated} organization(s) updated` +
         (unchanged > 0 ? `, ${unchanged} already agreed` : ""),
+      metadata: { period, updated, unchanged, changes },
+    });
+
+    return { period, updated, unchanged, changes };
+  },
+});
+
+/**
+ * Whether a rebuilt group matches its close. Head counts and gross must agree
+ * exactly. The split is compared only when the close was priced under the
+ * current table — a month closed under an earlier table divides the same
+ * gross differently, and that is a pricing difference, not a roster one.
+ */
+function reconcilesWithClose(
+  group: GroupBreakdown,
+  snapshot: Doc<"invoicePeriods">,
+): boolean {
+  if (
+    group.individualPrimaryCount !== snapshot.individualPrimaryCount ||
+    group.familyPrimaryCount !== snapshot.familyPrimaryCount ||
+    group.totals.grossCents !== snapshot.grossCents
+  ) {
+    return false;
+  }
+  if (!pricedUnderCurrentTable(snapshot)) return true;
+  return splitsEqual(group.totals, storedSplit(snapshot));
+}
+
+/** True when a closed row was priced under today's dispersal table. */
+function pricedUnderCurrentTable(snapshot: Doc<"invoicePeriods">): boolean {
+  const current = currentPricingSnapshot();
+  const stored = snapshot.pricing;
+  const same = (
+    a: typeof stored.individualSplits,
+    b: typeof current.individualSplits,
+  ) =>
+    a.toothlensCents === b.toothlensCents &&
+    a.careingtonCents === b.careingtonCents &&
+    a.processingCents === b.processingCents &&
+    a.partnerVendorCents === b.partnerVendorCents &&
+    (a.brokerCents ?? 0) === b.brokerCents &&
+    a.ryzeKeepCents === b.ryzeKeepCents;
+  return (
+    stored.individualGrossCents === current.individualGrossCents &&
+    stored.familyGrossCents === current.familyGrossCents &&
+    same(stored.individualSplits, current.individualSplits) &&
+    same(stored.familySplits, current.familySplits)
+  );
+}
+
+/**
+ * A closed month's figures re-divided under the current dispersal table.
+ * Head counts and gross are taken from the close as-is; only the split moves.
+ */
+function repricedFigures(snapshot: Doc<"invoicePeriods">) {
+  const totals = addSplits(
+    scaleSplit(getSplitForTier("individual"), snapshot.individualPrimaryCount),
+    scaleSplit(getSplitForTier("family"), snapshot.familyPrimaryCount),
+  );
+  const memberLines = snapshot.memberLines?.map((line) => ({
+    ...line,
+    ...getSplitForTier(line.tier),
+    grossCents: line.grossCents,
+  }));
+  return { totals, memberLines };
+}
+
+/**
+ * What restating a closed month under the current table would change, per
+ * organization. Read-only — nothing is written.
+ */
+export const previewRepricePeriod = query({
+  args: { period: v.string() },
+  handler: async (ctx, { period }) => {
+    await requireAccess(ctx, "billing.view");
+    const snapshots = await ctx.db
+      .query("invoicePeriods")
+      .withIndex("by_period", (q) => q.eq("period", period))
+      .collect();
+    if (snapshots.length === 0) {
+      throw new Error(`Period ${period} is not closed.`);
+    }
+    const rows = snapshots.map((snapshot) => {
+      const before = storedSplit(snapshot);
+      const { totals: after } = repricedFigures(snapshot);
+      return {
+        periodId: snapshot._id,
+        groupCode: snapshot.groupCode,
+        groupName: snapshot.groupName,
+        individualPrimaryCount: snapshot.individualPrimaryCount,
+        familyPrimaryCount: snapshot.familyPrimaryCount,
+        alreadyCurrent: pricedUnderCurrentTable(snapshot),
+        // Gross is never restated; a mismatch means the close itself
+        // disagrees with its own head counts and must be synced first.
+        grossAgrees: after.grossCents === before.grossCents,
+        before,
+        after,
+      };
+    });
+    return { period, rows };
+  },
+});
+
+/**
+ * Restate a closed month under the current dispersal table.
+ *
+ * Head counts and gross stay exactly as closed; only how gross is divided
+ * between recipients changes. The split and pricing the month carried before
+ * are preserved in `repricedFrom` (the first time only), so the earlier
+ * figures remain reproducible. Statements already issued for the month keep
+ * their old amounts until they are voided and replaced.
+ *
+ * Like syncing totals, this is a deliberate owner action rather than
+ * something statement generation does on its own.
+ */
+export const repriceClosedPeriod = mutation({
+  args: { period: v.string() },
+  handler: async (ctx, { period }) => {
+    const identity = await requireAccess(ctx, "billing.manage");
+    const snapshots = await ctx.db
+      .query("invoicePeriods")
+      .withIndex("by_period", (q) => q.eq("period", period))
+      .collect();
+    if (snapshots.length === 0) {
+      throw new Error(`Period ${period} is not closed.`);
+    }
+
+    const pricing: PricingSnapshot = currentPricingSnapshot();
+    const now = Date.now();
+    let updated = 0;
+    let unchanged = 0;
+    const changes: string[] = [];
+
+    for (const snapshot of snapshots) {
+      if (pricedUnderCurrentTable(snapshot)) {
+        unchanged++;
+        continue;
+      }
+      const before = storedSplit(snapshot);
+      const { totals, memberLines } = repricedFigures(snapshot);
+      if (totals.grossCents !== before.grossCents) {
+        throw new Error(
+          `${period}/${snapshot.groupCode}: head counts give $${(totals.grossCents / 100).toFixed(2)} ` +
+            `but the close says $${(before.grossCents / 100).toFixed(2)}. ` +
+            `Sync the month's totals to its member list before restating it.`,
+        );
+      }
+      assertSplitInvariant(totals, `reprice ${period}/${snapshot.groupCode}`);
+
+      const payloadHash = await sha256OfCanonicalJson({
+        period,
+        groupId: snapshot.groupId,
+        activeMemberCount: snapshot.activeMemberCount,
+        individualPrimaryCount: snapshot.individualPrimaryCount,
+        familyPrimaryCount: snapshot.familyPrimaryCount,
+        dependentCount: snapshot.dependentCount,
+        unbilledPrimaryCount: snapshot.unbilledPrimaryCount,
+        ...totals,
+        pricing,
+      });
+
+      const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+      changes.push(
+        `${snapshot.groupName}: partner ${money(before.partnerVendorCents)} → ${money(totals.partnerVendorCents)}, ` +
+          `broker ${money(before.brokerCents)} → ${money(totals.brokerCents)}, ` +
+          `Ryze ${money(before.ryzeKeepCents)} → ${money(totals.ryzeKeepCents)}`,
+      );
+
+      await ctx.db.patch(snapshot._id, {
+        repricedFrom: snapshot.repricedFrom ?? {
+          toothlensCents: snapshot.toothlensCents,
+          careingtonCents: snapshot.careingtonCents,
+          processingCents: snapshot.processingCents,
+          partnerVendorCents: snapshot.partnerVendorCents,
+          brokerCents: snapshot.brokerCents,
+          ryzeKeepCents: snapshot.ryzeKeepCents,
+          pricing: snapshot.pricing,
+          payloadHash: snapshot.payloadHash,
+          repricedAt: now,
+          repricedBy: identity.clerkUserId,
+        },
+        toothlensCents: totals.toothlensCents,
+        careingtonCents: totals.careingtonCents,
+        processingCents: totals.processingCents,
+        partnerVendorCents: totals.partnerVendorCents,
+        brokerCents: totals.brokerCents,
+        ryzeKeepCents: totals.ryzeKeepCents,
+        ...(memberLines ? { memberLines } : {}),
+        pricing,
+        payloadHash,
+      });
+      updated++;
+    }
+
+    await ctx.runMutation(internal.admin.adminAudit.record, {
+      actorClerkUserId: identity.clerkUserId,
+      action: "invoice.repricePeriod",
+      targetType: "invoicePeriods",
+      targetId: period,
+      summary:
+        `Restated ${period} under the current dispersal table: ${updated} organization(s) updated` +
+        (unchanged > 0 ? `, ${unchanged} already current` : ""),
       metadata: { period, updated, unchanged, changes },
     });
 

@@ -145,7 +145,7 @@ async function buildRows(
     return ctx.runQuery(api.admin.hierarchy.getAccountById, { accountId: aid });
   }
 
-  // Standalone Balance for Life members bought BFL only — they are not Lyric,
+  // Standalone Balance for Life members bought BFL only — they are not Recuro,
   // RxValet or QuestSelect members. Members with no entitlements at all
   // (employer eligibility-file rosters) are kept, exactly as before.
   const customerIds = members.filter((m) => m.customerId).map((m) => m.customerId as string);
@@ -175,7 +175,7 @@ async function buildRows(
     const dependents: any[] = member.dependents ?? [];
     const cov = coverageType(dependents);
 
-    // Lyric and QuestSelect key on the 9-digit Essentials member number. This is
+    // Recuro and QuestSelect key on the 9-digit Essentials member number. This is
     // the same resolver the member packet and ID card use, so the number the
     // member is holding always matches the number the vendor was sent.
     const memberIdNumeric: string = resolveEssentialsMemberNumber(member);

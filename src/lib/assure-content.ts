@@ -33,7 +33,7 @@ export const SERVICES: Record<ServiceKey, Service> = {
   "virtual-care": {
     title: "A doctor’s visit that fits your day.",
     label: "Virtual care",
-    eyebrow: "Lyric Health · Included in Essentials",
+    eyebrow: "Recuro · Included in Essentials",
     image: "virtual-medicine.png",
     intro:
       "Talk with a clinician from your phone or computer. Essentials brings virtual urgent care, primary care and dermatology together, so getting help can fit around work and family.",
@@ -46,8 +46,8 @@ export const SERVICES: Record<ServiceKey, Service> = {
       "Prescriptions when clinically appropriate and permitted",
     ],
     steps: [
-      "Find your Lyric instructions and member number in your Essentials welcome packet.",
-      "Register with Lyric and choose the appropriate visit type.",
+      "Find your Recuro instructions and member number in your Essentials welcome packet.",
+      "Register with Recuro and choose the appropriate visit type.",
       "Speak with a clinician or submit your dermatology information, then follow their care instructions.",
     ],
     limits:
@@ -55,7 +55,7 @@ export const SERVICES: Record<ServiceKey, Service> = {
     faq: [
       [
         "Is this the same as teledentistry?",
-        "No. Lyric provides virtual medical care through Essentials. Oral Care includes a separate virtual dental consultation service.",
+        "No. Recuro provides virtual medical care through Essentials. Oral Care includes a separate virtual dental consultation service.",
       ],
       [
         "Are my prescriptions included?",
@@ -223,8 +223,8 @@ export const SERVICES: Record<ServiceKey, Service> = {
         "A dentist can assess the information you provide and advise you. Procedures that require hands-on care still need an in-person appointment.",
       ],
       [
-        "Does this include Lyric medical visits?",
-        "No. Lyric medical visits are an Essentials benefit. Teledentistry is a separate Oral Care benefit.",
+        "Does this include Recuro medical visits?",
+        "No. Recuro medical visits are an Essentials benefit. Teledentistry is a separate Oral Care benefit.",
       ],
     ],
   },

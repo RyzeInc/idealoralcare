@@ -71,10 +71,12 @@ export const vendorValidator = v.union(
  */
 interface VendorIdentity {
   name: string;
-  /** Which frozen dispersal bucket this recipient is paid from. */
-  amountField: keyof DispersalSplit;
+  /** Which frozen dispersal buckets this recipient is paid from. */
+  amountFields: Array<keyof DispersalSplit>;
   /** Which `invoiceAdjustments.bucket` corrections land on this statement. */
-  adjustmentBucket: "toothlens" | "careington" | "partnerVendor" | "ryzeKeep";
+  adjustmentBuckets: Array<
+    "toothlens" | "careington" | "partnerVendor" | "broker" | "ryzeKeep"
+  >;
   /** Short line describing what the recipient is being paid for. */
   basis: string;
 }
@@ -82,29 +84,43 @@ interface VendorIdentity {
 export const VENDOR_IDENTITY: Record<VendorId, VendorIdentity> = {
   toothlens: {
     name: "Toothlens",
-    amountField: "toothlensCents",
-    adjustmentBucket: "toothlens",
+    amountFields: ["toothlensCents"],
+    adjustmentBuckets: ["toothlens"],
     basis: "Flat service fee per covered primary",
   },
   careington: {
     name: "Careington",
-    amountField: "careingtonCents",
-    adjustmentBucket: "careington",
+    amountFields: ["careingtonCents"],
+    adjustmentBuckets: ["careington"],
     basis: "Flat service fee per covered primary",
   },
   ideal: {
     name: "Ideal Oral Health",
-    amountField: "partnerVendorCents",
-    adjustmentBucket: "partnerVendor",
-    basis: "Remittance rate per covered primary by rate class",
+    // Through 2026 Ideal Health also receives the broker share — on every
+    // group, including those sold direct — and pays the brokers itself.
+    amountFields: ["partnerVendorCents", "brokerCents"],
+    adjustmentBuckets: ["partnerVendor", "broker"],
+    basis: "Program override plus broker commissions, per covered primary by rate class",
   },
   ryze: {
     name: "Ryze",
-    amountField: "ryzeKeepCents",
-    adjustmentBucket: "ryzeKeep",
-    basis: "Carrier residual after vendor and processing dispersal",
+    amountFields: ["ryzeKeepCents"],
+    adjustmentBuckets: ["ryzeKeep"],
+    basis: "Carrier share after Toothlens, program override and broker dispersal",
   },
 };
+
+/**
+ * What a recipient is owed from one close row or member line: the sum of the
+ * buckets that pay them. A bucket a row predates (no `brokerCents` on an
+ * older close) counts as zero.
+ */
+export function amountFor(
+  policy: Pick<VendorIdentity, "amountFields">,
+  row: Partial<Record<keyof DispersalSplit, number>>,
+): number {
+  return policy.amountFields.reduce((sum, field) => sum + (row[field] ?? 0), 0);
+}
 
 // ---------------------------------------------------------------------------
 // Disclosure profiles — what each recipient is shown
@@ -153,6 +169,8 @@ export const STATEMENT_COLUMN_REGISTRY: Array<{
   /** Read from the member record at print time rather than from the close. */
   live?: boolean;
   internalOnly?: boolean;
+  /** External recipients allowed an otherwise internal-only column. */
+  visibleTo?: VendorId[];
   sensitive?: boolean;
   /** Recipients that start with this column on. */
   defaultFor: VendorId[];
@@ -214,7 +232,9 @@ export const STATEMENT_COLUMN_REGISTRY: Array<{
   { key: "toothlensCents", label: "Toothlens Share", group: "Money", internalOnly: true, sensitive: true, defaultFor: ["ryze"] },
   { key: "careingtonCents", label: "Careington Share", group: "Money", internalOnly: true, sensitive: true, defaultFor: ["ryze"] },
   { key: "processingCents", label: "Processing", group: "Money", internalOnly: true, sensitive: true, defaultFor: ["ryze"] },
-  { key: "partnerVendorCents", label: "Ideal Oral Health Share", group: "Money", internalOnly: true, sensitive: true, defaultFor: ["ryze"] },
+  // Ideal Health sees its own two parts so it knows what to pass on to brokers.
+  { key: "partnerVendorCents", label: "Program Override", group: "Money", internalOnly: true, visibleTo: ["ideal"], sensitive: true, defaultFor: ["ryze", "ideal"] },
+  { key: "brokerCents", label: "Broker Commission", group: "Money", internalOnly: true, visibleTo: ["ideal"], sensitive: true, defaultFor: ["ryze", "ideal"] },
   { key: "ryzeKeepCents", label: "Ryze Keep", group: "Money", internalOnly: true, sensitive: true, defaultFor: ["ryze"] },
 ];
 
@@ -254,7 +274,9 @@ export function resolveStatementColumns(
   return base.map((column) => {
     const meta = COLUMN_BY_KEY.get(column.key)!;
     if (meta.fixed) return { ...column, enabled: true };
-    if (meta.internalOnly && vendor !== "ryze") return { ...column, enabled: false };
+    if (meta.internalOnly && vendor !== "ryze" && !meta.visibleTo?.includes(vendor)) {
+      return { ...column, enabled: false };
+    }
     return column;
   });
 }
@@ -365,6 +387,7 @@ function derive(disclosure: StatementDisclosure): ResolvedPolicy["show"] {
       on("careingtonCents") ||
       on("processingCents") ||
       on("partnerVendorCents") ||
+      on("brokerCents") ||
       on("ryzeKeepCents"),
   };
 }
@@ -435,6 +458,7 @@ export interface StatementMemberLine {
   careingtonCents?: number;
   processingCents?: number;
   partnerVendorCents?: number;
+  brokerCents?: number;
   ryzeKeepCents?: number;
 }
 
@@ -618,7 +642,7 @@ async function buildGroupRows(
 
   const rows = new Map<string, StatementGroupRow>();
   for (const snapshot of snapshots) {
-    if (snapshot[policy.amountField] <= 0) continue;
+    if (amountFor(policy, snapshot) <= 0) continue;
     const label = groupLabelFor(snapshot, visibility);
     if (!label) continue;
 
@@ -712,7 +736,7 @@ function collectMemberLines(
     withDetail++;
     for (const line of snapshot.memberLines) {
       if (line.tier === "none") continue;
-      if (line[policy.amountField] <= 0) continue;
+      if (amountFor(policy, line) <= 0) continue;
       if (excluded.has(line.memberId)) continue;
       memberProfileIds.push(line.memberProfileId);
       lines.push(
@@ -889,7 +913,7 @@ function snapshotFigures(
   primaryCount: number;
   fromLines: boolean;
 } {
-  const closedAmountCents = snapshot[policy.amountField];
+  const closedAmountCents = amountFor(policy, snapshot);
   if (snapshot.memberLines === undefined) {
     return {
       amountCents: closedAmountCents,
@@ -908,7 +932,7 @@ function snapshotFigures(
   for (const line of snapshot.memberLines) {
     if (line.tier === "none") continue;
     if (excluded.has(line.memberId)) continue;
-    amountCents += line[policy.amountField];
+    amountCents += amountFor(policy, line);
     if (line.tier === "individual") individualCount++;
     else familyCount++;
   }
@@ -993,7 +1017,7 @@ function shapeMemberLine(
     memberId: line.memberId,
     firstName: line.firstName,
     lastName: line.lastName,
-    amountCents: line[policy.amountField],
+    amountCents: amountFor(policy, line),
     ...(group
       ? {
           groupCode: group.groupCode,
@@ -1005,17 +1029,34 @@ function shapeMemberLine(
       : {}),
     ...(policy.show.rateClass ? { rateClass: rateClassLabel(line.tier) } : {}),
     ...(policy.show.rep ? rep : {}),
-    ...(policy.show.fullSplit
-      ? {
-          grossCents: line.grossCents,
-          toothlensCents: line.toothlensCents,
-          careingtonCents: line.careingtonCents,
-          processingCents: line.processingCents,
-          partnerVendorCents: line.partnerVendorCents,
-          ryzeKeepCents: line.ryzeKeepCents,
-        }
-      : {}),
+    ...(policy.show.fullSplit ? enabledSplit(policy, line) : {}),
   };
+}
+
+const SPLIT_COLUMNS = [
+  "grossCents",
+  "toothlensCents",
+  "careingtonCents",
+  "processingCents",
+  "partnerVendorCents",
+  "brokerCents",
+  "ryzeKeepCents",
+] as const;
+
+/**
+ * Only the split columns this recipient has on. Ideal Health sees its own
+ * override and broker parts; the other partners' shares never reach its
+ * document, not even unrendered.
+ */
+function enabledSplit(
+  policy: ResolvedPolicy,
+  line: FrozenLine,
+): Partial<Record<(typeof SPLIT_COLUMNS)[number], number>> {
+  const out: Partial<Record<(typeof SPLIT_COLUMNS)[number], number>> = {};
+  for (const key of SPLIT_COLUMNS) {
+    if (columnEnabled(policy.disclosure.columns, key)) out[key] = line[key] ?? 0;
+  }
+  return out;
 }
 
 /**
@@ -1204,7 +1245,7 @@ async function buildPayload(
   // adjustment can never leak in from a brand this statement doesn't settle.
   const scopedPeriodIds = new Set(snapshots.map((s) => String(s._id)));
   const adjustments: StatementAdjustment[] = allAdjustments
-    .filter((a) => a.bucket === policy.adjustmentBucket)
+    .filter((a) => (policy.adjustmentBuckets as string[]).includes(a.bucket))
     .filter((a) => !siteId || scopedPeriodIds.has(String(a.periodId)))
     .filter((a) => (adjustmentFilter ? adjustmentFilter(a._id) : true))
     .sort((a, b) => a.createdAt - b.createdAt)
@@ -1536,7 +1577,7 @@ export const getStatement = query({
     const sourceIds = new Set(row.sourcePeriodIds.map((id) => String(id)));
     const mine = periodAdjustments.filter(
       (a) =>
-        a.bucket === policy.adjustmentBucket &&
+        (policy.adjustmentBuckets as string[]).includes(a.bucket) &&
         (!row.siteId || sourceIds.has(String(a.periodId))),
     );
     const toRow = (a: Doc<"invoiceAdjustments">): StatementAdjustment => ({
@@ -1708,7 +1749,11 @@ export const updateDisclosureProfile = mutation({
     // one thing no amount of configuration should be able to do.
     const internalAsked = disclosure.columns.filter((column) => {
       const meta = STATEMENT_COLUMN_REGISTRY.find((c) => c.key === column.key);
-      return column.enabled && meta?.internalOnly;
+      return (
+        column.enabled &&
+        meta?.internalOnly &&
+        !meta.visibleTo?.includes(vendorId)
+      );
     });
     if (!disclosure.columns.some((c) => c.enabled)) {
       throw new Error(
@@ -1853,7 +1898,7 @@ export const excludeMemberFromStatement = mutation({
       for (const line of snapshot?.memberLines ?? []) {
         if (line.memberId !== memberId || line.tier === "none") continue;
         found = {
-          amountCents: line[policy.amountField],
+          amountCents: amountFor(policy, line),
           name: `${line.lastName}, ${line.firstName}`,
           tier: line.tier,
         };
@@ -2157,8 +2202,9 @@ export interface VerificationLine {
   careingtonCents: number;
   processingCents: number;
   partnerVendorCents: number;
+  brokerCents: number;
   ryzeKeepCents: number;
-  /** The bucket this statement actually pays out. */
+  /** What this statement actually pays out (the sum of its buckets). */
   statementCents: number;
   /** Whole-dollar check: does the split add back up to gross for this member? */
   splitBalances: boolean;
@@ -2219,6 +2265,7 @@ export const getStatementVerification = query({
       careingtonCents: 0,
       processingCents: 0,
       partnerVendorCents: 0,
+      brokerCents: 0,
       ryzeKeepCents: 0,
     };
 
@@ -2231,6 +2278,7 @@ export const getStatementVerification = query({
           line.careingtonCents +
           line.processingCents +
           line.partnerVendorCents +
+          (line.brokerCents ?? 0) +
           line.ryzeKeepCents;
         const fallback =
           !line.repSource && resolver
@@ -2246,8 +2294,9 @@ export const getStatementVerification = query({
           careingtonCents: line.careingtonCents,
           processingCents: line.processingCents,
           partnerVendorCents: line.partnerVendorCents,
+          brokerCents: line.brokerCents ?? 0,
           ryzeKeepCents: line.ryzeKeepCents,
-          statementCents: line[policy.amountField],
+          statementCents: amountFor(policy, line),
           splitBalances: bucketSum === line.grossCents,
           repName: line.repName ?? fallback?.repName ?? null,
           repCode: line.repCode ?? fallback?.repCode ?? null,
@@ -2259,6 +2308,7 @@ export const getStatementVerification = query({
         totals.careingtonCents += line.careingtonCents;
         totals.processingCents += line.processingCents;
         totals.partnerVendorCents += line.partnerVendorCents;
+        totals.brokerCents += line.brokerCents ?? 0;
         totals.ryzeKeepCents += line.ryzeKeepCents;
       }
     }
@@ -2271,9 +2321,10 @@ export const getStatementVerification = query({
       careingtonCents: snapshots.reduce((s, x) => s + x.careingtonCents, 0),
       processingCents: snapshots.reduce((s, x) => s + x.processingCents, 0),
       partnerVendorCents: snapshots.reduce((s, x) => s + x.partnerVendorCents, 0),
+      brokerCents: snapshots.reduce((s, x) => s + (x.brokerCents ?? 0), 0),
       ryzeKeepCents: snapshots.reduce((s, x) => s + x.ryzeKeepCents, 0),
     };
-    const bucketTotal = snapshotTotals[policy.amountField];
+    const bucketTotal = amountFor(policy, snapshotTotals);
     const unbalancedLines = lines.filter((l) => !l.splitBalances);
     const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
@@ -2343,7 +2394,7 @@ export const getStatementVerification = query({
       siteName: row.siteName ?? null,
       period: row.period,
       status: row.status,
-      amountField: policy.amountField,
+      amountFields: policy.amountFields,
       memberDetailAvailable,
       lines: lines.sort(
         (a, b) =>

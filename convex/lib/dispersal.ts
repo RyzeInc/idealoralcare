@@ -9,20 +9,26 @@
  *   Family primary      → $24.99 / month
  *   Dependent           →  $0.00
  *
- * Each dollar of gross revenue is split between fixed pass-through line
- * items (Toothlens fee, Careington network fee, payment processing) and
- * the Partner Vendor share (Ideal Health). Ryze (the carrier) keeps the
- * residual.
+ * Splits follow the program control sheet (November 2026):
  *
- * Stated splits (per the calculator spec):
- *   Individual ($14.99): $1 Toothlens + $2 Careington + $1 Processing
- *                        + $6 Partner Vendor + $5 Ryze (= $15.00)
- *   Family     ($24.99): $1 Toothlens + $2 Careington + $2 Processing
- *                        + $11 Partner Vendor + $9 Ryze (= $25.00)
+ *                Toothlens  Override  Broker   Ryze
+ *   Individual     $1.00     $2.00    $5.99   $6.00   (= $14.99)
+ *   Family         $1.00     $4.00   $11.99   $8.00   (= $24.99)
  *
- * Because the gross is $14.99 / $24.99 (not a round dollar), Ryze's net
- * absorbs the $0.01 rounding. We compute `ryzeKeepCents` as the residual
- * so that gross == sum(splits) for every primary, every time.
+ * The override goes to the program manager (Ideal Health / AssureVantage).
+ * The broker share is tracked separately even though, through 2026, Ideal
+ * Health receives it and pays the brokers — including the share on groups
+ * sold direct. Ryze's share covers the network (Careington / DialCare) and
+ * payment processing, so those buckets are zero; they remain only so
+ * periods closed under the earlier table still read correctly.
+ *
+ * Periods closed before the control sheet carried no broker bucket
+ * ($6 / $11 Partner Vendor, $2 Careington, $1 / $2 Processing). Readers treat
+ * a missing `brokerCents` as zero, and `repriceClosedPeriod` restates those
+ * months under this table.
+ *
+ * `ryzeKeepCents` is computed as the residual so that gross == sum(splits)
+ * for every primary, every time.
  */
 
 export type PlanTier = "individual" | "family" | "none";
@@ -36,8 +42,10 @@ export interface DispersalSplit {
   careingtonCents: number;
   /** Payment processing fee (Stripe / Ryze) per primary. */
   processingCents: number;
-  /** Partner Vendor (Ideal Health) share per primary. */
+  /** Program manager override (Ideal Health / AssureVantage) per primary. */
   partnerVendorCents: number;
+  /** Broker commission per primary. Paid through Ideal Health in 2026. */
+  brokerCents: number;
   /** Carrier (Ryze) net keep per primary — computed as the residual. */
   ryzeKeepCents: number;
 }
@@ -49,20 +57,20 @@ export const DISPERSAL: Record<Exclude<PlanTier, "none">, DispersalSplit> = {
   individual: {
     grossCents: INDIVIDUAL_GROSS_CENTS,
     toothlensCents: 100,
-    careingtonCents: 200,
-    processingCents: 100,
-    partnerVendorCents: 600,
-    // Stated as $5; computed residual is $4.99 (penny absorbed by Ryze).
-    ryzeKeepCents: INDIVIDUAL_GROSS_CENTS - 100 - 200 - 100 - 600,
+    careingtonCents: 0,
+    processingCents: 0,
+    partnerVendorCents: 200,
+    brokerCents: 599,
+    ryzeKeepCents: INDIVIDUAL_GROSS_CENTS - 100 - 200 - 599, // $6.00
   },
   family: {
     grossCents: FAMILY_GROSS_CENTS,
     toothlensCents: 100,
-    careingtonCents: 200,
-    processingCents: 200,
-    partnerVendorCents: 1100,
-    // Stated as $9; computed residual is $8.99 (penny absorbed by Ryze).
-    ryzeKeepCents: FAMILY_GROSS_CENTS - 100 - 200 - 200 - 1100,
+    careingtonCents: 0,
+    processingCents: 0,
+    partnerVendorCents: 400,
+    brokerCents: 1199,
+    ryzeKeepCents: FAMILY_GROSS_CENTS - 100 - 400 - 1199, // $8.00
   },
 };
 
@@ -72,6 +80,7 @@ export const ZERO_SPLIT: DispersalSplit = {
   careingtonCents: 0,
   processingCents: 0,
   partnerVendorCents: 0,
+  brokerCents: 0,
   ryzeKeepCents: 0,
 };
 
@@ -80,7 +89,7 @@ export const ZERO_SPLIT: DispersalSplit = {
 (function verifyDispersalTable() {
   const sum = (s: DispersalSplit) =>
     s.toothlensCents + s.careingtonCents + s.processingCents +
-    s.partnerVendorCents + s.ryzeKeepCents;
+    s.partnerVendorCents + s.brokerCents + s.ryzeKeepCents;
   for (const tier of ["individual", "family"] as const) {
     const split = DISPERSAL[tier];
     if (sum(split) !== split.grossCents) {
@@ -118,6 +127,7 @@ export function addSplits(a: DispersalSplit, b: DispersalSplit): DispersalSplit 
     careingtonCents: a.careingtonCents + b.careingtonCents,
     processingCents: a.processingCents + b.processingCents,
     partnerVendorCents: a.partnerVendorCents + b.partnerVendorCents,
+    brokerCents: a.brokerCents + b.brokerCents,
     ryzeKeepCents: a.ryzeKeepCents + b.ryzeKeepCents,
   };
 }
@@ -130,6 +140,7 @@ export function scaleSplit(split: DispersalSplit, count: number): DispersalSplit
     careingtonCents: split.careingtonCents * count,
     processingCents: split.processingCents * count,
     partnerVendorCents: split.partnerVendorCents * count,
+    brokerCents: split.brokerCents * count,
     ryzeKeepCents: split.ryzeKeepCents * count,
   };
 }
@@ -141,6 +152,7 @@ export type DispersalBucket =
   | "careington"
   | "processing"
   | "partnerVendor"
+  | "broker"
   | "ryzeKeep";
 
 export const DISPERSAL_BUCKETS: DispersalBucket[] = [
@@ -149,6 +161,7 @@ export const DISPERSAL_BUCKETS: DispersalBucket[] = [
   "careington",
   "processing",
   "partnerVendor",
+  "broker",
   "ryzeKeep",
 ];
 
@@ -169,6 +182,7 @@ const stripGross = (s: DispersalSplit): Omit<DispersalSplit, "grossCents"> => ({
   careingtonCents: s.careingtonCents,
   processingCents: s.processingCents,
   partnerVendorCents: s.partnerVendorCents,
+  brokerCents: s.brokerCents,
   ryzeKeepCents: s.ryzeKeepCents,
 });
 
@@ -189,10 +203,49 @@ export function assertSplitInvariant(s: DispersalSplit, label = "split"): void {
     s.careingtonCents +
     s.processingCents +
     s.partnerVendorCents +
+    s.brokerCents +
     s.ryzeKeepCents;
   if (sum !== s.grossCents) {
     throw new Error(
       `INV-01 violated for ${label}: gross=${s.grossCents} but splits sum to ${sum}`,
     );
   }
+}
+
+/**
+ * The split stored on a closed period or one of its member lines. Rows
+ * closed before the broker bucket existed carry no `brokerCents`; that money
+ * sat inside `partnerVendorCents`, so it reads as zero here.
+ */
+export function storedSplit(row: {
+  grossCents: number;
+  toothlensCents: number;
+  careingtonCents: number;
+  processingCents: number;
+  partnerVendorCents: number;
+  brokerCents?: number;
+  ryzeKeepCents: number;
+}): DispersalSplit {
+  return {
+    grossCents: row.grossCents,
+    toothlensCents: row.toothlensCents,
+    careingtonCents: row.careingtonCents,
+    processingCents: row.processingCents,
+    partnerVendorCents: row.partnerVendorCents,
+    brokerCents: row.brokerCents ?? 0,
+    ryzeKeepCents: row.ryzeKeepCents,
+  };
+}
+
+/** True when two splits agree on every bucket. */
+export function splitsEqual(a: DispersalSplit, b: DispersalSplit): boolean {
+  return (
+    a.grossCents === b.grossCents &&
+    a.toothlensCents === b.toothlensCents &&
+    a.careingtonCents === b.careingtonCents &&
+    a.processingCents === b.processingCents &&
+    a.partnerVendorCents === b.partnerVendorCents &&
+    a.brokerCents === b.brokerCents &&
+    a.ryzeKeepCents === b.ryzeKeepCents
+  );
 }

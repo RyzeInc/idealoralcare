@@ -291,7 +291,7 @@ export function LandingCards() {
         title="Essentials Bundle"
         description="Telehealth, pharmacy savings, lab work, mental wellness, and AI-powered oral care — all in one simple monthly membership."
         bullets={[
-          "Lyric Telehealth — 24/7 doctor access",
+          "Recuro Telehealth — 24/7 doctor access",
           "QuestSelect — no-cost lab work",
           "RxValet — prescription savings",
           "Balance for Life — mental wellness",

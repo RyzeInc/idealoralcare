@@ -123,7 +123,8 @@ export const getDownline = query({
           if (visible && !visible.has(agencyId)) continue;
           const t = totals.get(agencyId) ?? emptyTotals();
           t.grossCents += line.grossCents ?? 0;
-          t.partnerVendorCents += line.partnerVendorCents ?? 0;
+          // Through 2026 the partner channel receives the broker share as well.
+          t.partnerVendorCents += (line.partnerVendorCents ?? 0) + (line.brokerCents ?? 0);
           totals.set(agencyId, t);
         }
       }

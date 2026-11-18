@@ -1,5 +1,6 @@
 import { resolveBflMemberCode } from "./bflCodes";
 import { memberPlanName, type MemberBrand } from "./memberBrand";
+import { RECURO_VIRTUAL_CARE } from "./virtualCareVendor";
 /**
  * EMAIL TEMPLATE REGISTRY — the single source of truth for every email we send.
  *
@@ -448,7 +449,7 @@ function essentialsFulfillmentHtml(data: EssentialsFulfillmentEmailData): string
             </tr>
           </table>
           <p style="font-size: 12px; color: #6b7280; margin: 12px 0 0; line-height: 1.5;">
-            Keep your <strong>Member Number</strong> handy &mdash; Lyric Telehealth and QuestSelect both identify you by it.
+            Keep your <strong>Member Number</strong> handy &mdash; Recuro Telehealth and QuestSelect both identify you by it.
           </p>
         </div>
 
@@ -458,10 +459,10 @@ function essentialsFulfillmentHtml(data: EssentialsFulfillmentEmailData): string
         </div>
 
         ${benefit(
-          "Virtual Care &mdash; Lyric Health",
+          "Virtual Care &mdash; Recuro",
           BLUE,
           [
-            "Call <strong>1.866.223.8831</strong>, use the Lyric Health App, or visit <a href=\"https://www.getlyric.com\" style=\"color: #1E88E5; text-decoration: none;\">getlyric.com</a>.",
+            `Call <strong>${RECURO_VIRTUAL_CARE.phone}</strong>, use the ${RECURO_VIRTUAL_CARE.app}, or visit <a href="https://${RECURO_VIRTUAL_CARE.url}" style="color: #1E88E5; text-decoration: none;">${RECURO_VIRTUAL_CARE.url}</a>.`,
             "Give your Member Number when you are asked to identify yourself.",
             "Urgent Care is available 24/7/365; Primary Care is scheduled; Dermatology responds within 72 hours.",
           ],

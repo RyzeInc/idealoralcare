@@ -324,7 +324,7 @@ export function AboutPage() {
             </p>
             <p>
               Services are delivered through the relevant program providers.
-              Essentials brings Lyric virtual care, QuestSelect, RxValet and
+              Essentials brings Recuro virtual care, QuestSelect, RxValet and
               Balance for Life together. Oral Care combines AI oral screening,
               DialCare teledentistry and participating dental network discounts.
             </p>

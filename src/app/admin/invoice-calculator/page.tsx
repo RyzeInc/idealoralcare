@@ -32,15 +32,17 @@ type SortKey =
   | 'dependentCount'
   | 'unbilledPrimaryCount'
   | 'partnerVendorCents'
+  | 'brokerCents'
   | 'ryzeKeepCents'
   | 'grossCents';
 
 const VENDOR_LABELS: Record<string, string> = {
   toothlens: 'Toothlens',
-  careington: 'Careington',
-  processing: 'Processing (Stripe/Ryze)',
-  partnerVendor: 'Partner Vendor (Ideal Health)',
-  ryzeKeep: 'Ryze Keep (carrier)',
+  careington: 'Careington (earlier table)',
+  processing: 'Processing (earlier table)',
+  partnerVendor: 'Program Override (Ideal Health)',
+  broker: 'Broker Commission (paid via Ideal Health)',
+  ryzeKeep: 'Ryze Keep (incl. network & processing)',
 };
 
 function SortIcon({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
@@ -128,7 +130,7 @@ export default function InvoiceCalculatorPage() {
     const header = [
       'organization_code','group_code','group_name','account','billing_model',
       'active_members','individual_primaries','family_primaries','dependents','unbilled_primaries',
-      'gross','toothlens','careington','processing','partner_vendor','ryze_keep',
+      'gross','toothlens','careington','processing','program_override','broker','ryze_keep',
     ].join(',') + '\n';
     const rows = filteredGroups.map((r) => [
       r.organizationCode ?? '',
@@ -146,6 +148,7 @@ export default function InvoiceCalculatorPage() {
       (r.totals.careingtonCents / 100).toFixed(2),
       (r.totals.processingCents / 100).toFixed(2),
       (r.totals.partnerVendorCents / 100).toFixed(2),
+      (r.totals.brokerCents / 100).toFixed(2),
       (r.totals.ryzeKeepCents / 100).toFixed(2),
     ].map((v) => typeof v === 'string' ? `"${v}"` : v).join(',')).join('\n');
     const blob = new Blob([header + rows], { type: 'text/csv' });
@@ -217,6 +220,9 @@ export default function InvoiceCalculatorPage() {
         </div>
       )}
 
+      {/* Restate a month closed under the earlier split */}
+      {!isLoading && data!.source === 'closed' && <RepricePeriodPanel period={data!.period} />}
+
       {/* Stat cards */}
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -233,8 +239,8 @@ export default function InvoiceCalculatorPage() {
           <StatCard
             icon={<Building2 size={20} className="text-blue-600" />}
             accent="bg-blue-100"
-            label="Partner Vendor (Ideal Health)"
-            value={formatCurrency(data!.grand.totals.partnerVendorCents, { fromCents: true })}
+            label="Ideal Health (override + broker)"
+            value={formatCurrency(data!.grand.totals.partnerVendorCents + data!.grand.totals.brokerCents, { fromCents: true })}
           />
           <StatCard
             icon={<DollarSign size={20} className="text-purple-600" />}
@@ -277,11 +283,16 @@ export default function InvoiceCalculatorPage() {
               <tbody className="divide-y divide-slate-200">
                 {([
                   ['Toothlens',        'toothlensCents',     '$1.00', '$1.00', 'toothlens'],
-                  ['Careington',       'careingtonCents',    '$2.00', '$2.00', 'careington'],
-                  ['Processing (Stripe/Ryze)', 'processingCents', '$1.00', '$2.00', 'processing'],
-                  ['Partner Vendor (Ideal Health)', 'partnerVendorCents', '$6.00', '$11.00', 'partnerVendor'],
-                  ['Ryze Keep (carrier)', 'ryzeKeepCents',   '$4.99', '$8.99', 'ryzeKeep'],
-                ] as const).map(([label, key, ind, fam, vendor]) => (
+                  ['Careington (earlier table)', 'careingtonCents', '—', '—', 'careington'],
+                  ['Processing (earlier table)', 'processingCents', '—', '—', 'processing'],
+                  ['Program Override (Ideal Health)', 'partnerVendorCents', '$2.00', '$4.00', 'partnerVendor'],
+                  ['Broker Commission (paid via Ideal Health)', 'brokerCents', '$5.99', '$11.99', 'broker'],
+                  ['Ryze Keep (incl. network & processing)', 'ryzeKeepCents', '$6.00', '$8.00', 'ryzeKeep'],
+                ] as const)
+                  // Careington and processing are paid from Ryze's share now;
+                  // they only carry money on a period closed under the earlier table.
+                  .filter(([, key]) => (key !== 'careingtonCents' && key !== 'processingCents') || data!.grand.totals[key] !== 0)
+                  .map(([label, key, ind, fam, vendor]) => (
                   <tr key={key}>
                     <td className="px-5 py-3 font-medium text-slate-900">{label}</td>
                     <td className="px-5 py-3 text-right text-slate-600">{ind}</td>
@@ -313,7 +324,7 @@ export default function InvoiceCalculatorPage() {
             </table>
           </div>
           <p className="px-5 py-3 text-xs text-slate-500 border-t border-slate-200">
-            Note: Stated splits sum to $15.00 / $25.00 per primary. Because actual gross is $14.99 / $24.99, the $0.01 rounding is absorbed by Ryze Keep ($4.99 / $8.99 net).
+            Splits follow the program control sheet. Ryze Keep covers Careington / DialCare network fees and payment processing. Through 2026 Ideal Health receives the broker commission and pays brokers, including on groups sold direct.
           </p>
         </div>
       )}
@@ -388,7 +399,10 @@ export default function InvoiceCalculatorPage() {
                     <span className="inline-flex items-center gap-1">Unbilled <SortIcon active={sortKey === 'unbilledPrimaryCount'} dir={sortDir} /></span>
                   </th>
                   <th className="text-right px-4 py-3 font-medium cursor-pointer" onClick={() => toggleSort('partnerVendorCents')}>
-                    <span className="inline-flex items-center gap-1">Partner Vendor <SortIcon active={sortKey === 'partnerVendorCents'} dir={sortDir} /></span>
+                    <span className="inline-flex items-center gap-1">Override <SortIcon active={sortKey === 'partnerVendorCents'} dir={sortDir} /></span>
+                  </th>
+                  <th className="text-right px-4 py-3 font-medium cursor-pointer" onClick={() => toggleSort('brokerCents')}>
+                    <span className="inline-flex items-center gap-1">Broker <SortIcon active={sortKey === 'brokerCents'} dir={sortDir} /></span>
                   </th>
                   <th className="text-right px-4 py-3 font-medium cursor-pointer" onClick={() => toggleSort('ryzeKeepCents')}>
                     <span className="inline-flex items-center gap-1">Ryze Keep <SortIcon active={sortKey === 'ryzeKeepCents'} dir={sortDir} /></span>
@@ -400,7 +414,7 @@ export default function InvoiceCalculatorPage() {
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {filteredGroups.length === 0 ? (
-                  <tr><td colSpan={11} className="px-4 py-8 text-center text-slate-500">No groups match the current filter.</td></tr>
+                  <tr><td colSpan={12} className="px-4 py-8 text-center text-slate-500">No groups match the current filter.</td></tr>
                 ) : filteredGroups.map((row) => (
                   <tr
                     key={row.groupId}
@@ -424,6 +438,7 @@ export default function InvoiceCalculatorPage() {
                     <td className="px-4 py-3 text-right tabular-nums text-slate-500">{row.dependentCount}</td>
                     <td className={`px-4 py-3 text-right tabular-nums ${row.unbilledPrimaryCount > 0 ? 'text-amber-700 font-medium' : 'text-slate-400'}`}>{row.unbilledPrimaryCount}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(row.totals.partnerVendorCents, { fromCents: true })}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(row.totals.brokerCents, { fromCents: true })}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(row.totals.ryzeKeepCents, { fromCents: true })}</td>
                     <td className="px-4 py-3 text-right tabular-nums font-semibold text-slate-900">{formatCurrency(row.totals.grossCents, { fromCents: true })}</td>
                   </tr>
@@ -623,8 +638,8 @@ function GroupDrillDown({
           <StatCard
             icon={<Building2 size={20} className="text-blue-600" />}
             accent="bg-blue-100"
-            label="Partner Vendor"
-            value={formatCurrency(data!.group.totals.partnerVendorCents, { fromCents: true })}
+            label="Ideal Health (override + broker)"
+            value={formatCurrency(data!.group.totals.partnerVendorCents + data!.group.totals.brokerCents, { fromCents: true })}
           />
           <StatCard
             icon={<DollarSign size={20} className="text-purple-600" />}
@@ -739,7 +754,7 @@ function VendorPayableModal({
   vendor, period, onClose,
 }: { vendor: keyof typeof VENDOR_LABELS; period: string; onClose: () => void }) {
   const data = useQuery(api.admin.invoiceCalculator.getVendorPayables, {
-    vendor: vendor as "toothlens" | "careington" | "processing" | "partnerVendor" | "ryzeKeep",
+    vendor: vendor as "toothlens" | "careington" | "processing" | "partnerVendor" | "broker" | "ryzeKeep",
     period,
   });
 
@@ -831,7 +846,7 @@ function AdjustmentModal({ period, onClose }: { period: string; onClose: () => v
 
   const [groupId, setGroupId] = useState<Id<'groups'> | ''>('');
   const [reason, setReason] = useState<'refund' | 'chargeback' | 'retroactive_term' | 'retroactive_enrollment' | 'misclassification' | 'other'>('refund');
-  const [bucket, setBucket] = useState<'gross' | 'toothlens' | 'careington' | 'processing' | 'partnerVendor' | 'ryzeKeep'>('gross');
+  const [bucket, setBucket] = useState<'gross' | 'toothlens' | 'careington' | 'processing' | 'partnerVendor' | 'broker' | 'ryzeKeep'>('gross');
   const [amountDollars, setAmountDollars] = useState<string>('');
   const [direction, setDirection] = useState<'-' | '+'>('-');
   const [notes, setNotes] = useState('');
@@ -928,7 +943,8 @@ function AdjustmentModal({ period, onClose }: { period: string; onClose: () => v
               <option value="toothlens">Toothlens</option>
               <option value="careington">Careington</option>
               <option value="processing">Processing</option>
-              <option value="partnerVendor">Partner Vendor</option>
+              <option value="partnerVendor">Program Override</option>
+              <option value="broker">Broker Commission</option>
               <option value="ryzeKeep">Ryze Keep</option>
             </select>
           </div>
@@ -1045,6 +1061,89 @@ function ManualClosePanel({ period }: { period: string }) {
       >
         <Lock size={14} /> {submitting ? 'Closing…' : 'Close period now'}
       </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Reprice panel — only for closed periods priced under an earlier split
+// ---------------------------------------------------------------------------
+
+function RepricePeriodPanel({ period }: { period: string }) {
+  const preview = useQuery(api.admin.invoiceCalculator.previewRepricePeriod, { period });
+  const reprice = useMutation(api.admin.invoiceCalculator.repriceClosedPeriod);
+  const toast = useToast();
+  const [submitting, setSubmitting] = useState(false);
+
+  const stale = preview?.rows.filter((r) => !r.alreadyCurrent) ?? [];
+  if (stale.length === 0) return null;
+
+  const sum = (pick: (r: (typeof stale)[number]) => number) =>
+    stale.reduce((total, r) => total + pick(r), 0);
+  const money = (cents: number) => formatCurrency(cents, { fromCents: true });
+  const rows: Array<[string, number, number]> = [
+    ['Toothlens', sum((r) => r.before.toothlensCents), sum((r) => r.after.toothlensCents)],
+    ['Careington + processing', sum((r) => r.before.careingtonCents + r.before.processingCents), sum((r) => r.after.careingtonCents + r.after.processingCents)],
+    ['Program override', sum((r) => r.before.partnerVendorCents), sum((r) => r.after.partnerVendorCents)],
+    ['Broker commission', sum((r) => r.before.brokerCents), sum((r) => r.after.brokerCents)],
+    ['Ryze Keep', sum((r) => r.before.ryzeKeepCents), sum((r) => r.after.ryzeKeepCents)],
+  ];
+
+  const handleReprice = async () => {
+    setSubmitting(true);
+    try {
+      const result = await reprice({ period });
+      toast.success(`Restated ${result.period}: ${result.updated} organization(s) updated.`);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Restatement failed.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="text-sm text-amber-900">
+          {period} was closed under the earlier split. Restating it keeps every head count and the gross,
+          and re-divides the gross under the control sheet. The earlier figures are kept.
+          Statements already issued for {period} keep their old amounts until you void and replace them.
+        </div>
+        <button
+          type="button"
+          onClick={handleReprice}
+          disabled={submitting}
+          className="flex items-center gap-2 px-3 py-1.5 text-sm bg-amber-600 hover:bg-amber-700 disabled:bg-slate-300 text-white rounded-lg font-medium whitespace-nowrap"
+        >
+          <Calculator size={14} /> {submitting ? 'Restating…' : `Restate ${period}`}
+        </button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="text-sm">
+          <thead className="text-amber-900">
+            <tr>
+              <th className="text-left pr-6 py-1 font-medium">Bucket</th>
+              <th className="text-right pr-6 py-1 font-medium">Now</th>
+              <th className="text-right py-1 font-medium">After restating</th>
+            </tr>
+          </thead>
+          <tbody className="text-amber-950">
+            {rows.map(([label, before, after]) => (
+              <tr key={label}>
+                <td className="pr-6 py-0.5">{label}</td>
+                <td className="pr-6 py-0.5 text-right tabular-nums">{money(before)}</td>
+                <td className="py-0.5 text-right tabular-nums font-medium">{money(after)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {stale.some((r) => !r.grossAgrees) && (
+        <p className="text-xs text-red-700">
+          At least one organization&apos;s head counts don&apos;t match its closed gross. Sync this month to its
+          member list first (on any of its vendor statements); restating will refuse until then.
+        </p>
+      )}
     </div>
   );
 }

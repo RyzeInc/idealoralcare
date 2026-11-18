@@ -286,7 +286,7 @@ describe("verification export", () => {
     vendorName: "Toothlens",
     period: "2026-05",
     status: "issued",
-    amountField: "toothlensCents",
+    amountFields: ["toothlensCents"],
     memberDetailAvailable: true,
     lines: [
       {
@@ -299,6 +299,7 @@ describe("verification export", () => {
         careingtonCents: 400,
         processingCents: 99,
         partnerVendorCents: 700,
+        brokerCents: 0,
         ryzeKeepCents: 1200,
         statementCents: 100,
         splitBalances: true,
@@ -314,6 +315,7 @@ describe("verification export", () => {
       careingtonCents: 400,
       processingCents: 99,
       partnerVendorCents: 700,
+      brokerCents: 0,
       ryzeKeepCents: 1200,
     },
     statementSubtotalCents: 100,
@@ -330,7 +332,7 @@ describe("verification export", () => {
     expect(csv).toContain("INTERNAL VERIFICATION — NOT FOR DISTRIBUTION");
     expect(csv).toContain("Reconciliation Checks");
     expect(csv).toContain("Full Member Dispersal");
-    for (const bucket of ["Toothlens", "Careington", "Processing", "Ideal Oral Health", "Ryze Keep"]) {
+    for (const bucket of ["Toothlens", "Careington", "Processing", "Program Override", "Broker Commission", "Ryze Keep"]) {
       expect(csv).toContain(bucket);
     }
     expect(csv).toContain("Dana Reyes");

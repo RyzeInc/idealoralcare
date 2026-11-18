@@ -27,7 +27,7 @@ function disclosure(opts: {
     "memberId", "memberName", "rateClass", "organization", "orgCode",
     "groupCode", "repName", "repCode", "repEmail", "agencyName", "amount",
     "grossCents", "toothlensCents", "careingtonCents", "processingCents",
-    "partnerVendorCents", "ryzeKeepCents",
+    "partnerVendorCents", "brokerCents", "ryzeKeepCents",
     "firstName", "lastName", "memberEmail", "phone", "dob", "ssn", "gender",
     "memberRole", "relationship", "primaryMember", "dependentCount",
     "memberType", "effectiveDate", "createdAt", "censusMissing",
@@ -953,7 +953,7 @@ describe("vendorStatements — payables verification", () => {
     expect(line.ryzeKeepCents).toBeGreaterThan(0);
     expect(line.splitBalances).toBe(true);
     expect(line.statementCents).toBe(100); // the Toothlens flat fee
-    expect(audit.amountField).toBe("toothlensCents");
+    expect(audit.amountFields).toEqual(["toothlensCents"]);
     // Individual $14.99 + Family $24.99
     expect(audit.totals.grossCents).toBe(1499 + 2499);
     expect(audit.snapshotTotals.toothlensCents).toBe(audit.statementSubtotalCents);
@@ -2592,8 +2592,8 @@ describe("vendorStatements — an exclusion foots everywhere", () => {
     );
 
     // …and still foots afterwards. This is the regression: the rollup used to
-    // keep the excluded member while the total dropped, so the $6 looked as
-    // though it had come off twice.
+    // keep the excluded member while the total dropped, so the member's amount
+    // looked as though it had come off twice.
     expect(
       after.groups.reduce((n: number, g: any) => n + g.amountCents, 0),
     ).toBe(after.subtotalCents);
@@ -2607,8 +2607,8 @@ describe("vendorStatements — an exclusion foots everywhere", () => {
       after.groups.reduce((n: number, g: any) => n + g.familyCount, 0),
     ).toBe(after.familyCount);
 
-    // Exactly one $6 came off, once.
-    expect(after.subtotalCents).toBe(before.subtotalCents - 600);
+    // Exactly one individual's override + broker ($7.99) came off, once.
+    expect(after.subtotalCents).toBe(before.subtotalCents - 799);
     expect(after.primaryCount).toBe(before.primaryCount - 1);
 
     // The organization that held only that member drops off the rollup.
@@ -3755,5 +3755,81 @@ describe("vendor statements — site scoping", () => {
     // siteId is metadata about whose revenue it is, not revenue. If it ever
     // entered the hashed payload, every historical close would stop verifying.
     expect(after).toEqual(before);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Ideal Health is paid the override and the broker commission (2026)
+// ---------------------------------------------------------------------------
+
+describe("vendorStatements — Ideal Health override and broker pass-through", () => {
+  test("Ideal Health's statement pays override + broker and shows both parts", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    // One single ($2 + $5.99) and one family ($4 + $11.99).
+    expect(statement.subtotalCents).toBe(799 + 1599);
+
+    const byMember = new Map(statement.memberLines.map((l: any) => [l.memberId, l]));
+    const solo: any = byMember.get("MEM-SOLO");
+    expect(solo.amountCents).toBe(799);
+    expect(solo.partnerVendorCents).toBe(200);
+    expect(solo.brokerCents).toBe(599);
+    // Other partners' shares never reach Ideal's document.
+    const json = JSON.stringify(statement.memberLines);
+    for (const key of ["toothlensCents", "ryzeKeepCents", "grossCents", "careingtonCents"]) {
+      expect(json).not.toContain(key);
+    }
+  });
+
+  test("Ideal Health may be shown its own two parts; Toothlens may not", async () => {
+    const t = convexTest(schema);
+    await seedAdmin(t);
+    await asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
+      vendor: "ideal",
+      disclosure: disclosure({ on: ["partnerVendorCents", "brokerCents"] }),
+    });
+    await expect(
+      asAdmin(t).mutation(api.admin.vendorStatements.updateDisclosureProfile, {
+        vendor: "toothlens",
+        disclosure: disclosure({ on: ["brokerCents"] }),
+      }),
+    ).rejects.toThrow(/other partners are paid/i);
+  });
+
+  test("a broker-bucket correction lands on Ideal Health's statement", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    const periodId = await t.run(async (ctx) => {
+      const row = await ctx.db
+        .query("invoicePeriods")
+        .withIndex("by_period", (q) => q.eq("period", period))
+        .first();
+      return row!._id;
+    });
+    await asAdmin(t).mutation(api.admin.invoiceCalculator.recordAdjustment, {
+      periodId,
+      reason: "other",
+      bucket: "broker",
+      deltaCents: -599,
+      notes: "Broker share reversed for a cancelled single",
+    });
+    const { statementId } = await asAdmin(t).mutation(
+      api.admin.vendorStatements.generateStatement,
+      { period, vendor: "ideal" },
+    );
+    const statement: any = await asAdmin(t).query(
+      api.admin.vendorStatements.getStatement,
+      { statementId },
+    );
+    expect(statement.adjustmentCents).toBe(-599);
+    expect(statement.totalCents).toBe(799 + 1599 - 599);
   });
 });

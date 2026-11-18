@@ -552,7 +552,7 @@ export const getActiveMembersByGroup = query({
 /**
  * Active plan slugs per customer, from their live entitlements. Used by the
  * Essentials eligibility export to keep standalone Balance for Life members
- * off the Lyric / RxValet / QuestSelect roster — they bought BFL only.
+ * off the Recuro / RxValet / QuestSelect roster — they bought BFL only.
  */
 export const getActivePlanSlugsByCustomer = query({
   args: { customerIds: v.array(v.string()) },

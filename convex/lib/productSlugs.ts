@@ -1,7 +1,7 @@
 /**
  * PRODUCT FAMILIES, by catalog slug prefix.
  *
- *   essentials-*  Essentials Plan (Lyric, RxValet, QuestSelect, Balance for Life)
+ *   essentials-*  Essentials Plan (Recuro, RxValet, QuestSelect, Balance for Life)
  *   bfl-*         Balance for Life on its own — the behavioral-health piece of
  *                 Essentials sold standalone at $19.95/mo
  *   oralcare-*    Oral Care add-on sold on the /newideal site

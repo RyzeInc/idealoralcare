@@ -281,7 +281,7 @@ export const PDF_DOCUMENTS = {
   "essentials-packet": {
     label: "Essentials Welcome Packet",
     description:
-      "Welcome letter, benefit router, Lyric virtual care, RxValet pharmacy, QuestSelect labs and Balance for Life, plus the member ID card. The BFL welcome letter is appended after the generated pages.",
+      "Welcome letter, benefit router, Recuro virtual care, RxValet pharmacy, QuestSelect labs and Balance for Life, plus the member ID card. The BFL welcome letter is appended after the generated pages.",
     category: "member",
     source: "POST /api/generate-essentials-pdf · GET /api/documents?type=essentials-packet",
     filename: "sample-essentials-packet.pdf",

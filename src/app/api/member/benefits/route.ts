@@ -48,9 +48,9 @@ export async function GET() {
         ? [
             {
               key: "virtual-care",
-              title: "Lyric virtual care",
-              url: `https://${ESSENTIALS_VENDOR_CODES.lyric.url}`,
-              phone: ESSENTIALS_VENDOR_CODES.lyric.phone,
+              title: "Recuro virtual care",
+              url: `https://${ESSENTIALS_VENDOR_CODES.recuro.url}`,
+              phone: ESSENTIALS_VENDOR_CODES.recuro.phone,
             },
             {
               key: "labs",

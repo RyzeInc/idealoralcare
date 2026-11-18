@@ -4,7 +4,7 @@
  * Single source of truth for the two identifiers the Essentials program submits
  * to its vendors:
  *
- *   essentialsMemberNumber — 9 numeric digits, unique per member. Lyric Telehealth
+ *   essentialsMemberNumber — 9 numeric digits, unique per member. Recuro Telehealth
  *                            and QuestSelect both look members up by this value.
  *   essentialsGroupNumber  — 6 numeric digits, per group, used for tracking.
  *
@@ -110,7 +110,7 @@ interface GroupLike {
 }
 
 /**
- * The member number to print on the packet and submit to Lyric / QuestSelect.
+ * The member number to print on the packet and submit to Recuro / QuestSelect.
  * Returns "" only when the member has no memberId at all.
  */
 export function resolveEssentialsMemberNumber(member: MemberLike): string {

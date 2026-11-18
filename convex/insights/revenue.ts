@@ -125,6 +125,7 @@ function addSplitInto(target: DispersalSplit, add: DispersalSplit): DispersalSpl
     careingtonCents: target.careingtonCents + add.careingtonCents,
     processingCents: target.processingCents + add.processingCents,
     partnerVendorCents: target.partnerVendorCents + add.partnerVendorCents,
+    brokerCents: target.brokerCents + add.brokerCents,
     ryzeKeepCents: target.ryzeKeepCents + add.ryzeKeepCents,
   };
 }
@@ -385,7 +386,8 @@ export async function partnerEarningsForPeriod(
           agencySet && line.agencyId ? agencySet.has(line.agencyId) : false;
         if (!repMatch && !agencyMatch) continue;
       }
-      partnerVendorCents += line.partnerVendorCents ?? 0;
+      // Through 2026 the partner channel receives the broker share as well.
+      partnerVendorCents += (line.partnerVendorCents ?? 0) + (line.brokerCents ?? 0);
       grossCents += line.grossCents ?? 0;
       memberCount++;
     }

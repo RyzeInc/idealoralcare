@@ -168,6 +168,7 @@ import type * as lib_sanitize from "../lib/sanitize.js";
 import type * as lib_serviceAuth from "../lib/serviceAuth.js";
 import type * as lib_siteMarketing from "../lib/siteMarketing.js";
 import type * as lib_sitePresets from "../lib/sitePresets.js";
+import type * as lib_virtualCareVendor from "../lib/virtualCareVendor.js";
 import type * as newsletter from "../newsletter.js";
 import type * as nexus_categories from "../nexus/categories.js";
 import type * as nexus_index from "../nexus/index.js";
@@ -365,6 +366,7 @@ declare const fullApi: ApiFromModules<{
   "lib/serviceAuth": typeof lib_serviceAuth;
   "lib/siteMarketing": typeof lib_siteMarketing;
   "lib/sitePresets": typeof lib_sitePresets;
+  "lib/virtualCareVendor": typeof lib_virtualCareVendor;
   newsletter: typeof newsletter;
   "nexus/categories": typeof nexus_categories;
   "nexus/index": typeof nexus_index;

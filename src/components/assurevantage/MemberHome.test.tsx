@@ -39,7 +39,7 @@ const membership = {
   benefits: [
     {
       key: "virtual-care",
-      title: "Lyric virtual care",
+      title: "Recuro virtual care",
       url: "https://example.com",
     },
     { key: "labs", title: "QuestSelect labs", url: "https://example.com" },
@@ -68,7 +68,7 @@ afterEach(() => {
 test("purchased programs have access cards and the matching document selection", async () => {
   render(<MemberHome />);
   expect(
-    await screen.findByRole("heading", { name: "Lyric virtual care" }),
+    await screen.findByRole("heading", { name: "Recuro virtual care" }),
   ).toBeTruthy();
   expect(
     screen.getByRole("heading", { name: "QuestSelect labs" }),
@@ -88,7 +88,7 @@ test("future-effective memberships do not advertise usable provider access", asy
   render(<MemberHome />);
   await screen.findByText(/effective date is in the future/);
   expect(
-    screen.queryByRole("link", { name: "Open Lyric virtual care ↗" }),
+    screen.queryByRole("link", { name: "Open Recuro virtual care ↗" }),
   ).toBeNull();
 });
 test("private state is cleared when the account signs out", async () => {

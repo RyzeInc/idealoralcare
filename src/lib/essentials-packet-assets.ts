@@ -11,7 +11,7 @@ import { ESSENTIALS_BFL_MEMBER_CODE } from "@/convex/lib/constants";
  * Life welcome letter qualifies because it carries App Store and Google Play QR
  * codes whose underlying URLs are not documented anywhere we have access to.
  *
- * Everything else Benefits Horizon supplied (the Lyric how-to sheets, the
+ * Everything else Benefits Horizon supplied (the virtual-care how-to sheets, the
  * telehealth overview, the Essentials Benefits Guide) is reproduced natively in
  * essentials-packet-pdf.tsx so the packet reads as one document and each fact
  * appears exactly once.

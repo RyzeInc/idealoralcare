@@ -138,7 +138,7 @@ export interface CreateMemberProfileInput {
   /** Vendor IDs. If not provided, derived deterministically from memberId. */
   careingtonUniqueId?: string;
   careingtonSeqNum?: string; // defaults to "00" (primary)
-  /** Essentials (Lyric/QuestSelect) member number. Derived from memberId if omitted. */
+  /** Essentials (Recuro/QuestSelect) member number. Derived from memberId if omitted. */
   essentialsMemberNumber?: string;
 
   /** Lifecycle / classification. */
@@ -240,7 +240,7 @@ export async function createMemberProfile(
   const careingtonSeqNum = input.careingtonSeqNum ?? "00";
   const toothlensMemberId = careingtonUniqueId + careingtonSeqNum;
 
-  // Essentials member number must be unique — Lyric and QuestSelect key on it.
+  // Essentials member number must be unique — Recuro and QuestSelect key on it.
   // Derivation is collision-free in practice, but a duplicate would silently
   // merge two people's records at the vendor, so we check and re-derive.
   let essentialsMemberNumber =

@@ -30,7 +30,7 @@ vi.mock("@/convex/_generated/api", () => ({
 }));
 vi.mock("@/lib/essentials-packet-pdf", () => ({
   ESSENTIALS_VENDOR_CODES: {
-    lyric: { url: "example.com", phone: "123" },
+    recuro: { url: "example.com", phone: "123" },
     questSelect: { labLine: "123" },
     rxValet: { url: "example.com", phone: "123" },
     balanceForLife: { url: "https://example.com", phone: "123" },
@@ -84,6 +84,11 @@ test("Essentials exposes its four benefits and keeps unrelated private profile f
     "balance-for-life",
   ]);
   expect(data.profile.essentialsMemberNumber).toBe("private-member");
+  expect(data.benefits[0]).toMatchObject({
+    title: "Recuro virtual care",
+    url: "https://example.com",
+    phone: "123",
+  });
   expect(JSON.stringify(data)).not.toContain("must-never-leave-server");
   expect(mocks.query).toHaveBeenCalledWith(
     "card",

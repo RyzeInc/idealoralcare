@@ -30,7 +30,7 @@ const GROUPS = [
       "essentialsWellbeing",
     ] as const,
     items: [
-      "Lyric virtual medical care",
+      "Recuro virtual medical care",
       "Eligible QuestSelect lab services",
       "RxValet prescription savings",
       "Balance for Life included",
@@ -75,6 +75,7 @@ const GROUPS = [
   },
 ];
 function tierName(p: CatalogProduct) {
+  if (isBflSlug(p.slug)) return "Individual + family";
   if (p.category === "dental")
     return p.slug.includes("family") ? "Family" : "Individual";
   if (isEssentialsSlug(p.slug))
@@ -174,43 +175,50 @@ export default function OfferingCatalog({ focus }: { focus?: "oral" }) {
                     group.key === "bfl" &&
                     cart.items.some((i) => isEssentialsSlug(i.product.slug));
                   const added = !!product && isInCart(product._id);
+                  const upgrading =
+                    group.key === "essentials" &&
+                    cart.items.some((i) => isBflSlug(i.product.slug));
                   const cadence =
                     group.key !== "oral" ? "monthly" : cart.cadence;
+                  const membershipOptions =
+                    group.key === "bfl" && product ? [product] : options;
                   return (
                     <article
                       className={`${styles.planCard} ${added || included ? styles.selected : ""}`}
                       data-offering={group.key}
                       key={group.key}
                     >
-                      <MembershipPhoto
-                        program={group.key as "essentials" | "bfl" | "oral"}
-                      />
-                      <span className={styles.icon}>
-                        <group.icon size={25} />
-                      </span>
-                      <h2 style={{ fontSize: "1.7rem", margin: 0 }}>
-                        {group.name}
-                      </h2>
-                      <p>{group.description}</p>
-                      <ul className={styles.list}>
-                        {group.items.map((item, index) => (
-                          <CatalogPromotion
-                            key={item}
-                            feature={group.features[index]}
-                          >
-                            <li>
-                              <Check size={16} />
-                              {item}
-                            </li>
-                          </CatalogPromotion>
-                        ))}
-                      </ul>
-                      {group.key === "oral" && (
-                        <p className={styles.fine}>
-                          The dental discount program is not available in
-                          Vermont or Washington.
-                        </p>
-                      )}
+                      <div className={styles.planBody}>
+                        <MembershipPhoto
+                          program={group.key as "essentials" | "bfl" | "oral"}
+                        />
+                        <span className={styles.icon}>
+                          <group.icon size={25} />
+                        </span>
+                        <h2 style={{ fontSize: "1.7rem", margin: 0 }}>
+                          {group.name}
+                        </h2>
+                        <p>{group.description}</p>
+                        <ul className={styles.list}>
+                          {group.items.map((item, index) => (
+                            <CatalogPromotion
+                              key={item}
+                              feature={group.features[index]}
+                            >
+                              <li>
+                                <Check size={16} />
+                                {item}
+                              </li>
+                            </CatalogPromotion>
+                          ))}
+                        </ul>
+                        {group.key === "oral" && (
+                          <p className={styles.fine}>
+                            The dental discount program is not available in
+                            Vermont or Washington.
+                          </p>
+                        )}
+                      </div>
                       <div className={styles.planActions}>
                         <Link
                           href={`/assurevantage/${group.href}`}
@@ -218,7 +226,7 @@ export default function OfferingCatalog({ focus }: { focus?: "oral" }) {
                         >
                           Explore {group.name} <ArrowRight size={16} />
                         </Link>
-                        {options.length > 1 && (
+                        {(group.key === "bfl" ? !!product : options.length > 1) && (
                           <label className={styles.selectLabel}>
                             Choose your membership
                             <select
@@ -230,7 +238,7 @@ export default function OfferingCatalog({ focus }: { focus?: "oral" }) {
                                 }))
                               }
                             >
-                              {options.map((p) => (
+                              {membershipOptions.map((p) => (
                                 <option key={p._id} value={p._id}>
                                   {tierName(p)}
                                 </option>
@@ -251,13 +259,10 @@ export default function OfferingCatalog({ focus }: { focus?: "oral" }) {
                           disabled={!isLoaded || !product || included || added}
                           onClick={() => {
                             if (!product) return;
-                            const replacing =
-                              group.key === "essentials" &&
-                              cart.items.some((i) => isBflSlug(i.product.slug));
                             addItem(product);
                             setNotice(
-                              replacing
-                                ? "Essentials added. Standalone Balance for Life was removed because it’s included."
+                              upgrading
+                                ? "Upgraded to Essentials. Standalone Balance for Life was removed because it’s included."
                                 : `${group.name} added to your cart.`,
                             );
                           }}
@@ -267,7 +272,9 @@ export default function OfferingCatalog({ focus }: { focus?: "oral" }) {
                             : added
                               ? "In your cart ✓"
                               : product
-                                ? `Add ${group.name}`
+                                ? upgrading
+                                  ? "Upgrade to Essentials"
+                                  : `Add ${group.name}`
                                 : "Currently unavailable"}
                         </button>
                       </div>

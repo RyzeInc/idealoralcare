@@ -26,7 +26,7 @@ const ESSENTIALS_TIERS = [
 ];
 
 const ESSENTIALS_INCLUSIONS = [
-  "Lyric Telehealth — Virtual Urgent Care (24/7), Virtual Primary Care & Virtual Dermatology",
+  "Recuro Telehealth — Virtual Urgent Care (24/7), Virtual Primary Care & Virtual Dermatology",
   "RxValet Prescription Savings \u2014 Savings on prescriptions at major pharmacies nationwide",
   "QuestSelect Lab Services \u2014 No cost lab testing at Quest locations nationwide",
   "Balance for Life — Behavioral health, mindfulness & substance disorder support",
