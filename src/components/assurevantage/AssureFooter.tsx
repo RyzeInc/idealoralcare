@@ -1,9 +1,6 @@
 "use client";
 import { SiteMarketing } from "@/components/health/SiteMarketing";
-import {
-  SERVICE_MARKETING_FEATURES,
-  type SiteMarketingFeature,
-} from "@/convex/lib/siteMarketing";
+import type { SiteMarketingFeature } from "@/convex/lib/siteMarketing";
 import Image from "next/image";
 import { AssureLink as Link } from "./AssureLink";
 import styles from "./experience.module.css";
@@ -32,29 +29,16 @@ export function AssureFooter() {
             </p>
           </div>
           <div>
-            <h2>Explore benefits</h2>
+            <h2>Explore services</h2>
             <ul>
               {[
-                ["virtual-care", "Virtual care"],
-                ["labs", "Lab services"],
-                ["pharmacy", "Prescription savings"],
-                ["balance-for-life", "Mental wellbeing"],
+                ["essentials", "Essentials"],
+                ["balance-for-life", "Balance for Life"],
                 ["oralcare", "Oral Care"],
               ].map(([path, label]) => (
-                <FooterPromotion
-                  key={path}
-                  feature={
-                    path === "balance-for-life"
-                      ? undefined
-                      : SERVICE_MARKETING_FEATURES[
-                          path as keyof typeof SERVICE_MARKETING_FEATURES
-                        ]
-                  }
-                >
-                  <li>
-                    <Link href={`/assurevantage/${path}`}>{label}</Link>
-                  </li>
-                </FooterPromotion>
+                <li key={path}>
+                  <Link href={`/assurevantage/${path}`}>{label}</Link>
+                </li>
               ))}
             </ul>
           </div>

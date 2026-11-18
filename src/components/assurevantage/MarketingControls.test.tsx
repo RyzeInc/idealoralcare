@@ -4,6 +4,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { ProgramPage, ServicePage, AssureHome } from "./MarketingPages";
 import { OfferingSummary } from "./OfferingSummary";
 import { AssureFooter } from "./AssureFooter";
+import { SERVICES, type ServiceKey } from "@/lib/assure-content";
 const state = vi.hoisted(() => ({ marketing: {} as Record<string, boolean> }));
 vi.mock("@/components/providers/SiteThemeProvider", () => ({
   useSiteThemeOptional: () => ({
@@ -40,7 +41,7 @@ test("Essentials service promotions can be hidden independently", () => {
     screen.queryByRole("heading", { name: "Lab services", exact: true }),
   ).toBeNull();
   expect(
-    screen.getByRole("heading", { name: "Prescription savings", exact: true }),
+    screen.getAllByRole("heading", { name: "Prescription savings", exact: true }),
   ).toBeTruthy();
   expect(
     screen.getByRole("heading", {
@@ -113,4 +114,22 @@ test("summaries stop advertising disabled inner services while keeping the offer
     screen.getByText("Mental wellbeing support in one membership."),
   ).toBeTruthy();
   expect(screen.queryByText(/virtual medical care/i)).toBeNull();
+});
+
+test.each(["essentials", "oralcare"] as const)("%s contains its complete service guides", (program) => {
+  const { container } = render(<ProgramPage program={program} />);
+  const keys: ServiceKey[] = program === "essentials"
+    ? ["virtual-care", "labs", "pharmacy", "balance-for-life"]
+    : ["oral-health-scan", "teledentistry", "discount"];
+  for (const key of keys) {
+    const section = container.querySelector(`#${key}`)!;
+    expect(section).toBeTruthy();
+    for (const text of [...SERVICES[key].items, ...SERVICES[key].steps, SERVICES[key].limits, ...SERVICES[key].faq.flat()]) {
+      expect(section.textContent).toContain(text);
+    }
+  }
+  const serviceLinks = Array.from(container.querySelectorAll('a[href*="#"]')).map(link => link.getAttribute("href"));
+  for (const key of keys.filter(key => key !== "balance-for-life")) {
+    expect(serviceLinks).toContain(`/assurevantage/${program}#${key}`);
+  }
 });

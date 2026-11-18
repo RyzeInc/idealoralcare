@@ -26,6 +26,7 @@ vi.mock("convex/browser", () => ({
   },
 }));
 import proxy from "./proxy";
+import { MERGED_SERVICE_PAGES } from "./lib/assure-service-links";
 const event = {} as NextFetchEvent;
 beforeEach(() => {
   vi.clearAllMocks();
@@ -151,4 +152,28 @@ test("signed-out plan management returns through the protected Assure account fl
   expect(mocks.signIn).toHaveBeenCalledWith({
     returnBackUrl: "https://www.assurevantage.com/assurevantage/manage-plans",
   });
+});
+
+test.each(Object.entries(MERGED_SERVICE_PAGES))(
+  "%s redirects permanently to its membership section and preserves referral parameters",
+  async (service, parent) => {
+    const response = await proxy(new NextRequest(`https://www.assurevantage.com/assurevantage/${service}?ref=100001&utm_source=email`), event);
+    expect(response!.status).toBe(308);
+    expect(response!.headers.get("location")).toBe(`https://www.assurevantage.com/assurevantage/${parent}?ref=100001&utm_source=email#${service}`);
+    expect(mocks.options).not.toHaveBeenCalled();
+  },
+);
+
+test("legacy service pages and both public checkouts retain their destinations", async () => {
+  for (const host of ["www.assurevantage.com", "www.getidealoh.com"]) {
+    for (const path of ["/assurevantage/program-checkout", "/assurevantage/program-success"]) {
+      const response = await proxy(new NextRequest(`https://${host}${path}`), event);
+      expect(response?.headers.get("location")).toBeFalsy();
+    }
+  }
+  for (const path of ["/health/teledentistry", "/health/oral-health-scan", "/health/discount", "/newideal/essentials", "/newideal/balance-for-life", "/legacy-group/teledentistry"]) {
+    const response = await proxy(new NextRequest(`https://www.getidealoh.com${path}`), event);
+    expect(response?.headers.get("location")).toBeFalsy();
+  }
+  expect(mocks.auth).not.toHaveBeenCalled();
 });

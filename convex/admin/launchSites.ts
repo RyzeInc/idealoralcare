@@ -4,6 +4,7 @@ import type { Id } from "../_generated/dataModel";
 import { ASSUREVANTAGE_PRESET } from "../lib/sitePresets";
 import { PROVIDER_GROUP_CODE } from "../lib/constants";
 import { isMembershipProgramSlug } from "../lib/productSlugs";
+import { ensureBalanceForLifeProduct } from "../lib/bflCatalog";
 
 async function ensureDtcHierarchy(ctx: MutationCtx, siteId: Id<"sites">) {
   const accounts = await ctx.db.query("accounts").withIndex("by_site", q => q.eq("siteId", siteId)).collect();
@@ -28,36 +29,44 @@ async function ensureDtcHierarchy(ctx: MutationCtx, siteId: Id<"sites">) {
 
 /** Deployment-console setup only. Never moves existing groups, accounts or members. */
 export const configureAssureVantage = internalMutation({
-  args: { activate: v.optional(v.boolean()), enableMemberBranding: v.optional(v.boolean()), promoteToPrimary: v.optional(v.boolean()) },
-  handler: async (ctx, { activate = false, enableMemberBranding, promoteToPrimary = false }) => {
+  args: { activate: v.optional(v.boolean()), enableMemberBranding: v.optional(v.boolean()), promoteToPrimary: v.optional(v.boolean()), bflStripeProductId: v.optional(v.string()) },
+  handler: async (ctx, { activate = false, enableMemberBranding, promoteToPrimary = false, bflStripeProductId }) => {
     const preset = ASSUREVANTAGE_PRESET;
     const existing = await ctx.db.query("sites").withIndex("by_slug", q => q.eq("slug", preset.slug)).unique();
     if (existing) {
       if (activate && ["suspended", "terminated"].includes(existing.status)) throw new Error("This site has been suspended or terminated; review it before reactivation");
       if (existing.domain && !["assurevantage.com", "www.assurevantage.com"].includes(existing.domain)) throw new Error("AssureVantage already has a different domain; review the assignment");
+      const bflId = await ensureBalanceForLifeProduct(ctx, bflStripeProductId);
       const hierarchy = await ensureDtcHierarchy(ctx, existing._id);
       const programs = promoteToPrimary ? (await ctx.db.query("catalogProducts").withIndex("by_visible", q => q.eq("isVisible", true)).collect()).filter(product => product.category === "dental" || isMembershipProgramSlug(product.slug) || product.slug.startsWith("oralcare-")) : [];
       await ctx.db.patch(existing._id, {
         domain: "www.assurevantage.com",
-        ...(promoteToPrimary ? { type: "primary" as const, allowedPlanIds: [...new Set([...existing.allowedPlanIds, ...programs.map(product => product._id)])] } : {}),
+        ...(promoteToPrimary ? { type: "primary" as const } : {}),
+        allowedPlanIds: [...new Set([...existing.allowedPlanIds, ...programs.map(product => product._id), bflId])],
         ...(enableMemberBranding !== undefined ? { memberBrandingEnabled: enableMemberBranding } : {}),
         ...(activate ? { status: "active" as const, activatedAt: existing.activatedAt ?? Date.now() } : {}),
         updatedAt: Date.now(),
       });
       return { siteId: existing._id, ...hierarchy, created: false, status: activate ? "active" : existing.status };
     }
-    const primary = await ctx.db.query("sites").withIndex("by_slug", q => q.eq("slug", "ideal-health")).unique();
-    if (!primary || primary.status !== "active") throw new Error("An active Ideal site is required as the existing oral-program template");
+    // Historical imports can repeat the Ideal slug. Read the oldest active
+    // template without changing any of those legacy sites or their hierarchy.
+    const primary = await ctx.db.query("sites")
+      .withIndex("by_slug", q => q.eq("slug", "ideal-health"))
+      .filter(q => q.eq(q.field("status"), "active"))
+      .first();
+    if (!primary) throw new Error("An active Ideal site is required as the existing oral-program template");
     const visible = await ctx.db.query("catalogProducts").withIndex("by_visible", q => q.eq("isVisible", true)).collect();
     const plans = visible.filter(product => product.category === "dental" || isMembershipProgramSlug(product.slug) || product.slug.startsWith("oralcare-"));
     if (!plans.length) throw new Error("No visible oral plans found; configure the intended offering before launch");
+    const bflId = await ensureBalanceForLifeProduct(ctx, bflStripeProductId);
     const now = Date.now();
     const siteId = await ctx.db.insert("sites", {
       ...preset,
       branding: { ...preset.branding, heroSubtext: "AI oral scanning, 24/7 teledentistry and nationwide dental discount network access." },
       domain: "www.assurevantage.com",
       basePath: "/assurevantage",
-      allowedPlanIds: plans.map(product => product._id),
+      allowedPlanIds: [...new Set([...plans.map(product => product._id), bflId])],
       defaultCadence: primary.defaultCadence,
       defaultPaymentMethod: primary.defaultPaymentMethod,
       enrollmentDefaults: {

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState, useMemo } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useSearchParams } from "next/navigation";
 import { AssureLink as Link } from "./AssureLink";
+import { assureServiceHref } from "@/lib/assure-service-links";
 import { assureProductName, START_DATE_NOTE } from "@/lib/assure-content";
 import OralScan from "@/components/health/tabs/OralScanTab";
 import ProviderSearch from "@/components/health/tabs/ProviderSearchTab";
@@ -234,7 +235,7 @@ export function MemberHome() {
                           </p>
                         )}
                         <Link
-                          href={`/assurevantage/${benefit.key}`}
+                          href={assureServiceHref(benefit.key)}
                           className={styles.textLink}
                         >
                           Benefit guide →

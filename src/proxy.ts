@@ -9,6 +9,10 @@ import { api } from "@/convex/_generated/api";
 import { isReservedPath } from "@/lib/rep-routing/reserved";
 import { memberSignInPath } from "@/lib/site-links";
 import {
+  MERGED_SERVICE_PAGES,
+  assureServiceHref,
+} from "@/lib/assure-service-links";
+import {
   domainClerkOptions,
   domainEntryPath,
   domainSite,
@@ -227,6 +231,14 @@ export default function proxy(request: NextRequest, event: NextFetchEvent) {
         marketingOrigin,
       ),
     );
+  }
+  const service = request.nextUrl.pathname.match(
+    /^\/assurevantage\/([^/]+)\/?$/,
+  )?.[1];
+  if (service && Object.hasOwn(MERGED_SERVICE_PAGES, service)) {
+    const target = new URL(assureServiceHref(service), request.url);
+    target.search = request.nextUrl.search;
+    return NextResponse.redirect(target, 308);
   }
   // Resolve the entry route before Clerk starts a cross-domain session sync.
   const entryPath = domainEntryPath(

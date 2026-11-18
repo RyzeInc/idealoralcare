@@ -1,3 +1,5 @@
+import { MERGED_SERVICE_PAGES } from "./assure-service-links";
+
 /** Public service information. Membership ownership and vendor identifiers remain server-side. */
 export const ASSURE_NAME = "AssureVantage";
 export const ASSURE_URL = "https://www.assurevantage.com";
@@ -367,7 +369,7 @@ export const ASSURE_PAGES: Record<
   },
 };
 for (const [key, service] of Object.entries(SERVICES))
-  if (!ASSURE_PAGES[key])
+  if (!ASSURE_PAGES[key] && !Object.hasOwn(MERGED_SERVICE_PAGES, key))
     ASSURE_PAGES[key] = { title: service.label, description: service.intro };
 export function assureProductName(name: string) {
   return name.replace(

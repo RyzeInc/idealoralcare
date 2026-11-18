@@ -205,70 +205,72 @@ export default function OfferingCatalog({ focus }: { focus?: "oral" }) {
                           </CatalogPromotion>
                         ))}
                       </ul>
-                      <Link
-                        href={`/assurevantage/${group.href}`}
-                        className={styles.textLink}
-                      >
-                        Explore {group.name} <ArrowRight size={16} />
-                      </Link>
-                      {options.length > 1 && (
-                        <label className={styles.selectLabel}>
-                          Choose your membership
-                          <select
-                            value={product?._id ?? ""}
-                            onChange={(e) =>
-                              setSelected((prev) => ({
-                                ...prev,
-                                [group.key]: e.target.value,
-                              }))
-                            }
-                          >
-                            {options.map((p) => (
-                              <option key={p._id} value={p._id}>
-                                {tierName(p)}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      )}
-                      {product && (
-                        <div className={styles.price}>
-                          {formatPrice(
-                            getPrice(product, cadence, cart.paymentMethod),
-                          )}
-                          <span>{cadence === "monthly" ? "/mo" : "/yr"}</span>
-                        </div>
-                      )}
-                      <button
-                        className={styles.button}
-                        disabled={!isLoaded || !product || included || added}
-                        onClick={() => {
-                          if (!product) return;
-                          const replacing =
-                            group.key === "essentials" &&
-                            cart.items.some((i) => isBflSlug(i.product.slug));
-                          addItem(product);
-                          setNotice(
-                            replacing
-                              ? "Essentials added. Standalone Balance for Life was removed because it’s included."
-                              : `${group.name} added to your cart.`,
-                          );
-                        }}
-                      >
-                        {included
-                          ? "Included with Essentials"
-                          : added
-                            ? "In your cart ✓"
-                            : product
-                              ? `Add ${group.name}`
-                              : "Currently unavailable"}
-                      </button>
                       {group.key === "oral" && (
                         <p className={styles.fine}>
                           The dental discount program is not available in
                           Vermont or Washington.
                         </p>
                       )}
+                      <div className={styles.planActions}>
+                        <Link
+                          href={`/assurevantage/${group.href}`}
+                          className={styles.textLink}
+                        >
+                          Explore {group.name} <ArrowRight size={16} />
+                        </Link>
+                        {options.length > 1 && (
+                          <label className={styles.selectLabel}>
+                            Choose your membership
+                            <select
+                              value={product?._id ?? ""}
+                              onChange={(e) =>
+                                setSelected((prev) => ({
+                                  ...prev,
+                                  [group.key]: e.target.value,
+                                }))
+                              }
+                            >
+                              {options.map((p) => (
+                                <option key={p._id} value={p._id}>
+                                  {tierName(p)}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        )}
+                        {product && (
+                          <div className={styles.price}>
+                            {formatPrice(
+                              getPrice(product, cadence, cart.paymentMethod),
+                            )}
+                            <span>{cadence === "monthly" ? "/mo" : "/yr"}</span>
+                          </div>
+                        )}
+                        <button
+                          className={styles.button}
+                          disabled={!isLoaded || !product || included || added}
+                          onClick={() => {
+                            if (!product) return;
+                            const replacing =
+                              group.key === "essentials" &&
+                              cart.items.some((i) => isBflSlug(i.product.slug));
+                            addItem(product);
+                            setNotice(
+                              replacing
+                                ? "Essentials added. Standalone Balance for Life was removed because it’s included."
+                                : `${group.name} added to your cart.`,
+                            );
+                          }}
+                        >
+                          {included
+                            ? "Included with Essentials"
+                            : added
+                              ? "In your cart ✓"
+                              : product
+                                ? `Add ${group.name}`
+                                : "Currently unavailable"}
+                        </button>
+                      </div>
                     </article>
                   );
                 })}

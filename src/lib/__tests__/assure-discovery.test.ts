@@ -8,6 +8,7 @@ import sitemap from "@/app/sitemap";
 import robots from "@/app/robots";
 import { assureMetadata } from "../assure-metadata";
 import { ASSURE_PAGES } from "../assure-content";
+import { MERGED_SERVICE_PAGES } from "../assure-service-links";
 beforeEach(() => {
   state.host = "www.assurevantage.com";
 });
@@ -22,6 +23,8 @@ test("Assure discovery includes all public benefits and guides on the correct ho
     urls.every((url) => url.startsWith("https://www.assurevantage.com/")),
   ).toBe(true);
   expect(urls.some((url) => url.includes("/dashboard"))).toBe(false);
+  for (const service of Object.keys(MERGED_SERVICE_PAGES))
+    expect(urls).not.toContain(`https://www.assurevantage.com/assurevantage/${service}`);
   expect((await robots()).sitemap).toBe(
     "https://www.assurevantage.com/sitemap.xml",
   );

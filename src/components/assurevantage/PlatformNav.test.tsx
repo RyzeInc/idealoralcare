@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import Link from "next/link";
 import { afterEach, expect, test, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { PlatformNav } from "./PlatformNav";
 const state = vi.hoisted(() => ({
   site: { marketing: { oralScan: false, blog: false }, shopEnabled: false },
@@ -33,7 +33,12 @@ test("shared navigation honors site marketing and shop switches alongside the sh
   fireEvent.click(screen.getByText("Explore services"));
   expect(screen.queryByRole("link", { name: "Oral Health Scan" })).toBeNull();
   expect(screen.queryByRole("link", { name: "Blog" })).toBeNull();
-  expect(screen.getByRole("link", { name: "Teledentistry" })).toBeTruthy();
+  const services = screen.getByText("Explore services").closest("details")!;
+  expect(within(services).getAllByRole("link").map(link => [link.textContent, link.getAttribute("href")])).toEqual([
+    ["Essentials", "/assurevantage/essentials"],
+    ["Balance for Life", "/assurevantage/balance-for-life"],
+    ["Oral Care", "/assurevantage/oralcare"],
+  ]);
   expect(screen.queryByRole("link", { name: "Shop" })).toBeNull();
   expect(
     screen.getByRole("link", { name: /Cart \(0\)/ }).getAttribute("href"),
@@ -44,6 +49,7 @@ test("shared navigation honors site marketing and shop switches alongside the sh
   expect(screen.getByRole("link", { name: "Shop" }).getAttribute("href")).toBe(
     "/assurevantage/shop",
   );
+  expect(within(services).queryByRole("link", { name: "Shop" })).toBeNull();
   state.globalShop = false;
   view.rerender(<PlatformNav />);
   expect(screen.queryByRole("link", { name: "Shop" })).toBeNull();

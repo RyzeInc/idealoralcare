@@ -28,6 +28,7 @@ import {
   type ServiceKey,
 } from "@/lib/assure-content";
 import { AssureLink as Link } from "./AssureLink";
+import { assureServiceHref } from "@/lib/assure-service-links";
 import styles from "./experience.module.css";
 const ICONS = {
   "virtual-care": Stethoscope,
@@ -131,7 +132,7 @@ export function BenefitCards({
                 service.intro
               )}
             </p>
-            <Link className={styles.textLink} href={`/assurevantage/${key}`}>
+            <Link className={styles.textLink} href={assureServiceHref(key)}>
               Explore{" "}
               {service.label.startsWith("AI")
                 ? "AI oral scanning"
@@ -555,6 +556,11 @@ export function ProgramPage({
           </div>
         </section>
       </SiteMarketing>
+      {keys.map((key) => (
+        <SiteMarketing key={key} feature={SERVICE_MARKETING_FEATURES[key]}>
+          <ServiceDetails serviceKey={key} />
+        </SiteMarketing>
+      ))}
       <section className={`${styles.section} ${styles.tinted}`}>
         <div className={`${styles.container} ${styles.gridTwo}`}>
           <div>
@@ -617,6 +623,64 @@ export function ProgramPage({
       </SiteMarketing>
       <SectionCTA />
     </main>
+  );
+}
+
+function ServiceDetails({ serviceKey }: { serviceKey: ServiceKey }) {
+  const service = SERVICES[serviceKey];
+  const Icon = ICONS[serviceKey];
+  return (
+    <section
+      id={serviceKey}
+      className={`${styles.section} ${styles.serviceDetails}`}
+    >
+      <div className={styles.container}>
+        <span className={styles.icon}>
+          <Icon size={25} aria-hidden="true" />
+        </span>
+        <p className={styles.eyebrow}>{service.eyebrow}</p>
+        <h2>{service.label}</h2>
+        <p className={styles.lead}>
+          {serviceKey === "balance-for-life" ? (
+            <OfferingSummary program="bfl" />
+          ) : (
+            service.intro
+          )}
+        </p>
+        <p className={styles.fine}>{service.included}</p>
+        <div className={styles.gridTwo}>
+          <div>
+            <h3>What’s included</h3>
+            <ul className={styles.list}>
+              {service.items.map((item, index) => (
+                <ServiceItem key={item} service={serviceKey} index={index}>
+                  <li>
+                    <Check size={18} />
+                    {item}
+                  </li>
+                </ServiceItem>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h3>How to access it</h3>
+            <ol className={styles.steps}>
+              {service.steps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+          </div>
+        </div>
+        <div className={styles.notice}>
+          <h3>A few things to understand</h3>
+          <p>{service.limits}</p>
+        </div>
+        <SiteMarketing feature="faq">
+          <h3>Questions about {service.label.toLowerCase()}?</h3>
+          <FAQ items={service.faq} />
+        </SiteMarketing>
+      </div>
+    </section>
   );
 }
 

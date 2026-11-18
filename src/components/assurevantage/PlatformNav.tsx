@@ -26,34 +26,11 @@ export function PlatformNav() {
       ?.querySelectorAll("details[open]")
       .forEach((node) => node.removeAttribute("open"));
   }, [pathname]);
-  const benefits = [
-    { path: "virtual-care", label: "Virtual care", feature: "telehealth" as const },
-    { path: "labs", label: "Lab services", feature: "labServices" as const },
-    { path: "pharmacy", label: "Prescription savings", feature: "rxSavings" as const },
-    { path: "balance-for-life", label: "Mental wellbeing" },
+  const memberships = [
+    { path: "essentials", label: "Essentials" },
+    { path: "balance-for-life", label: "Balance for Life" },
     { path: "oralcare", label: "Oral Care" },
-    {
-      path: "oral-health-scan",
-      label: "Oral Health Scan",
-      feature: "oralScan" as const,
-    },
-    {
-      path: "teledentistry",
-      label: "Teledentistry",
-      feature: "teledentistry" as const,
-    },
-    {
-      path: "discount",
-      label: "Dental Discount Network",
-      feature: "dentalDiscount" as const,
-    },
   ];
-  const visible = benefits.filter(
-    (link) =>
-      !link.feature ||
-      (!theme?.isLoading &&
-        isSiteMarketingEnabled(theme?.site?.marketing, link.feature)),
-  );
   return (
     <header
       className={styles.header}
@@ -88,7 +65,7 @@ export function PlatformNav() {
           <details>
             <summary>Explore services</summary>
             <div className={styles.dropdown}>
-              {visible.map((link) => (
+              {memberships.map((link) => (
                 <Link
                   href={`/assurevantage/${link.path}`}
                   key={link.path}
@@ -101,11 +78,11 @@ export function PlatformNav() {
                   {link.label}
                 </Link>
               ))}
-              {globalShop !== false && theme?.site?.shopEnabled === true && (
-                <Link href="/assurevantage/shop">Shop</Link>
-              )}
             </div>
           </details>
+          {globalShop !== false && theme?.site?.shopEnabled === true && (
+            <Link href="/assurevantage/shop">Shop</Link>
+          )}
           <Link
             href="/assurevantage/program-plans"
             aria-current={

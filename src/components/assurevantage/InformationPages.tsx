@@ -4,6 +4,7 @@ import { FAQ, PageIntro, SectionCTA } from "./MarketingPages";
 import { AssureLink as Link } from "./AssureLink";
 import styles from "./experience.module.css";
 import { GUIDES } from "@/lib/assure-guides";
+import { assureServiceHref } from "@/lib/assure-service-links";
 export { GUIDES } from "@/lib/assure-guides";
 export function HelpPage() {
   return (
@@ -215,7 +216,7 @@ export function FAQPage() {
               <Link
                 className={styles.textLink}
                 key={key}
-                href={`/assurevantage/${key}`}
+                href={assureServiceHref(key)}
               >
                 {s.label} <ArrowRight size={16} />
               </Link>
@@ -285,7 +286,7 @@ export function ResourceArticle({ slug }: { slug: string }) {
             <p>{START_DATE_NOTE}</p>
           </div>
           <div className={styles.actions}>
-            <Link className={styles.button} href={`/assurevantage/${g.key}`}>
+            <Link className={styles.button} href={assureServiceHref(g.key)}>
               Explore {SERVICES[g.key].label.toLowerCase()}{" "}
               <ArrowRight size={18} />
             </Link>
