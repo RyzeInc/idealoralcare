@@ -49,7 +49,7 @@ interface ColumnMeta {
   sensitive: boolean;
 }
 
-type VendorId = 'toothlens' | 'careington' | 'ideal' | 'ryze';
+type VendorId = 'toothlens' | 'careington' | 'ideal' | 'ryze' | 'advisor';
 
 const GROUP_OPTIONS: Array<{
   value: GroupVisibility;

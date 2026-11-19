@@ -17,6 +17,7 @@ import {
   Filter,
   Layers,
   Plus,
+  Scale,
   ScrollText,
   SlidersHorizontal,
   Trash2,
@@ -44,6 +45,7 @@ const VENDORS = [
   { id: 'careington', name: 'Careington' },
   { id: 'ideal', name: 'Ideal Oral Health' },
   { id: 'ryze', name: 'Ryze' },
+  { id: 'advisor', name: 'Advisor' },
 ] as const;
 
 type VendorId = (typeof VENDORS)[number]['id'];
@@ -895,6 +897,18 @@ export default function VendorStatementsPage() {
             >
               <ScrollText size={14} />
               Activity
+            </Link>
+          </Tooltip>
+          <Tooltip
+            text="Months closed under the earlier dispersal split: what each partner was owed then, what the control sheet says now, and a one-click repair that restates the month and reissues its statements."
+            width="lg"
+          >
+            <Link
+              href="/admin/vendor-statements/split-correction"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
+            >
+              <Scale size={14} />
+              Split Correction
             </Link>
           </Tooltip>
           <Tooltip

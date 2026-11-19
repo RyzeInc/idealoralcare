@@ -204,6 +204,7 @@ Internal staff only. Ordered below as the sidebar orders it.
 | `/admin/vendor-statements/:statementId` | One locked statement with its document and line detail. | Staff | — |
 | `/admin/vendor-statements/activity` | Cross-vendor history of generation, locking, and delivery. | Staff | — |
 | `/admin/vendor-statements/disclosure` | Controls which columns each vendor sees on their statement. | Staff | — |
+| `/admin/vendor-statements/split-correction` | Months closed under the earlier dispersal split, side by side with the control sheet, with a repair that restates them and reissues their statements. | Staff | — |
 | `/admin/users` | The older staff list and staff invitations; changes stay in step with Access & roles. | Staff | — |
 | `/admin/docs/:section/:slug` | A single SOP or guide chapter, compiled from docs/admin/**. | Staff | — |
 

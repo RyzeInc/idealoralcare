@@ -2528,6 +2528,7 @@ export default defineSchema({
     // DISPERSAL TOTALS (integer cents, INV-01 always holds)
     grossCents: v.number(),
     toothlensCents: v.number(),
+    advisorCents: v.optional(v.number()),
     careingtonCents: v.number(),
     processingCents: v.number(),
     partnerVendorCents: v.number(),
@@ -2551,6 +2552,7 @@ export default defineSchema({
       tier: v.union(v.literal("individual"), v.literal("family"), v.literal("none")),
       grossCents: v.number(),
       toothlensCents: v.number(),
+      advisorCents: v.optional(v.number()),
       careingtonCents: v.number(),
       processingCents: v.number(),
       partnerVendorCents: v.number(),
@@ -2589,6 +2591,7 @@ export default defineSchema({
       familyPrimaryCount: v.number(),
       grossCents: v.number(),
       toothlensCents: v.number(),
+      advisorCents: v.optional(v.number()),
       careingtonCents: v.number(),
       processingCents: v.number(),
       partnerVendorCents: v.number(),
@@ -2606,6 +2609,7 @@ export default defineSchema({
     // (the first time only), so the earlier figures stay reproducible.
     repricedFrom: v.optional(v.object({
       toothlensCents: v.number(),
+      advisorCents: v.optional(v.number()),
       careingtonCents: v.number(),
       processingCents: v.number(),
       partnerVendorCents: v.number(),
@@ -2616,6 +2620,7 @@ export default defineSchema({
         familyGrossCents: v.number(),
         individualSplits: v.object({
           toothlensCents: v.number(),
+          advisorCents: v.optional(v.number()),
           careingtonCents: v.number(),
           processingCents: v.number(),
           partnerVendorCents: v.number(),
@@ -2624,6 +2629,7 @@ export default defineSchema({
         }),
         familySplits: v.object({
           toothlensCents: v.number(),
+          advisorCents: v.optional(v.number()),
           careingtonCents: v.number(),
           processingCents: v.number(),
           partnerVendorCents: v.number(),
@@ -2643,6 +2649,7 @@ export default defineSchema({
       familyGrossCents: v.number(),
       individualSplits: v.object({
         toothlensCents: v.number(),
+        advisorCents: v.optional(v.number()),
         careingtonCents: v.number(),
         processingCents: v.number(),
         partnerVendorCents: v.number(),
@@ -2651,6 +2658,7 @@ export default defineSchema({
       }),
       familySplits: v.object({
         toothlensCents: v.number(),
+        advisorCents: v.optional(v.number()),
         careingtonCents: v.number(),
         processingCents: v.number(),
         partnerVendorCents: v.number(),
@@ -2690,6 +2698,7 @@ export default defineSchema({
     bucket: v.union(
       v.literal("gross"),
       v.literal("toothlens"),
+      v.literal("advisor"),
       v.literal("careington"),
       v.literal("processing"),
       v.literal("partnerVendor"),
@@ -2727,6 +2736,7 @@ export default defineSchema({
       v.literal("careington"),
       v.literal("ideal"),
       v.literal("ryze"),
+      v.literal("advisor"),
     ),
 
     // Per-primary lines at all, vs. totals only.
@@ -2789,6 +2799,7 @@ export default defineSchema({
       v.literal("careington"),
       v.literal("ideal"),
       v.literal("ryze"),
+      v.literal("advisor"),
     ),
     vendorName: v.string(),               // frozen display name at generation
 
@@ -2828,6 +2839,9 @@ export default defineSchema({
       v.literal("voided"),
     ),
     amountPaidCents: v.number(),
+    // Remittances brought over from the statement this one replaced, already
+    // counted on that statement. Absent = nothing was carried.
+    carriedPaidCents: v.optional(v.number()),
     balanceCents: v.number(),
     paymentMethod: v.optional(v.union(
       v.literal("check"),

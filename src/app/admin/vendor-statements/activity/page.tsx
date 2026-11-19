@@ -22,6 +22,7 @@ const VENDORS = [
   { id: 'careington', name: 'Careington' },
   { id: 'ideal', name: 'Ideal Oral Health' },
   { id: 'ryze', name: 'Ryze' },
+  { id: 'advisor', name: 'Advisor' },
 ] as const;
 
 type VendorId = (typeof VENDORS)[number]['id'];

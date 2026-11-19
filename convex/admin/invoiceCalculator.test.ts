@@ -185,6 +185,7 @@ const getVendor = api.admin.invoiceCalculator.getVendorPayables;
 function expectInv01(splits: DispersalSplit, label = "splits") {
   const sum =
     splits.toothlensCents +
+    splits.advisorCents +
     splits.careingtonCents +
     splits.processingCents +
     splits.partnerVendorCents +
@@ -862,10 +863,11 @@ async function seedLegacyClose(t: TestConvex<typeof schema>) {
 }
 
 describe("invoiceCalculator — control-sheet split", () => {
-  test("pins the control sheet: $1 / $2 / $5.99 / $6 single, $1 / $4 / $11.99 / $8 family", () => {
+  test("pins the control sheet: $0.50 + $0.50 / $2 / $5.99 / $6 single, $0.50 + $0.50 / $4 / $11.99 / $8 family", () => {
     expect(DISPERSAL.individual).toEqual({
       grossCents: 1499,
-      toothlensCents: 100,
+      toothlensCents: 50,
+      advisorCents: 50,
       careingtonCents: 0,
       processingCents: 0,
       partnerVendorCents: 200,
@@ -874,7 +876,8 @@ describe("invoiceCalculator — control-sheet split", () => {
     });
     expect(DISPERSAL.family).toEqual({
       grossCents: 2499,
-      toothlensCents: 100,
+      toothlensCents: 50,
+      advisorCents: 50,
       careingtonCents: 0,
       processingCents: 0,
       partnerVendorCents: 400,
@@ -914,7 +917,8 @@ describe("invoiceCalculator — repriceClosedPeriod", () => {
       ctx.db.query("invoicePeriods").withIndex("by_period", (q) => q.eq("period", period)).first(),
     );
     expect(row!.grossCents).toBe(1499 + 2499);
-    expect(row!.toothlensCents).toBe(200);
+    expect(row!.toothlensCents).toBe(50 + 50);
+    expect(row!.advisorCents).toBe(50 + 50);
     expect(row!.careingtonCents).toBe(0);
     expect(row!.processingCents).toBe(0);
     expect(row!.partnerVendorCents).toBe(200 + 400);
@@ -924,6 +928,7 @@ describe("invoiceCalculator — repriceClosedPeriod", () => {
       {
         grossCents: row!.grossCents,
         toothlensCents: row!.toothlensCents,
+        advisorCents: row!.advisorCents ?? 0,
         careingtonCents: row!.careingtonCents,
         processingCents: row!.processingCents,
         partnerVendorCents: row!.partnerVendorCents,

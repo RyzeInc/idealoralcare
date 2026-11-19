@@ -107,7 +107,7 @@ This is the most structurally complicated part of the admin suite. Before using 
 
 > Labeled **"Revenue & Dispersal"** in the sidebar and page header. The route is still `/admin/invoice-calculator` (unchanged), and it was previously called "Invoice Calculator" — the name was misleading because it does **not** generate invoices; it reconciles how revenue disperses across vendors. (List-Bill Invoices is what actually generates employer invoices.)
 
-**Purpose**: the internal finance/reconciliation tool. For any period, it answers "how much gross revenue did we generate, and exactly how does every dollar split across Toothlens, the program override (Ideal Health), broker commissions, and Ryze's keep?" This is the source for vendor payable batches and carrier-revenue reporting — and, per the code's own comments, **the most rigorously built and tested module in the Finance section.** Full spec: `docs/internal/INVOICE_CALCULATOR_SPEC.md`.
+**Purpose**: the internal finance/reconciliation tool. For any period, it answers "how much gross revenue did we generate, and exactly how does every dollar split across Toothlens, our advisor, the program override (Ideal Health), broker commissions, and Ryze's keep?" This is the source for vendor payable batches and carrier-revenue reporting — and, per the code's own comments, **the most rigorously built and tested module in the Finance section.** Full spec: `docs/internal/INVOICE_CALCULATOR_SPEC.md`.
 
 ### The revenue/dispersal math (per primary, per month)
 
@@ -115,16 +115,18 @@ Splits follow the program control sheet (November 2026):
 
 | Bucket | Individual ($14.99 gross) | Family ($24.99 gross) |
 |---|---:|---:|
-| Toothlens (AI detection license) | $1.00 | $1.00 |
+| Toothlens (AI detection license) | $0.50 | $0.50 |
+| Advisor | $0.50 | $0.50 |
 | Program Override (Ideal Health / AssureVantage) | $2.00 | $4.00 |
 | Broker Commission | $5.99 | $11.99 |
 | **Ryze Keep** (residual — covers Careington/DialCare network and payment processing) | **$6.00** | **$8.00** |
 
+- The control sheet's $1.00 Toothlens line is shared evenly between Toothlens and our advisor. The advisor has its own vendor statement.
 - **Through 2026, Ideal Health receives the broker commission and pays the brokers**, including on groups sold direct. Ideal Health's vendor statement therefore pays override + broker ($7.99 / $15.99) and shows both parts per member.
 - Careington and processing are no longer separate buckets; they are paid out of Ryze Keep. They only carry money on a month closed under the earlier table.
 - Ryze Keep is always the *residual* (`gross − everything else`), so every primary's splits sum exactly to gross. Dependents always contribute $0 to every bucket. A module-load self-check throws immediately if this invariant is ever broken by a code change.
 
-**Months closed under the earlier table** ($6/$11 partner vendor with brokers paid out of it, $2 Careington, $1/$2 processing, $4.99/$8.99 Ryze) show an amber **Restate** panel when you view them here. Restating keeps every head count and the gross, re-divides the gross under the table above, and keeps the earlier figures in the record. Statements already issued for that month keep their old amounts until you void and replace them.
+**Months closed under an earlier table** ($1 Toothlens with no advisor share; or the original $6/$11 partner vendor with brokers paid out of it, $2 Careington, $1/$2 processing, $4.99/$8.99 Ryze) show an amber **Restate** panel when you view them here. Restating keeps every head count and the gross, re-divides the gross under the table above, and keeps the earlier figures in the record. Statements already issued for that month keep their old amounts until you void and replace them.
 
 ### What's on the page
 

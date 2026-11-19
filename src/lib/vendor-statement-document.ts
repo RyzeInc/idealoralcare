@@ -24,6 +24,7 @@ export interface VendorStatementMemberLine {
   extra?: Record<string, string | number>;
   grossCents?: number;
   toothlensCents?: number;
+  advisorCents?: number;
   careingtonCents?: number;
   processingCents?: number;
   partnerVendorCents?: number;
@@ -55,7 +56,7 @@ export interface VendorStatementDocument {
   // Identity
   statementNumberDisplay: string;
   status: "draft" | "issued" | "partial" | "paid" | "voided";
-  vendor: "toothlens" | "careington" | "ideal" | "ryze";
+  vendor: "toothlens" | "careington" | "ideal" | "ryze" | "advisor";
   vendorName: string;
   basis: string;
 
@@ -244,6 +245,7 @@ function memberCell(
     case "amount": return line.amountCents / 100;
     case "grossCents": return (line.grossCents ?? 0) / 100;
     case "toothlensCents": return (line.toothlensCents ?? 0) / 100;
+    case "advisorCents": return (line.advisorCents ?? 0) / 100;
     case "careingtonCents": return (line.careingtonCents ?? 0) / 100;
     case "processingCents": return (line.processingCents ?? 0) / 100;
     case "partnerVendorCents": return (line.partnerVendorCents ?? 0) / 100;
@@ -508,6 +510,7 @@ export interface VerificationDocument {
     rateClass: string;
     grossCents: number;
     toothlensCents: number;
+    advisorCents: number;
     careingtonCents: number;
     processingCents: number;
     partnerVendorCents: number;
@@ -523,6 +526,7 @@ export interface VerificationDocument {
   totals: {
     grossCents: number;
     toothlensCents: number;
+    advisorCents: number;
     careingtonCents: number;
     processingCents: number;
     partnerVendorCents: number;
@@ -546,6 +550,7 @@ export function verificationDetailTable(doc: VerificationDocument): Table {
       "Rate Class",
       "Gross",
       "Toothlens",
+      "Advisor",
       "Careington",
       "Processing",
       "Program Override",
@@ -565,6 +570,7 @@ export function verificationDetailTable(doc: VerificationDocument): Table {
       line.rateClass,
       line.grossCents / 100,
       line.toothlensCents / 100,
+      line.advisorCents / 100,
       line.careingtonCents / 100,
       line.processingCents / 100,
       line.partnerVendorCents / 100,
@@ -597,6 +603,7 @@ export function verificationTotalsTable(doc: VerificationDocument): Table {
     rows: [
       ["Gross", doc.totals.grossCents / 100],
       ["Toothlens", doc.totals.toothlensCents / 100],
+      ["Advisor", doc.totals.advisorCents / 100],
       ["Careington", doc.totals.careingtonCents / 100],
       ["Processing", doc.totals.processingCents / 100],
       ["Program Override", doc.totals.partnerVendorCents / 100],

@@ -39,22 +39,28 @@ import { internal } from "../_generated/api";
 import { Doc, Id } from "../_generated/dataModel";
 import { mutation, MutationCtx, query, QueryCtx } from "../_generated/server";
 import { requireAccess } from "../lib/authGuards";
-import { DispersalSplit, PlanTier } from "../lib/dispersal";
+import { DispersalSplit, getSplitForTier, PlanTier, storedSplit } from "../lib/dispersal";
 import { parsePeriodKey } from "../lib/periods";
 import { RepAttribution, RepAttributionResolver } from "../lib/repAttribution";
-import { fillMemberLines } from "./invoiceCalculator";
+import {
+  fillMemberLines,
+  pricedUnderCurrentTable,
+  repricedFigures,
+  repricePeriod,
+} from "./invoiceCalculator";
 
 // ---------------------------------------------------------------------------
 // Recipient disclosure policy — the single source of truth
 // ---------------------------------------------------------------------------
 
-export type VendorId = "toothlens" | "careington" | "ideal" | "ryze";
+export type VendorId = "toothlens" | "careington" | "ideal" | "ryze" | "advisor";
 
 export const VENDOR_IDS: VendorId[] = [
   "toothlens",
   "careington",
   "ideal",
   "ryze",
+  "advisor",
 ];
 
 export const vendorValidator = v.union(
@@ -62,6 +68,7 @@ export const vendorValidator = v.union(
   v.literal("careington"),
   v.literal("ideal"),
   v.literal("ryze"),
+  v.literal("advisor"),
 );
 
 /**
@@ -75,7 +82,7 @@ interface VendorIdentity {
   amountFields: Array<keyof DispersalSplit>;
   /** Which `invoiceAdjustments.bucket` corrections land on this statement. */
   adjustmentBuckets: Array<
-    "toothlens" | "careington" | "partnerVendor" | "broker" | "ryzeKeep"
+    "toothlens" | "advisor" | "careington" | "partnerVendor" | "broker" | "ryzeKeep"
   >;
   /** Short line describing what the recipient is being paid for. */
   basis: string;
@@ -106,7 +113,14 @@ export const VENDOR_IDENTITY: Record<VendorId, VendorIdentity> = {
     name: "Ryze",
     amountFields: ["ryzeKeepCents"],
     adjustmentBuckets: ["ryzeKeep"],
-    basis: "Carrier share after Toothlens, program override and broker dispersal",
+    basis: "Carrier share after Toothlens, advisor, program override and broker dispersal",
+  },
+  advisor: {
+    name: "Advisor",
+    // Half of the control sheet's $1.00 Toothlens line.
+    amountFields: ["advisorCents"],
+    adjustmentBuckets: ["advisor"],
+    basis: "Advisory share of the Toothlens line, per covered primary",
   },
 };
 
@@ -230,6 +244,7 @@ export const STATEMENT_COLUMN_REGISTRY: Array<{
   { key: "amount", label: "Amount", group: "Money", fixed: true, defaultFor: VENDOR_IDS },
   { key: "grossCents", label: "Retail Gross", group: "Money", internalOnly: true, sensitive: true, defaultFor: ["ryze"] },
   { key: "toothlensCents", label: "Toothlens Share", group: "Money", internalOnly: true, sensitive: true, defaultFor: ["ryze"] },
+  { key: "advisorCents", label: "Advisor Share", group: "Money", internalOnly: true, sensitive: true, defaultFor: ["ryze"] },
   { key: "careingtonCents", label: "Careington Share", group: "Money", internalOnly: true, sensitive: true, defaultFor: ["ryze"] },
   { key: "processingCents", label: "Processing", group: "Money", internalOnly: true, sensitive: true, defaultFor: ["ryze"] },
   // Ideal Health sees its own two parts so it knows what to pass on to brokers.
@@ -330,6 +345,12 @@ export const DEFAULT_DISCLOSURE: Record<VendorId, StatementDisclosure> = {
     adjustmentDetail: true,
     columns: defaultStatementColumns("ryze"),
   },
+  advisor: {
+    memberDetail: true,
+    groupVisibility: "none",
+    adjustmentDetail: true,
+    columns: defaultStatementColumns("advisor"),
+  },
 };
 
 export const disclosureValidator = v.object({
@@ -384,6 +405,7 @@ function derive(disclosure: StatementDisclosure): ResolvedPolicy["show"] {
     fullSplit:
       on("grossCents") ||
       on("toothlensCents") ||
+      on("advisorCents") ||
       on("careingtonCents") ||
       on("processingCents") ||
       on("partnerVendorCents") ||
@@ -455,6 +477,7 @@ export interface StatementMemberLine {
   /** Present only when disclosure.fullSplit. */
   grossCents?: number;
   toothlensCents?: number;
+  advisorCents?: number;
   careingtonCents?: number;
   processingCents?: number;
   partnerVendorCents?: number;
@@ -1036,6 +1059,7 @@ function shapeMemberLine(
 const SPLIT_COLUMNS = [
   "grossCents",
   "toothlensCents",
+  "advisorCents",
   "careingtonCents",
   "processingCents",
   "partnerVendorCents",
@@ -2199,6 +2223,7 @@ export interface VerificationLine {
   rateClass: string;
   grossCents: number;
   toothlensCents: number;
+  advisorCents: number;
   careingtonCents: number;
   processingCents: number;
   partnerVendorCents: number;
@@ -2262,6 +2287,7 @@ export const getStatementVerification = query({
     const totals = {
       grossCents: 0,
       toothlensCents: 0,
+      advisorCents: 0,
       careingtonCents: 0,
       processingCents: 0,
       partnerVendorCents: 0,
@@ -2275,6 +2301,7 @@ export const getStatementVerification = query({
         if (line.tier === "none") continue;
         const bucketSum =
           line.toothlensCents +
+          (line.advisorCents ?? 0) +
           line.careingtonCents +
           line.processingCents +
           line.partnerVendorCents +
@@ -2291,6 +2318,7 @@ export const getStatementVerification = query({
           rateClass: rateClassLabel(line.tier),
           grossCents: line.grossCents,
           toothlensCents: line.toothlensCents,
+          advisorCents: line.advisorCents ?? 0,
           careingtonCents: line.careingtonCents,
           processingCents: line.processingCents,
           partnerVendorCents: line.partnerVendorCents,
@@ -2305,6 +2333,7 @@ export const getStatementVerification = query({
         });
         totals.grossCents += line.grossCents;
         totals.toothlensCents += line.toothlensCents;
+        totals.advisorCents += line.advisorCents ?? 0;
         totals.careingtonCents += line.careingtonCents;
         totals.processingCents += line.processingCents;
         totals.partnerVendorCents += line.partnerVendorCents;
@@ -2318,6 +2347,7 @@ export const getStatementVerification = query({
     const snapshotTotals = {
       grossCents: snapshots.reduce((s, x) => s + x.grossCents, 0),
       toothlensCents: snapshots.reduce((s, x) => s + x.toothlensCents, 0),
+      advisorCents: snapshots.reduce((s, x) => s + (x.advisorCents ?? 0), 0),
       careingtonCents: snapshots.reduce((s, x) => s + x.careingtonCents, 0),
       processingCents: snapshots.reduce((s, x) => s + x.processingCents, 0),
       partnerVendorCents: snapshots.reduce((s, x) => s + x.partnerVendorCents, 0),
@@ -2975,5 +3005,300 @@ export const patchStatementMeta = mutation({
       summary: `Edited ${row.statementNumberDisplay}: ${changes.join("; ")}`,
       metadata: { changes },
     });
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Split correction — months closed under an earlier dispersal table
+// ---------------------------------------------------------------------------
+
+/** Recipients a split correction can move money between. */
+const CORRECTION_VENDORS: VendorId[] = ["ideal", "toothlens", "advisor", "ryze", "careington"];
+
+type CorrectionStatus = "restate" | "reissue" | "missing" | "ok";
+
+/** The closes a statement was cut from, in the order it recorded them. */
+async function sourceSnapshots(
+  ctx: QueryCtx | MutationCtx,
+  row: Doc<"vendorStatements">,
+): Promise<Doc<"invoicePeriods">[]> {
+  const snapshots: Doc<"invoicePeriods">[] = [];
+  for (const periodId of row.sourcePeriodIds) {
+    const snapshot = await ctx.db.get(periodId);
+    if (snapshot) snapshots.push(snapshot);
+  }
+  return snapshots;
+}
+
+/**
+ * What a statement's subtotal would be if it were cut today from the closes
+ * it already covers. Exclusions are left out on both sides — stored subtotals
+ * never include them — so a difference means the closes moved underneath it.
+ */
+function booksSubtotal(
+  snapshots: Doc<"invoicePeriods">[],
+  policy: ResolvedPolicy,
+): number {
+  return snapshots.reduce(
+    (sum, snapshot) => sum + snapshotFigures(snapshot, policy, new Set()).amountCents,
+    0,
+  );
+}
+
+/** Money remitted against a recipient's month, counting each dollar once. */
+function remittedCents(statements: Doc<"vendorStatements">[]): number {
+  return statements.reduce(
+    (sum, row) => sum + row.amountPaidCents - (row.carriedPaidCents ?? 0),
+    0,
+  );
+}
+
+/**
+ * Every month closed under an earlier dispersal table, per recipient: what
+ * the earlier table paid, what the current table pays, what has been issued
+ * and remitted, and what is still owed. Drives the split-correction screen.
+ */
+export const getSplitCorrection = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAccess(ctx, "billing.view");
+    const all = await ctx.db.query("invoicePeriods").collect();
+    const byPeriod = new Map<string, Doc<"invoicePeriods">[]>();
+    for (const row of all) {
+      const list = byPeriod.get(row.period) ?? [];
+      list.push(row);
+      byPeriod.set(row.period, list);
+    }
+
+    let earlierPricing: Doc<"invoicePeriods">["pricing"] | null = null;
+    const periods = [];
+    for (const period of [...byPeriod.keys()].sort()) {
+      const snapshots = byPeriod.get(period)!;
+      const affected = snapshots.some(
+        (s) => s.repricedFrom !== undefined || !pricedUnderCurrentTable(s),
+      );
+      if (!affected) continue;
+      earlierPricing ??=
+        snapshots.find((s) => s.repricedFrom)?.repricedFrom?.pricing ??
+        snapshots.find((s) => !pricedUnderCurrentTable(s))?.pricing ??
+        null;
+      const restated = snapshots.every(pricedUnderCurrentTable);
+      const adjustments = await ctx.db
+        .query("invoiceAdjustments")
+        .withIndex("by_period", (q) => q.eq("period", period))
+        .collect();
+
+      const recipients = [];
+      for (const vendor of CORRECTION_VENDORS) {
+        const policy = await resolvePolicy(ctx, vendor);
+        const earlierCents = snapshots.reduce(
+          (sum, s) => sum + amountFor(policy, s.repricedFrom ?? storedSplit(s)),
+          0,
+        );
+        const correctCents = snapshots.reduce(
+          (sum, s) =>
+            sum +
+            amountFor(
+              policy,
+              pricedUnderCurrentTable(s) ? storedSplit(s) : repricedFigures(s).totals,
+            ),
+          0,
+        );
+        const adjustmentCents = adjustments
+          .filter((a) => (policy.adjustmentBuckets as string[]).includes(a.bucket))
+          .reduce((sum, a) => sum + a.deltaCents, 0);
+        const statements = await ctx.db
+          .query("vendorStatements")
+          .withIndex("by_vendor_period", (q) => q.eq("vendor", vendor).eq("period", period))
+          .collect();
+        if (earlierCents === 0 && correctCents === 0 && statements.length === 0) continue;
+
+        const live = statements.filter((row) => row.status !== "voided");
+        const liveRows = [];
+        let owedBasisCents = 0;
+        for (const row of live) {
+          const sources = await sourceSnapshots(ctx, row);
+          const excluded = new Set((row.excludedMembers ?? []).map((e) => e.memberId));
+          const currentTotalCents =
+            sources.reduce(
+              (sum, s) => sum + snapshotFigures(s, policy, excluded).amountCents,
+              0,
+            ) + row.adjustmentCents;
+          owedBasisCents += currentTotalCents;
+          liveRows.push({
+            statementId: row._id,
+            statementNumberDisplay: row.statementNumberDisplay,
+            status: row.status,
+            issuedSubtotalCents: row.subtotalCents,
+            booksSubtotalCents: booksSubtotal(sources, policy),
+            currentTotalCents,
+            amountPaidCents: row.amountPaidCents,
+          });
+        }
+        const paidCents = remittedCents(statements);
+        if (live.length === 0) owedBasisCents = correctCents + adjustmentCents;
+
+        const status: CorrectionStatus = !restated
+          ? "restate"
+          : live.length === 0 && correctCents + adjustmentCents !== 0
+            ? "missing"
+            : liveRows.some((r) => r.issuedSubtotalCents !== r.booksSubtotalCents)
+              ? "reissue"
+              : "ok";
+
+        recipients.push({
+          vendor,
+          vendorName: VENDOR_IDENTITY[vendor].name,
+          earlierCents,
+          correctCents,
+          differenceCents: correctCents - earlierCents,
+          adjustmentCents,
+          paidCents,
+          owedCents: owedBasisCents - paidCents,
+          statements: liveRows,
+          status,
+        });
+      }
+
+      periods.push({
+        period,
+        restated,
+        primaryCount: snapshots.reduce(
+          (n, s) => n + s.individualPrimaryCount + s.familyPrimaryCount,
+          0,
+        ),
+        needsRepair: recipients.some((r) => r.status !== "ok"),
+        recipients,
+      });
+    }
+
+    return {
+      periods,
+      earlierPricing,
+      currentPricing: {
+        individual: getSplitForTier("individual"),
+        family: getSplitForTier("family"),
+      },
+    };
+  },
+});
+
+/**
+ * Restate one month under the current table and bring its statements into
+ * line: statements cut from the old figures are voided and replaced (carrying
+ * any remittance already recorded, and any exclusions), statements that would
+ * now be $0 are voided, and recipients with no statement get a draft.
+ */
+export const repairSplitPeriod = mutation({
+  args: { period: v.string() },
+  handler: async (ctx, { period }) => {
+    const actor = await requireAccess(ctx, "billing.manage");
+    const restate = await repricePeriod(ctx, period, actor.clerkUserId);
+    const reason = "Restated under the control-sheet dispersal split";
+
+    const reissued: string[] = [];
+    const created: string[] = [];
+    const voided: string[] = [];
+
+    for (const vendor of CORRECTION_VENDORS) {
+      const policy = await resolvePolicy(ctx, vendor);
+      const statements = await ctx.db
+        .query("vendorStatements")
+        .withIndex("by_vendor_period", (q) => q.eq("vendor", vendor).eq("period", period))
+        .collect();
+      const live = statements.filter((row) => row.status !== "voided");
+
+      if (live.length === 0) {
+        const snapshots = await loadClosedSnapshots(ctx, period, null);
+        const owed = snapshots.reduce((sum, s) => sum + amountFor(policy, s), 0);
+        if (owed <= 0) continue;
+        const { statementId } = await createStatement(ctx, {
+          period,
+          vendor,
+          actor: actor.clerkUserId,
+        });
+        const row = await ctx.db.get(statementId);
+        if (row) created.push(row.statementNumberDisplay);
+        continue;
+      }
+
+      for (const row of live) {
+        const sources = await sourceSnapshots(ctx, row);
+        const books = booksSubtotal(sources, policy);
+        if (books === row.subtotalCents) continue;
+
+        const now = Date.now();
+        await ctx.db.patch(row._id, {
+          status: "voided",
+          previousStatus: row.status as "draft" | "issued" | "partial" | "paid",
+          voidedAt: now,
+          voidedBy: actor.clerkUserId,
+          voidReason: reason,
+          updatedAt: now,
+        });
+        if (books === 0 && row.amountPaidCents === 0) {
+          voided.push(row.statementNumberDisplay);
+          continue;
+        }
+
+        const { statementId: replacementId } = await createStatement(ctx, {
+          period,
+          vendor,
+          actor: actor.clerkUserId,
+          paymentDueDate: row.paymentDueDate,
+          replacesId: row._id,
+          siteId: row.siteId ?? null,
+        });
+        await ctx.db.patch(row._id, { supersededById: replacementId, updatedAt: now });
+
+        const replacement = (await ctx.db.get(replacementId))!;
+        const lines = new Map<string, FrozenLine>();
+        for (const snapshot of await sourceSnapshots(ctx, replacement)) {
+          for (const line of snapshot.memberLines ?? []) lines.set(line.memberId, line);
+        }
+        const excludedMembers = (row.excludedMembers ?? []).map((e) => {
+          const line = lines.get(e.memberId);
+          return line ? { ...e, amountCents: amountFor(policy, line) } : e;
+        });
+
+        const wasIssued = row.status !== "draft";
+        const paid = row.amountPaidCents;
+        await ctx.db.patch(replacementId, {
+          ...(excludedMembers.length > 0 ? { excludedMembers } : {}),
+          ...(wasIssued
+            ? {
+                status:
+                  paid >= replacement.totalCents && paid > 0
+                    ? ("paid" as const)
+                    : paid > 0
+                      ? ("partial" as const)
+                      : ("issued" as const),
+                issuedAt: now,
+                amountPaidCents: paid,
+                carriedPaidCents: paid,
+                balanceCents: replacement.totalCents - paid,
+                ...(row.paymentMethod ? { paymentMethod: row.paymentMethod } : {}),
+                ...(row.paymentReference ? { paymentReference: row.paymentReference } : {}),
+                ...(paid >= replacement.totalCents && paid > 0 ? { paidAt: row.paidAt ?? now } : {}),
+              }
+            : {}),
+          updatedAt: now,
+        });
+        reissued.push(`${row.statementNumberDisplay} → ${replacement.statementNumberDisplay}`);
+      }
+    }
+
+    await ctx.runMutation(internal.admin.adminAudit.record, {
+      actorClerkUserId: actor.clerkUserId,
+      action: "vendor_statement.split_repair",
+      targetType: "invoicePeriods",
+      targetId: period,
+      summary:
+        `Repaired ${period} under the control-sheet split: ${restate.updated} organization(s) restated, ` +
+        `${reissued.length} reissued, ${created.length} created, ${voided.length} voided`,
+      metadata: { period, restate, reissued, created, voided },
+    });
+
+    return { period, restated: restate.updated, reissued, created, voided };
   },
 });

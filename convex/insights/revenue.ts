@@ -122,6 +122,7 @@ function addSplitInto(target: DispersalSplit, add: DispersalSplit): DispersalSpl
   return {
     grossCents: target.grossCents + add.grossCents,
     toothlensCents: target.toothlensCents + add.toothlensCents,
+    advisorCents: target.advisorCents + add.advisorCents,
     careingtonCents: target.careingtonCents + add.careingtonCents,
     processingCents: target.processingCents + add.processingCents,
     partnerVendorCents: target.partnerVendorCents + add.partnerVendorCents,

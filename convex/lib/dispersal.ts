@@ -11,20 +11,21 @@
  *
  * Splits follow the program control sheet (November 2026):
  *
- *                Toothlens  Override  Broker   Ryze
- *   Individual     $1.00     $2.00    $5.99   $6.00   (= $14.99)
- *   Family         $1.00     $4.00   $11.99   $8.00   (= $24.99)
+ *                Toothlens  Advisor  Override  Broker   Ryze
+ *   Individual     $0.50     $0.50    $2.00    $5.99   $6.00   (= $14.99)
+ *   Family         $0.50     $0.50    $4.00   $11.99   $8.00   (= $24.99)
  *
- * The override goes to the program manager (Ideal Health / AssureVantage).
+ * The control sheet's $1.00 Toothlens line is shared evenly between
+ * Toothlens and our advisor. The override goes to the program manager (Ideal Health / AssureVantage).
  * The broker share is tracked separately even though, through 2026, Ideal
  * Health receives it and pays the brokers — including the share on groups
  * sold direct. Ryze's share covers the network (Careington / DialCare) and
  * payment processing, so those buckets are zero; they remain only so
  * periods closed under the earlier table still read correctly.
  *
- * Periods closed before the control sheet carried no broker bucket
- * ($6 / $11 Partner Vendor, $2 Careington, $1 / $2 Processing). Readers treat
- * a missing `brokerCents` as zero, and `repriceClosedPeriod` restates those
+ * Periods closed before the control sheet carried no broker or advisor bucket
+ * ($1 Toothlens, $6 / $11 Partner Vendor, $2 Careington, $1 / $2 Processing).
+ * Readers treat a missing `brokerCents` or `advisorCents` as zero, and `repriceClosedPeriod` restates those
  * months under this table.
  *
  * `ryzeKeepCents` is computed as the residual so that gross == sum(splits)
@@ -38,6 +39,8 @@ export interface DispersalSplit {
   grossCents: number;
   /** Pass-through fee paid to Toothlens (AI detection) per primary. */
   toothlensCents: number;
+  /** Advisor's share of the control sheet's Toothlens line, per primary. */
+  advisorCents: number;
   /** Pass-through fee paid to Careington (network) per primary. */
   careingtonCents: number;
   /** Payment processing fee (Stripe / Ryze) per primary. */
@@ -56,27 +59,30 @@ const FAMILY_GROSS_CENTS = 2499;
 export const DISPERSAL: Record<Exclude<PlanTier, "none">, DispersalSplit> = {
   individual: {
     grossCents: INDIVIDUAL_GROSS_CENTS,
-    toothlensCents: 100,
+    toothlensCents: 50,
+    advisorCents: 50,
     careingtonCents: 0,
     processingCents: 0,
     partnerVendorCents: 200,
     brokerCents: 599,
-    ryzeKeepCents: INDIVIDUAL_GROSS_CENTS - 100 - 200 - 599, // $6.00
+    ryzeKeepCents: INDIVIDUAL_GROSS_CENTS - 50 - 50 - 200 - 599, // $6.00
   },
   family: {
     grossCents: FAMILY_GROSS_CENTS,
-    toothlensCents: 100,
+    toothlensCents: 50,
+    advisorCents: 50,
     careingtonCents: 0,
     processingCents: 0,
     partnerVendorCents: 400,
     brokerCents: 1199,
-    ryzeKeepCents: FAMILY_GROSS_CENTS - 100 - 400 - 1199, // $8.00
+    ryzeKeepCents: FAMILY_GROSS_CENTS - 50 - 50 - 400 - 1199, // $8.00
   },
 };
 
 export const ZERO_SPLIT: DispersalSplit = {
   grossCents: 0,
   toothlensCents: 0,
+  advisorCents: 0,
   careingtonCents: 0,
   processingCents: 0,
   partnerVendorCents: 0,
@@ -88,7 +94,7 @@ export const ZERO_SPLIT: DispersalSplit = {
 // If this throws, the calculator deployment is broken and must not ship.
 (function verifyDispersalTable() {
   const sum = (s: DispersalSplit) =>
-    s.toothlensCents + s.careingtonCents + s.processingCents +
+    s.toothlensCents + s.advisorCents + s.careingtonCents + s.processingCents +
     s.partnerVendorCents + s.brokerCents + s.ryzeKeepCents;
   for (const tier of ["individual", "family"] as const) {
     const split = DISPERSAL[tier];
@@ -124,6 +130,7 @@ export function addSplits(a: DispersalSplit, b: DispersalSplit): DispersalSplit 
   return {
     grossCents: a.grossCents + b.grossCents,
     toothlensCents: a.toothlensCents + b.toothlensCents,
+    advisorCents: a.advisorCents + b.advisorCents,
     careingtonCents: a.careingtonCents + b.careingtonCents,
     processingCents: a.processingCents + b.processingCents,
     partnerVendorCents: a.partnerVendorCents + b.partnerVendorCents,
@@ -137,6 +144,7 @@ export function scaleSplit(split: DispersalSplit, count: number): DispersalSplit
   return {
     grossCents: split.grossCents * count,
     toothlensCents: split.toothlensCents * count,
+    advisorCents: split.advisorCents * count,
     careingtonCents: split.careingtonCents * count,
     processingCents: split.processingCents * count,
     partnerVendorCents: split.partnerVendorCents * count,
@@ -149,6 +157,7 @@ export function scaleSplit(split: DispersalSplit, count: number): DispersalSplit
 export type DispersalBucket =
   | "gross"
   | "toothlens"
+  | "advisor"
   | "careington"
   | "processing"
   | "partnerVendor"
@@ -158,6 +167,7 @@ export type DispersalBucket =
 export const DISPERSAL_BUCKETS: DispersalBucket[] = [
   "gross",
   "toothlens",
+  "advisor",
   "careington",
   "processing",
   "partnerVendor",
@@ -179,6 +189,7 @@ export interface PricingSnapshot {
 
 const stripGross = (s: DispersalSplit): Omit<DispersalSplit, "grossCents"> => ({
   toothlensCents: s.toothlensCents,
+  advisorCents: s.advisorCents,
   careingtonCents: s.careingtonCents,
   processingCents: s.processingCents,
   partnerVendorCents: s.partnerVendorCents,
@@ -200,6 +211,7 @@ export function currentPricingSnapshot(): PricingSnapshot {
 export function assertSplitInvariant(s: DispersalSplit, label = "split"): void {
   const sum =
     s.toothlensCents +
+    s.advisorCents +
     s.careingtonCents +
     s.processingCents +
     s.partnerVendorCents +
@@ -214,12 +226,14 @@ export function assertSplitInvariant(s: DispersalSplit, label = "split"): void {
 
 /**
  * The split stored on a closed period or one of its member lines. Rows
- * closed before the broker bucket existed carry no `brokerCents`; that money
- * sat inside `partnerVendorCents`, so it reads as zero here.
+ * closed before the broker and advisor buckets existed carry no `brokerCents`
+ * or `advisorCents`; that money sat inside `partnerVendorCents` and
+ * `toothlensCents`, so it reads as zero here.
  */
 export function storedSplit(row: {
   grossCents: number;
   toothlensCents: number;
+  advisorCents?: number;
   careingtonCents: number;
   processingCents: number;
   partnerVendorCents: number;
@@ -229,6 +243,7 @@ export function storedSplit(row: {
   return {
     grossCents: row.grossCents,
     toothlensCents: row.toothlensCents,
+    advisorCents: row.advisorCents ?? 0,
     careingtonCents: row.careingtonCents,
     processingCents: row.processingCents,
     partnerVendorCents: row.partnerVendorCents,
@@ -242,6 +257,7 @@ export function splitsEqual(a: DispersalSplit, b: DispersalSplit): boolean {
   return (
     a.grossCents === b.grossCents &&
     a.toothlensCents === b.toothlensCents &&
+    a.advisorCents === b.advisorCents &&
     a.careingtonCents === b.careingtonCents &&
     a.processingCents === b.processingCents &&
     a.partnerVendorCents === b.partnerVendorCents &&

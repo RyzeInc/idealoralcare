@@ -643,6 +643,13 @@ export const SITE_ROUTES: SiteRoute[] = [
     auth: "staff",
   },
   {
+    path: "/admin/vendor-statements/split-correction",
+    title: "Vendor statement split correction",
+    purpose: "Months closed under the earlier dispersal split, side by side with the control sheet, with a repair that restates them and reissues their statements.",
+    area: "Admin console",
+    auth: "staff",
+  },
+  {
     path: "/admin/invoice-calculator",
     title: "Revenue & dispersal",
     purpose: "Per-member revenue and dispersal breakdown by group and partner.",

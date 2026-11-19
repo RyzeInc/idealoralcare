@@ -9,7 +9,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, test, expect } from "vitest";
-import { convexTest } from "convex-test";
+import { convexTest, type TestConvex } from "convex-test";
 import schema from "../schema";
 import { api } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
@@ -375,7 +375,7 @@ describe("vendorStatements — recipient disclosure", () => {
     expect(statement.groups).toHaveLength(0);
     expect(statement.memberLines).toHaveLength(2);
     for (const line of statement.memberLines) {
-      expect(line.amountCents).toBe(100); // flat, both tiers
+      expect(line.amountCents).toBe(50); // flat, both tiers
       expect(line.groupCode).toBeUndefined();
       expect(line.groupName).toBeUndefined();
       expect(line.rateClass).toBeUndefined();
@@ -451,7 +451,7 @@ describe("vendorStatements — generation", () => {
       api.admin.vendorStatements.generateStatementsForPeriod,
       { period },
     );
-    expect(first.generated).toBe(4);
+    expect(first.generated).toBe(5);
     expect(first.skipped).toBe(0);
 
     const second = await asAdmin(t).mutation(
@@ -459,13 +459,14 @@ describe("vendorStatements — generation", () => {
       { period },
     );
     expect(second.generated).toBe(0);
-    expect(second.skipped).toBe(4);
+    expect(second.skipped).toBe(5);
 
     const rows = await asAdmin(t).query(api.admin.vendorStatements.listStatements, {
       period,
     });
-    expect(rows).toHaveLength(4);
+    expect(rows).toHaveLength(5);
     expect(rows.map((r: any) => r.vendor).sort()).toEqual([
+      "advisor",
       "careington",
       "ideal",
       "ryze",
@@ -473,8 +474,8 @@ describe("vendorStatements — generation", () => {
     ]);
     // Statement numbers are sequential and unique.
     const numbers = rows.map((r: any) => r.statementNumber).sort();
-    expect(new Set(numbers).size).toBe(4);
-    expect(numbers[3] - numbers[0]).toBe(3);
+    expect(new Set(numbers).size).toBe(5);
+    expect(numbers[4] - numbers[0]).toBe(4);
   });
 
   test("a month that was never closed burns no statement numbers", async () => {
@@ -507,7 +508,7 @@ describe("vendorStatements — generation", () => {
     );
     const row = periods.find((p) => p.period === period);
     expect(row.statementCount).toBe(1);
-    expect(row.missingVendors.sort()).toEqual(["careington", "ideal", "ryze"]);
+    expect(row.missingVendors.sort()).toEqual(["advisor", "careington", "ideal", "ryze"]);
   });
 });
 
@@ -542,11 +543,11 @@ describe("vendorStatements — lifecycle", () => {
       { statementId },
     );
     expect(issued.status).toBe("issued");
-    expect(issued.totalCents).toBe(200); // two primaries × $1.00 flat
+    expect(issued.totalCents).toBe(100); // two primaries × $0.50 flat
 
     await asAdmin(t).mutation(api.admin.vendorStatements.recordRemittance, {
       statementId,
-      amountCents: 120,
+      amountCents: 60,
       paymentMethod: "ach",
       paymentReference: "TRACE-1",
     });
@@ -555,7 +556,7 @@ describe("vendorStatements — lifecycle", () => {
       { statementId },
     );
     expect(partial.status).toBe("partial");
-    expect(partial.balanceCents).toBe(80);
+    expect(partial.balanceCents).toBe(40);
 
     // Overpayment is refused.
     await expect(
@@ -568,7 +569,7 @@ describe("vendorStatements — lifecycle", () => {
 
     await asAdmin(t).mutation(api.admin.vendorStatements.recordRemittance, {
       statementId,
-      amountCents: 80,
+      amountCents: 40,
       paymentMethod: "ach",
     });
     const paid: any = await asAdmin(t).query(
@@ -668,7 +669,7 @@ describe("vendorStatements — adjustments", () => {
       periodId,
       reason: "retroactive_term",
       bucket: "toothlens",
-      deltaCents: -100,
+      deltaCents: -50,
       notes: "Member termed mid-month",
     });
 
@@ -676,7 +677,7 @@ describe("vendorStatements — adjustments", () => {
       api.admin.vendorStatements.getStatement,
       { statementId },
     );
-    expect(afterAdjustment.totalCents).toBe(200); // unchanged
+    expect(afterAdjustment.totalCents).toBe(100); // unchanged
     expect(afterAdjustment.adjustments).toHaveLength(0);
     expect(afterAdjustment.unappliedAdjustments).toHaveLength(1);
 
@@ -688,8 +689,8 @@ describe("vendorStatements — adjustments", () => {
       api.admin.vendorStatements.getStatement,
       { statementId: replacementId },
     );
-    expect(replacement.adjustmentCents).toBe(-100);
-    expect(replacement.totalCents).toBe(100);
+    expect(replacement.adjustmentCents).toBe(-50);
+    expect(replacement.totalCents).toBe(50);
     expect(replacement.unappliedAdjustments).toHaveLength(0);
   });
 
@@ -952,7 +953,7 @@ describe("vendorStatements — payables verification", () => {
     expect(line.partnerVendorCents).toBeGreaterThan(0);
     expect(line.ryzeKeepCents).toBeGreaterThan(0);
     expect(line.splitBalances).toBe(true);
-    expect(line.statementCents).toBe(100); // the Toothlens flat fee
+    expect(line.statementCents).toBe(50); // the Toothlens flat fee
     expect(audit.amountFields).toEqual(["toothlensCents"]);
     // Individual $14.99 + Family $24.99
     expect(audit.totals.grossCents).toBe(1499 + 2499);
@@ -1005,7 +1006,7 @@ describe("vendorStatements — payables verification", () => {
       { statementId },
     );
     expect(audit.statementAdjustmentCents).toBe(-50);
-    expect(audit.statementTotalCents).toBe(150);
+    expect(audit.statementTotalCents).toBe(50);
     expect(audit.allChecksPassed).toBe(true);
   });
 });
@@ -1071,7 +1072,7 @@ describe("vendorStatements — disclosure profiles", () => {
       {},
     );
     const before: any[] = beforeResult.profiles;
-    expect(before).toHaveLength(4);
+    expect(before).toHaveLength(5);
     expect(before.every((p) => p.customised === false)).toBe(true);
     expect(before.find((p) => p.vendor === "ideal").current.groupVisibility).toBe(
       "listBillOnly",
@@ -1218,7 +1219,7 @@ describe("vendorStatements — disclosure profiles", () => {
     );
     expect(statement.memberLines).toHaveLength(0);
     expect(statement.primaryCount).toBe(2);
-    expect(statement.totalCents).toBe(200);
+    expect(statement.totalCents).toBe(100);
 
     // The admin verification view still sees everything.
     const audit: any = await asAdmin(t).query(
@@ -1567,7 +1568,7 @@ describe("vendorStatements — activity trail", () => {
     });
     await asAdmin(t).mutation(api.admin.vendorStatements.recordRemittance, {
       statementId,
-      amountCents: 200,
+      amountCents: 100,
       paymentMethod: "ach",
       paymentReference: "TRACE-9",
     });
@@ -2380,7 +2381,7 @@ describe("vendorStatements — owner overrides", () => {
       api.admin.vendorStatements.generateStatementsForPeriod,
       { period },
     );
-    expect(first.generated).toBe(4);
+    expect(first.generated).toBe(5);
 
     const before: any[] = await asAdmin(t).query(
       api.admin.vendorStatements.listStatements,
@@ -2390,7 +2391,7 @@ describe("vendorStatements — owner overrides", () => {
       api.admin.vendorStatements.deleteStatements,
       { statementIds: before.map((r) => r._id) },
     );
-    expect(result.deleted).toBe(4);
+    expect(result.deleted).toBe(5);
 
     const after: any[] = await asAdmin(t).query(
       api.admin.vendorStatements.listStatements,
@@ -2403,7 +2404,7 @@ describe("vendorStatements — owner overrides", () => {
       api.admin.vendorStatements.generateStatementsForPeriod,
       { period },
     );
-    expect(again.generated).toBe(4);
+    expect(again.generated).toBe(5);
 
     // Numbers keep climbing — a number already sent is never reissued.
     const fresh: any[] = await asAdmin(t).query(
@@ -2461,7 +2462,7 @@ describe("vendorStatements — owner overrides", () => {
       api.admin.vendorStatements.deleteStatements,
       { period, confirmAll: true },
     );
-    expect(ok.deleted).toBe(4);
+    expect(ok.deleted).toBe(5);
   });
 });
 
@@ -3532,14 +3533,14 @@ describe("vendor statements — site scoping", () => {
       api.admin.vendorStatements.generateStatementsForPeriod,
       { period, splitBySite: true },
     );
-    // 4 recipients × 2 brands.
-    expect(result.generated).toBe(8);
+    // 5 recipients × 2 brands.
+    expect(result.generated).toBe(10);
 
     const rows: any[] = await asAdmin(t).query(
       api.admin.vendorStatements.listStatements,
       { period },
     );
-    expect(rows).toHaveLength(8);
+    expect(rows).toHaveLength(10);
     expect(rows.every((r) => r.siteId)).toBe(true);
   });
 
@@ -3831,5 +3832,145 @@ describe("vendorStatements — Ideal Health override and broker pass-through", (
     );
     expect(statement.adjustmentCents).toBe(-599);
     expect(statement.totalCents).toBe(799 + 1599 - 599);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Split correction — repairing months closed under the earlier table
+// ---------------------------------------------------------------------------
+
+const LEGACY_SPLIT = {
+  individual: { toothlensCents: 100, careingtonCents: 200, processingCents: 100, partnerVendorCents: 600, ryzeKeepCents: 499 },
+  family: { toothlensCents: 100, careingtonCents: 200, processingCents: 200, partnerVendorCents: 1100, ryzeKeepCents: 899 },
+};
+
+/** Rewrite a closed month as though it had closed under the earlier table. */
+async function makeLegacy(t: TestConvex<typeof schema>, period: string) {
+  await t.run(async (ctx) => {
+    const rows = await ctx.db
+      .query("invoicePeriods")
+      .withIndex("by_period", (q) => q.eq("period", period))
+      .collect();
+    for (const row of rows) {
+      const lines = (row.memberLines ?? []).map((line) => {
+        const { brokerCents: _broker, advisorCents: _advisor, ...rest } = line;
+        const legacy =
+          line.tier === "individual" ? LEGACY_SPLIT.individual
+          : line.tier === "family" ? LEGACY_SPLIT.family
+          : null;
+        return legacy ? { ...rest, ...legacy } : rest;
+      });
+      const sum = (key: keyof typeof LEGACY_SPLIT.individual) =>
+        lines.reduce((n, l) => n + l[key], 0);
+      await ctx.db.patch(row._id, {
+        toothlensCents: sum("toothlensCents"),
+        careingtonCents: sum("careingtonCents"),
+        processingCents: sum("processingCents"),
+        partnerVendorCents: sum("partnerVendorCents"),
+        brokerCents: undefined,
+        advisorCents: undefined,
+        ryzeKeepCents: sum("ryzeKeepCents"),
+        memberLines: lines,
+        pricing: {
+          individualGrossCents: 1499,
+          familyGrossCents: 2499,
+          individualSplits: LEGACY_SPLIT.individual,
+          familySplits: LEGACY_SPLIT.family,
+        },
+      });
+    }
+  });
+}
+
+describe("vendorStatements — split correction", () => {
+  test("shows each recipient's earlier and corrected amount for an unrestated month", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    await makeLegacy(t, period);
+
+    const view: any = await asAdmin(t).query(api.admin.vendorStatements.getSplitCorrection, {});
+    const month = view.periods.find((p: any) => p.period === period);
+    expect(month.restated).toBe(false);
+    const by = Object.fromEntries(month.recipients.map((r: any) => [r.vendor, r]));
+    expect(by.ideal).toMatchObject({ earlierCents: 1700, correctCents: 799 + 1599, status: "restate" });
+    expect(by.toothlens).toMatchObject({ earlierCents: 200, correctCents: 100 });
+    expect(by.advisor).toMatchObject({ earlierCents: 0, correctCents: 100, status: "restate" });
+    expect(by.ryze).toMatchObject({ earlierCents: 1398, correctCents: 1400 });
+    expect(by.careington).toMatchObject({ earlierCents: 400, correctCents: 0 });
+    expect(view.currentPricing.individual.brokerCents).toBe(599);
+    expect(view.currentPricing.individual.advisorCents).toBe(50);
+    expect(view.earlierPricing.individualSplits.partnerVendorCents).toBe(600);
+  });
+
+  test("repair restates, reissues changed statements with their remittance, and fills gaps", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    await makeLegacy(t, period);
+
+    // Under the earlier table: Ideal issued and partly paid, Toothlens and
+    // Careington issued, Ryze never generated.
+    const cut = async (vendor: "ideal" | "toothlens" | "careington") => {
+      const { statementId } = await asAdmin(t).mutation(
+        api.admin.vendorStatements.generateStatement,
+        { period, vendor },
+      );
+      await asAdmin(t).mutation(api.admin.vendorStatements.issueStatement, { statementId });
+      return statementId;
+    };
+    const idealId = await cut("ideal");
+    const toothlensId = await cut("toothlens");
+    await cut("careington");
+    await asAdmin(t).mutation(api.admin.vendorStatements.recordRemittance, {
+      statementId: idealId,
+      amountCents: 1000,
+      paymentMethod: "ach",
+      paymentReference: "TRACE-1",
+    });
+
+    const result: any = await asAdmin(t).mutation(
+      api.admin.vendorStatements.repairSplitPeriod,
+      { period },
+    );
+    expect(result.restated).toBe(1);
+    expect(result.reissued).toHaveLength(2); // Ideal and Toothlens ($1 → $0.50)
+    expect(result.voided).toHaveLength(1);   // Careington is now $0
+    expect(result.created).toHaveLength(2);  // Ryze and the advisor
+
+    const oldIdeal: any = await t.run((ctx) => ctx.db.get(idealId));
+    expect(oldIdeal.status).toBe("voided");
+    const replacement: any = await t.run((ctx) => ctx.db.get(oldIdeal.supersededById));
+    expect(replacement.totalCents).toBe(799 + 1599);
+    expect(replacement.amountPaidCents).toBe(1000);
+    expect(replacement.carriedPaidCents).toBe(1000);
+    expect(replacement.status).toBe("partial");
+    expect(replacement.balanceCents).toBe(799 + 1599 - 1000);
+    expect(replacement.paymentReference).toBe("TRACE-1");
+
+    const oldToothlens: any = await t.run((ctx) => ctx.db.get(toothlensId));
+    expect(oldToothlens.status).toBe("voided");
+    const toothlens: any = await t.run((ctx) => ctx.db.get(oldToothlens.supersededById));
+    expect(toothlens.totalCents).toBe(100);
+    expect(toothlens.status).toBe("issued");
+
+    const view: any = await asAdmin(t).query(api.admin.vendorStatements.getSplitCorrection, {});
+    const month = view.periods.find((p: any) => p.period === period);
+    expect(month.needsRepair).toBe(false);
+    const ideal = month.recipients.find((r: any) => r.vendor === "ideal");
+    // The $10 remitted once is counted once, not on both statements.
+    expect(ideal.paidCents).toBe(1000);
+    expect(ideal.owedCents).toBe(799 + 1599 - 1000);
+  });
+
+  test("running the repair again changes nothing", async () => {
+    const t = convexTest(schema);
+    const { period } = await seedClosedMonth(t);
+    await makeLegacy(t, period);
+    await asAdmin(t).mutation(api.admin.vendorStatements.generateStatement, { period, vendor: "ideal" });
+    await asAdmin(t).mutation(api.admin.vendorStatements.repairSplitPeriod, { period });
+    const again: any = await asAdmin(t).mutation(
+      api.admin.vendorStatements.repairSplitPeriod,
+      { period },
+    );
+    expect(again).toMatchObject({ restated: 0, reissued: [], created: [], voided: [] });
   });
 });

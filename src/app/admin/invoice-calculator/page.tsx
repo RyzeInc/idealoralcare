@@ -38,6 +38,7 @@ type SortKey =
 
 const VENDOR_LABELS: Record<string, string> = {
   toothlens: 'Toothlens',
+  advisor: 'Advisor',
   careington: 'Careington (earlier table)',
   processing: 'Processing (earlier table)',
   partnerVendor: 'Program Override (Ideal Health)',
@@ -130,7 +131,7 @@ export default function InvoiceCalculatorPage() {
     const header = [
       'organization_code','group_code','group_name','account','billing_model',
       'active_members','individual_primaries','family_primaries','dependents','unbilled_primaries',
-      'gross','toothlens','careington','processing','program_override','broker','ryze_keep',
+      'gross','toothlens','advisor','careington','processing','program_override','broker','ryze_keep',
     ].join(',') + '\n';
     const rows = filteredGroups.map((r) => [
       r.organizationCode ?? '',
@@ -145,6 +146,7 @@ export default function InvoiceCalculatorPage() {
       r.unbilledPrimaryCount,
       (r.totals.grossCents / 100).toFixed(2),
       (r.totals.toothlensCents / 100).toFixed(2),
+      (r.totals.advisorCents / 100).toFixed(2),
       (r.totals.careingtonCents / 100).toFixed(2),
       (r.totals.processingCents / 100).toFixed(2),
       (r.totals.partnerVendorCents / 100).toFixed(2),
@@ -282,7 +284,8 @@ export default function InvoiceCalculatorPage() {
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {([
-                  ['Toothlens',        'toothlensCents',     '$1.00', '$1.00', 'toothlens'],
+                  ['Toothlens',        'toothlensCents',     '$0.50', '$0.50', 'toothlens'],
+                  ['Advisor',          'advisorCents',       '$0.50', '$0.50', 'advisor'],
                   ['Careington (earlier table)', 'careingtonCents', '—', '—', 'careington'],
                   ['Processing (earlier table)', 'processingCents', '—', '—', 'processing'],
                   ['Program Override (Ideal Health)', 'partnerVendorCents', '$2.00', '$4.00', 'partnerVendor'],
@@ -754,7 +757,7 @@ function VendorPayableModal({
   vendor, period, onClose,
 }: { vendor: keyof typeof VENDOR_LABELS; period: string; onClose: () => void }) {
   const data = useQuery(api.admin.invoiceCalculator.getVendorPayables, {
-    vendor: vendor as "toothlens" | "careington" | "processing" | "partnerVendor" | "broker" | "ryzeKeep",
+    vendor: vendor as "toothlens" | "advisor" | "careington" | "processing" | "partnerVendor" | "broker" | "ryzeKeep",
     period,
   });
 
@@ -846,7 +849,7 @@ function AdjustmentModal({ period, onClose }: { period: string; onClose: () => v
 
   const [groupId, setGroupId] = useState<Id<'groups'> | ''>('');
   const [reason, setReason] = useState<'refund' | 'chargeback' | 'retroactive_term' | 'retroactive_enrollment' | 'misclassification' | 'other'>('refund');
-  const [bucket, setBucket] = useState<'gross' | 'toothlens' | 'careington' | 'processing' | 'partnerVendor' | 'broker' | 'ryzeKeep'>('gross');
+  const [bucket, setBucket] = useState<'gross' | 'toothlens' | 'advisor' | 'careington' | 'processing' | 'partnerVendor' | 'broker' | 'ryzeKeep'>('gross');
   const [amountDollars, setAmountDollars] = useState<string>('');
   const [direction, setDirection] = useState<'-' | '+'>('-');
   const [notes, setNotes] = useState('');
@@ -941,6 +944,7 @@ function AdjustmentModal({ period, onClose }: { period: string; onClose: () => v
             >
               <option value="gross">Gross</option>
               <option value="toothlens">Toothlens</option>
+              <option value="advisor">Advisor</option>
               <option value="careington">Careington</option>
               <option value="processing">Processing</option>
               <option value="partnerVendor">Program Override</option>
@@ -1083,6 +1087,7 @@ function RepricePeriodPanel({ period }: { period: string }) {
   const money = (cents: number) => formatCurrency(cents, { fromCents: true });
   const rows: Array<[string, number, number]> = [
     ['Toothlens', sum((r) => r.before.toothlensCents), sum((r) => r.after.toothlensCents)],
+    ['Advisor', sum((r) => r.before.advisorCents), sum((r) => r.after.advisorCents)],
     ['Careington + processing', sum((r) => r.before.careingtonCents + r.before.processingCents), sum((r) => r.after.careingtonCents + r.after.processingCents)],
     ['Program override', sum((r) => r.before.partnerVendorCents), sum((r) => r.after.partnerVendorCents)],
     ['Broker commission', sum((r) => r.before.brokerCents), sum((r) => r.after.brokerCents)],

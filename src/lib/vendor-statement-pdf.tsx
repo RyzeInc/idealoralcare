@@ -385,6 +385,7 @@ const COLUMN_WEIGHT: Record<string, number> = {
   amount: 10,
   grossCents: 9,
   toothlensCents: 9,
+  advisorCents: 9,
   careingtonCents: 9,
   processingCents: 9,
   partnerVendorCents: 9,
@@ -402,6 +403,7 @@ const COLUMN_SHORT_LABEL: Record<string, string> = {
   systemPresence: "Presence",
   grossCents: "Gross",
   toothlensCents: "Toothlens",
+  advisorCents: "Advisor",
   careingtonCents: "Careington",
   processingCents: "Processing",
   partnerVendorCents: "Override",
@@ -420,6 +422,7 @@ const RIGHT_ALIGNED = new Set([
   "amount",
   "grossCents",
   "toothlensCents",
+  "advisorCents",
   "careingtonCents",
   "processingCents",
   "partnerVendorCents",
@@ -463,6 +466,7 @@ function memberCellText(
     case "amount": return money(line.amountCents);
     case "grossCents": return money2(line.grossCents);
     case "toothlensCents": return money2(line.toothlensCents);
+    case "advisorCents": return money2(line.advisorCents);
     case "careingtonCents": return money2(line.careingtonCents);
     case "processingCents": return money2(line.processingCents);
     case "partnerVendorCents": return money2(line.partnerVendorCents);

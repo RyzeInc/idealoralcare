@@ -734,6 +734,7 @@ function VerificationPanel({
             [
               ['Gross', audit.totals.grossCents, 'grossCents'],
               ['Toothlens', audit.totals.toothlensCents, 'toothlensCents'],
+              ['Advisor', audit.totals.advisorCents, 'advisorCents'],
               ['Careington', audit.totals.careingtonCents, 'careingtonCents'],
               ['Processing', audit.totals.processingCents, 'processingCents'],
               ['Program Override', audit.totals.partnerVendorCents, 'partnerVendorCents'],
@@ -785,6 +786,7 @@ function VerificationPanel({
                       'Class',
                       'Gross',
                       'Toothlens',
+                      'Advisor',
                       'Careington',
                       'Processing',
                       'Override',
@@ -818,6 +820,9 @@ function VerificationPanel({
                       </td>
                       <td className="px-3 py-1.5 text-right text-slate-600">
                         {formatCurrency(line.toothlensCents, { fromCents: true })}
+                      </td>
+                      <td className="px-3 py-1.5 text-right text-slate-600">
+                        {formatCurrency(line.advisorCents, { fromCents: true })}
                       </td>
                       <td className="px-3 py-1.5 text-right text-slate-600">
                         {formatCurrency(line.careingtonCents, { fromCents: true })}
@@ -1491,6 +1496,7 @@ export default function VendorStatementDetailPage({
                         : column.key === 'amount' ? money(line.amountCents)
                         : column.key === 'grossCents' ? money(line.grossCents)
                         : column.key === 'toothlensCents' ? money(line.toothlensCents)
+                        : column.key === 'advisorCents' ? money(line.advisorCents)
                         : column.key === 'careingtonCents' ? money(line.careingtonCents)
                         : column.key === 'processingCents' ? money(line.processingCents)
                         : column.key === 'partnerVendorCents' ? money(line.partnerVendorCents)
