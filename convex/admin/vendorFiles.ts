@@ -1,9 +1,10 @@
 import { action, query, mutation } from "../_generated/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { api } from "../_generated/api";
 import { requireAccess, requireAccessAction } from "../lib/authGuards";
 import { PROVIDER_GROUP_CODE } from "../lib/constants";
 import { validatePipeEligibility } from "../lib/careingtonEligibility";
+import { readVendorFileValidation, type VendorFileValidation } from "../lib/vendorFileErrors";
 
 /**
  * VENDOR FILE GENERATION
@@ -210,70 +211,39 @@ function validateCareingtonRows(
     requireFirstOfMonth: false,
   }).map(issue => issue.message);
   const warnings: string[] = [];
-  const REQUIRED_FIELDS = 28;
-  const seenTuples = new Set<string>();
-  const primaryCountByHousehold = new Map<string, number>();
-
+  // Shared preflight already checks required fields, duplicate household tuples,
+  // dependent order, and DialCare email. Report each issue once without member values.
   rows.forEach((row, idx) => {
-    if (!row.trim()) return;
     const fields = row.split("|");
-    const lineNum = idx + 1;
-
-    if (fields.length !== REQUIRED_FIELDS) {
-      errors.push(
-        `Row ${lineNum}: expected ${REQUIRED_FIELDS} fields, found ${fields.length}`
-      );
-      return; // cannot safely read specific columns on a malformed row
-    }
-
-    const uniqueId  = fields[5];
-    const seqNum    = fields[6];
-    const groupCode = fields[17];
-    const email     = fields[25];
-    const guardian  = fields[27];
-
-    // Rule: unique (UniqueID, SeqNum, GroupCode) tuple
-    const tuple = `${uniqueId}|${seqNum}|${groupCode}`;
-    if (seenTuples.has(tuple)) {
-      errors.push(
-        `Row ${lineNum}: duplicate tuple — UniqueID=${uniqueId} SeqNum=${seqNum} GroupCode=${groupCode}`
-      );
-    }
-    seenTuples.add(tuple);
-
-    // Count primary (seqNum=00) rows per household for the household-rule check below
-    if (seqNum === "00") {
-      const key = `${uniqueId}|${groupCode}`;
-      primaryCountByHousehold.set(key, (primaryCountByHousehold.get(key) ?? 0) + 1);
-    }
-
-    // Rule: no row should be marked as guardian — we don't track legal-guardian
-    // relationships, so this must always be "0" (primary or dependent alike).
-    if (guardian === "1") {
-      warnings.push(
-        `Row ${lineNum}: UniqueID=${uniqueId} SeqNum=${seqNum} — marked guardian="1" but guardian should always be "0"`
-      );
-    }
-
-    // Rule: DialCare/e-fulfillment requires email on primary rows
-    if (opts.requireEmail && seqNum === "00" && !email) {
-      errors.push(
-        `Row ${lineNum}: UniqueID=${uniqueId} — primary member has no email (required for DialCare)`
-      );
+    if (fields.length === 28 && fields[27] === "1") {
+      warnings.push(`Row ${idx + 1}: guardian should be 0; legal-guardian relationships are not tracked.`);
     }
   });
 
-  // Rule: exactly one primary row per household
-  for (const [key, count] of primaryCountByHousehold) {
-    if (count > 1) {
-      const [uid, gc] = key.split("|");
-      errors.push(
-        `Household UniqueID=${uid} GroupCode=${gc}: ${count} primary (seqNum=00) rows — expected exactly 1`
-      );
-    }
-  }
-
   return { errors, warnings };
+}
+
+function throwVendorValidation(
+  vendor: string,
+  group: { _id: string; name?: string; slug: string },
+  issues: string[],
+  members: Array<{ memberId: string; dependents?: unknown[] }>,
+): never {
+  const name = group.name || group.slug;
+  const rowMembers = members.flatMap(member => [
+    member.memberId,
+    ...(member.dependents ?? []).map((_, index) => `${member.memberId}, dependent ${index + 1}`),
+  ]);
+  const listedIssues = issues.slice(0, 100).map(issue => issue.replace(/^Row (\d+):/, (prefix, row) => {
+    const memberId = rowMembers[Number(row) - 1];
+    return memberId ? `Row ${row} (Member ${memberId}):` : prefix;
+  }));
+  throw new ConvexError({
+    code: "VENDOR_FILE_VALIDATION",
+    message: `${vendor} export blocked: ${name} has ${issues.length} member data issue(s). Correct the listed records and generate again.`,
+    errorCount: issues.length,
+    organizations: [{ groupId: group._id, name, errorCount: issues.length, issues: listedIssues }],
+  });
 }
 
 /**
@@ -285,15 +255,17 @@ export const getVendorConfigurations = query({
     return [
       {
         vendor: "Dental Discount Network",
-        lastGenerated: Date.now() - 86400000, // 1 day ago
-        lastDelivered: Date.now() - 86400000,
-        status: "ready" as const,
+        lastGenerated: null,
+        lastDelivered: null,
+        format: "Pipe-delimited TXT",
+        status: "manual" as const,
       },
       {
         vendor: "Dial Care",
-        lastGenerated: Date.now() - 86400000,
+        lastGenerated: null,
         lastDelivered: null,
-        status: "ready" as const,
+        format: "Pipe-delimited TXT",
+        status: "manual" as const,
       },
     ];
   },
@@ -495,10 +467,7 @@ export const generateDentalDiscountNetworkFile = action({
     // Pre-export structural validation — block download before a bad file reaches Careington
     const validation = validateCareingtonRows(rows);
     if (validation.errors.length > 0) {
-      throw new Error(
-        `Careington file failed pre-export validation (${validation.errors.length} error(s)):\n` +
-        validation.errors.join("\n")
-      );
+      throwVendorValidation("Careington", group, validation.errors, members);
     }
 
     return {
@@ -540,8 +509,6 @@ export const generateDialCareFile = action({
 
     const rows: string[] = [];
     let totalRecords = 0;
-    const warnings: string[] = [];
-
     for (const member of members) {
       const uniqueId = (member as any).careingtonUniqueId ?? toUniqueId(member.memberId ?? "UNKNOWN");
       const dependents = member.dependents ?? [];
@@ -566,12 +533,6 @@ export const generateDialCareFile = action({
       const phone = (member.phone ?? "").replace(/\D/g, "").slice(0, 10);
       const workPhone = (member.workPhone ?? "").replace(/\D/g, "").slice(0, 10);
       const gender = member.gender === "male" ? "M" : member.gender === "female" ? "F" : "";
-
-      // Email is REQUIRED for DialCare E-fulfillment — missing email is a hard error,
-      // not a warning, because Careington will reject the member at eligibility check time.
-      if (!member.email) {
-        warnings.push(`BLOCKING: Member ${member.memberId} (${member.firstName} ${member.lastName}) has no email — required for DialCare`);
-      }
 
       rows.push(buildCareingtonRow({
         title: member.title ?? "",
@@ -654,13 +615,8 @@ export const generateDialCareFile = action({
 
     // Pre-export structural validation (requireEmail=true enforces DialCare email rule at row level)
     const dialcareValidation = validateCareingtonRows(rows, { requireEmail: true });
-    const blockingWarnings = warnings.filter((w) => w.startsWith("BLOCKING:"));
-    const allErrors = [...dialcareValidation.errors, ...blockingWarnings];
-    if (allErrors.length > 0) {
-      throw new Error(
-        `DialCare file failed pre-export validation (${allErrors.length} error(s)):\n` +
-        allErrors.join("\n")
-      );
+    if (dialcareValidation.errors.length > 0) {
+      throwVendorValidation("DialCare", group, dialcareValidation.errors, members);
     }
 
     return {
@@ -669,7 +625,7 @@ export const generateDialCareFile = action({
       content: rows.join("\r\n") + (rows.length > 0 ? "\r\n" : ""),
       memberCount: members.length,
       totalRecords,
-      warnings: [...dialcareValidation.warnings, ...warnings.filter((w) => !w.startsWith("BLOCKING:"))],
+      warnings: dialcareValidation.warnings,
       generatedAt: Date.now(),
     };
   },
@@ -812,12 +768,22 @@ export const generateAggregatedDentalDiscountNetworkFile = action({
     const perOrg: Array<{ organizationCode?: string; groupCode: string; name: string; memberCount: number; totalRecords: number }> = [];
     const warnings: string[] = [];
 
+    const blocked: VendorFileValidation["organizations"] = [];
+
     for (const group of activeGroups) {
-      const result: any = vendor === "dialcare"
+      let result: any;
+      try {
+        result = vendor === "dialcare"
         // @ts-ignore
         ? await ctx.runAction(api.admin.vendorFiles.generateDialCareFile, { groupId: group._id, fileType })
         // @ts-ignore
         : await ctx.runAction(api.admin.vendorFiles.generateDentalDiscountNetworkFile, { groupId: group._id, fileType });
+      } catch (error) {
+        const validation = readVendorFileValidation(error);
+        if (!validation) throw error;
+        blocked.push(...validation.organizations);
+        continue;
+      }
 
       if (result?.content) {
         // CRITICAL: Replace all groupCodes with IDEALDO in aggregated files
@@ -835,6 +801,16 @@ export const generateAggregatedDentalDiscountNetworkFile = action({
         name: group.name || group.slug,
         memberCount: result?.memberCount ?? 0,
         totalRecords: result?.totalRecords ?? 0,
+      });
+    }
+
+    if (blocked.length) {
+      const errorCount = blocked.reduce((sum, org) => sum + org.errorCount, 0);
+      throw new ConvexError({
+        code: "VENDOR_FILE_VALIDATION",
+        message: `Aggregated export blocked: ${errorCount} member data issue(s) across ${blocked.length} organization(s). Correct the listed records and generate again. No partial file was generated.`,
+        errorCount,
+        organizations: blocked,
       });
     }
 

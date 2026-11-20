@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { useQuery, useAction } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
-import { Download, BarChart3, AlertCircle, CheckCircle, WifiOff, History, Eye, EyeOff } from 'lucide-react';
+import { Download, BarChart3, AlertCircle, CheckCircle, History, Eye, EyeOff } from 'lucide-react';
 import { useToast, Breadcrumbs, SkeletonCard } from '@/components/admin/ui';
 import { formatDateTime } from '@/lib/admin-format';
 import { PROVIDER_GROUP_CODE } from '@/lib/constants';
+import { downloadCsv } from '@/lib/export-csv';
+import { readVendorFileValidation, type VendorFileValidation } from '@/convex/lib/vendorFileErrors';
 import IdMaintenancePanel from './IdMaintenancePanel';
 
 export default function VendorFilesPage() {
@@ -17,6 +19,14 @@ export default function VendorFilesPage() {
   const [fileType, setFileType] = useState<'full' | 'delta'>('full');
   const [showHistory, setShowHistory] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [validationReport, setValidationReport] = useState<VendorFileValidation | null>(null);
+
+  const showGenerationError = (error: unknown, title: string) => {
+    const report = readVendorFileValidation(error);
+    setValidationReport(report);
+    if (report) toast.error(title, report.message);
+    else toast.fromError(error, title);
+  };
 
   const vendorConfigsRaw = useQuery(api.admin.vendorFiles.getVendorConfigurations);
   const vendorConfigs = vendorConfigsRaw ?? [];
@@ -70,6 +80,7 @@ export default function VendorFilesPage() {
       return;
     }
     setGeneratingVendor(vendorName);
+    setValidationReport(null);
     try {
       const groupId = selectedOrganizationId as Id<'groups'>;
       let result: any;
@@ -83,7 +94,7 @@ export default function VendorFilesPage() {
         toast.success(`${vendorName} file ready`, `Downloaded ${result.filename}.`);
       }
     } catch (err) {
-      toast.fromError(err, `${vendorName} file generation failed`);
+      showGenerationError(err, `${vendorName} file generation failed`);
     } finally {
       setGeneratingVendor(null);
     }
@@ -91,6 +102,7 @@ export default function VendorFilesPage() {
 
   const handleGenerateAggregated = async (vendor: 'careington' | 'dialcare') => {
     setGeneratingVendor(`AGG-${vendor}`);
+    setValidationReport(null);
     try {
       const result: any = await generateAggregated({ fileType, vendor });
       if (result?.content) {
@@ -103,7 +115,7 @@ export default function VendorFilesPage() {
         `${orgs} organizations · ${members} members. All users use groupcode ${PROVIDER_GROUP_CODE}.`
       );
     } catch (err) {
-      toast.fromError(err, 'Aggregated file generation failed');
+      showGenerationError(err, 'Aggregated file generation failed');
     } finally {
       setGeneratingVendor(null);
     }
@@ -151,6 +163,30 @@ export default function VendorFilesPage() {
           <p className="text-xs text-slate-500 mt-1">{fileType === 'full' ? 'All active members' : 'Changes since last export'}</p>
         </div>
       </div>
+
+      {validationReport && (
+        <div role="alert" className="space-y-4 rounded-lg border border-red-200 bg-red-50 p-6">
+          <h2 className="font-semibold text-red-900">Member data needs correction</h2>
+          <p className="text-sm text-red-800">{validationReport.message}</p>
+          <p className="text-sm text-red-800">Rows refer to each organization’s generated file, including dependents. Correct these fields in Members, then generate again.</p>
+          <button
+            onClick={() => downloadCsv('vendor-file-validation.csv', ['Organization', 'Group ID', 'Issue'],
+              validationReport.organizations.flatMap(org => org.issues.map(issue => [org.name, org.groupId, issue])))}
+            className="rounded border border-red-300 bg-white px-3 py-2 text-sm font-medium text-red-900"
+          >
+            Download listed issues (CSV)
+          </button>
+          {validationReport.organizations.map(org => (
+            <div key={org.groupId} className="rounded border border-red-200 bg-white p-3">
+              <h3 className="font-semibold text-red-900">{org.name} · {org.errorCount} issue(s)</h3>
+              <ul className="mt-2 max-h-64 list-disc space-y-1 overflow-y-auto pl-5 text-sm text-red-800">
+                {org.issues.map((issue, i) => <li key={i}>{issue}</li>)}
+              </ul>
+              {org.errorCount > org.issues.length && <p className="mt-2 text-sm text-red-800">Showing the first {org.issues.length} issues. Correct these and generate again to check remaining records.</p>}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Preview Section */}
       {selectedOrganizationId && preview && (
@@ -237,18 +273,15 @@ export default function VendorFilesPage() {
             <div className="flex items-start justify-between mb-3">
               <h3 className="text-lg font-semibold text-slate-900">{vendor.vendor}</h3>
               <div className="flex items-center gap-2">
-                {vendor.status === 'ready'
-                  ? <CheckCircle size={16} className="text-green-500" />
-                  : <WifiOff size={16} className="text-red-400" />}
-                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${vendor.status === 'ready' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                  {vendor.status}
+                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+                  Manual export
                 </span>
               </div>
             </div>
             <div className="space-y-1.5 text-sm mb-4">
               <div className="flex justify-between">
                 <span className="text-slate-500">Last Generated:</span>
-                <span className="font-medium">{formatDateTime(vendor.lastGenerated)}</span>
+                <span className="font-medium">{vendor.lastGenerated ? formatDateTime(vendor.lastGenerated) : 'No recorded generation'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Format:</span>
