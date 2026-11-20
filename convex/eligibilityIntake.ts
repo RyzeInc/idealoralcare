@@ -752,6 +752,8 @@ export const previewSubmission = action({
     errors: { row: number; message: string }[];
     validationErrors: { row: number; field: string; message: string }[];
     sampleRecords: { firstName: string; lastName: string }[];
+    adjustments: { row: number; field: string; message: string }[];
+    adjustmentCount: number;
   }> => {
     await requireAccessAction(ctx, "eligibility.manage");
     const row = await ctx.runQuery(api.eligibilityIntake.adminSubmission, args);
@@ -760,6 +762,7 @@ export const previewSubmission = action({
       storageId: row.storageId,
       fileType: row.fileType,
       fileName: row.fileName,
+      groupId: row.groupId,
     });
   },
 });

@@ -16,6 +16,35 @@ export function isMmddyyyy(value: string): boolean {
   return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === iso;
 }
 
+/** Normalize employer input without modifying the original stored upload. */
+export function normalizePipeEligibility(content: string, groupCode?: string): {
+  content: string;
+  adjustments: EligibilityIssue[];
+} {
+  const adjustments: EligibilityIssue[] = [];
+  const lines = content.replace(/^\uFEFF/, "").split(/\r?\n/).filter(line => line.trim());
+  const normalized = lines.map((line, index) => {
+    const cells = line.split("|");
+    if (cells.length !== 28) return line;
+    const row = index + 1;
+    if (!cells[17].trim() && groupCode?.trim()) {
+      cells[17] = groupCode.trim();
+      adjustments.push({ row, field: "groupCode", message: `Row ${row}: blank Group Code filled from the selected organization.` });
+    }
+    const effectiveDate = cells[19].trim();
+    if (isMmddyyyy(effectiveDate) && effectiveDate.slice(2, 4) !== "01") {
+      // Eligibility guide: days 1–15 use this month; days 16+ use next month.
+      const date = new Date(`${effectiveDate.slice(4)}-${effectiveDate.slice(0, 2)}-01T00:00:00.000Z`);
+      if (Number(effectiveDate.slice(2, 4)) >= 16) date.setUTCMonth(date.getUTCMonth() + 1);
+      const iso = date.toISOString().slice(0, 10);
+      cells[19] = `${iso.slice(5, 7)}01${iso.slice(0, 4)}`;
+      adjustments.push({ row, field: "effectiveDate", message: `Row ${row}: Effective Date adjusted from ${effectiveDate.slice(4)}-${effectiveDate.slice(0, 2)}-${effectiveDate.slice(2, 4)} to ${iso}.` });
+    }
+    return cells.join("|");
+  });
+  return { content: normalized.join("\n"), adjustments };
+}
+
 /** Errors identify fields and data-row numbers, never member identifiers or values. */
 export function validatePipeEligibility(content: string, options: { requireEmail?: boolean; requireFirstOfMonth?: boolean } = {}): EligibilityIssue[] {
   const errors: EligibilityIssue[] = [];

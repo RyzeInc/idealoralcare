@@ -6,7 +6,7 @@ import { requireAccess, requireAccessAction } from "../lib/authGuards";
 import { createMemberProfile } from "../lib/memberCreation";
 import { hasExited, lifecyclePatchFor } from "../lib/memberLifecycle";
 import * as XLSX from "xlsx";
-import { isPipeEligibility, validatePipeEligibility } from "../lib/careingtonEligibility";
+import { isPipeEligibility, normalizePipeEligibility, validatePipeEligibility, type EligibilityIssue } from "../lib/careingtonEligibility";
 
 /**
  * ELIGIBILITY FILE PROCESSING — PRODUCTION PIPELINE
@@ -1268,6 +1268,7 @@ export const processEligibilityFile = action({
       const errors: Array<{ row: number; message: string }> = [];
 
       if (file.fileType === "txt" || (file.fileType === "csv" && isPipeEligibility(content))) {
+        content = normalizePipeEligibility(content, targetGroup?.groupCode).content;
         const issues = validatePipeEligibility(content);
         if (issues.length) {
           await ctx.runMutation(api.admin.eligibility.updateFileStatus, {
@@ -1514,6 +1515,7 @@ export const previewEligibilityFile = action({
     storageId: v.string(),
     fileType: v.union(v.literal("csv"), v.literal("xlsx"), v.literal("txt"), v.literal("json")),
     fileName: v.string(),
+    groupId: v.optional(v.id("groups")),
   },
   handler: async (ctx, args): Promise<{
     primaryCount: number;
@@ -1535,9 +1537,16 @@ export const previewEligibilityFile = action({
     recordsWithValidationIssues: number;
     tooLarge: boolean;
     maxRecords: number;
+    adjustments: EligibilityIssue[];
+    adjustmentCount: number;
   }> => {
     // @ts-ignore - Avoid deep type instantiation
     await requireAccessAction(ctx, "eligibility.manage");
+
+    const targetGroup = args.groupId
+      ? await ctx.runQuery(api.admin.hierarchy.getGroupById, { groupId: args.groupId })
+      : null;
+    if (args.groupId && !targetGroup) throw new Error("Selected organization not found");
 
     const blob = await ctx.storage.get(args.storageId as any);
     if (!blob) throw new Error("File not found in storage");
@@ -1556,8 +1565,12 @@ export const previewEligibilityFile = action({
     const validationErrors: Array<{ row: number; field: string; message: string }> = [];
     let primaryRecords: Array<any> = [];
     const detectedColumns: string[] = [];
+    let adjustments: EligibilityIssue[] = [];
 
     if (args.fileType === "txt" || (args.fileType === "csv" && isPipeEligibility(content))) {
+      const normalized = normalizePipeEligibility(content, targetGroup?.groupCode);
+      content = normalized.content;
+      adjustments = normalized.adjustments;
       validationErrors.push(...validatePipeEligibility(content));
       const lines = content.split(/\r?\n/).filter((l) => l.trim());
       type ParsedTxt = ReturnType<typeof parseCareingtonRow>;
@@ -1617,20 +1630,7 @@ export const previewEligibilityFile = action({
           _validationRowNumber: family.rowNumber,
         };
         
-        // Validate primary
-        const primaryValidationIssues = validateRequiredFields(p, family.rowNumber);
-        primaryValidationIssues.forEach(issue => {
-          validationErrors.push({ row: family.rowNumber, ...issue });
-        });
-        
-        // Validate dependents
-        family.dependents.forEach((d, depIdx) => {
-          const depRow = family.rowNumber + depIdx + 1;
-          const depValidationIssues = validateRequiredFields(d, depRow);
-          depValidationIssues.forEach(issue => {
-            validationErrors.push({ row: depRow, ...issue });
-          });
-        });
+        // Pipe preflight above validates every source row once, including dependents.
         
         primaryRecords.push(primaryWithValidation);
       }
@@ -1737,6 +1737,8 @@ export const previewEligibilityFile = action({
       recordsWithValidationIssues,
       tooLarge: primaryRecords.length > MAX_PRIMARY_RECORDS,
       maxRecords: MAX_PRIMARY_RECORDS,
+      adjustments: adjustments.slice(0, 100),
+      adjustmentCount: adjustments.length,
     };
   },
 });

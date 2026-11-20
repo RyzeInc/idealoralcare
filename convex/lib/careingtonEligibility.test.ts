@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { isPipeEligibility, validatePipeEligibility } from "./careingtonEligibility";
+import { isPipeEligibility, normalizePipeEligibility, validatePipeEligibility } from "./careingtonEligibility";
 
 // Fake members from the October 21 guide; no employee data is stored here.
 export const PRIMARY = "|John|A|Sample||100000001|00||123 Main St|Apt 4|Dallas|TX|75034||2145550101||MF|123GRPS||11012026|05141985||||M|john.sample@example.com||0";
@@ -50,5 +50,26 @@ describe("28-field eligibility preflight", () => {
     expect(validatePipeEligibility(changed(25, "")).some(issue => issue.field === "email")).toBe(true);
     expect(validatePipeEligibility(changed(25, ""), { requireEmail: false })).toEqual([]);
     expect(validatePipeEligibility(`${PRIMARY}\n${DEPENDENT}`)).toEqual([]);
+  });
+
+  test.each([
+    ["11012026", "11012026"], ["11152026", "11012026"],
+    ["11162026", "12012026"], ["12312026", "01012027"],
+    ["02292028", "03012028"], ["02312026", "02312026"],
+  ])("normalizes effective date %s to %s and leaves invalid dates for validation", (input, expected) => {
+    const result = normalizePipeEligibility(changed(19, input));
+    expect(result.content.split("|")[19]).toBe(expected);
+    if (input === "02312026") expect(validatePipeEligibility(result.content).some(i => i.field === "effectiveDate")).toBe(true);
+    expect(normalizePipeEligibility(result.content).adjustments).toEqual([]);
+  });
+
+  test("fills only blank group codes and still rejects malformed records", () => {
+    const missingCodes = `${changed(17, "")}\n${changed(17, "", DEPENDENT)}`;
+    const result = normalizePipeEligibility(missingCodes, "CONFIGURED");
+    expect(validatePipeEligibility(result.content)).toEqual([]);
+    expect(result.adjustments).toHaveLength(2);
+    expect(normalizePipeEligibility(PRIMARY, "CONFIGURED").content).toBe(PRIMARY);
+    expect(validatePipeEligibility(normalizePipeEligibility(missingCodes).content).filter(i => i.field === "groupCode")).toHaveLength(2);
+    expect(validatePipeEligibility(normalizePipeEligibility(PRIMARY + "|", "CONFIGURED").content).some(i => i.field === "layout")).toBe(true);
   });
 });

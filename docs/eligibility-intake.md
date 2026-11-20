@@ -13,6 +13,8 @@ For nontechnical training and organization onboarding, see the [illustrated comp
 - `infra/eligibility-gmail/Code.gs`: Google Apps Script that runs inside the shared eligibility Workspace mailbox and forwards authenticated attachments to the matching site's signed Convex bridge. Every site's repository keeps the same copy.
 - `scripts/eligibility-upload.mjs`: dependency-free employer upload/status client.
 
+For 28-field pipe-delimited CSV/TXT rosters, preview and processing fill blank Group Code fields from the selected organization's configured `groupCode`, preserving any code supplied in the file. Valid mid-month effective dates follow the eligibility guide: days 1–15 become the first of the same month; days 16 onward become the first of the next month. Preview lists these automatic adjustments separately from validation errors, and the original stored upload is retained. Missing organization configuration, invalid dates, and malformed records still require correction.
+
 ## Launch browser/API uploads first
 
 1. Confirm the existing app deployment, Clerk, and Convex accounts are configured for the personal/health information they will handle. Where PHI is involved, confirm applicable BAA coverage and settings. A Google Workspace BAA does not cover later storage/processing in Convex or Vercel. Keep roster data out of Resend; its current security documentation says it cannot sign a BAA.

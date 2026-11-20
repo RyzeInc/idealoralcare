@@ -17,6 +17,8 @@ type Preview = {
   errors: { row: number; message: string }[];
   validationErrors: { row: number; field: string; message: string }[];
   sampleRecords: { firstName: string; lastName: string }[];
+  adjustments: { row: number; field: string; message: string }[];
+  adjustmentCount: number;
 };
 const inputClass =
   "mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-sm";
@@ -655,6 +657,16 @@ export default function EmployerIntakeAdminPage() {
               {preview.data.errorCount} parsing issues ·{" "}
               {preview.data.validationErrorCount} validation issues
             </p>
+            {!!preview.data.adjustmentCount && (
+              <div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-900">
+                <p className="font-semibold">{preview.data.adjustmentCount} automatic adjustments</p>
+                {preview.data.adjustments.map((item, i) => <p key={i}>{item.message}</p>)}
+                {preview.data.adjustmentCount > preview.data.adjustments.length && (
+                  <p>Showing the first {preview.data.adjustments.length} adjustments.</p>
+                )}
+                <p className="mt-2">The original uploaded file is retained.</p>
+              </div>
+            )}
             {preview.data.tooLarge && (
               <p className="text-red-700">
                 This file exceeds the importer’s member limit.

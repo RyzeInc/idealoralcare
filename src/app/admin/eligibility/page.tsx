@@ -117,6 +117,7 @@ export default function EligibilityUploadPage() {
         storageId,
         fileType,
         fileName: file.name,
+        groupId: selectedGroup._id as Id<'groups'>,
       });
       setPreviewResult(preview);
       setStep(3);
@@ -713,6 +714,19 @@ export default function EligibilityUploadPage() {
                     </p>
                   )}
                 </div>
+              </div>
+            )}
+
+            {!!previewResult.adjustmentCount && (
+              <div className="rounded border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+                <p className="font-semibold">{previewResult.adjustmentCount} automatic adjustments</p>
+                {previewResult.adjustments.map((item: { message: string }, i: number) => (
+                  <p key={i}>{item.message}</p>
+                ))}
+                {previewResult.adjustmentCount > previewResult.adjustments.length && (
+                  <p>Showing the first {previewResult.adjustments.length} adjustments.</p>
+                )}
+                <p className="mt-2">The original uploaded file is retained.</p>
               </div>
             )}
 
